@@ -1,0 +1,9 @@
+# mic_funcs (just import all)
+from .List import List
+from .Vector4f import Vector4f
+from .TkVertexLayout import TkVertexLayout
+from .TkVertexElement import TkVertexElement
+from .TkSceneNodeAttributeData import TkSceneNodeAttributeData
+from .TkTransformData import TkTransformData
+from .TkGeometryData import TkGeometryData
+from .TkSceneNodeData import TkSceneNodeData
