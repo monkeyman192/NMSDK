@@ -1,18 +1,14 @@
-# TkSceneNodeData struct
+# TkMaterialFlags struct
 
 from .Struct import Struct
 
-STRUCTNAME = 'TkSceneNodeData'
+STRUCTNAME = 'TkMaterialFlags'
 
-class TkSceneNodeData(Struct):
+class TkMaterialFlags(Struct):
     def __init__(self, **kwargs):
 
         """ Contents of the struct """
-        self.Name = kwargs.get('Name', None)
-        self.Type = kwargs.get('Type', 'MODEL')
-        self.Transform = kwargs.get('Transform', None)
-        self.Attributes = kwargs.get('Attributes', None)
-        self.Children = kwargs.get('Children', None)
+        self.MaterialFlag = kwargs.get('MaterialFlag', None)
         """ End of the struct contents"""
 
         """ Run code to convert struct contents into self.data_dict """

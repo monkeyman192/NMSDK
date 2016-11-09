@@ -4,13 +4,19 @@
 """
 
 from classes import *
+import os
+from LOOKUPS import *
 
 class Create_Data():
-    def __init__(self, name, path, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None):
+    def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None):
 
         self.name = name        # this is the name of the file
-        self.path = path        # the path that the file is supposed to be located at
+        self.directory = directory        # the path that the file is supposed to be located at
         self.object_names = object_names        # this is a list of names for each object. Each will be a child of the main model
+        self.num_objects = range(len(object_names))
+
+        self.path = os.path.join(self.directory, self.name)         # the path location including the file name.
+        self.ent_path = os.path.join(self.path, 'ENTITIES')         # path location of the entity folder. Calling makedirs of this will ensure all the folders are made in one go
 
         self.index_stream = index_stream
         self.vertex_stream = vertex_stream
@@ -24,15 +30,14 @@ class Create_Data():
         self.GeometryData = dict()
         # This dictionary contais all the data for the scene file
         self.SceneData = dict()
+        # This dictionary contains all the data for the material file
+        self.Materials = list()
+        for i in self.num_objects:
+            self.Materials.append(dict())
 
         self.process_data()
 
         self.get_bounds()
-
-        self.semantic_map = {0: 'vertex_stream',
-                             1: 'uv_stream',
-                             2: 'n_stream',
-                             3: 't_stream'}
 
         self.check_streams()        #self.stream_list is created here
 
@@ -40,25 +45,41 @@ class Create_Data():
 
         self.mix_streams()
 
-        """ Default values """
-        # Geometry defaults
-        self.GeometryData['Indices16Bit'] = 1
-        self.GeometryData['self.JointBindings'] = None
-        self.GeometryData['self.JointExtents'] = None
-        self.GeometryData['self.JointMirrorPairs'] = None
-        self.GeometryData['self.JointMirrorAxes'] = None
-        self.GeometryData['self.SkinMatrixLayout'] = None
-        self.GeometryData['self.MeshBaseSkinMat'] = None
+        """ Basic values """
         # Scene defaults
-        self.SceneData['Name'] = self.path + self.name
-        self.SceneData['Type'] = 'MODEL'
+        self.SceneData['Name'] = self.path
         self.SceneData['Transform'] = TkTransformData(TransX = 0, TransY = 0, TransZ = 0,
                                                       RotX = 0, RotY = 0, RotZ = 0,
                                                       ScaleX = 1, ScaleY = 1, ScaleZ = 1)
         self.SceneData['Attributes'] = List(TkSceneNodeAttributeData(Name = "GEOMETRY",
                                                                      AltID = "",
-                                                                     Value = self.path + self.name + ".GEOMETRY.MBIN"))
+                                                                     Value = str(self.path) + ".GEOMETRY.MBIN"))
         self.SceneData['Children'] = None
+        # Material defaults
+        for i in self.num_objects:
+            self.Materials[i]['Name'] = "{0}_{1}".format(self.object_names[i], 'Mat')
+            self.Materials[i]['Class'] = "Opaque"
+            self.Materials[i]['Flags'] = List(TkMaterialFlags(MaterialFlag = MATERIALFLAGS[1+1]))
+            self.Materials[i]['Uniforms'] = List(TkMaterialUniform(Name = 'gMaterialColourVec4',
+                                                                   Values = Vector4f(x = 1,
+                                                                                    y = 1,
+                                                                                    z = 1,
+                                                                                    t = 1)),
+                                                 TkMaterialUniform(Name = 'gMaterialParamsVec4',
+                                                                   Values = Vector4f(x = 0.9,
+                                                                                     y = 0.5,
+                                                                                     z = 0,
+                                                                                     t = 0)),
+                                                 TkMaterialUniform(Name = 'gMaterialSFXVec4',
+                                                                   Values = Vector4f(x = 0,
+                                                                                     y = 0,
+                                                                                     z = 0,
+                                                                                     t = 0)),
+                                                 TkMaterialUniform(Name = 'gMaterialSFXColVec4',
+                                                                   Values = Vector4f(x = 0,
+                                                                                     y = 0,
+                                                                                     z = 0,
+                                                                                     t = 0)))
 
         self.process_nodes()
         
@@ -66,6 +87,12 @@ class Create_Data():
         self.TkGeometryData.make_elements(main=True)
         self.TkSceneNodeData = TkSceneNodeData(**self.SceneData)
         self.TkSceneNodeData.make_elements(main=True)
+        self.TkMaterialData_list = list()
+        for i in self.num_objects:
+            self.TkMaterialData_list.append(TkMaterialData(**self.Materials[i]))
+            # this will not work if there are multiple names that are the same in the object_names list.
+        for i in self.num_objects:
+            self.TkMaterialData_list[i].make_elements(main=True)
         self.write()
 
     def fix_names(self):
@@ -102,11 +129,13 @@ class Create_Data():
                                                                      Value = 0),
                                             TkSceneNodeAttributeData(Name = 'LASTSKINMAT',
                                                                      AltID = "",
-                                                                     Value = 0))
-            """,
+                                                                     Value = 0),
+                                            TkSceneNodeAttributeData(Name = 'MATERIAL',
+                                                                     AltID = "",
+                                                                     Value = os.path.join(self.path, self.name)+ '_{}'.format(name.upper()) + '.MATERIAL.MBIN'),
                                             TkSceneNodeAttributeData(Name = 'MESHLINK',
                                                                      AltID = "",
-                                                                     Value = name + 'Shape'))"""
+                                                                     Value = name + 'Shape'))
             scene_data['Children'] = None
             # now add the child object the the list of children of the mian object
             self.SceneData['Children'].append(TkSceneNodeData(**scene_data))
@@ -152,7 +181,7 @@ class Create_Data():
             for sID in self.stream_list:
                 # get the i^th 4Vector element of the corresponding stream as specified by the stream list.
                 # As self.stream_list is ordered this will be mixed in the correct way wrt. the VertexLayouts
-                VertexStream += self.__dict__[self.semantic_map[sID]][i]
+                VertexStream += self.__dict__[SEMANTICS[sID]][i]
         self.GeometryData['VertexStream'] = VertexStream
         self.GeometryData['SmallVertexStream'] = VertexStream
 
@@ -178,16 +207,24 @@ class Create_Data():
         # checks what streams have been given. Vertex and index streams are always required.
         # self.stream list 
         self.stream_list = []
-        for i in self.semantic_map:
-            if self.__dict__[self.semantic_map[i]] is not None:
+        for i in SEMANTICS:
+            if self.__dict__[SEMANTICS[i]] is not None:
                 self.stream_list.append(i)
         self.stream_list.sort()
 
-    def write(self):
-        self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.name))
-        self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.name))
+    def create_material_data(self):
+        # generates some material data. Not sure the best way to specify some of this...
+        pass
 
-main = Create_Data('SQUARE', 'TEST\\', ['Square'],
+    def write(self):
+        if not os.path.exists(self.ent_path):
+            os.makedirs(self.ent_path)
+        self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
+        self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
+        for i in self.num_objects:
+            self.TkMaterialData_list[i].tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), self.object_names[i].upper()))
+
+main = Create_Data('SQUARE', 'TEST', ['Square'],
                    index_stream = [[0,1,2], [2,3,0]],
                    vertex_stream = [[-1,1,0,1], [1,1,0,1], [1,-1,0,1], [-1,-1,0,1]],
                    uv_stream = [[0.3,0,0,1], [0,0.2,0,1], [0,0,0.1,1], [0.1,0.2,0,1]])
@@ -200,5 +237,6 @@ def prettyPrintXml(xmlFilePathToPrettyPrint):
     document = etree.parse(xmlFilePathToPrettyPrint, parser)
     document.write(xmlFilePathToPrettyPrint, xml_declaration='<?xml version="1.0" encoding="utf-8"?>', pretty_print=True, encoding='utf-8')
 
-prettyPrintXml('SQUARE.GEOMETRY.exml')
-prettyPrintXml('SQUARE.SCENE.exml')
+prettyPrintXml('TEST\SQUARE.GEOMETRY.exml')
+prettyPrintXml('TEST\SQUARE.SCENE.exml')
+prettyPrintXml('TEST\SQUARE\SQUARE_SQUARE.MATERIAL.exml')

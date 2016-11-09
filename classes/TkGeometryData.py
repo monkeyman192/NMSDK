@@ -10,7 +10,7 @@ class TkGeometryData(Struct):
         """ Contents of the struct """
         self.VertexCount = kwargs.get('VertexCount', None)
         self.IndexCount = kwargs.get('IndexCount', None)
-        self.Indices16Bit = kwargs.get('Indices16Bit', None)
+        self.Indices16Bit = kwargs.get('Indices16Bit', 1)
         self.JointBindings = kwargs.get('JointBindings', None)
         self.JointExtents = kwargs.get('JointExtents', None)
         self.JointMirrorPairs = kwargs.get('JointMirrorPairs', None)
