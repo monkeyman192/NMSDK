@@ -10,19 +10,36 @@ from LOOKUPS import *
 class Create_Data():
     def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None):
 
+        """
+        name - the name of the file we want to create. Most entities  within will have a name derived from this.
+        directory - the full relative location of where the scene file will be located.
+        object_names - A list of the names of the children objects. This can be None, and if so the children will be given default names
+        index_stream - A list containing lists of triangle indexes. Each sub list to the main list represents an entire 3d object.
+        vertex_stream - A list containing lists of vertices. Each sublist to the main list represents an entire 3d object.
+
+        """
+
         self.name = name        # this is the name of the file
         self.directory = directory        # the path that the file is supposed to be located at
         self.object_names = object_names        # this is a list of names for each object. Each will be a child of the main model
-        self.num_objects = range(len(object_names))
 
-        self.path = os.path.join(self.directory, self.name)         # the path location including the file name.
-        self.ent_path = os.path.join(self.path, 'ENTITIES')         # path location of the entity folder. Calling makedirs of this will ensure all the folders are made in one go
+        self.fix_names()
 
+        # assign each of the input streams to a variable
         self.index_stream = index_stream
         self.vertex_stream = vertex_stream
         self.uv_stream = uv_stream
         self.n_stream = n_stream
         self.t_stream = t_stream
+
+        # process the stream and object_names inputs to make sure they are all fine:
+        self.process_inputs()
+        # The above function will define self.i_stream_lens and self.v_stream_lens and will ensure all inputs are the same length
+        
+        self.num_objects = len(object_names)
+
+        self.path = os.path.join(self.directory, self.name)         # the path location including the file name.
+        self.ent_path = os.path.join(self.path, 'ENTITIES')         # path location of the entity folder. Calling makedirs of this will ensure all the folders are made in one go
 
         self.vert_count = len(self.vertex_stream)       # total number, ignoring multiple objects
 
@@ -32,7 +49,7 @@ class Create_Data():
         self.SceneData = dict()
         # This dictionary contains all the data for the material file
         self.Materials = list()
-        for i in self.num_objects:
+        for i in range(self.num_objects):
             self.Materials.append(dict())
 
         self.process_data()
@@ -42,8 +59,6 @@ class Create_Data():
         self.check_streams()        #self.stream_list is created here
 
         self.create_vertex_layouts()        # this creates the VertexLayout and SmallVertexLayout properties
-
-        self.mix_streams()
 
         """ Basic values """
         # Scene defaults
@@ -56,10 +71,10 @@ class Create_Data():
                                                                      Value = str(self.path) + ".GEOMETRY.MBIN"))
         self.SceneData['Children'] = None
         # Material defaults
-        for i in self.num_objects:
+        for i in range(self.num_objects):
             self.Materials[i]['Name'] = "{0}_{1}".format(self.object_names[i], 'Mat')
             self.Materials[i]['Class'] = "Opaque"
-            self.Materials[i]['Flags'] = List(TkMaterialFlags(MaterialFlag = MATERIALFLAGS[1+1]))
+            self.Materials[i]['Flags'] = List(TkMaterialFlags(MaterialFlag = MATERIALFLAGS[0]))
             self.Materials[i]['Uniforms'] = List(TkMaterialUniform(Name = 'gMaterialColourVec4',
                                                                    Values = Vector4f(x = 1,
                                                                                     y = 1,
@@ -82,31 +97,87 @@ class Create_Data():
                                                                                      t = 0)))
 
         self.process_nodes()
-        
+
+        self.mix_streams()      # make this last to make sure flattening each stream doesn't affect other data.
+
+        # Assign each of the class objects that contain all of the data their data
         self.TkGeometryData = TkGeometryData(**self.GeometryData)
         self.TkGeometryData.make_elements(main=True)
         self.TkSceneNodeData = TkSceneNodeData(**self.SceneData)
         self.TkSceneNodeData.make_elements(main=True)
         self.TkMaterialData_list = list()
-        for i in self.num_objects:
+        for i in range(self.num_objects):
             self.TkMaterialData_list.append(TkMaterialData(**self.Materials[i]))
             # this will not work if there are multiple names that are the same in the object_names list.
-        for i in self.num_objects:
+        for i in range(self.num_objects):
             self.TkMaterialData_list[i].make_elements(main=True)
         self.write()
+
+    def process_inputs(self):
+        # Makes sure that the number of sublists in vertex_stream and index_stream are the same, and also the same as the number of object names
+        # (if specified). If not, generate a number of default names for the object_names list.
+        # The vertex and index lists will always come in a list, even if there is only one object (i. = [[(p1), (p2)]]
+        
+        len_streams = len(self.index_stream)
+        self.i_stream_lens = list()
+        self.v_stream_lens = list()
+        # assign to the above two lists the lengths of each sub-stream
+        for lst in self.index_stream:
+            self.i_stream_lens.append(len(lst))
+        for lst in self.vertex_stream:
+            self.v_stream_lens.append(len(lst))
+        # now check the object_names
+        if self.object_names is not None and type(self.object_names) == list:
+            len_names = len(self.object_names)
+            if len_names != len_streams:
+                # we have a bit of a problem.
+                # If there are less, add some default ones up to the right amount.
+                # If there are more remove the trailing ones.
+                # Either way, notify the user that something is wrong.
+                if len_names < len_streams:
+                    diff = len_streams - len_names
+                    for i in range(diff):
+                        self.object_names.append('{0}_{1}'.format(self.name, i))
+                        error = 'less'
+                elif len_names > len_streams:
+                    self.object_names = self.object_names[:len_streams]
+                    error = 'more'
+                print("ERROR! The number of names supplied was {} than required. Please check your inputs.".format(error))
+        else:
+            # In this case no names have been provided, or they have been provided in the wrong format.
+            # Notify the user and generate default names
+            self.object_names = list()
+            for i in range(len_streams):
+                self.object_names.append('{0}_{1}'.format(self.name, i))
+            print('No names for constituent objects specified. Objects given default names.')
 
     def fix_names(self):
         # just make sure that the name and path is all in uppercase
         self.name = self.name.upper()
-        self.path = self.path.upper()
+        self.directory = self.directory.upper()
+
+    def process_data(self):
+        # This will do the main processing of the different streams.
+        # indexes
+        index_counts = list(3*x for x in self.i_stream_lens)    # the total number of index points in each object
+        self.batches = list((sum(index_counts[:i]), index_counts[i]) for i in range(self.num_objects))
+        # vertices
+        self.vert_bounds = list((sum(self.v_stream_lens[:i]), sum(self.v_stream_lens[:i+1])-1) for i in range(self.num_objects))
+
+        # First we need to find the length of each stream.
+        self.GeometryData['IndexCount'] = 3*sum(self.i_stream_lens)
+        self.GeometryData['VertexCount'] = sum(self.v_stream_lens)
+        self.GeometryData['MeshVertRStart'] = list(self.vert_bounds[i][0] for i in range(self.num_objects))
+        self.GeometryData['MeshVertREnd'] = list(self.vert_bounds[i][1] for i in range(self.num_objects))
 
     def process_nodes(self):
         # this will look at the list in object_names and create child nodes for them
         # If the name is COLLISION the name becomes path + name, and the Type is COLLISION
         if len(self.object_names) != 0:
             self.SceneData['Children'] = List()
-        for name in self.object_names:
-            scene_data = dict()
+        for i in range(self.num_objects):
+            name = self.object_names[i]
+            scene_data = dict()            
             scene_data['Name'] = name
             scene_data['Type'] = 'MESH'
             scene_data['Transform'] = TkTransformData(TransX = 0, TransY = 0, TransZ = 0,
@@ -114,16 +185,16 @@ class Create_Data():
                                                       ScaleX = 1, ScaleY = 1, ScaleZ = 1)
             scene_data['Attributes'] = List(TkSceneNodeAttributeData(Name = 'BATCHSTART',
                                                                      AltID = "",
-                                                                     Value = 0),
+                                                                     Value = self.batches[i][0]),
                                             TkSceneNodeAttributeData(Name = 'BATCHCOUNT',
                                                                      AltID = "",
-                                                                     Value = len(self.index_stream)*3),
+                                                                     Value = self.batches[i][1]),
                                             TkSceneNodeAttributeData(Name = 'VERTRSTART',
                                                                      AltID = "",
-                                                                     Value = 0),
+                                                                     Value = self.vert_bounds[i][0]),
                                             TkSceneNodeAttributeData(Name = 'VERTREND',
                                                                      AltID = "",
-                                                                     Value = self.vert_count -1),
+                                                                     Value = self.vert_bounds[i][1]),
                                             TkSceneNodeAttributeData(Name = 'FIRSTSKINMAT',
                                                                      AltID = "",
                                                                      Value = 0),
@@ -139,15 +210,6 @@ class Create_Data():
             scene_data['Children'] = None
             # now add the child object the the list of children of the mian object
             self.SceneData['Children'].append(TkSceneNodeData(**scene_data))
-            
-    def process_data(self):
-        # This will do the main processing of the different streams.
-
-        # First we need to find the length of each stream.
-        self.GeometryData['IndexCount'] = 3*len(self.index_stream)
-        self.GeometryData['VertexCount'] = self.vert_count      ## TODO: fix this to work for the case of multiple objects
-        self.GeometryData['MeshVertRStart'] = [0]
-        self.GeometryData['MeshVertREnd'] = [self.GeometryData['VertexCount'] - 1]
 
     def create_vertex_layouts(self):
         # sort out what streams are given and create appropriate vertex layouts
@@ -175,33 +237,43 @@ class Create_Data():
         
     def mix_streams(self):
         # this combines all the input streams into one single stream with the correct offset etc as specified by the VertexLayout
-        # Again, for now just make the SmallVertexStream the same. Later, change this.
-        VertexStream = list()
-        for i in range(0, self.vert_count):
-            for sID in self.stream_list:
-                # get the i^th 4Vector element of the corresponding stream as specified by the stream list.
-                # As self.stream_list is ordered this will be mixed in the correct way wrt. the VertexLayouts
-                VertexStream += self.__dict__[SEMANTICS[sID]][i]
-        self.GeometryData['VertexStream'] = VertexStream
-        self.GeometryData['SmallVertexStream'] = VertexStream
+        # This also flattens each stream
+        # Again, for now just make the SmallVertexStream the same. Later, change this.            
+        
+        VertexStream = tuple()
+        for i in range(self.num_objects):
+            for j in range(self.v_stream_lens[i]):
+                for sID in self.stream_list:
+                    # get the j^th 4Vector element of i^th object of the corresponding stream as specified by the stream list.
+                    # As self.stream_list is ordered this will be mixed in the correct way wrt. the VertexLayouts
+                    VertexStream += self.__dict__[SEMANTICS[sID]][i][j]
+        self.GeometryData['VertexStream'] = list(VertexStream)
+        self.GeometryData['SmallVertexStream'] = list(VertexStream)
 
         # finally we can also flatten the index stream:
-        IndexBuffer = list()
-        for tri in self.index_stream:
-            IndexBuffer += tri
-        self.GeometryData['IndexBuffer'] = IndexBuffer
+        IndexBuffer = tuple()
+        for obj in self.index_stream:
+            for tri in obj:
+                IndexBuffer += tri
+        self.GeometryData['IndexBuffer'] = list(IndexBuffer)
 
     def get_bounds(self):
         # this analyses the vertex stream and finds the smallest bounding box corners.
-        x_verts = [i[0] for i in self.vertex_stream]
-        y_verts = [i[1] for i in self.vertex_stream]
-        z_verts = [i[2] for i in self.vertex_stream]
-        x_bounds = (min(x_verts), max(x_verts))
-        y_bounds = (min(y_verts), max(y_verts))
-        z_bounds = (min(z_verts), max(z_verts))
 
-        self.GeometryData['MeshAABBMin'] = List(Vector4f(x=x_bounds[0], y=y_bounds[0], z=z_bounds[0], t=1))
-        self.GeometryData['MeshAABBMax'] = List(Vector4f(x=x_bounds[1], y=y_bounds[1], z=z_bounds[1], t=1))
+        self.GeometryData['MeshAABBMin'] = List()
+        self.GeometryData['MeshAABBMax'] = List()
+        
+        for i in range(self.num_objects):
+            obj = self.vertex_stream[i]
+            x_verts = [i[0] for i in obj]
+            y_verts = [i[1] for i in obj]
+            z_verts = [i[2] for i in obj]
+            x_bounds = (min(x_verts), max(x_verts))
+            y_bounds = (min(y_verts), max(y_verts))
+            z_bounds = (min(z_verts), max(z_verts))
+
+            self.GeometryData['MeshAABBMin'].append(Vector4f(x=x_bounds[0], y=y_bounds[0], z=z_bounds[0], t=1))
+            self.GeometryData['MeshAABBMax'].append(Vector4f(x=x_bounds[1], y=y_bounds[1], z=z_bounds[1], t=1))
 
     def check_streams(self):
         # checks what streams have been given. Vertex and index streams are always required.
@@ -221,14 +293,19 @@ class Create_Data():
             os.makedirs(self.ent_path)
         self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
-        for i in self.num_objects:
+        for i in range(self.num_objects):
             self.TkMaterialData_list[i].tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), self.object_names[i].upper()))
 
-main = Create_Data('SQUARE', 'TEST', ['Square'],
-                   index_stream = [[0,1,2], [2,3,0]],
-                   vertex_stream = [[-1,1,0,1], [1,1,0,1], [1,-1,0,1], [-1,-1,0,1]],
-                   uv_stream = [[0.3,0,0,1], [0,0.2,0,1], [0,0,0.1,1], [0.1,0.2,0,1]])
-
+"""
+main = Create_Data('SQUARE', 'TEST', ['Square1', 'Square2'],
+                   index_stream = [[(0,1,2), (2,3,0)],
+                                   [(4,5,6), (6,7,4)]],
+                   vertex_stream = [[(-1,1,0,1), (1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
+                                    [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)]],
+                   uv_stream = [[(0.3,0,0,1), (0,0.2,0,1), (0,0,0.1,1), (0.1,0.2,0,1)],
+                                [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0.1,1), (0.1,0.2,0.1,1)]])
+"""
+"""
 from lxml import etree
 
 def prettyPrintXml(xmlFilePathToPrettyPrint):
@@ -240,3 +317,4 @@ def prettyPrintXml(xmlFilePathToPrettyPrint):
 prettyPrintXml('TEST\SQUARE.GEOMETRY.exml')
 prettyPrintXml('TEST\SQUARE.SCENE.exml')
 prettyPrintXml('TEST\SQUARE\SQUARE_SQUARE.MATERIAL.exml')
+"""
