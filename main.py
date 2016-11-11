@@ -41,8 +41,6 @@ class Create_Data():
         self.path = os.path.join(self.directory, self.name)         # the path location including the file name.
         self.ent_path = os.path.join(self.path, 'ENTITIES')         # path location of the entity folder. Calling makedirs of this will ensure all the folders are made in one go
 
-        self.vert_count = len(self.vertex_stream)       # total number, ignoring multiple objects
-
         # This dictionary contains all the information for the geometry file 
         self.GeometryData = dict()
         # This dictionary contais all the data for the scene file
@@ -163,6 +161,22 @@ class Create_Data():
         self.batches = list((sum(index_counts[:i]), index_counts[i]) for i in range(self.num_objects))
         # vertices
         self.vert_bounds = list((sum(self.v_stream_lens[:i]), sum(self.v_stream_lens[:i+1])-1) for i in range(self.num_objects))
+
+        # we need to fix up the index stream as the numbering needs to be continuous across all the streams
+        print(self.index_stream)
+        k = 0       # additive constant
+        for i in range(len(self.index_stream)):
+            # first add k to every element in every tuple
+            curr_max = 0
+            for j in range(len(self.index_stream[i])):
+                self.index_stream[i][j] = tuple(k + index for index in self.index_stream[i][j])
+                local_max = max(self.index_stream[i][j])
+                if local_max > curr_max:
+                    curr_max = local_max
+            # now we set k to be the current max and this is added on to the next set.
+            k = curr_max + 1
+        print(self.index_stream)
+                
 
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = 3*sum(self.i_stream_lens)
@@ -296,25 +310,23 @@ class Create_Data():
         for i in range(self.num_objects):
             self.TkMaterialData_list[i].tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), self.object_names[i].upper()))
 
-"""
-main = Create_Data('SQUARE', 'TEST', ['Square1', 'Square2'],
-                   index_stream = [[(0,1,2), (2,3,0)],
-                                   [(4,5,6), (6,7,4)]],
-                   vertex_stream = [[(-1,1,0,1), (1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
-                                    [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)]],
-                   uv_stream = [[(0.3,0,0,1), (0,0.2,0,1), (0,0,0.1,1), (0.1,0.2,0,1)],
-                                [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0.1,1), (0.1,0.2,0.1,1)]])
-"""
-"""
-from lxml import etree
+if __name__ == '__main__':
 
-def prettyPrintXml(xmlFilePathToPrettyPrint):
-    assert xmlFilePathToPrettyPrint is not None
-    parser = etree.XMLParser(resolve_entities=False, strip_cdata=False)
-    document = etree.parse(xmlFilePathToPrettyPrint, parser)
-    document.write(xmlFilePathToPrettyPrint, xml_declaration='<?xml version="1.0" encoding="utf-8"?>', pretty_print=True, encoding='utf-8')
+    main = Create_Data('SQUARE', 'TEST', ['Square1', 'Square2'],
+                       index_stream = [[(0,1,2), (2,3,0)],
+                                       [(0,1,2), (2,3,0)]],
+                       vertex_stream = [[(-1,1,0,1), (1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
+                                        [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)]],
+                       uv_stream = [[(0.3,0,0,1), (0,0.2,0,1), (0,0.1,0,1), (0.1,0.2,0,1)],
+                                    [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)]])
+    from lxml import etree
 
-prettyPrintXml('TEST\SQUARE.GEOMETRY.exml')
-prettyPrintXml('TEST\SQUARE.SCENE.exml')
-prettyPrintXml('TEST\SQUARE\SQUARE_SQUARE.MATERIAL.exml')
-"""
+    def prettyPrintXml(xmlFilePathToPrettyPrint):
+        assert xmlFilePathToPrettyPrint is not None
+        parser = etree.XMLParser(resolve_entities=False, strip_cdata=False)
+        document = etree.parse(xmlFilePathToPrettyPrint, parser)
+        document.write(xmlFilePathToPrettyPrint, xml_declaration='<?xml version="1.0" encoding="utf-8"?>', pretty_print=True, encoding='utf-8')
+
+    prettyPrintXml('TEST\SQUARE.GEOMETRY.exml')
+    prettyPrintXml('TEST\SQUARE.SCENE.exml')
+    #prettyPrintXml('TEST\SQUARE\SQUARE_SQUARE.MATERIAL.exml')
