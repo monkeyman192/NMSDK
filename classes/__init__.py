@@ -7,3 +7,6 @@ from .TkSceneNodeAttributeData import TkSceneNodeAttributeData
 from .TkTransformData import TkTransformData
 from .TkGeometryData import TkGeometryData
 from .TkSceneNodeData import TkSceneNodeData
+from .TkMaterialData import TkMaterialData
+from .TkMaterialFlags import TkMaterialFlags
+from .TkMaterialUniform import TkMaterialUniform
