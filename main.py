@@ -6,9 +6,10 @@
 from classes import *
 import os
 from LOOKUPS import *
+from shutil import copy2
 
 class Create_Data():
-    def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None):
+    def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None, textures=[]):
 
         """
         name - the name of the file we want to create. Most entities  within will have a name derived from this.
@@ -31,6 +32,7 @@ class Create_Data():
         self.uv_stream = uv_stream
         self.n_stream = n_stream
         self.t_stream = t_stream
+        self.textures = textures
 
         # process the stream and object_names inputs to make sure they are all fine:
         self.process_inputs()
@@ -39,9 +41,10 @@ class Create_Data():
         self.num_objects = len(object_names)
 
         self.path = os.path.join(self.directory, self.name)         # the path location including the file name.
+        self.texture_path = os.path.join(self.directory, 'TEXTURES')
         self.ent_path = os.path.join(self.path, 'ENTITIES')         # path location of the entity folder. Calling makedirs of this will ensure all the folders are made in one go
 
-        self.vert_count = len(self.vertex_stream)       # total number, ignoring multiple objects
+        self.create_paths()
 
         # This dictionary contains all the information for the geometry file 
         self.GeometryData = dict()
@@ -95,6 +98,7 @@ class Create_Data():
                                                                                      y = 0,
                                                                                      z = 0,
                                                                                      t = 0)))
+        self.process_materials()
 
         self.process_nodes()
 
@@ -112,6 +116,13 @@ class Create_Data():
         for i in range(self.num_objects):
             self.TkMaterialData_list[i].make_elements(main=True)
         self.write()
+
+    def create_paths(self):
+        # check whether the require paths exist and make them
+        if not os.path.exists(self.ent_path):
+            os.makedirs(self.ent_path)
+        if not os.path.exists(self.texture_path):
+            os.makedirs(self.texture_path)
 
     def process_inputs(self):
         # Makes sure that the number of sublists in vertex_stream and index_stream are the same, and also the same as the number of object names
@@ -163,6 +174,22 @@ class Create_Data():
         self.batches = list((sum(index_counts[:i]), index_counts[i]) for i in range(self.num_objects))
         # vertices
         self.vert_bounds = list((sum(self.v_stream_lens[:i]), sum(self.v_stream_lens[:i+1])-1) for i in range(self.num_objects))
+
+        # we need to fix up the index stream as the numbering needs to be continuous across all the streams
+        print(self.index_stream)
+        k = 0       # additive constant
+        for i in range(len(self.index_stream)):
+            # first add k to every element in every tuple
+            curr_max = 0
+            for j in range(len(self.index_stream[i])):
+                self.index_stream[i][j] = tuple(k + index for index in self.index_stream[i][j])
+                local_max = max(self.index_stream[i][j])
+                if local_max > curr_max:
+                    curr_max = local_max
+            # now we set k to be the current max and this is added on to the next set.
+            k = curr_max + 1
+        print(self.index_stream)
+                
 
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = 3*sum(self.i_stream_lens)
@@ -284,37 +311,50 @@ class Create_Data():
                 self.stream_list.append(i)
         self.stream_list.sort()
 
-    def create_material_data(self):
+    def process_materials(self):
         # generates some material data. Not sure the best way to specify some of this...
-        pass
+        for i in range(len(self.textures)):
+            # let's first process and move all the specified textures to the right place
+            for texture_file in self.textures[i]:
+                new_path = os.path.join(self.texture_path, os.path.basename(texture_file).upper())
+                copy2(texture_file, new_path)
+            
+            # this will have the order Diffuse, Masks, Normal
+            self.Materials[i]['Samplers'] = List(TkMaterialSampler(Name = 'gDiffuseMap',
+                                                                   Map = os.path.join(self.texture_path, self.textures[i][0].upper()),
+                                                                   IsSRGB = 'True'),
+                                                 TkMaterialSampler(Name = 'gMasksMap',
+                                                                   Map = os.path.join(self.texture_path, self.textures[i][1].upper()),
+                                                                   IsSRGB = 'False'),
+                                                 TkMaterialSampler(Name = 'gNormalMap',
+                                                                   Map = os.path.join(self.texture_path, self.textures[i][2].upper()),
+                                                                   IsSRGB = 'False'))
 
     def write(self):
-        if not os.path.exists(self.ent_path):
-            os.makedirs(self.ent_path)
+        # write each of the exml files.
         self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for i in range(self.num_objects):
             self.TkMaterialData_list[i].tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), self.object_names[i].upper()))
 
-"""
-main = Create_Data('SQUARE', 'TEST', ['Square1', 'Square2'],
-                   index_stream = [[(0,1,2), (2,3,0)],
-                                   [(4,5,6), (6,7,4)]],
-                   vertex_stream = [[(-1,1,0,1), (1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
-                                    [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)]],
-                   uv_stream = [[(0.3,0,0,1), (0,0.2,0,1), (0,0,0.1,1), (0.1,0.2,0,1)],
-                                [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0.1,1), (0.1,0.2,0.1,1)]])
-"""
-"""
-from lxml import etree
+if __name__ == '__main__':
 
-def prettyPrintXml(xmlFilePathToPrettyPrint):
-    assert xmlFilePathToPrettyPrint is not None
-    parser = etree.XMLParser(resolve_entities=False, strip_cdata=False)
-    document = etree.parse(xmlFilePathToPrettyPrint, parser)
-    document.write(xmlFilePathToPrettyPrint, xml_declaration='<?xml version="1.0" encoding="utf-8"?>', pretty_print=True, encoding='utf-8')
+    main = Create_Data('SQUARE', 'TEST', ['Square1', 'Square2'],
+                       index_stream = [[(0,1,2), (2,3,0)],
+                                       [(0,1,2), (2,3,0)]],
+                       vertex_stream = [[(-1,1,0,1), (1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
+                                        [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)]],
+                       uv_stream = [[(0.3,0,0,1), (0,0.2,0,1), (0,0.1,0,1), (0.1,0.2,0,1)],
+                                    [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)]],
+                       textures = [['CUBE1.DDS', 'CUBE1.MASKS.DDS', 'cube1.NORMAL.DDS'], ['CUBE2.DDS', 'CUBE2.MASKS.DDS', 'CUBE2.NORMAL.DDS']])
+    from lxml import etree
 
-prettyPrintXml('TEST\SQUARE.GEOMETRY.exml')
-prettyPrintXml('TEST\SQUARE.SCENE.exml')
-prettyPrintXml('TEST\SQUARE\SQUARE_SQUARE.MATERIAL.exml')
-"""
+    def prettyPrintXml(xmlFilePathToPrettyPrint):
+        assert xmlFilePathToPrettyPrint is not None
+        parser = etree.XMLParser(resolve_entities=False, strip_cdata=False)
+        document = etree.parse(xmlFilePathToPrettyPrint, parser)
+        document.write(xmlFilePathToPrettyPrint, xml_declaration='<?xml version="1.0" encoding="utf-8"?>', pretty_print=True, encoding='utf-8')
+
+    prettyPrintXml('TEST\SQUARE.GEOMETRY.exml')
+    prettyPrintXml('TEST\SQUARE.SCENE.exml')
+    #prettyPrintXml('TEST\SQUARE\SQUARE_SQUARE.MATERIAL.exml')

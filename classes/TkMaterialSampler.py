@@ -10,7 +10,7 @@ class TkMaterialSampler(Struct):
         """ Contents of the struct """
         self.Name = kwargs.get('Name', None)
         self.Map = kwargs.get('Map', None)
-        self.IsCube = kwargs.get('IsCube', None)
+        self.IsCube = kwargs.get('IsCube', 'False')
         self.UseCompression = kwargs.get('UseCompression', "True")
         self.UseMipMaps = kwargs.get('UseMipMaps', "True")
         self.IsSRGB = kwargs.get('IsSRGB', None)        # True image, False for MASKS and NORMAL

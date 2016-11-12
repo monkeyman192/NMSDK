@@ -10,3 +10,4 @@ from .TkSceneNodeData import TkSceneNodeData
 from .TkMaterialData import TkMaterialData
 from .TkMaterialFlags import TkMaterialFlags
 from .TkMaterialUniform import TkMaterialUniform
+from .TkMaterialSampler import TkMaterialSampler
