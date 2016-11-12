@@ -6,9 +6,10 @@
 from classes import *
 import os
 from LOOKUPS import *
+from shutil import copy2
 
 class Create_Data():
-    def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None):
+    def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None, textures=[]):
 
         """
         name - the name of the file we want to create. Most entities  within will have a name derived from this.
@@ -31,6 +32,7 @@ class Create_Data():
         self.uv_stream = uv_stream
         self.n_stream = n_stream
         self.t_stream = t_stream
+        self.textures = textures
 
         # process the stream and object_names inputs to make sure they are all fine:
         self.process_inputs()
@@ -39,7 +41,10 @@ class Create_Data():
         self.num_objects = len(object_names)
 
         self.path = os.path.join(self.directory, self.name)         # the path location including the file name.
+        self.texture_path = os.path.join(self.directory, 'TEXTURES')
         self.ent_path = os.path.join(self.path, 'ENTITIES')         # path location of the entity folder. Calling makedirs of this will ensure all the folders are made in one go
+
+        self.create_paths()
 
         # This dictionary contains all the information for the geometry file 
         self.GeometryData = dict()
@@ -93,6 +98,7 @@ class Create_Data():
                                                                                      y = 0,
                                                                                      z = 0,
                                                                                      t = 0)))
+        self.process_materials()
 
         self.process_nodes()
 
@@ -110,6 +116,13 @@ class Create_Data():
         for i in range(self.num_objects):
             self.TkMaterialData_list[i].make_elements(main=True)
         self.write()
+
+    def create_paths(self):
+        # check whether the require paths exist and make them
+        if not os.path.exists(self.ent_path):
+            os.makedirs(self.ent_path)
+        if not os.path.exists(self.texture_path):
+            os.makedirs(self.texture_path)
 
     def process_inputs(self):
         # Makes sure that the number of sublists in vertex_stream and index_stream are the same, and also the same as the number of object names
@@ -298,13 +311,27 @@ class Create_Data():
                 self.stream_list.append(i)
         self.stream_list.sort()
 
-    def create_material_data(self):
+    def process_materials(self):
         # generates some material data. Not sure the best way to specify some of this...
-        pass
+        for i in range(len(self.textures)):
+            # let's first process and move all the specified textures to the right place
+            for texture_file in self.textures[i]:
+                new_path = os.path.join(self.texture_path, os.path.basename(texture_file).upper())
+                copy2(texture_file, new_path)
+            
+            # this will have the order Diffuse, Masks, Normal
+            self.Materials[i]['Samplers'] = List(TkMaterialSampler(Name = 'gDiffuseMap',
+                                                                   Map = os.path.join(self.texture_path, self.textures[i][0].upper()),
+                                                                   IsSRGB = 'True'),
+                                                 TkMaterialSampler(Name = 'gMasksMap',
+                                                                   Map = os.path.join(self.texture_path, self.textures[i][1].upper()),
+                                                                   IsSRGB = 'False'),
+                                                 TkMaterialSampler(Name = 'gNormalMap',
+                                                                   Map = os.path.join(self.texture_path, self.textures[i][2].upper()),
+                                                                   IsSRGB = 'False'))
 
     def write(self):
-        if not os.path.exists(self.ent_path):
-            os.makedirs(self.ent_path)
+        # write each of the exml files.
         self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for i in range(self.num_objects):
@@ -318,7 +345,8 @@ if __name__ == '__main__':
                        vertex_stream = [[(-1,1,0,1), (1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
                                         [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)]],
                        uv_stream = [[(0.3,0,0,1), (0,0.2,0,1), (0,0.1,0,1), (0.1,0.2,0,1)],
-                                    [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)]])
+                                    [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)]],
+                       textures = [['CUBE1.DDS', 'CUBE1.MASKS.DDS', 'cube1.NORMAL.DDS'], ['CUBE2.DDS', 'CUBE2.MASKS.DDS', 'CUBE2.NORMAL.DDS']])
     from lxml import etree
 
     def prettyPrintXml(xmlFilePathToPrettyPrint):
