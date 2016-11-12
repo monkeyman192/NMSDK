@@ -6,7 +6,8 @@ from math import radians
 from mathutils import Matrix,Vector
 
 # Add script path to sys.path
-scriptpath = bpy.context.space_data.text.filepath
+#scriptpath = bpy.context.space_data.text.filepath
+scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 dir = os.path.dirname(scriptpath)
 print(dir)
 
@@ -28,6 +29,7 @@ uvs      = []
 tangents = []
 
 objects  = []
+textures = []
 
 
 for ob in scn.objects:
@@ -84,17 +86,19 @@ for ob in scn.objects:
     bm.faces.ensure_lookup_table()
     faces = []
     for f in bm.faces:
-        faces.append((icounter + f.verts[0].index,
-                        icounter + f.verts[1].index,
-                        icounter + f.verts[2].index))
-        #indices.append((0,1,2))
-        
-        #print(len(f.verts), vertices[f.verts[0].index],
-        #      vertices[f.verts[1].index],
-        #      vertices[f.verts[2].index])
-        
-        #indices.append(icounter + f.verts[1].index)
-        #indices.append(icounter + f.verts[2].index)
+        #Handle quad
+        if (len(f.verts) == 4):
+            faces.append((f.verts[0].index, f.verts[1].index, f.verts[2].index))
+            faces.append((f.verts[0].index, f.verts[2].index, f.verts[3].index))
+        #Triangle
+        else:
+            faces.append((f.verts[0].index, f.verts[1].index, f.verts[2].index))
+    
+    
+    
+    #Get Material stuff
+    
+    
     
     #Final Storage
     vertices.append(verts)
@@ -103,7 +107,8 @@ for ob in scn.objects:
     indices.append(faces)
     icounter += icount
 
-
+print('Blender Script')
+print('Create Data Call')
 Create_Data('SUZANNE',
             r"J:\Installs\Steam\steamapps\common\No Man's Sky\GAMEDATA\PCBANKS\TEST",
             objects,
