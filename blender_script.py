@@ -6,8 +6,8 @@ from math import radians
 from mathutils import Matrix,Vector
 
 # Add script path to sys.path
-scriptpath = bpy.context.space_data.text.filepath
-#scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
+#scriptpath = bpy.context.space_data.text.filepath
+scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 dir = os.path.dirname(scriptpath)
 proj_path = bpy.path.abspath('//')
 print(dir)
@@ -138,6 +138,7 @@ for ob in scn.objects:
                                                                  z=0.0,
                                                                  t=0.0)))
             #Fetch Diffuse
+            texpath = ""
             if tslots[0]:
                 #Set _F01_DIFFUSEMAP
                 matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
@@ -149,10 +150,12 @@ for ob in scn.objects:
                     raise Exception("Missing Image in Texture: " + tex.name)
                 
                 texpath = os.path.join(proj_path, tex.image.filepath[2:])
-                sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath)
-                matsamplers.append(sampl)
+            print(texpath)
+            sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath, isSRGB=True)
+            matsamplers.append(sampl)
             
             #Fetch Mask
+            texpath = ""
             if tslots[1]:
                 #Set _F24_AOMAP
                 matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[23]))
@@ -163,14 +166,27 @@ for ob in scn.objects:
                 if not tex.type=='IMAGE':
                     raise Exception("Missing Image in Texture: " + tex.name)
                 
-                texpath = tex.image.filepath
-                sampl = TkMaterialSampler(Name="gMasksMap", Map=texpath)
-                matsamplers.append(sampl)
+                texpath = os.path.join(proj_path, tex.image.filepath[2:])
             
+            sampl = TkMaterialSampler(Name="gMaskMap", Map=texpath, isSRGB=False)
+            matsamplers.append(sampl)
             
-            #I should fetch normal map here
+            #Fetch Normal Map
+            texpath = ""
+            if tslots[2]:
+                #Set _F03_NORMALMAP
+                matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[2]))
+                #Create gNormalMap Sampler
+                
+                tex = tslots[2].texture
+                #Check if there is no texture loaded
+                if not tex.type=='IMAGE':
+                    raise Exception("Missing Image in Texture: " + tex.name)
+                
+                texpath = os.path.join(proj_path, tex.image.filepath[2:])
             
-            
+            sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, isSRGB=False)
+            matsamplers.append(sampl)
             
             #Create materialdata struct
             tkmatdata = TkMaterialData(Name=mat.name,
@@ -199,6 +215,8 @@ for ob in scn.objects:
 print('Blender Script')
 print('Create Data Call')
 print(material_ids, len(material_ids))
+print(materials)
+print(len(matsamplers))
 Create_Data('SUZANNE',
             "TEST",
             objects,
