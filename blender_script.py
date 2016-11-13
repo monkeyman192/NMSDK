@@ -151,7 +151,7 @@ for ob in scn.objects:
                 
                 texpath = os.path.join(proj_path, tex.image.filepath[2:])
             print(texpath)
-            sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath, isSRGB=True)
+            sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath, IsSRGB=True)
             matsamplers.append(sampl)
             
             #Fetch Mask
@@ -168,7 +168,7 @@ for ob in scn.objects:
                 
                 texpath = os.path.join(proj_path, tex.image.filepath[2:])
             
-            sampl = TkMaterialSampler(Name="gMaskMap", Map=texpath, isSRGB=False)
+            sampl = TkMaterialSampler(Name="gMaskMap", Map=texpath, IsSRGB=False)
             matsamplers.append(sampl)
             
             #Fetch Normal Map
@@ -185,7 +185,7 @@ for ob in scn.objects:
                 
                 texpath = os.path.join(proj_path, tex.image.filepath[2:])
             
-            sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, isSRGB=False)
+            sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, IsSRGB=False)
             matsamplers.append(sampl)
             
             #Create materialdata struct
