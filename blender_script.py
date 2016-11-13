@@ -6,8 +6,8 @@ from math import radians
 from mathutils import Matrix,Vector
 
 # Add script path to sys.path
-#scriptpath = bpy.context.space_data.text.filepath
-scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
+scriptpath = bpy.context.space_data.text.filepath
+#scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 dir = os.path.dirname(scriptpath)
 print(dir)
 
@@ -16,7 +16,9 @@ if not dir in sys.path:
     #print(sys.path)
 
 from main import Create_Data
-
+from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler
+from classes import List, Vector4f
+from LOOKUPS import MATERIALFLAGS
 
 scn = bpy.context.scene
 
@@ -29,8 +31,9 @@ uvs      = []
 tangents = []
 
 objects  = []
-textures = []
-
+materials = []
+material_dict = {}
+material_ids = []
 
 for ob in scn.objects:
     if not ob.name.startswith('NMS'):
@@ -97,8 +100,92 @@ for ob in scn.objects:
     
     
     #Get Material stuff
-    
-    
+    try:
+        slot = ob.material_slots[0]
+        mat = slot.material
+        print(mat.name)
+        #CHeck if material exists
+        if (mat.name in material_dict):
+            material_ids.append(material_dict[mat.name])
+        else:
+            #Create the material
+            matflags = []
+            matsamplers = []
+            matuniforms = []
+            
+            tslots = mat.texture_slots
+            
+            #Fetch Uniforms
+            matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
+                                                 Values=Vector4f(x=mat.diffuse_color.r,
+                                                                 y=mat.diffuse_color.g,
+                                                                 z=mat.diffuse_color.b,
+                                                                 t=1.0)))
+            matuniforms.append(TkMaterialUniform(Name="gMaterialParamsVec4",
+                                                 Values=Vector4f(x=0.0,
+                                                                 y=0.0,
+                                                                 z=0.0,
+                                                                 t=0.0)))
+            matuniforms.append(TkMaterialUniform(Name="gMaterialSFXVec4",
+                                                 Values=Vector4f(x=0.0,
+                                                                 y=0.0,
+                                                                 z=0.0,
+                                                                 t=0.0)))
+            matuniforms.append(TkMaterialUniform(Name="gMaterialSFXColVec4",
+                                                 Values=Vector4f(x=0.0,
+                                                                 y=0.0,
+                                                                 z=0.0,
+                                                                 t=0.0)))
+            #Fetch Diffuse
+            if tslots[0]:
+                #Set _F01_DIFFUSEMAP
+                matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
+                #Create gDiffuseMap Sampler
+                
+                tex = tslots[0].texture
+                #Check if there is no texture loaded
+                if not tex.type=='IMAGE':
+                    raise Exception("Missing Image in Texture: " + tex.name)
+                
+                texpath = tex.image.filepath
+                sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath)
+                matsamplers.append(sampl)
+            
+            #Fetch Mask
+            if tslots[1]:
+                #Set _F24_AOMAP
+                matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[23]))
+                #Create gMaskMap Sampler
+                
+                tex = tslots[1].texture
+                #Check if there is no texture loaded
+                if not tex.type=='IMAGE':
+                    raise Exception("Missing Image in Texture: " + tex.name)
+                
+                texpath = tex.image.filepath
+                sampl = TkMaterialSampler(Name="gMasksMap", Map=texpath)
+                matsamplers.append(sampl)
+            
+            
+            #I should fetch normal map here
+            
+            
+            
+            #Create materialdata struct
+            tkmatdata = TkMaterialData(Name=mat.name,
+                                       Class='Opaque',
+                                       Flags=List(matflags),
+                                       Uniforms=List(matuniforms),
+                                       Samplers=List(matsamplers))
+            
+            
+            #Store the material
+            material_dict[mat.name] = len(materials)
+            materials.append(tkmatdata)
+                        
+    except:
+        raise Exception("Missing Material")
+        
     
     #Final Storage
     vertices.append(verts)
@@ -110,9 +197,11 @@ for ob in scn.objects:
 print('Blender Script')
 print('Create Data Call')
 Create_Data('SUZANNE',
-            r"J:\Installs\Steam\steamapps\common\No Man's Sky\GAMEDATA\PCBANKS\TEST",
+            r"TEST",
             objects,
             index_stream = indices,
             vertex_stream = vertices,
-            uv_stream = uvs
+            uv_stream = uvs,
+            materials = materials,
+            mat_ids = material_ids
             )
