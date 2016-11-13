@@ -9,7 +9,8 @@ from LOOKUPS import *
 from shutil import copy2
 
 class Create_Data():
-    def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None, textures=[]):
+    def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None,
+                 mat_indices = [], materials = [], collisions=None, textures=[]):
 
         """
         name - the name of the file we want to create. Most entities  within will have a name derived from this.
@@ -32,7 +33,12 @@ class Create_Data():
         self.uv_stream = uv_stream
         self.n_stream = n_stream
         self.t_stream = t_stream
+        self.mat_indices = mat_indices  # this will be the same length as the list of objects, 
+        self.mats = materials      # this will be a list of TkMaterialData objects
+        self.collisions = collisions        # a list of Collision objects
         self.textures = textures
+
+        self.TkMaterialData_list = list()
 
         # process the stream and object_names inputs to make sure they are all fine:
         self.process_inputs()
@@ -41,7 +47,7 @@ class Create_Data():
         self.num_objects = len(object_names)
 
         self.path = os.path.join(self.directory, self.name)         # the path location including the file name.
-        self.texture_path = os.path.join(self.directory, 'TEXTURES')
+        self.texture_path = os.path.join(self.path, 'TEXTURES')
         self.ent_path = os.path.join(self.path, 'ENTITIES')         # path location of the entity folder. Calling makedirs of this will ensure all the folders are made in one go
 
         self.create_paths()
@@ -74,30 +80,6 @@ class Create_Data():
                                                                      Value = str(self.path) + ".GEOMETRY.MBIN"))
         self.SceneData['Children'] = None
         # Material defaults
-        for i in range(self.num_objects):
-            self.Materials[i]['Name'] = "{0}_{1}".format(self.object_names[i], 'Mat')
-            self.Materials[i]['Class'] = "Opaque"
-            self.Materials[i]['Flags'] = List(TkMaterialFlags(MaterialFlag = MATERIALFLAGS[0]))
-            self.Materials[i]['Uniforms'] = List(TkMaterialUniform(Name = 'gMaterialColourVec4',
-                                                                   Values = Vector4f(x = 1,
-                                                                                    y = 1,
-                                                                                    z = 1,
-                                                                                    t = 1)),
-                                                 TkMaterialUniform(Name = 'gMaterialParamsVec4',
-                                                                   Values = Vector4f(x = 0.9,
-                                                                                     y = 0.5,
-                                                                                     z = 0,
-                                                                                     t = 0)),
-                                                 TkMaterialUniform(Name = 'gMaterialSFXVec4',
-                                                                   Values = Vector4f(x = 0,
-                                                                                     y = 0,
-                                                                                     z = 0,
-                                                                                     t = 0)),
-                                                 TkMaterialUniform(Name = 'gMaterialSFXColVec4',
-                                                                   Values = Vector4f(x = 0,
-                                                                                     y = 0,
-                                                                                     z = 0,
-                                                                                     t = 0)))
         self.process_materials()
 
         self.process_nodes()
@@ -109,12 +91,8 @@ class Create_Data():
         self.TkGeometryData.make_elements(main=True)
         self.TkSceneNodeData = TkSceneNodeData(**self.SceneData)
         self.TkSceneNodeData.make_elements(main=True)
-        self.TkMaterialData_list = list()
-        for i in range(self.num_objects):
-            self.TkMaterialData_list.append(TkMaterialData(**self.Materials[i]))
-            # this will not work if there are multiple names that are the same in the object_names list.
-        for i in range(self.num_objects):
-            self.TkMaterialData_list[i].make_elements(main=True)
+        for material in self.mats:
+            material.make_elements(main=True)
         self.write()
 
     def create_paths(self):
@@ -176,7 +154,6 @@ class Create_Data():
         self.vert_bounds = list((sum(self.v_stream_lens[:i]), sum(self.v_stream_lens[:i+1])-1) for i in range(self.num_objects))
 
         # we need to fix up the index stream as the numbering needs to be continuous across all the streams
-        print(self.index_stream)
         k = 0       # additive constant
         for i in range(len(self.index_stream)):
             # first add k to every element in every tuple
@@ -188,7 +165,7 @@ class Create_Data():
                     curr_max = local_max
             # now we set k to be the current max and this is added on to the next set.
             k = curr_max + 1
-        print(self.index_stream)
+        #print(self.index_stream)
                 
 
         # First we need to find the length of each stream.
@@ -202,9 +179,15 @@ class Create_Data():
         # If the name is COLLISION the name becomes path + name, and the Type is COLLISION
         if len(self.object_names) != 0:
             self.SceneData['Children'] = List()
+        if self.collisions == None:
+            self.collisions = [None]*self.num_objects
         for i in range(self.num_objects):
             name = self.object_names[i]
-            scene_data = dict()            
+            scene_data = dict()
+
+            # get some info from the associated material file
+            mat_name = self.mats[self.mat_indices[i]]['Name'].rstrip('_Mat')
+            
             scene_data['Name'] = name
             scene_data['Type'] = 'MESH'
             scene_data['Transform'] = TkTransformData(TransX = 0, TransY = 0, TransZ = 0,
@@ -230,11 +213,18 @@ class Create_Data():
                                                                      Value = 0),
                                             TkSceneNodeAttributeData(Name = 'MATERIAL',
                                                                      AltID = "",
-                                                                     Value = os.path.join(self.path, self.name)+ '_{}'.format(name.upper()) + '.MATERIAL.MBIN'),
+                                                                     Value = os.path.join(self.path, self.name)+ '_{}'.format(mat_name.upper()) + '.MATERIAL.MBIN'),
                                             TkSceneNodeAttributeData(Name = 'MESHLINK',
                                                                      AltID = "",
                                                                      Value = name + 'Shape'))
-            scene_data['Children'] = None
+            if self.collisions[i] != None:
+                collision_data = self.collisions[i]
+                # will need to give this a bit more data/fix it up
+                collision_data.process_collision()
+                collision.data_dict['Name'] = self.path
+                scene_data['Children'] = List(self.collisions[i])
+            else:
+                scene_data['Children'] = None
             # now add the child object the the list of children of the mian object
             self.SceneData['Children'].append(TkSceneNodeData(**scene_data))
 
@@ -312,30 +302,31 @@ class Create_Data():
         self.stream_list.sort()
 
     def process_materials(self):
-        # generates some material data. Not sure the best way to specify some of this...
-        for i in range(len(self.textures)):
-            # let's first process and move all the specified textures to the right place
-            for texture_file in self.textures[i]:
-                new_path = os.path.join(self.texture_path, os.path.basename(texture_file).upper())
-                copy2(texture_file, new_path)
-            
-            # this will have the order Diffuse, Masks, Normal
-            self.Materials[i]['Samplers'] = List(TkMaterialSampler(Name = 'gDiffuseMap',
-                                                                   Map = os.path.join(self.texture_path, self.textures[i][0].upper()),
-                                                                   IsSRGB = 'True'),
-                                                 TkMaterialSampler(Name = 'gMasksMap',
-                                                                   Map = os.path.join(self.texture_path, self.textures[i][1].upper()),
-                                                                   IsSRGB = 'False'),
-                                                 TkMaterialSampler(Name = 'gNormalMap',
-                                                                   Map = os.path.join(self.texture_path, self.textures[i][2].upper()),
-                                                                   IsSRGB = 'False'))
-
+        # process the material data and gives the textures the correct paths
+        for material in self.mats:
+            samplers = material['Samplers']
+            # this will have the order Diffuse, Masks, Normal and be a List
+            for sample in samplers.subElements:
+                # this will be a TkMaterialSampler object
+                t_path = sample['Map']  # this should be the current absolute path to the image, we want to move it to the correct relative path
+                new_path = os.path.join(self.texture_path, os.path.basename(t_path).upper())
+                copy2(t_path, new_path)
+                f_name, ext = os.path.splitext(new_path)
+                if ext != '.DDS':
+                    # in this case the file is not in the correct format. Put the correct file extension in the material file
+                    print('The file {} needs to be converted to .DDS format (file extention to be capitalised also!)'.format(new_path))
+                    sample['Map'] = f_name + '.DDS'
+                else:
+                    # all good in this case
+                    print('hi')
+                    sample['Map'] = new_path
+                
     def write(self):
         # write each of the exml files.
         self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
-        for i in range(self.num_objects):
-            self.TkMaterialData_list[i].tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), self.object_names[i].upper()))
+        for material in self.mats:
+            material.tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), material['Name'].rstrip('_Mat').upper()))
 
 if __name__ == '__main__':
 

@@ -1,5 +1,6 @@
 # mic_funcs (just import all)
 from .List import List
+from .Collision import Collision
 from .Vector4f import Vector4f
 from .TkVertexLayout import TkVertexLayout
 from .TkVertexElement import TkVertexElement

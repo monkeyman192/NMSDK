@@ -9,7 +9,7 @@ class TkMaterialData(Struct):
 
         """ Contents of the struct """
         self.Name = kwargs.get('Name', None)
-        self.Class = kwargs.get('Class', None)
+        self.Class = kwargs.get('Class', "Opaque")
         self.TransparencyLayerID = kwargs.get('TransparencyLayerID', 0)
         self.CastShadow = kwargs.get('CastShadow', "False")
         self.DisableZTest = kwargs.get('DisableZTest', "False")

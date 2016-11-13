@@ -9,6 +9,7 @@ from mathutils import Matrix,Vector
 scriptpath = bpy.context.space_data.text.filepath
 #scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 dir = os.path.dirname(scriptpath)
+proj_path = bpy.path.abspath('//')
 print(dir)
 
 if not dir in sys.path:
@@ -109,9 +110,9 @@ for ob in scn.objects:
             material_ids.append(material_dict[mat.name])
         else:
             #Create the material
-            matflags = []
-            matsamplers = []
-            matuniforms = []
+            matflags = List()
+            matsamplers = List()
+            matuniforms = List()
             
             tslots = mat.texture_slots
             
@@ -147,7 +148,7 @@ for ob in scn.objects:
                 if not tex.type=='IMAGE':
                     raise Exception("Missing Image in Texture: " + tex.name)
                 
-                texpath = tex.image.filepath
+                texpath = os.path.join(proj_path, tex.image.filepath[2:])
                 sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath)
                 matsamplers.append(sampl)
             
@@ -174,13 +175,14 @@ for ob in scn.objects:
             #Create materialdata struct
             tkmatdata = TkMaterialData(Name=mat.name,
                                        Class='Opaque',
-                                       Flags=List(matflags),
-                                       Uniforms=List(matuniforms),
-                                       Samplers=List(matsamplers))
+                                       Flags=matflags,
+                                       Uniforms=matuniforms,
+                                       Samplers=matsamplers)
             
             
             #Store the material
             material_dict[mat.name] = len(materials)
+            material_ids.append(material_dict[mat.name])
             materials.append(tkmatdata)
                         
     except:
@@ -196,12 +198,13 @@ for ob in scn.objects:
 
 print('Blender Script')
 print('Create Data Call')
+print(material_ids, len(material_ids))
 Create_Data('SUZANNE',
-            r"TEST",
+            "TEST",
             objects,
             index_stream = indices,
             vertex_stream = vertices,
             uv_stream = uvs,
             materials = materials,
-            mat_ids = material_ids
+            mat_indices = material_ids
             )

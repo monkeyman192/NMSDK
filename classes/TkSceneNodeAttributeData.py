@@ -9,7 +9,7 @@ class TkSceneNodeAttributeData(Struct):
 
         """ Contents of the struct """
         self.Name = kwargs.get('Name', None)
-        self.AltID = kwargs.get('AltID', None)
+        self.AltID = kwargs.get('AltID', "")
         self.Value = kwargs.get('Value', None)
         """ End of the struct contents"""
 

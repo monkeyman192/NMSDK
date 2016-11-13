@@ -17,6 +17,15 @@ class Struct():
     def give_parent(self, parent):
         self.parent = parent
 
+    def __getitem__(self, key):
+        # returns the object in self.data_dict with key
+        return self.data_dict[key]
+
+    def __setitem__(self, key, value):
+        # assigns the value 'value' to self.data_dict[key]
+        # currently no checking so be careful! Incorrect use could lead to incorrect exml files!!!
+        self.data_dict[key] = value
+
     def make_elements(self, name=None, main=False):
         # creates a sub element tree that is to be returned or read by the parent class
         # the optional 'main' argument is a boolean value that is almost always False.
