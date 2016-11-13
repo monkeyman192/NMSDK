@@ -21,3 +21,6 @@ class List():
 
     def append(self, element):
         self.subElements.append(element)
+
+    def __len__(self):
+        return len(self.subElements)
