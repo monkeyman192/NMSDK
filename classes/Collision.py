@@ -1,33 +1,35 @@
 #Custom TkSceneNodeData struct for collisions
 
-from .Struct import Struct
 from .List import List
 from .TkSceneNodeAttributeData import TkSceneNodeAttributeData
+from .TkTransformData import TkTransformData
 
-STRUCTNAME = 'TkSceneNodeData'
+PRIMITIVES = ['Box', 'Sphere', 'Capsule', 'Cylinder']
 
-class Collision(Struct):
+class Collision():
     def __init__(self, **kwargs):
 
-        """ Contents of the struct """
-        self.Type = 'COLLISION'
-        """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
-
-        self.CType = kwargs.get('Type', None)
+        self.Type = kwargs.get('Type', None)
         self.Radius = kwargs.get('Radius', None)
         self.Width = kwargs.get('Width', None)
         self.Height = kwargs.get('Height', None)
         self.Depth = kwargs.get('Depth', None)
+        self.i_stream = kwargs.get('Indexes', None)
+        self.v_stream = kwargs.get('Vertices', None)
+        self.Transform = kwargs.get('Transform', TkTransformData(TransX = 0, TransY = 0, TransZ = 0,
+                                                                 RotX = 0, RotY = 0, RotZ = 0,
+                                                                 ScaleX = 1, ScaleY = 1, ScaleZ = 1))
 
-        # Parent needed so that it can be a SubElement of something
-        self.parent = None
+        if self.Type in PRIMITIVES:
+            self.col_type = 'Primitive'
+        elif self.Type == 'Mesh':
+            self.col_type = 'Mesh'
+        else:
+            # something has gone wrong if this happens!!
+            self.col_type = None
+        
 
-        self.STRUCTNAME = STRUCTNAME
-
-    def process_collision(self):
+    def process_primitives(self):
         self.Attributes = List()
         self.Attributes.append(TkSceneNodeAttributeData(Name = "TYPE",
                                                         Value = self.Type))
@@ -51,6 +53,20 @@ class Collision(Struct):
                                                             Value = self.Radius))
             self.Attributes.append(TkSceneNodeAttributeData(Name = "HEIGHT",
                                                             Value = self.Height))
-        elif self.Type == 'Mesh':
-            # do a bunch of stuff
-            pass
+
+    def process_mesh(self, BatchStart, BatchCount, VertRStart, VertREnd):
+        self.Attributes = List()
+        self.Attributes.append(TkSceneNodeAttributeData(Name = "TYPE",
+                                                        Value = self.Type))
+        self.Attributes.append(TkSceneNodeAttributeData(Name = 'BATCHSTART',
+                                                        Value = BatchStart))
+        self.Attributes.append(TkSceneNodeAttributeData(Name = 'BATCHCOUNT',
+                                                        Value = BatchCount))
+        self.Attributes.append(TkSceneNodeAttributeData(Name = 'VERTRSTART',
+                                                        Value = VertRStart))
+        self.Attributes.append(TkSceneNodeAttributeData(Name = 'VERTREND',
+                                                        Value = VertREnd))
+        self.Attributes.append(TkSceneNodeAttributeData(Name = 'FIRSTSKINMAT',
+                                                        Value = 0))
+        self.Attributes.append(TkSceneNodeAttributeData(Name = 'LASTSKINMAT',
+                                                        Value = 0))

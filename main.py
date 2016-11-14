@@ -10,7 +10,7 @@ from shutil import copy2
 
 class Create_Data():
     def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None,
-                 mat_indices = [], materials = [], collisions=None, textures=[]):
+                 mat_indices = [], materials = [], collisions=[]):
 
         """
         name - the name of the file we want to create. Most entities  within will have a name derived from this.
@@ -36,7 +36,6 @@ class Create_Data():
         self.mat_indices = mat_indices  # this will be the same length as the list of objects, 
         self.mats = materials      # this will be a list of TkMaterialData objects
         self.collisions = collisions        # a list of Collision objects
-        self.textures = textures
 
         self.TkMaterialData_list = list()
 
@@ -44,7 +43,8 @@ class Create_Data():
         self.process_inputs()
         # The above function will define self.i_stream_lens and self.v_stream_lens and will ensure all inputs are the same length
         
-        self.num_objects = len(object_names)
+        self.num_objects = len(self.object_names)        # only the number of objects, doesn't include collisions
+        self.num_total = len(index_stream)                  # total number of objects including collision meshes
 
         self.path = os.path.join(self.directory, self.name)         # the path location including the file name.
         self.texture_path = os.path.join(self.path, 'TEXTURES')
@@ -110,6 +110,20 @@ class Create_Data():
         len_streams = len(self.index_stream)
         self.i_stream_lens = list()
         self.v_stream_lens = list()
+
+        self.child_collisions = [None]*len_streams
+
+        # We have an added complication that the collision data *may* contain a mesh collision in which case we need to add the vertex and index streams.
+        # these will be added first
+        j = 0       # index to track which collision index and vertex element belongs to which object
+        for i in range(len(self.collisions)):
+            collision = self.collisions[i]
+            if self.collisions[i] is not None:
+                if collision.Type == 'Mesh':
+                    self.child_collisions[i] = len_streams + j      # this is the index in the index and vertex streams and related objects of the collision data for each object
+                    j += 1
+                    self.index_stream.append(collision.i_stream)
+                    self.vertex_stream.append(collision.v_stream)
         # assign to the above two lists the lengths of each sub-stream
         for lst in self.index_stream:
             self.i_stream_lens.append(len(lst))
@@ -118,7 +132,7 @@ class Create_Data():
         # now check the object_names
         if self.object_names is not None and type(self.object_names) == list:
             len_names = len(self.object_names)
-            if len_names != len_streams:
+            if len_names != len_streams:        # this is the original length, not the modified length
                 # we have a bit of a problem.
                 # If there are less, add some default ones up to the right amount.
                 # If there are more remove the trailing ones.
@@ -147,11 +161,12 @@ class Create_Data():
 
     def process_data(self):
         # This will do the main processing of the different streams.
+        
         # indexes
         index_counts = list(3*x for x in self.i_stream_lens)    # the total number of index points in each object
-        self.batches = list((sum(index_counts[:i]), index_counts[i]) for i in range(self.num_objects))
+        self.batches = list((sum(index_counts[:i]), index_counts[i]) for i in range(len(self.i_stream_lens)))
         # vertices
-        self.vert_bounds = list((sum(self.v_stream_lens[:i]), sum(self.v_stream_lens[:i+1])-1) for i in range(self.num_objects))
+        self.vert_bounds = list((sum(self.v_stream_lens[:i]), sum(self.v_stream_lens[:i+1])-1) for i in range(len(self.v_stream_lens)))
 
         # we need to fix up the index stream as the numbering needs to be continuous across all the streams
         k = 0       # additive constant
@@ -171,8 +186,8 @@ class Create_Data():
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = 3*sum(self.i_stream_lens)
         self.GeometryData['VertexCount'] = sum(self.v_stream_lens)
-        self.GeometryData['MeshVertRStart'] = list(self.vert_bounds[i][0] for i in range(self.num_objects))
-        self.GeometryData['MeshVertREnd'] = list(self.vert_bounds[i][1] for i in range(self.num_objects))
+        self.GeometryData['MeshVertRStart'] = list(self.vert_bounds[i][0] for i in range(len(self.vert_bounds)))
+        self.GeometryData['MeshVertREnd'] = list(self.vert_bounds[i][1] for i in range(len(self.vert_bounds)))
 
     def process_nodes(self):
         # this will look at the list in object_names and create child nodes for them
@@ -186,8 +201,11 @@ class Create_Data():
             scene_data = dict()
 
             # get some info from the associated material file
-            mat_name = self.mats[self.mat_indices[i]]['Name'].rstrip('_Mat')
-            
+            try:
+                mat_name = self.mats[self.mat_indices[i]]['Name'].rstrip('_Mat')
+            except:
+                # in this case there aren't as many materials as there are things... Let's just give it  default value...
+                mat_name = ''
             scene_data['Name'] = name
             scene_data['Type'] = 'MESH'
             scene_data['Transform'] = TkTransformData(TransX = 0, TransY = 0, TransZ = 0,
@@ -219,10 +237,23 @@ class Create_Data():
                                                                      Value = name + 'Shape'))
             if self.collisions[i] != None:
                 collision_data = self.collisions[i]
-                # will need to give this a bit more data/fix it up
-                collision_data.process_collision()
-                collision.data_dict['Name'] = self.path
-                scene_data['Children'] = List(self.collisions[i])
+                # in this case the object has some collision data. Create a child that is a TkCollision object (which is in fact just a renamed TkSceneNodeData object.
+                collision_node = TkSceneNodeData(Name = self.path, Type='COLLISION')
+                collision_node['Transform'] = collision_data.Transform
+                if collision_data.col_type == 'Primitive':
+                    # this case is simple, call the function and it will create the required List
+                    collision_data.process_primitives()     # this will give the collision_data object an Attributes property that is a List of TkSceneNode AttributeData objects
+                    collision_node['Attributes'] = collision_data.Attributes
+                elif collision_data.col_type == 'Mesh':
+                    # in this case, we need to get the correct batch start and count and vertr start and end
+                    # self.child_collisions contains the required index to get the vert and index info.
+                    collision_data.process_mesh(self.batches[self.child_collisions[i]][0],
+                                                self.batches[self.child_collisions[i]][1],
+                                                self.vert_bounds[self.child_collisions[i]][0],
+                                                self.vert_bounds[self.child_collisions[i]][1])
+                    collision_node['Attributes'] = collision_data.Attributes
+                # set the collision data as a child
+                scene_data['Children'] = List(collision_node)
             else:
                 scene_data['Children'] = None
             # now add the child object the the list of children of the mian object
@@ -258,12 +289,16 @@ class Create_Data():
         # Again, for now just make the SmallVertexStream the same. Later, change this.            
         
         VertexStream = tuple()
-        for i in range(self.num_objects):
+        for i in range(self.num_total):
             for j in range(self.v_stream_lens[i]):
                 for sID in self.stream_list:
                     # get the j^th 4Vector element of i^th object of the corresponding stream as specified by the stream list.
                     # As self.stream_list is ordered this will be mixed in the correct way wrt. the VertexLayouts
-                    VertexStream += self.__dict__[SEMANTICS[sID]][i][j]
+                    try:    
+                        VertexStream += self.__dict__[SEMANTICS[sID]][i][j]
+                    except:
+                        # in the case this fails there is an index error caused by collisions. In this case just add a default value
+                        VertexStream += (0,0,0,1)
         self.GeometryData['VertexStream'] = list(VertexStream)
         self.GeometryData['SmallVertexStream'] = list(VertexStream)
 
@@ -340,7 +375,9 @@ if __name__ == '__main__':
                                         [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)]],
                        uv_stream = [[(0.3,0,0,1), (0,0.2,0,1), (0,0.1,0,1), (0.1,0.2,0,1)],
                                     [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)]],
-                       textures = [['CUBE1.DDS', 'CUBE1.MASKS.DDS', 'cube1.NORMAL.DDS'], ['CUBE2.DDS', 'CUBE2.MASKS.DDS', 'CUBE2.NORMAL.DDS']])
+                       collisions = [Collision(Type='Mesh', Vertices=[(-1,1,0,1),(1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
+                                               Indexes=[(0,1,2), (2,3,0)]),
+                                     Collision(Type='Sphere', Radius=0.96)])
     from lxml import etree
 
     def prettyPrintXml(xmlFilePathToPrettyPrint):

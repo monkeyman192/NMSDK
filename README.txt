@@ -1,5 +1,5 @@
 NMS custom model importer pre-alpha
-coded by monkeyman192 with inaluable help from gregkwaste
+coded by monkeyman192 and gregkwaste
 
 How to install:
 
@@ -12,6 +12,5 @@ This will give you the current working directory (cwd) of blender. Place all fil
 - run the python script blender_script.py from within python.
 - This will create a folder called TEST at the same location as your blender file. To change the name of this created folder you can change the first few options right at the bottom of the blender_script.py file
 
-Currently not working:
-- Textures. You can implement them yourself by editing the resultant material file if you want.
-- blender_script.py is a bit broken. Don't think the actual verts and indexes are being done properly... :/
+TODO:
+create an entity file along side each object that is basically just empty. Or maybe ask if entity files are to be created. Maybe there is a thing in blender that could be selected to indicate an object needs an entity file?
