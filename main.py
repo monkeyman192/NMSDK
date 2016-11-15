@@ -194,7 +194,7 @@ class Create_Data():
         # If the name is COLLISION the name becomes path + name, and the Type is COLLISION
         if len(self.object_names) != 0:
             self.SceneData['Children'] = List()
-        if self.collisions == None:
+        if self.collisions == []:
             self.collisions = [None]*self.num_objects
         for i in range(self.num_objects):
             name = self.object_names[i]
@@ -374,10 +374,12 @@ if __name__ == '__main__':
                        vertex_stream = [[(-1,1,0,1), (1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
                                         [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)]],
                        uv_stream = [[(0.3,0,0,1), (0,0.2,0,1), (0,0.1,0,1), (0.1,0.2,0,1)],
-                                    [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)]],
+                                    [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)]])#,
+    """
                        collisions = [Collision(Type='Mesh', Vertices=[(-1,1,0,1),(1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
                                                Indexes=[(0,1,2), (2,3,0)]),
                                      Collision(Type='Sphere', Radius=0.96)])
+    """
     from lxml import etree
 
     def prettyPrintXml(xmlFilePathToPrettyPrint):
