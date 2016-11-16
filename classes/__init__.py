@@ -2,6 +2,7 @@
 from .List import List
 from .Collision import Collision
 from .Vector4f import Vector4f
+from .TkAttachmentData import TkAttachmentData
 from .TkVertexLayout import TkVertexLayout
 from .TkVertexElement import TkVertexElement
 from .TkSceneNodeAttributeData import TkSceneNodeAttributeData

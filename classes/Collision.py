@@ -14,8 +14,8 @@ class Collision():
         self.Width = kwargs.get('Width', None)
         self.Height = kwargs.get('Height', None)
         self.Depth = kwargs.get('Depth', None)
-        self.i_stream = kwargs.get('Indexes', None)
-        self.v_stream = kwargs.get('Vertices', None)
+        self.Indexes = kwargs.get('Indexes', None)
+        self.Vertices = kwargs.get('Vertices', None)
         self.Transform = kwargs.get('Transform', TkTransformData(TransX = 0, TransY = 0, TransZ = 0,
                                                                  RotX = 0, RotY = 0, RotZ = 0,
                                                                  ScaleX = 1, ScaleY = 1, ScaleZ = 1))

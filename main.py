@@ -61,6 +61,10 @@ class Create_Data():
         for i in range(self.num_objects):
             self.Materials.append(dict())
 
+        # create the attachment data here as we will just write it when creating the related nodes in the scene file
+        self.TkAttachmentData = TkAttachmentData()
+        self.TkAttachmentData.make_elements(main=True)
+
         self.process_data()
 
         self.get_bounds()
@@ -122,8 +126,8 @@ class Create_Data():
                 if collision.Type == 'Mesh':
                     self.child_collisions[i] = len_streams + j      # this is the index in the index and vertex streams and related objects of the collision data for each object
                     j += 1
-                    self.index_stream.append(collision.i_stream)
-                    self.vertex_stream.append(collision.v_stream)
+                    self.index_stream.append(collision.Indexes)
+                    self.vertex_stream.append(collision.Vertices)
         # assign to the above two lists the lengths of each sub-stream
         for lst in self.index_stream:
             self.i_stream_lens.append(len(lst))
@@ -194,7 +198,7 @@ class Create_Data():
         # If the name is COLLISION the name becomes path + name, and the Type is COLLISION
         if len(self.object_names) != 0:
             self.SceneData['Children'] = List()
-        if self.collisions == None:
+        if self.collisions == []:
             self.collisions = [None]*self.num_objects
         for i in range(self.num_objects):
             name = self.object_names[i]
@@ -212,29 +216,26 @@ class Create_Data():
                                                       RotX = 0, RotY = 0, RotZ = 0,
                                                       ScaleX = 1, ScaleY = 1, ScaleZ = 1)
             scene_data['Attributes'] = List(TkSceneNodeAttributeData(Name = 'BATCHSTART',
-                                                                     AltID = "",
                                                                      Value = self.batches[i][0]),
                                             TkSceneNodeAttributeData(Name = 'BATCHCOUNT',
-                                                                     AltID = "",
                                                                      Value = self.batches[i][1]),
                                             TkSceneNodeAttributeData(Name = 'VERTRSTART',
-                                                                     AltID = "",
                                                                      Value = self.vert_bounds[i][0]),
                                             TkSceneNodeAttributeData(Name = 'VERTREND',
-                                                                     AltID = "",
                                                                      Value = self.vert_bounds[i][1]),
                                             TkSceneNodeAttributeData(Name = 'FIRSTSKINMAT',
-                                                                     AltID = "",
                                                                      Value = 0),
                                             TkSceneNodeAttributeData(Name = 'LASTSKINMAT',
-                                                                     AltID = "",
                                                                      Value = 0),
                                             TkSceneNodeAttributeData(Name = 'MATERIAL',
-                                                                     AltID = "",
                                                                      Value = os.path.join(self.path, self.name)+ '_{}'.format(mat_name.upper()) + '.MATERIAL.MBIN'),
                                             TkSceneNodeAttributeData(Name = 'MESHLINK',
-                                                                     AltID = "",
-                                                                     Value = name + 'Shape'))
+                                                                     Value = name + 'Shape'),
+                                            TkSceneNodeAttributeData(Name = 'ATTACHMENT',
+                                                                     Value = os.path.join(self.ent_path, name.upper()) + '.ENTITY.MBIN'))
+            # also write the entity file now as it is pretty much empty anyway
+            self.TkAttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, name.upper())))
+            
             if self.collisions[i] != None:
                 collision_data = self.collisions[i]
                 # in this case the object has some collision data. Create a child that is a TkCollision object (which is in fact just a renamed TkSceneNodeData object.
@@ -365,7 +366,7 @@ class Create_Data():
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for material in self.mats:
             material.tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), material['Name'].rstrip('_Mat').upper()))
-
+        
 if __name__ == '__main__':
 
     main = Create_Data('SQUARE', 'TEST', ['Square1', 'Square2'],
@@ -378,6 +379,8 @@ if __name__ == '__main__':
                        collisions = [Collision(Type='Mesh', Vertices=[(-1,1,0,1),(1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
                                                Indexes=[(0,1,2), (2,3,0)]),
                                      Collision(Type='Sphere', Radius=0.96)])
+
+
     from lxml import etree
 
     def prettyPrintXml(xmlFilePathToPrettyPrint):
