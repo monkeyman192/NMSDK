@@ -65,6 +65,7 @@ for ob in scn.objects:
         verts.append((round(co.x,5), round(co.y,5), round(co.z,5), 1))
         norms.append(tuple(norm))
         
+<<<<<<< Updated upstream
     #Store uvs into List
     luvs = []
     #Init at first
@@ -98,6 +99,53 @@ for ob in scn.objects:
         else:
             faces.append((f.verts[0].index, f.verts[1].index, f.verts[2].index))
     
+=======
+        if col.name.startswith("COLLISION"):
+            print("Collision found: ", col.name)
+            split = col.name.split("_")
+            colType = split[1]
+            
+            optdict = {}
+            rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
+            trans, rot, scale = (rot_x_mat * col.matrix_local).decompose()
+            rot = rot.to_euler()
+            print(trans)
+            print(rot)
+            print(scale)
+            optdict['Transform'] = TkTransformData(TransX=trans[0],
+                                                   TransY=trans[2],
+                                                   TransZ=trans[1],
+                                                   RotX=degrees(rot[0]),
+                                                   RotY=degrees(rot[2]),
+                                                   RotZ=degrees(rot[1]),
+                                                   ScaleX=scale[0],
+                                                   ScaleY=scale[2],
+                                                   ScaleZ=scale[1])
+            
+            optdict['Type'] = colType
+            if (colType == "Mesh"):
+                c_verts,c_norms,c_uvs,c_faces = mesh_parser(col)
+                print("Collision indices",c_faces)
+                optdict['Vertices'] = c_verts
+                optdict['Indexes'] = c_faces
+            #HANDLE Primitives
+            elif (colType == "Box"):
+                optdict['Width']  = col.dimensions[0]
+                optdict['Depth']  = col.dimensions[1]
+                optdict['Height'] = col.dimensions[2]
+            elif (colType == "Sphere"):
+                optdict['Radius'] = col.dimensions[0] / 2.0
+            elif (colType == "Cylinder"):
+                optdict['Radius'] = col.dimensions[0] / 2.0
+                optdict['Height'] = col.dimensions[2]
+            else:
+                raise Exception("Unsupported Collision")
+            
+            colOb = Collision(**optdict)
+            
+    collisions.append(colOb)
+      
+>>>>>>> Stashed changes
     
     
     #Get Material stuff
@@ -217,6 +265,7 @@ print('Create Data Call')
 print(material_ids, len(material_ids))
 print(materials)
 print(len(matsamplers))
+print("Checking List Counts:", len(vertices), len(indices), len(collisions))
 Create_Data('SUZANNE',
             "TEST",
             objects,
