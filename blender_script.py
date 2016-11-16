@@ -2,7 +2,7 @@ import bpy
 import bmesh
 import os
 import sys
-from math import radians
+from math import radians, degrees
 from mathutils import Matrix,Vector
 
 # Add script path to sys.path
@@ -17,11 +17,62 @@ if not dir in sys.path:
     #print(sys.path)
 
 from main import Create_Data
-from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler
-from classes import List, Vector4f
+from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData
+from classes import List, Vector4f, Collision
 from LOOKUPS import MATERIALFLAGS
 
 scn = bpy.context.scene
+
+
+#Main Mesh parser
+def mesh_parser(ob):
+    #Lists
+    verts = []
+    norms = []
+    luvs = []
+    faces = []
+    # Matrices
+    object_matrix_wrld = ob.matrix_world
+    rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
+    scale_mat = Matrix.Scale(1, 4)
+    norm_mat = ob.matrix_world.inverted().transposed()
+    
+    data = ob.data
+    data.update(calc_tessface=True)  # convert ngons to tris
+    uvcount = len(data.uv_layers)
+    colcount = len(data.vertex_colors)
+    id = 0
+    for f in data.tessfaces:  # indices
+        if len(f.vertices) == 4:
+            faces.append((id, id + 1, id + 2))
+            faces.append((id + 3, id, id + 2))
+            id += 4
+        else:
+            faces.append((id, id + 1, id + 2))
+            id += 3
+
+        for vert in range(len(f.vertices)):
+            co = scale_mat * rot_x_mat * object_matrix_wrld * \
+                data.vertices[f.vertices[vert]].co
+            norm = scale_mat * rot_x_mat * norm_mat * \
+                data.vertices[f.vertices[vert]].normal
+            verts.append((co[0], co[1], co[2], 1.0))
+            norms.append((norm[0], norm[1], norm[2], 0.0))
+
+        #Get Uvs
+        uv = getattr(data.tessface_uv_textures[0].data[f.index], 'uv'+str(vert + 1))
+        luvs.append((uv.x,uv.y,0.0,0.0))
+#            for k in range(colcount):
+#                r = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
+#                    f.index) + '].color' + str(vert + 1) + '[0]*1023')
+#                g = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
+#                    f.index) + '].color' + str(vert + 1) + '[1]*1023')
+#                b = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
+#                    f.index) + '].color' + str(vert + 1) + '[2]*1023')
+#                eval('col_' + str(k) + '.append((r,g,b))')
+
+    return verts,norms,luvs,faces
+
 
 icounter = 0
 vcounter = 0
@@ -33,6 +84,7 @@ tangents = []
 
 objects  = []
 materials = []
+collisions = []
 material_dict = {}
 material_ids = []
 
@@ -42,64 +94,19 @@ for ob in scn.objects:
     
     print('Located Object for export', ob.name)
     objects.append(ob.name.upper())
-    bm = bmesh.new()
-    bm.from_mesh(ob.data)
+    #Parse Geometry
+    verts,norms,luvs,faces = mesh_parser(ob)
     
-    # Matrices
-    object_matrix_wrld = ob.matrix_world
-    rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
-    scale_mat = Matrix.Scale(1, 4)
-    norm_mat = ob.matrix_world.inverted().transposed()
-    
-    uvcount = len(bm.loops.layers.uv)
-    colcount = len(bm.loops.layers.color)
-    
-    # Store Positions into list
-    verts = []
-    norms = []
-    vcount = len(bm.verts)
-    icount = 3 * len(bm.faces) # Assume triangulated mesh
-    for v in bm.verts:
-        co = scale_mat * rot_x_mat * object_matrix_wrld * v.co
-        norm = scale_mat * rot_x_mat * norm_mat * v.normal
-        verts.append((round(co.x,5), round(co.y,5), round(co.z,5), 1))
-        norms.append(tuple(norm))
+    #Detect Collisions
+    colOb = None
+    if len(ob.children)>0:
+        # Assuming that the first child is a collision object for now
+        # I'll have to change that in order to handle actual children 
+        # mesh/locator objects in the future
+        col = ob.children[0]
         
-<<<<<<< Updated upstream
-    #Store uvs into List
-    luvs = []
-    #Init at first
-    for v in range(vcount):
-        luvs.append((0.0, 0.0, 0.0, 0.0))
-    
-    #Store uvs this time
-    for f in bm.faces:
-        for l in f.loops:
-            vid = l.vert.index  # Get vertex index
-            # get only the first layer
-            layer = bm.loops.layers.uv[0]
-            u = l[layer].uv.x
-            v = 1. - l[layer].uv.y
-            luvs[vid] = (round(u,5), round(v,5), 0.0, 0.0)
-    
-    # I should add code for the tangent calculations
-    # Leaving it for now
-    
-    vcounter += vcount    # Increasing the offset counter
-    
-    #Storing Indices
-    bm.faces.ensure_lookup_table()
-    faces = []
-    for f in bm.faces:
-        #Handle quad
-        if (len(f.verts) == 4):
-            faces.append((f.verts[0].index, f.verts[1].index, f.verts[2].index))
-            faces.append((f.verts[0].index, f.verts[2].index, f.verts[3].index))
-        #Triangle
-        else:
-            faces.append((f.verts[0].index, f.verts[1].index, f.verts[2].index))
-    
-=======
+        
+        
         if col.name.startswith("COLLISION"):
             print("Collision found: ", col.name)
             split = col.name.split("_")
@@ -145,7 +152,6 @@ for ob in scn.objects:
             
     collisions.append(colOb)
       
->>>>>>> Stashed changes
     
     
     #Get Material stuff
@@ -258,7 +264,6 @@ for ob in scn.objects:
     normals.append(norms)
     uvs.append(luvs)
     indices.append(faces)
-    icounter += icount
 
 print('Blender Script')
 print('Create Data Call')
@@ -273,5 +278,6 @@ Create_Data('SUZANNE',
             vertex_stream = vertices,
             uv_stream = uvs,
             materials = materials,
-            mat_indices = material_ids
+            mat_indices = material_ids,
+            collisions = collisions
             )
