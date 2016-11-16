@@ -48,6 +48,6 @@ Temporary Items
 
 # Python Compiled Scripts
 *.pyc
-classes/__pycache__/
+classes/__pycache__/*
 classes/*.pyc
 __pycache__/
