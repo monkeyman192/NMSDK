@@ -126,8 +126,8 @@ class Create_Data():
                 if collision.Type == 'Mesh':
                     self.child_collisions[i] = len_streams + j      # this is the index in the index and vertex streams and related objects of the collision data for each object
                     j += 1
-                    self.index_stream.append(collision.i_stream)
-                    self.vertex_stream.append(collision.v_stream)
+                    self.index_stream.append(collision.Indexes)
+                    self.vertex_stream.append(collision.Vertices)
         # assign to the above two lists the lengths of each sub-stream
         for lst in self.index_stream:
             self.i_stream_lens.append(len(lst))
