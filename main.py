@@ -128,6 +128,10 @@ class Create_Data():
                     j += 1
                     self.index_stream.append(collision.Indexes)
                     self.vertex_stream.append(collision.Vertices)
+                    if collision.uv_stream is not None:
+                        self.uv_stream.append(collision.uv_stream)
+                    if collision.Normals is not None:
+                        self.n_stream.append(collision.Normals)
         # assign to the above two lists the lengths of each sub-stream
         for lst in self.index_stream:
             self.i_stream_lens.append(len(lst))
