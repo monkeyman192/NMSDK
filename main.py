@@ -7,6 +7,7 @@ from classes import *
 import os
 from LOOKUPS import *
 from shutil import copy2
+from array import array
 
 class Create_Data():
     def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None,
@@ -291,28 +292,33 @@ class Create_Data():
     def mix_streams(self):
         # this combines all the input streams into one single stream with the correct offset etc as specified by the VertexLayout
         # This also flattens each stream
-        # Again, for now just make the SmallVertexStream the same. Later, change this.            
+        # Again, for now just make the SmallVertexStream the same. Later, change this.
+
+        print('combining streams')
         
-        VertexStream = tuple()
+        VertexStream = array('d')
         for i in range(self.num_total):
+            print('combining streams for stream number {}'.format(i))
             for j in range(self.v_stream_lens[i]):
                 for sID in self.stream_list:
                     # get the j^th 4Vector element of i^th object of the corresponding stream as specified by the stream list.
                     # As self.stream_list is ordered this will be mixed in the correct way wrt. the VertexLayouts
                     try:    
-                        VertexStream += self.__dict__[SEMANTICS[sID]][i][j]
+                        VertexStream.extend(self.__dict__[SEMANTICS[sID]][i][j])
                     except:
                         # in the case this fails there is an index error caused by collisions. In this case just add a default value
-                        VertexStream += (0,0,0,1)
-        self.GeometryData['VertexStream'] = list(VertexStream)
-        self.GeometryData['SmallVertexStream'] = list(VertexStream)
+                        VertexStream.extend((0,0,0,1))
+        
+        self.GeometryData['VertexStream'] = VertexStream
+        self.GeometryData['SmallVertexStream'] = VertexStream
 
         # finally we can also flatten the index stream:
-        IndexBuffer = tuple()
+        print('flattening index stream')
+        IndexBuffer = array('I')
         for obj in self.index_stream:
             for tri in obj:
-                IndexBuffer += tri
-        self.GeometryData['IndexBuffer'] = list(IndexBuffer)
+                IndexBuffer.extend(tri)
+        self.GeometryData['IndexBuffer'] = IndexBuffer
 
     def get_bounds(self):
         # this analyses the vertex stream and finds the smallest bounding box corners.
@@ -366,7 +372,9 @@ class Create_Data():
                 
     def write(self):
         # write each of the exml files.
+        print('writing geometry file')
         self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
+        print('writing scene file')
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for material in self.mats:
             material.tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), material['Name'].rstrip('_Mat').upper()))

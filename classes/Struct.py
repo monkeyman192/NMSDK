@@ -2,6 +2,7 @@
 
 from xml.etree.ElementTree import SubElement, Element, ElementTree
 from numbers import Number
+from array import array
 
 class Struct():
     def __init__(self, **kwargs):
@@ -56,6 +57,10 @@ class Struct():
             elif isinstance(data, list):
                 # in this case we need to add each element of the list as a sub property
                 # first add the name as a SubElement
+                SE = SubElement(self.element, 'Property', {'name': pname})
+                for i in data:
+                    SubElement(SE, 'Property', {'value': str(i)})
+            elif isinstance(data, array):
                 SE = SubElement(self.element, 'Property', {'name': pname})
                 for i in data:
                     SubElement(SE, 'Property', {'value': str(i)})
