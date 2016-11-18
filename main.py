@@ -333,7 +333,7 @@ class Create_Data():
         self.GeometryData['MeshAABBMin'] = List()
         self.GeometryData['MeshAABBMax'] = List()
         
-        for i in range(self.num_objects):
+        for i in range(len(self.vertex_stream)):
             obj = self.vertex_stream[i]
             x_verts = [i[0] for i in obj]
             y_verts = [i[1] for i in obj]
@@ -405,9 +405,9 @@ if __name__ == '__main__':
                                         [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)]],
                        uv_stream = [[(0.3,0,0,1), (0,0.2,0,1), (0,0.1,0,1), (0.1,0.2,0,1)],
                                     [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)]],
-                       collisions = [Collision(Type='Mesh', Vertices=[(-1,1,0,1),(1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
+                       collisions = [Collision(Type='Mesh', Vertices=[(-4,4,0,1),(4,4,0,1), (4,-4,0,1), (-4,-4,0,1)],
                                                Indexes=[(0,1,2), (2,3,0)]),
-                                     Collision(Type='Sphere', Radius=0.96)])
+                                     Collision(Type='Sphere', Radius=5)])
 
 
     from lxml import etree
