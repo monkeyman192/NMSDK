@@ -5,6 +5,7 @@
 
 from classes import *
 import os
+import subprocess
 from LOOKUPS import *
 from shutil import copy2
 from array import array
@@ -24,6 +25,7 @@ class Create_Data():
 
         self.name = name        # this is the name of the file
         self.directory = directory        # the path that the file is supposed to be located at
+        print(self.directory)
         self.object_names = object_names        # this is a list of names for each object. Each will be a child of the main model
 
         self.fix_names()
@@ -98,7 +100,12 @@ class Create_Data():
         self.TkSceneNodeData.make_elements(main=True)
         for material in self.mats:
             material.make_elements(main=True)
+
+        # write all the files
         self.write()
+
+        # convert all the created exml files to mbin files
+        self.convert_to_mbin()
 
     def create_paths(self):
         # check whether the require paths exist and make them
@@ -378,6 +385,16 @@ class Create_Data():
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for material in self.mats:
             material.tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), material['Name'].rstrip('_Mat').upper()))
+
+    def convert_to_mbin(self):
+        # passes all the files produced by
+        for directory, folders, files in os.walk(self.directory):
+            for file in files:
+                location = os.path.join(directory, file)
+                print(location)
+                if os.path.splitext(location)[1] == '.exml':
+                    subprocess.call(["MBINCompiler.exe", location])
+
         
 if __name__ == '__main__':
 
