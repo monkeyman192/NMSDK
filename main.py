@@ -313,7 +313,6 @@ class Create_Data():
         self.GeometryData['SmallVertexStream'] = VertexStream
 
         # finally we can also flatten the index stream:
-        print('flattening index stream')
         IndexBuffer = array('I')
         for obj in self.index_stream:
             for tri in obj:
