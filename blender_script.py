@@ -10,10 +10,11 @@ from mathutils import Matrix,Vector
 scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 dir = os.path.dirname(scriptpath)
 proj_path = bpy.path.abspath('//')
+print('Proj Path: ', proj_path)
 print(dir)
 
 if not dir in sys.path:
-    sys.path.append(dir )
+    sys.path.append(dir)
     #print(sys.path)
 
 from main import Create_Data
@@ -38,7 +39,8 @@ def mesh_parser(ob):
     norm_mat = ob.matrix_world.inverted().transposed()
     
     data = ob.data
-    data.update(calc_tessface=True)  # convert ngons to tris
+    #data.update(calc_tessface=True)  # convert ngons to tris
+    data.calc_tessface()
     uvcount = len(data.uv_layers)
     colcount = len(data.vertex_colors)
     id = 0
@@ -59,9 +61,9 @@ def mesh_parser(ob):
             verts.append((co[0], co[1], co[2], 1.0))
             norms.append((norm[0], norm[1], norm[2], 0.0))
 
-        #Get Uvs
-        uv = getattr(data.tessface_uv_textures[0].data[f.index], 'uv'+str(vert + 1))
-        luvs.append((uv.x,uv.y,0.0,0.0))
+            #Get Uvs
+            uv = getattr(data.tessface_uv_textures[0].data[f.index], 'uv'+str(vert + 1))
+            luvs.append((uv.x, 1.0 - uv.y, 0.0, 0.0))
 #            for k in range(colcount):
 #                r = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
 #                    f.index) + '].color' + str(vert + 1) + '[0]*1023')
@@ -96,7 +98,7 @@ for ob in scn.objects:
     objects.append(ob.name.upper())
     #Parse Geometry
     verts,norms,luvs,faces = mesh_parser(ob)
-    
+    print(len(verts), len(luvs), len(norms), len(faces))
     #Detect Collisions
     colOb = None
     if len(ob.children)>0:
@@ -132,7 +134,12 @@ for ob in scn.objects:
             optdict['Type'] = colType
             if (colType == "Mesh"):
                 c_verts,c_norms,c_uvs,c_faces = mesh_parser(col)
-                print("Collision indices",c_faces)
+                
+                #Reset Transforms on meshes
+                optdict['Transform'] = TkTransformData(TransX=0.0, TransY=0.0, TransZ=0.0,
+                                                   RotX=0.0, RotY=0.0, RotZ=0.0,
+                                                   ScaleX=1.0, ScaleY=1.0, ScaleZ=1.0)
+                                                   
                 optdict['Vertices'] = c_verts
                 optdict['Indexes'] = c_faces
             #HANDLE Primitives
@@ -271,7 +278,7 @@ print(material_ids, len(material_ids))
 print(materials)
 print(len(matsamplers))
 print("Checking List Counts:", len(vertices), len(indices), len(collisions))
-Create_Data('SUZANNE',
+Create_Data('TS_ALIEN',
             "TEST",
             objects,
             index_stream = indices,
