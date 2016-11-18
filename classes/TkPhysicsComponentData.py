@@ -1,16 +1,15 @@
-# TkAttachmentData struct
+# TkPhysicsComponentData struct
 
 from .Struct import Struct
-from .List import List
-from .TkPhysicsComponentData import TkPhysicsComponentData
+from .TkPhysicsData import TkPhysicsData
 
-STRUCTNAME = 'TkAttachmentData'
+STRUCTNAME = 'TkPhysicsComponentData'
 
-class TkAttachmentData(Struct):
+class TkPhysicsComponentData(Struct):
     def __init__(self, **kwargs):
 
         """ Contents of the struct """
-        self.Components = kwargs.get('Components', List(TkPhysicsComponentData()))
+        self.Data = kwargs.get('Data', TkPhysicsData())
         """ End of the struct contents"""
 
         """ Run code to convert struct contents into self.data_dict """

@@ -13,3 +13,5 @@ from .TkMaterialData import TkMaterialData
 from .TkMaterialFlags import TkMaterialFlags
 from .TkMaterialUniform import TkMaterialUniform
 from .TkMaterialSampler import TkMaterialSampler
+from .TkPhysicsComponentData import TkPhysicsComponentData
+from .TkPhysicsData import TkPhysicsData
