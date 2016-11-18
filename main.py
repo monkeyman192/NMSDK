@@ -25,7 +25,6 @@ class Create_Data():
 
         self.name = name        # this is the name of the file
         self.directory = directory        # the path that the file is supposed to be located at
-        print(self.directory)
         self.object_names = object_names        # this is a list of names for each object. Each will be a child of the main model
 
         self.fix_names()
@@ -300,12 +299,9 @@ class Create_Data():
         # this combines all the input streams into one single stream with the correct offset etc as specified by the VertexLayout
         # This also flattens each stream
         # Again, for now just make the SmallVertexStream the same. Later, change this.
-
-        print('combining streams')
         
         VertexStream = array('d')
         for i in range(self.num_total):
-            print('combining streams for stream number {}'.format(i))
             for j in range(self.v_stream_lens[i]):
                 for sID in self.stream_list:
                     # get the j^th 4Vector element of i^th object of the corresponding stream as specified by the stream list.
@@ -320,7 +316,6 @@ class Create_Data():
         self.GeometryData['SmallVertexStream'] = VertexStream
 
         # finally we can also flatten the index stream:
-        print('flattening index stream')
         IndexBuffer = array('I')
         for obj in self.index_stream:
             for tri in obj:
@@ -379,19 +374,17 @@ class Create_Data():
                 
     def write(self):
         # write each of the exml files.
-        print('writing geometry file')
         self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
-        print('writing scene file')
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for material in self.mats:
             material.tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), material['Name'].rstrip('_Mat').upper()))
 
     def convert_to_mbin(self):
         # passes all the files produced by
+        print('Converting all .exm files to .mbin. Please wait while this finishes.')
         for directory, folders, files in os.walk(self.directory):
             for file in files:
                 location = os.path.join(directory, file)
-                print(location)
                 if os.path.splitext(location)[1] == '.exml':
                     subprocess.call(["MBINCompiler.exe", location])
 
