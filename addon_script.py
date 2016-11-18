@@ -150,14 +150,14 @@ def main_exporter(exportpath):
                 print(rot)
                 print(scale)
                 optdict['Transform'] = TkTransformData(TransX=trans[0],
-                                                       TransY=trans[2],
-                                                       TransZ=trans[1],
+                                                       TransY=trans[1],
+                                                       TransZ=trans[2],
                                                        RotX=degrees(rot[0]),
-                                                       RotY=degrees(rot[2]),
-                                                       RotZ=degrees(rot[1]),
+                                                       RotY=degrees(rot[1]),
+                                                       RotZ=degrees(rot[2]),
                                                        ScaleX=scale[0],
-                                                       ScaleY=scale[2],
-                                                       ScaleZ=scale[1])
+                                                       ScaleY=scale[1],
+                                                       ScaleZ=scale[2])
                 
                 optdict['Type'] = colType
                 if (colType == "Mesh"):
