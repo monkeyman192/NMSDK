@@ -1,7 +1,12 @@
+#!/usr/bin/env python
+"""Process the 3d model data and create required files for NMS.
+
+This function will take all the data provided by the blender script and create a number of
+.exml files that contain all the data required by the game to view the 3d model created.
 """
-    Main processing file that takes the data from blender and converts it
-    to a form that is compatible with the exml files.
-"""
+
+__author__ = "monkeyman192"
+__credits__ = ["monkeyman192", "gregkwaste"]
 
 from classes import *
 import os
@@ -135,9 +140,9 @@ class Create_Data():
                     j += 1
                     self.index_stream.append(collision.Indexes)
                     self.vertex_stream.append(collision.Vertices)
-                    if collision.uv_stream is not None:
+                    if collision.uv_stream is not None and self.uv_stream is not None:
                         self.uv_stream.append(collision.uv_stream)
-                    if collision.Normals is not None:
+                    if collision.Normals is not None and self.n_stream is not None:
                         self.n_stream.append(collision.Normals)
         # assign to the above two lists the lengths of each sub-stream
         for lst in self.index_stream:
