@@ -1,11 +1,11 @@
 bl_info = {  
  "name": "NMS Exporter",  
- "author": "gregkwaste / monkeyman192",  
- "version": (0, 7),  
+ "author": "gregkwaste, credits: monkeyman192",  
+ "version": (0, 7),
  "blender": (2, 7, 0),  
  "location": "File > Export",  
  "description": "Exports to NMS File format",  
- "warning": "",  
+ "warning": "",
  "wiki_url": "",  
  "tracker_url": "",  
  "category": "Export"} 
@@ -18,14 +18,14 @@ from math import radians, degrees
 from mathutils import Matrix,Vector
 
 # Add script path to sys.path
-#scriptpath = bpy.context.space_data.text.filepath
-scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
-proj_path = os.path.dirname(scriptpath)
+scriptpath = os.path.join(os.getcwd(),'nms_imp')
+#scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
+#proj_path = os.path.dirname(scriptpath)
 #proj_path = bpy.path.abspath('//')
-print(proj_path)
+print(scriptpath)
 
-if not proj_path in sys.path:
-    sys.path.append(proj_path)
+if not scriptpath in sys.path:
+    sys.path.append(scriptpath)
     #print(sys.path)
     
     
@@ -103,6 +103,8 @@ def mesh_parser(ob):
 
 def main_exporter(exportpath):
     scn = bpy.context.scene
+    filepath = bpy.data.filepath
+    proj_path = os.path.dirname(filepath)
     
     icounter = 0
     vcounter = 0
@@ -167,7 +169,6 @@ def main_exporter(exportpath):
                     optdict['Transform'] = TkTransformData(TransX=0.0, TransY=0.0, TransZ=0.0,
                                                        RotX=0.0, RotY=0.0, RotZ=0.0,
                                                        ScaleX=1.0, ScaleY=1.0, ScaleZ=1.0)
-                                                       
                     optdict['Vertices'] = c_verts
                     optdict['Indexes'] = c_faces
                     optdict['uv_stream'] = c_uvs
@@ -185,6 +186,7 @@ def main_exporter(exportpath):
                 else:
                     raise Exception("Unsupported Collision")
                 
+                print(optdict.keys())
                 colOb = Collision(**optdict)
                 
         collisions.append(colOb)
@@ -307,13 +309,14 @@ def main_exporter(exportpath):
         uvs.append(luvs)
         indices.append(faces)
 
-    print('Blender Script')
-    print('Create Data Call')
-    print(material_ids, len(material_ids))
-    print(materials)
-    print(len(matsamplers))
-    print("Checking List Counts:", len(vertices), len(indices), len(collisions))
+    #print('Blender Script')
+    #print('Create Data Call')
+    #print(material_ids, len(material_ids))
+    #print(materials)
+    #print(len(matsamplers))
+    #print("Checking List Counts:", len(vertices), len(indices), len(collisions))
     
+    print('Creating .exmls')
     #Convert Paths
     directory = os.path.dirname(exportpath)
     mname = os.path.basename(exportpath)
@@ -323,14 +326,12 @@ def main_exporter(exportpath):
                 index_stream = indices,
                 vertex_stream = vertices,
                 uv_stream = uvs,
+                n_stream = normals,
                 materials = materials,
                 mat_indices = material_ids,
                 collisions = collisions
                 )
-                
     return {'FINISHED'}
-
-
 
 
 class NMS_Export_Operator(Operator, ExportHelper):
