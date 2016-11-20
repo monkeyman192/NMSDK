@@ -309,13 +309,14 @@ def main_exporter(exportpath):
         uvs.append(luvs)
         indices.append(faces)
 
-    print('Blender Script')
-    print('Create Data Call')
-    print(material_ids, len(material_ids))
-    print(materials)
-    print(len(matsamplers))
-    print("Checking List Counts:", len(vertices), len(indices), len(collisions))
+    #print('Blender Script')
+    #print('Create Data Call')
+    #print(material_ids, len(material_ids))
+    #print(materials)
+    #print(len(matsamplers))
+    #print("Checking List Counts:", len(vertices), len(indices), len(collisions))
     
+    print('Creating .exmls')
     #Convert Paths
     directory = os.path.dirname(exportpath)
     mname = os.path.basename(exportpath)
@@ -330,10 +331,7 @@ def main_exporter(exportpath):
                 mat_indices = material_ids,
                 collisions = collisions
                 )
-                
     return {'FINISHED'}
-
-
 
 
 class NMS_Export_Operator(Operator, ExportHelper):
