@@ -1,11 +1,11 @@
 bl_info = {  
  "name": "NMS Exporter",  
- "author": "gregkwaste / monkeyman192",  
- "version": (0, 7),  
+ "author": "gregkwaste, credits: monkeyman192",  
+ "version": (0, 7),
  "blender": (2, 7, 0),  
  "location": "File > Export",  
  "description": "Exports to NMS File format",  
- "warning": "",  
+ "warning": "",
  "wiki_url": "",  
  "tracker_url": "",  
  "category": "Export"} 
