@@ -15,6 +15,8 @@ from LOOKUPS import *
 from shutil import copy2
 from array import array
 
+BASEPATH = 'CUSTOMMODELS'
+
 class Create_Data():
     def __init__(self, name, directory, object_names, index_stream, vertex_stream, uv_stream=None, n_stream=None, t_stream=None,
                  mat_indices = [], materials = [], collisions=[]):
@@ -53,7 +55,7 @@ class Create_Data():
         self.num_objects = len(self.object_names)        # only the number of objects, doesn't include collisions
         self.num_total = len(index_stream)                  # total number of objects including collision meshes
 
-        self.path = os.path.join(self.directory, self.name)         # the path location including the file name.
+        self.path = os.path.join(BASEPATH, self.directory, self.name)         # the path location including the file name.
         self.texture_path = os.path.join(self.path, 'TEXTURES')
         self.ent_path = os.path.join(self.path, 'ENTITIES')         # path location of the entity folder. Calling makedirs of this will ensure all the folders are made in one go
 
@@ -386,8 +388,8 @@ class Create_Data():
 
     def convert_to_mbin(self):
         # passes all the files produced by
-        print('Converting all .exm files to .mbin. Please wait while this finishes.')
-        for directory, folders, files in os.walk(self.directory):
+        print('Converting all .exml files to .mbin. Please wait while this finishes.')
+        for directory, folders, files in os.walk(os.path.join(BASEPATH, self.directory)):
             for file in files:
                 location = os.path.join(directory, file)
                 if os.path.splitext(location)[1] == '.exml':
