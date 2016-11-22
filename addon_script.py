@@ -321,7 +321,7 @@ def main_exporter(exportpath):
     directory = os.path.dirname(exportpath)
     mname = os.path.basename(exportpath)
     Create_Data(mname,
-                "EXPORTS",
+                mname,
                 objects,
                 index_stream = indices,
                 vertex_stream = vertices,

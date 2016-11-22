@@ -10,6 +10,14 @@ nms compatible files. So lets get to the tasks.
 
 # TASKS
 
+#TASK 0 --- "Installation"
+	
+	After unpacking the archive, you have 2 things to do:
+	1. Copy the "nms_imp" folder and the supplied version of MBINCompiler in Blender installation folder (it should be in the same 
+	directory with the blender.exe)
+	2. Open Blender, go to User Preferences->Addons, and install the supplied addon. Make sure to enable it as well (tick the chekcbox)
+
+
 #TASK 1 --- "GEOMETRY/OBJECT PREPARATION"
 	
 	Make sure that EVERY object that you want to import contains a UVMap (even an empty one,
@@ -83,6 +91,11 @@ nms compatible files. So lets get to the tasks.
 	the main object as a parent of the collision object. The quickest way to do that is to go to the Outliner panel, select the collision
 	object , then shift select the main object, then get your mouse pointer into the 3D View and hit Ctrl + P and select the "Object" option.
 
+#TASK 6 --- "EXPORT PROCEDURE"
+
+	Once everything is setup properly you can proceed to the export process. The exporter is located in File->Export->Export to NMS XML Format.
+	A dialog will prompt you to set the export filename and the export directory. For now the path doesn't mean anything at all. Because of the way
+	the script works, and because of the multiple files that have to be prepared, all exported files will be located in the default Blender Installation directory. What's important here is the filename you set. The name should be a unique one so that you can identify the files that belong to this particular project that your exporting. For example if you set the export filename to "TEST", the script is going to create files with names like: "TEST.SCENE.MBIN" "TEST.GEOMETRY.MBIN.PC" and so on. 
 
 
 
