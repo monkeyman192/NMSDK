@@ -331,7 +331,8 @@ def main_exporter(exportpath):
                 mat_indices = material_ids,
                 collisions = collisions
                 )
-    return {'FINISHED'}
+
+    return True
 
 
 class NMS_Export_Operator(Operator, ExportHelper):
@@ -365,7 +366,12 @@ class NMS_Export_Operator(Operator, ExportHelper):
 #            )
 
     def execute(self, context):
-        return main_exporter(self.filepath)
+        status = main_exporter(self.filepath)
+        self.report({'INFO'}, "Models Exported Successfully")
+        if status:
+            return {'FINISHED'}
+        else:
+            return {'CANCELLED'}
 
 
 # Only needed if you want to add into a dynamic menu
