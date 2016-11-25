@@ -17,6 +17,16 @@ import sys
 from math import radians, degrees
 from mathutils import Matrix,Vector
 
+#Attempt to find 'blender.exe path'
+
+for path in sys.path:
+    if os.path.isdir(path):
+        if 'nms_imp' in os.listdir(path):
+            print("Found nms_imp at: ", path)
+            os.chdir(path)
+            break
+
+
 # Add script path to sys.path
 scriptpath = os.path.join(os.getcwd(),'nms_imp')
 #scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
@@ -319,9 +329,10 @@ def main_exporter(exportpath):
     print('Creating .exmls')
     #Convert Paths
     directory = os.path.dirname(exportpath)
+    mpath = os.path.dirname(os.path.abspath(exportpath))
     mname = os.path.basename(exportpath)
     Create_Data(mname,
-                mname,
+                mpath,
                 objects,
                 index_stream = indices,
                 vertex_stream = vertices,
