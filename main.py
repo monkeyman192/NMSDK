@@ -394,6 +394,9 @@ class Create_Data():
                 location = os.path.join(directory, file)
                 if os.path.splitext(location)[1] == '.exml':
                     subprocess.call(["MBINCompiler.exe", location])
+                    if os.path.splitext(os.path.splitext(location)[0])[1] == ".SCENE":
+                        os.remove(location)
+                        
 
         
 if __name__ == '__main__':
