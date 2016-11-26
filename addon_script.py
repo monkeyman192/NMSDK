@@ -330,9 +330,10 @@ def main_exporter(exportpath):
     #Convert Paths
     directory = os.path.dirname(exportpath)
     mpath = os.path.dirname(os.path.abspath(exportpath))
+    os.chdir(mpath)
     mname = os.path.basename(exportpath)
     Create_Data(mname,
-                mpath,
+                mname,
                 objects,
                 index_stream = indices,
                 vertex_stream = vertices,
