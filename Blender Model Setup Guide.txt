@@ -15,14 +15,16 @@ nms compatible files. So lets get to the tasks.
 	After unpacking the archive, you have 2 things to do:
 	1. Copy the "nms_imp" folder and the supplied version of MBINCompiler in Blender installation folder (it should be in the same 
 	directory with the blender.exe)
-	2. Open Blender, go to User Preferences->Addons, and install the supplied addon. Make sure to enable it as well (tick the chekcbox)
+	2. Open Blender, go to User Preferences->Addons, and install the supplied addon. Make sure to enable it as well (tick the checkbox)
 
 
 #TASK 1 --- "GEOMETRY/OBJECT PREPARATION"
 	
 	Make sure that EVERY object that you want to import contains a UVMap (even an empty one,
 	it doesn't matter) and it has been assigned to a material. Literally those are the only
-	requirements for getting models ready for the export process.
+	requirements for getting models ready for the export process. Also overall, make sure that
+	you save your blend in the disk, and you are not working on a temporary session of blender.
+	This is critical for all the model file dependencies (such as textures) to work out.
 
 #TASK 2 --- "TEXTURE OPTIONS"
 
