@@ -219,6 +219,7 @@ class Reference(Object):
         self.Name = Name
         self._Type = "REFERENCE"
 
+        self.Scenegraph = kwargs.get("Scenegraph", "Enter in the path of the SCENE.MBIN you want to reference here.")
 
 
     def create_attributes(self, data):
