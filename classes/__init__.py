@@ -1,6 +1,7 @@
 # mic_funcs (just import all)
 from .List import List
 from .Collision import Collision
+from .Object import Object, Locator, Mesh, Collision, Model, Reference
 from .Vector4f import Vector4f
 from .TkAttachmentData import TkAttachmentData
 from .TkVertexLayout import TkVertexLayout
@@ -15,3 +16,4 @@ from .TkMaterialUniform import TkMaterialUniform
 from .TkMaterialSampler import TkMaterialSampler
 from .TkPhysicsComponentData import TkPhysicsComponentData
 from .TkPhysicsData import TkPhysicsData
+from .TkVolumeTriggerType import TkVolumeTriggerType
