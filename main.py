@@ -210,9 +210,11 @@ class Create_Data():
                     self.TkAttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, mesh_obj.Name.upper())))
             else:
                 if obj._Type == 'LOCATOR':
-                    # TODO: Find out how much can be specified from blender?
-                    # for now assume no Attachment data
-                    data = None
+                    if obj.hasAttachment == True:
+                        data['ATTACHMENT'] = os.path.join(self.ent_path, obj.Name.upper()) + '.ENTITY.MBIN'
+                        self.TkAttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, obj.Name.upper())))
+                    else:
+                        data = None
                 elif obj._Type == 'COLLISION':
                     if obj.CType == 'Box':
                         data = {'WIDTH': obj.Width, 'HEIGHT': obj.Height, 'DEPTH': obj.Depth}

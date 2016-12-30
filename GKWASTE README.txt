@@ -3,7 +3,7 @@ With the overhaul of how the nodes are all handeled, here are the details of how
 Firstly, all the different nodes are their own classes, subclassed from an Object class (that doesn't need to be worried about)
 
 The classes are (with correct case):
-Locator(Name, *Transform)
+Locator(Name, *Transform, *Attachment)
 Mesh(Name, *Transform, Vertices, Indexes, Material, UVs, *Normals, *Tangents)
 Collision(Name, *Transform, CType, **kwargs)
 Model(Name, *Transform)

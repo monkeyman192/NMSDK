@@ -97,11 +97,36 @@ class Locator(Object):
         super(Locator, self).__init__(**kwargs)
         self.Name = Name
         self._Type = "LOCATOR"
+        self.hasAttachment = kwargs.get('ATTACHMENT', False)
 
     def create_attributes(self, data):
         if data is not None:
             self.Attributes = List(TkSceneNodeAttributeData(Name = 'ATTACHMENT',
                                                             Value = data['ATTACHMENT']))
+
+class Joint(Object):
+    def __init__(self, Name, **kwargs):
+        super(Locator, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "JOINT"
+
+    def create_attributes(self, data):
+        if data is not None:
+            self.Attributes = List(TkSceneNodeAttributeData(Name = 'JOINTINDEX',
+                                                            Value = data['JOINTINDEX']))
+
+class Emitter(Object):
+    def __init__(self, Name, **kwargs):
+        super(Locator, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "EMITTER"
+
+    def create_attributes(self, data):
+        if data is not None:
+            self.Attributes = List(TkSceneNodeAttributeData(Name = 'MATERIAL',
+                                                            Value = data['MATERIAL']),
+                                   TkSceneNodeAttributeData(Name = 'DATA',
+                                                            Value = data['DATA']))
 
 class Mesh(Object):
     def __init__(self, Name, **kwargs):
