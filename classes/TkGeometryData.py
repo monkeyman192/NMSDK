@@ -1,6 +1,7 @@
 # TkGeometryData struct
 
 from .Struct import Struct
+from .TkVertexLayout import TkVertexLayout
 
 STRUCTNAME = 'TkGeometryData'
 
@@ -8,8 +9,8 @@ class TkGeometryData(Struct):
     def __init__(self, **kwargs):
 
         """ Contents of the struct """
-        self.VertexCount = kwargs.get('VertexCount', None)
-        self.IndexCount = kwargs.get('IndexCount', None)
+        self.VertexCount = kwargs.get('VertexCount', 0)
+        self.IndexCount = kwargs.get('IndexCount', 0)
         self.Indices16Bit = kwargs.get('Indices16Bit', 1)
         self.JointBindings = kwargs.get('JointBindings', None)
         self.JointExtents = kwargs.get('JointExtents', None)
@@ -21,8 +22,8 @@ class TkGeometryData(Struct):
         self.MeshBaseSkinMat = kwargs.get('MeshBaseSkinMat', None)
         self.MeshAABBMin = kwargs.get('MeshAABBMin', None)
         self.MeshAABBMax = kwargs.get('MeshAABBMax', None)
-        self.VertexLayout = kwargs.get('VertexLayout', None)
-        self.SmallVertexLayout = kwargs.get('SmallVertexLayout', None)
+        self.VertexLayout = kwargs.get('VertexLayout', TkVertexLayout())
+        self.SmallVertexLayout = kwargs.get('SmallVertexLayout', TkVertexLayout())
         self.IndexBuffer = kwargs.get('IndexBuffer', None)
         self.VertexStream = kwargs.get('VertexStream', None)
         self.SmallVertexStream = kwargs.get('SmallVertexStream', None)
