@@ -304,24 +304,25 @@ class Create_Data():
         for material in self.materials:
             samplers = material['Samplers']
             # this will have the order Diffuse, Masks, Normal and be a List
-            for sample in samplers.subElements:
-                # this will be a TkMaterialSampler object
-                t_path = sample['Map']  # this should be the current absolute path to the image, we want to move it to the correct relative path
-                new_path = os.path.join(self.texture_path, os.path.basename(t_path).upper())
-                try:
-                    copy2(t_path, new_path)
-                except FileNotFoundError:
-                    # in this case the path is probably broken, just set as empty if it wasn't before
-                    new_path = ""
-                f_name, ext = os.path.splitext(new_path)
-                if ext != '.DDS' and ext != '':
-                    # TODO: add code here to convert the image to dds format
-                    # in this case the file is not in the correct format. Put the correct file extension in the material file
-                    print('The file {} needs to be converted to .DDS format (file extention to be capitalised also!)'.format(new_path))
-                    sample['Map'] = f_name + '.DDS'
-                else:
-                    # all good in this case
-                    sample['Map'] = new_path
+            if samplers is not None:
+                for sample in samplers.subElements:
+                    # this will be a TkMaterialSampler object
+                    t_path = sample['Map']  # this should be the current absolute path to the image, we want to move it to the correct relative path
+                    new_path = os.path.join(self.texture_path, os.path.basename(t_path).upper())
+                    try:
+                        copy2(t_path, new_path)
+                    except FileNotFoundError:
+                        # in this case the path is probably broken, just set as empty if it wasn't before
+                        new_path = ""
+                    f_name, ext = os.path.splitext(new_path)
+                    if ext != '.DDS' and ext != '':
+                        # TODO: add code here to convert the image to dds format
+                        # in this case the file is not in the correct format. Put the correct file extension in the material file
+                        print('The file {} needs to be converted to .DDS format (file extention to be capitalised also!)'.format(new_path))
+                        sample['Map'] = f_name + '.DDS'
+                    else:
+                        # all good in this case
+                        sample['Map'] = new_path
                 
     def write(self):
         # write each of the exml files.
