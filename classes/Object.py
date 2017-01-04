@@ -105,6 +105,31 @@ class Locator(Object):
             self.Attributes = List(TkSceneNodeAttributeData(Name = 'ATTACHMENT',
                                                             Value = data['ATTACHMENT']))
 
+class Light(Object):
+    def __init__(self, Name, **kwargs):
+        super(Light, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "LIGHT"
+
+        self.Intensity = kwargs.get('Intensity', 40000)
+        self.Colour = kwargs.get('Colour', (1,1,1))
+
+    def create_attributes(self, data):
+        self.Attributes = List(TkSceneNodeAttributeData(Name = 'FOV',
+                                                       Value = '360.000000'),
+                               TkSceneNodeAttributeData(Name = 'FALLOFF',
+                                                       Value = 'quadratic'),
+                               TkSceneNodeAttributeData(Name = 'INTENSITY',
+                                                       Value = self.Intensity),
+                               TkSceneNodeAttributeData(Name = 'COL_R',
+                                                       Value = self.Colour[0]),
+                               TkSceneNodeAttributeData(Name = 'COL_G',
+                                                       Value = self.Colour[1]),
+                               TkSceneNodeAttributeData(Name = 'COL_B',
+                                                       Value = self.Colour[2]),
+                               TkSceneNodeAttributeData(Name = 'MATERIAL',
+                                                       Value = 'MATERIALS/LIGHT.MATERIAL.MBIN'))
+
 class Joint(Object):
     def __init__(self, Name, **kwargs):
         super(Locator, self).__init__(**kwargs)
