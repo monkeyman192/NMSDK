@@ -18,14 +18,15 @@ from math import radians, degrees
 from mathutils import Matrix,Vector
 
 # Add script path to sys.path
+scriptpath = os.path.join(os.getcwd(),'nms_imp')
 #scriptpath = bpy.context.space_data.text.filepath
-scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
-proj_path = os.path.dirname(scriptpath)
+#scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
+#proj_path = os.path.dirname(scriptpath)
 #proj_path = bpy.path.abspath('//')
-print(proj_path)
+print(scriptpath)
 
-if not proj_path in sys.path:
-    sys.path.append(proj_path)
+if not scriptpath in sys.path:
+    sys.path.append(scriptpath)
     #print(sys.path)
     
     
@@ -36,6 +37,8 @@ from classes import List, Vector4f, Collision
 from classes.Object import Model, Mesh, Locator, Reference
 from LOOKUPS import MATERIALFLAGS
 
+import main
+print(main.__file__)
 
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
@@ -187,12 +190,10 @@ def mesh_parser(ob):
             id += 3
 
         for vert in range(len(f.vertices)):
-            co = scale_mat * rot_x_mat * object_matrix_wrld * \
-                data.vertices[f.vertices[vert]].co
-            norm = scale_mat * rot_x_mat * norm_mat * \
-                10 * data.vertices[f.vertices[vert]].normal
-            verts.append((co[0], co[1], co[2], 1.0))
-            norms.append((norm[0], norm[1], norm[2], 0.0))
+            co = data.vertices[f.vertices[vert]].co
+            norm = 100 * rot_x_mat * data.vertices[f.vertices[vert]].normal
+            verts.append((co[0], co[2], co[1], 1.0)) #Invert YZ to match NMS game coords
+            norms.append((norm[0], norm[1], norm[2], 1.0))
 
             #Get Uvs
             uv = getattr(data.tessface_uv_textures[0].data[f.index], 'uv'+str(vert + 1))
@@ -208,42 +209,46 @@ def mesh_parser(ob):
 
     return verts,norms,luvs,faces
 
-def parse_object(ob):
+def parse_object(ob, parent):
     newob = None
     global material_dict
+    
+    #Get transform
+    rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
+    trans, rot, scale = (ob.matrix_local).decompose()
+    rot = rot.to_euler()
+    print(trans)
+    print(rot)
+    print(scale)
+    
+    transform = TkTransformData(TransX=trans[0],
+                               TransY=trans[2],
+                               TransZ=trans[1],
+                               RotX=degrees(rot[0]),
+                               RotY=degrees(rot[2]),
+                               RotZ=degrees(rot[1]),
+                               ScaleX=scale[0],
+                               ScaleY=scale[2],
+                               ScaleZ=scale[1])
+    
     # Main switch to identify meshes or locators/references
     if ob.type == 'MESH':
-        if ob.name.startswith("COLLISION"):
+        if ob.name.startswith("NMS_COLLISION"):
             # COLLISION MESH
-            print("Collision found: ", col.name)
+            print("Collision found: ", ob.name)
             split = ob.name.split("_")
-            colType = split[1]
+            colType = split[2]
             
             optdict = {}
-            rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
-            trans, rot, scale = (rot_x_mat * ob.matrix_local).decompose()
-            rot = rot.to_euler()
-            print(trans)
-            print(rot)
-            print(scale)
-            optdict['Transform'] = TkTransformData(TransX=trans[0],
-                                                   TransY=trans[1],
-                                                   TransZ=trans[2],
-                                                   RotX=degrees(rot[0]),
-                                                   RotY=degrees(rot[1]),
-                                                   RotZ=degrees(rot[2]),
-                                                   ScaleX=scale[0],
-                                                   ScaleY=scale[1],
-                                                   ScaleZ=scale[2])
-            
+            optdict['Name'] = split[3]
+            optdict['Transform'] = transform
             optdict['CollisionType'] = colType
+            
             if (colType == "Mesh"):
                 c_verts,c_norms,c_uvs,c_faces = mesh_parser(ob)
                 
                 #Reset Transforms on meshes
-                optdict['Transform'] = TkTransformData(TransX=0.0, TransY=0.0, TransZ=0.0,
-                                                   RotX=0.0, RotY=0.0, RotZ=0.0,
-                                                   ScaleX=1.0, ScaleY=1.0, ScaleZ=1.0)
+                
                 optdict['Vertices'] = c_verts
                 optdict['Indexes'] = c_faces
                 optdict['UVs'] = c_uvs
@@ -265,10 +270,13 @@ def parse_object(ob):
         else:
             # ACTUAL MESH
             #Parse object Geometry
+            print('Exporting: ', ob.name)
             verts,norms,luvs,faces = mesh_parser(ob)
             print("Object Count: ", len(verts), len(luvs), len(norms), len(faces))
+            print("Object Rotation: ", degrees(rot[0]), degrees(rot[2]), degrees(rot[1]))
             #Create Mesh Object
-            newob = Mesh(ob.name, Vertices=verts, UVs=luvs, Normals=norms, Indexes=faces)
+            actualname = ob.name.split("_")[1]
+            newob = Mesh(actualname, Transform = transform, Vertices=verts, UVs=luvs, Normals=norms, Indexes=faces)
             
             #Try to parse material
             try:
@@ -282,25 +290,46 @@ def parse_object(ob):
                 else:
                     material_ob = material_dict[mat.name]
                 
+                print(material_ob)
                 #Attach material to Mesh
                 newob.Material = material_ob
                 
             except:
                 raise Exception("Missing Material")
     
+    #Locator and Reference Objects
+    elif (ob.type=='EMPTY'):
+        if (ob.name.startswith('NMS_REFERENCE')):
+            print("Reference Detected")
+            actualname = ob.name.split("_")[2]
+            try:
+                scenegraph = ob["REF"]
+            except:
+                raise Exception("Missing REF Property, Set it")
+            
+            newob = Reference(Name = ob.name, Transform = transform, Scenegraph = scenegraph)
+        else:
+            print("Locator Detected")
+            actualname = ob.name.split("_")[1]
+            newob = Locator(Name = actualname, Transform = transform)
+    
+    
+    parent.add_child(newob)
+    
     #Parse children
     for child in ob.children:
-        if not child.name.startswith('NMS'):
+        if not (child.name.startswith('NMS') or child.name.startswith('COLLISION')):
             continue
-        child_ob = parse_object(child)
-        newob.add_child(child_ob)
+        child_ob = parse_object(child, newob)
+        #newob.add_child(child_ob)
         
     return newob
 
 
 def main_exporter(exportpath):
     scn = bpy.context.scene
-
+    mname = os.path.basename(exportpath)
+    
     icounter = 0
     vcounter = 0
     vertices = []
@@ -316,13 +345,20 @@ def main_exporter(exportpath):
     material_ids = []
 
     #Create main scene model
-    scene = Model("")
-
-    for ob in scn.objects:
+    scene = Model(Name = mname)
+    
+    #Try to fetch NMS_SCENE node
+    try:
+        main_ob = scn.objects['NMS_SCENE']
+    except:
+        raise Exception("Missing NMS_SCENE Node, Create it!")
+    
+    for ob in main_ob.children:
         if not ob.name.startswith('NMS'):
             continue
         print('Located Object for export', ob.name)
-        scene.add_child(parse_object(ob))
+        parse_object(ob, scene)
+        #scene.add_child(parse_object(ob))
         
 
     print('Blender Script')
@@ -330,9 +366,10 @@ def main_exporter(exportpath):
     
     #Convert Paths
     directory = os.path.dirname(exportpath)
-    mname = os.path.basename(exportpath)
+    mpath = os.path.dirname(os.path.abspath(exportpath))
+    os.chdir(mpath)
     Create_Data(mname,
-                "EXPORTS",
+                mname,
                 scene)
                 
     return {'FINISHED'}
@@ -393,4 +430,4 @@ if __name__ == "__main__":
     register()
 
     # test call
-    bpy.ops.export_mesh.nms(filepath="JUMBO")
+    bpy.ops.export_mesh.nms(filepath="J:\\Installs\\Steam\\steamapps\\common\\No Man's Sky\\GAMEDATA\\PCBANKS\\JUMBO")
