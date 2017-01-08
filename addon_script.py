@@ -42,9 +42,9 @@ if not scriptpath in sys.path:
     
 from main import Create_Data
 from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData
-from classes import List, Vector4f, Collision
+from classes import List, Vector4f
 #Import Object Classes
-from classes.Object import Model, Mesh, Locator, Reference
+from classes.Object import Model, Mesh, Locator, Reference, Collision
 from LOOKUPS import MATERIALFLAGS
 
 import main
