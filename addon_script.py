@@ -29,6 +29,7 @@ for path in sys.path:
 
 # Add script path to sys.path
 scriptpath = os.path.join(os.getcwd(),'nms_imp')
+#scriptpath = bpy.context.space_data.text.filepath
 #scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 #proj_path = os.path.dirname(scriptpath)
 #proj_path = bpy.path.abspath('//')
@@ -42,8 +43,12 @@ if not scriptpath in sys.path:
 from main import Create_Data
 from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData
 from classes import List, Vector4f, Collision
+#Import Object Classes
+from classes.Object import Model, Mesh, Locator, Reference
 from LOOKUPS import MATERIALFLAGS
 
+import main
+print(main.__file__)
 
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
@@ -60,6 +65,108 @@ def write_some_data(context, filepath, use_some_setting):
 
     return {'FINISHED'}
 
+
+def parse_material(ob):
+    # This function returns a tkmaterialdata object with all necessary material information
+    
+    #Get Material stuff
+
+    slot = ob.material_slots[0]
+    mat = slot.material
+    print(mat.name)
+    
+    #Create the material
+    matflags = List()
+    matsamplers = List()
+    matuniforms = List()
+    
+    tslots = mat.texture_slots
+    
+    #Fetch Uniforms
+    matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
+                                         Values=Vector4f(x=mat.diffuse_color.r,
+                                                         y=mat.diffuse_color.g,
+                                                         z=mat.diffuse_color.b,
+                                                         t=1.0)))
+    matuniforms.append(TkMaterialUniform(Name="gMaterialParamsVec4",
+                                         Values=Vector4f(x=0.0,
+                                                         y=0.0,
+                                                         z=0.0,
+                                                         t=0.0)))
+    matuniforms.append(TkMaterialUniform(Name="gMaterialSFXVec4",
+                                         Values=Vector4f(x=0.0,
+                                                         y=0.0,
+                                                         z=0.0,
+                                                         t=0.0)))
+    matuniforms.append(TkMaterialUniform(Name="gMaterialSFXColVec4",
+                                         Values=Vector4f(x=0.0,
+                                                         y=0.0,
+                                                         z=0.0,
+                                                         t=0.0)))
+    #Fetch Diffuse
+    texpath = ""
+    if tslots[0]:
+        #Set _F01_DIFFUSEMAP
+        matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
+        #Create gDiffuseMap Sampler
+        
+        tex = tslots[0].texture
+        #Check if there is no texture loaded
+        if not tex.type=='IMAGE':
+            raise Exception("Missing Image in Texture: " + tex.name)
+        
+        texpath = os.path.join(proj_path, tex.image.filepath[2:])
+    print(texpath)
+    sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath, IsSRGB=True)
+    matsamplers.append(sampl)
+    
+    #Check shadeless status
+    if (mat.use_shadeless):
+        #Set _F07_UNLIT
+        matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[6]))    
+    
+    #Fetch Mask
+    texpath = ""
+    if tslots[1]:
+        #Set _F24_AOMAP
+        matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[23]))
+        #Create gMaskMap Sampler
+        
+        tex = tslots[1].texture
+        #Check if there is no texture loaded
+        if not tex.type=='IMAGE':
+            raise Exception("Missing Image in Texture: " + tex.name)
+        
+        texpath = os.path.join(proj_path, tex.image.filepath[2:])
+    
+    sampl = TkMaterialSampler(Name="gMaskMap", Map=texpath, IsSRGB=False)
+    matsamplers.append(sampl)
+    
+    #Fetch Normal Map
+    texpath = ""
+    if tslots[2]:
+        #Set _F03_NORMALMAP
+        matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[2]))
+        #Create gNormalMap Sampler
+        
+        tex = tslots[2].texture
+        #Check if there is no texture loaded
+        if not tex.type=='IMAGE':
+            raise Exception("Missing Image in Texture: " + tex.name)
+        
+        texpath = os.path.join(proj_path, tex.image.filepath[2:])
+    
+    sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, IsSRGB=False)
+    matsamplers.append(sampl)
+    
+    #Create materialdata struct
+    tkmatdata = TkMaterialData(Name=mat.name,
+                               Class='Opaque',
+                               Flags=matflags,
+                               Uniforms=matuniforms,
+                               Samplers=matsamplers)
+        
+    return tkmatdata
 
 #Main Mesh parser
 def mesh_parser(ob):
@@ -78,6 +185,9 @@ def mesh_parser(ob):
     #data.update(calc_tessface=True)  # convert ngons to tris
     data.calc_tessface()
     uvcount = len(data.uv_layers)
+    #Raise exception if UV Map is missing
+    if (uvcount <1):
+        raise Exception("Missing UV Map")
     colcount = len(data.vertex_colors)
     id = 0
     for f in data.tessfaces:  # indices
@@ -90,12 +200,10 @@ def mesh_parser(ob):
             id += 3
 
         for vert in range(len(f.vertices)):
-            co = scale_mat * rot_x_mat * object_matrix_wrld * \
-                data.vertices[f.vertices[vert]].co
-            norm = scale_mat * rot_x_mat * norm_mat * \
-                data.vertices[f.vertices[vert]].normal
-            verts.append((co[0], co[1], co[2], 1.0))
-            norms.append((norm[0], norm[1], norm[2], 0.0))
+            co = data.vertices[f.vertices[vert]].co
+            norm = 100 * rot_x_mat * data.vertices[f.vertices[vert]].normal
+            verts.append((co[0], co[2], co[1], 1.0)) #Invert YZ to match NMS game coords
+            norms.append((norm[0], norm[1], norm[2], 1.0))
 
             #Get Uvs
             uv = getattr(data.tessface_uv_textures[0].data[f.index], 'uv'+str(vert + 1))
@@ -111,10 +219,126 @@ def mesh_parser(ob):
 
     return verts,norms,luvs,faces
 
+def parse_object(ob, parent):
+    newob = None
+    global material_dict
+    
+    #Get transform
+    rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
+    trans, rot, scale = (ob.matrix_local).decompose()
+    rot = rot.to_euler()
+    print(trans)
+    print(rot)
+    print(scale)
+    
+    transform = TkTransformData(TransX=trans[0],
+                               TransY=trans[2],
+                               TransZ=trans[1],
+                               RotX=degrees(rot[0]),
+                               RotY=degrees(rot[2]),
+                               RotZ=degrees(rot[1]),
+                               ScaleX=scale[0],
+                               ScaleY=scale[2],
+                               ScaleZ=scale[1])
+    
+    # Main switch to identify meshes or locators/references
+    if ob.type == 'MESH':
+        if ob.name.startswith("NMS_COLLISION"):
+            # COLLISION MESH
+            print("Collision found: ", ob.name)
+            split = ob.name.split("_")
+            colType = split[2]
+            
+            optdict = {}
+            optdict['Name'] = split[3]
+            optdict['Transform'] = transform
+            optdict['CollisionType'] = colType
+            
+            if (colType == "Mesh"):
+                c_verts,c_norms,c_uvs,c_faces = mesh_parser(ob)
+                
+                #Reset Transforms on meshes
+                
+                optdict['Vertices'] = c_verts
+                optdict['Indexes'] = c_faces
+                optdict['UVs'] = c_uvs
+                optdict['Normals'] = c_norms
+            #HANDLE Primitives
+            elif (colType == "Box"):
+                optdict['Width']  = ob.dimensions[0]
+                optdict['Depth']  = ob.dimensions[1]
+                optdict['Height'] = ob.dimensions[2]
+            elif (colType == "Sphere"):
+                optdict['Radius'] = ob.dimensions[0] / 2.0
+            elif (colType == "Cylinder"):
+                optdict['Radius'] = ob.dimensions[0] / 2.0
+                optdict['Height'] = ob.dimensions[2]
+            else:
+                raise Exception("Unsupported Collision")
+            
+            newob = Collision(**optdict)
+        else:
+            # ACTUAL MESH
+            #Parse object Geometry
+            print('Exporting: ', ob.name)
+            verts,norms,luvs,faces = mesh_parser(ob)
+            print("Object Count: ", len(verts), len(luvs), len(norms), len(faces))
+            print("Object Rotation: ", degrees(rot[0]), degrees(rot[2]), degrees(rot[1]))
+            #Create Mesh Object
+            actualname = ob.name.split("_")[1]
+            newob = Mesh(actualname, Transform = transform, Vertices=verts, UVs=luvs, Normals=norms, Indexes=faces)
+            
+            #Try to parse material
+            try:
+                slot = ob.material_slots[0]
+                mat = slot.material
+                print(mat.name)
+                if not mat.name in material_dict:
+                    print("Parsing Material " + mat.name)
+                    material_ob = parse_material(ob)
+                    material_dict[mat.name] = material_ob
+                else:
+                    material_ob = material_dict[mat.name]
+                
+                print(material_ob)
+                #Attach material to Mesh
+                newob.Material = material_ob
+                
+            except:
+                raise Exception("Missing Material")
+    
+    #Locator and Reference Objects
+    elif (ob.type=='EMPTY'):
+        if (ob.name.startswith('NMS_REFERENCE')):
+            print("Reference Detected")
+            actualname = ob.name.split("_")[2]
+            try:
+                scenegraph = ob["REF"]
+            except:
+                raise Exception("Missing REF Property, Set it")
+            
+            newob = Reference(Name = ob.name, Transform = transform, Scenegraph = scenegraph)
+        else:
+            print("Locator Detected")
+            actualname = ob.name.split("_")[1]
+            newob = Locator(Name = actualname, Transform = transform)
+    
+    
+    parent.add_child(newob)
+    
+    #Parse children
+    for child in ob.children:
+        if not (child.name.startswith('NMS') or child.name.startswith('COLLISION')):
+            continue
+        child_ob = parse_object(child, newob)
+        #newob.add_child(child_ob)
+        
+    return newob
+
+
 def main_exporter(exportpath):
     scn = bpy.context.scene
-    filepath = bpy.data.filepath
-    proj_path = os.path.dirname(filepath)
+    mname = os.path.basename(exportpath)
     
     icounter = 0
     vcounter = 0
@@ -124,225 +348,42 @@ def main_exporter(exportpath):
     uvs      = []
     tangents = []
 
-    objects  = []
     materials = []
     collisions = []
+    global material_dict
     material_dict = {}
     material_ids = []
 
-    for ob in scn.objects:
+    #Create main scene model
+    scene = Model(Name = mname)
+    
+    #Try to fetch NMS_SCENE node
+    try:
+        main_ob = scn.objects['NMS_SCENE']
+    except:
+        raise Exception("Missing NMS_SCENE Node, Create it!")
+    
+    for ob in main_ob.children:
         if not ob.name.startswith('NMS'):
             continue
-        
         print('Located Object for export', ob.name)
-        objects.append(ob.name.upper())
-        #Parse Geometry
-        verts,norms,luvs,faces = mesh_parser(ob)
-        print(len(verts), len(luvs), len(norms), len(faces))
-        #Detect Collisions
-        colOb = None
-        if len(ob.children)>0:
-            # Assuming that the first child is a collision object for now
-            # I'll have to change that in order to handle actual children 
-            # mesh/locator objects in the future
-            col = ob.children[0]
-            
-            
-            
-            if col.name.startswith("COLLISION"):
-                print("Collision found: ", col.name)
-                split = col.name.split("_")
-                colType = split[1]
-                
-                optdict = {}
-                rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
-                trans, rot, scale = (rot_x_mat * col.matrix_local).decompose()
-                rot = rot.to_euler()
-                print(trans)
-                print(rot)
-                print(scale)
-                optdict['Transform'] = TkTransformData(TransX=trans[0],
-                                                       TransY=trans[1],
-                                                       TransZ=trans[2],
-                                                       RotX=degrees(rot[0]),
-                                                       RotY=degrees(rot[1]),
-                                                       RotZ=degrees(rot[2]),
-                                                       ScaleX=scale[0],
-                                                       ScaleY=scale[1],
-                                                       ScaleZ=scale[2])
-                
-                optdict['Type'] = colType
-                if (colType == "Mesh"):
-                    c_verts,c_norms,c_uvs,c_faces = mesh_parser(col)
-                    
-                    #Reset Transforms on meshes
-                    optdict['Transform'] = TkTransformData(TransX=0.0, TransY=0.0, TransZ=0.0,
-                                                       RotX=0.0, RotY=0.0, RotZ=0.0,
-                                                       ScaleX=1.0, ScaleY=1.0, ScaleZ=1.0)
-                    optdict['Vertices'] = c_verts
-                    optdict['Indexes'] = c_faces
-                    optdict['uv_stream'] = c_uvs
-                    optdict['Normals'] = c_norms
-                #HANDLE Primitives
-                elif (colType == "Box"):
-                    optdict['Width']  = col.dimensions[0]
-                    optdict['Depth']  = col.dimensions[1]
-                    optdict['Height'] = col.dimensions[2]
-                elif (colType == "Sphere"):
-                    optdict['Radius'] = col.dimensions[0] / 2.0
-                elif (colType == "Cylinder"):
-                    optdict['Radius'] = col.dimensions[0] / 2.0
-                    optdict['Height'] = col.dimensions[2]
-                else:
-                    raise Exception("Unsupported Collision")
-                
-                print(optdict.keys())
-                colOb = Collision(**optdict)
-                
-        collisions.append(colOb)
-          
+        parse_object(ob, scene)
+        #scene.add_child(parse_object(ob))
         
-        
-        #Get Material stuff
-        try:
-            slot = ob.material_slots[0]
-            mat = slot.material
-            print(mat.name)
-            #CHeck if material exists
-            if (mat.name in material_dict):
-                material_ids.append(material_dict[mat.name])
-            else:
-                #Create the material
-                matflags = List()
-                matsamplers = List()
-                matuniforms = List()
-                
-                tslots = mat.texture_slots
-                
-                #Fetch Uniforms
-                matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
-                                                     Values=Vector4f(x=mat.diffuse_color.r,
-                                                                     y=mat.diffuse_color.g,
-                                                                     z=mat.diffuse_color.b,
-                                                                     t=1.0)))
-                matuniforms.append(TkMaterialUniform(Name="gMaterialParamsVec4",
-                                                     Values=Vector4f(x=0.0,
-                                                                     y=0.0,
-                                                                     z=0.0,
-                                                                     t=0.0)))
-                matuniforms.append(TkMaterialUniform(Name="gMaterialSFXVec4",
-                                                     Values=Vector4f(x=0.0,
-                                                                     y=0.0,
-                                                                     z=0.0,
-                                                                     t=0.0)))
-                matuniforms.append(TkMaterialUniform(Name="gMaterialSFXColVec4",
-                                                     Values=Vector4f(x=0.0,
-                                                                     y=0.0,
-                                                                     z=0.0,
-                                                                     t=0.0)))
-                #Fetch Diffuse
-                texpath = ""
-                if tslots[0]:
-                    #Set _F01_DIFFUSEMAP
-                    matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
-                    #Create gDiffuseMap Sampler
-                    
-                    tex = tslots[0].texture
-                    #Check if there is no texture loaded
-                    if not tex.type=='IMAGE':
-                        raise Exception("Missing Image in Texture: " + tex.name)
-                    
-                    texpath = os.path.join(proj_path, tex.image.filepath[2:])
-                print(texpath)
-                sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath, IsSRGB=True)
-                matsamplers.append(sampl)
-                
-                #Check shadeless status
-                if (mat.use_shadeless):
-                    #Set _F07_UNLIT
-                    matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[6]))    
-                
-                #Fetch Mask
-                texpath = ""
-                if tslots[1]:
-                    #Set _F24_AOMAP
-                    matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[23]))
-                    #Create gMaskMap Sampler
-                    
-                    tex = tslots[1].texture
-                    #Check if there is no texture loaded
-                    if not tex.type=='IMAGE':
-                        raise Exception("Missing Image in Texture: " + tex.name)
-                    
-                    texpath = os.path.join(proj_path, tex.image.filepath[2:])
-                
-                sampl = TkMaterialSampler(Name="gMaskMap", Map=texpath, IsSRGB=False)
-                matsamplers.append(sampl)
-                
-                #Fetch Normal Map
-                texpath = ""
-                if tslots[2]:
-                    #Set _F03_NORMALMAP
-                    matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[2]))
-                    #Create gNormalMap Sampler
-                    
-                    tex = tslots[2].texture
-                    #Check if there is no texture loaded
-                    if not tex.type=='IMAGE':
-                        raise Exception("Missing Image in Texture: " + tex.name)
-                    
-                    texpath = os.path.join(proj_path, tex.image.filepath[2:])
-                
-                sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, IsSRGB=False)
-                matsamplers.append(sampl)
-                
-                #Create materialdata struct
-                tkmatdata = TkMaterialData(Name=mat.name,
-                                           Class='Opaque',
-                                           Flags=matflags,
-                                           Uniforms=matuniforms,
-                                           Samplers=matsamplers)
-                
-                
-                #Store the material
-                material_dict[mat.name] = len(materials)
-                material_ids.append(material_dict[mat.name])
-                materials.append(tkmatdata)
-                            
-        except:
-            raise Exception("Missing Material")
-            
-        
-        #Final Storage
-        vertices.append(verts)
-        normals.append(norms)
-        uvs.append(luvs)
-        indices.append(faces)
 
-    #print('Blender Script')
-    #print('Create Data Call')
-    #print(material_ids, len(material_ids))
-    #print(materials)
-    #print(len(matsamplers))
-    #print("Checking List Counts:", len(vertices), len(indices), len(collisions))
+    print('Blender Script')
+    print('Create Data Call')
     
     print('Creating .exmls')
     #Convert Paths
     directory = os.path.dirname(exportpath)
     mpath = os.path.dirname(os.path.abspath(exportpath))
     os.chdir(mpath)
-    mname = os.path.basename(exportpath)
     Create_Data(mname,
                 mname,
-                objects,
-                index_stream = indices,
-                vertex_stream = vertices,
-                uv_stream = uvs,
-                n_stream = normals,
-                materials = materials,
-                mat_indices = material_ids,
-                collisions = collisions
-                )
+                scene)
+                
+    return {'FINISHED'}
 
     return True
 
@@ -405,4 +446,4 @@ if __name__ == "__main__":
     register()
 
     # test call
-    bpy.ops.export_test.some_data('INVOKE_DEFAULT')
+    bpy.ops.export_mesh.nms(filepath="J:\\Installs\\Steam\\steamapps\\common\\No Man's Sky\\GAMEDATA\\PCBANKS\\JUMBO")
