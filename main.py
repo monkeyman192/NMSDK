@@ -363,7 +363,7 @@ if __name__ == '__main__':
                   Vertices = [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)],
                   Indexes = [(0,1,2), (2,3,0)],
                   UVs = [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)])
-    main_obj.add_child(Obj2)
+    Obj1.add_child(Obj2)
     loc = Locator(Name = 'testloc')
     Obj2.add_child(loc)
     ref = Reference(Name = 'testref')
