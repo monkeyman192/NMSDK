@@ -227,6 +227,8 @@ class Create_Data():
                 elif obj._Type == 'REFERENCE':
                     # TODO: Potentially get this information from blender? Or maybe just leave with a message in it for the user to add themselves?
                     data = {'SCENEGRAPH': 'Enter in the path of the SCENE.MBIN you want to reference here.'}
+                elif obj._Type == 'LIGHT':
+                    data = None
             obj.create_attributes(data)
             
 
@@ -368,6 +370,8 @@ if __name__ == '__main__':
     loc.add_child(ref)
     ref2 = Reference(Name = 'testref2')
     loc.add_child(ref2)
+    light = Light(Name = 'ls', Intensity = 200000, Colour = (0.4, 0.6, 0.2))
+    Obj1.add_child(light)
 
     main = Create_Data('SQUARE', 'TEST', main_obj)
 

@@ -1,7 +1,7 @@
 # mic_funcs (just import all)
 from .List import List
-from .Collision import Collision
-from .Object import Object, Locator, Mesh, Collision, Model, Reference
+from .oldCollision import oldCollision
+from .Object import Locator, Light, Mesh, Joint, Emitter, Collision, Model, Reference
 from .Vector4f import Vector4f
 from .NMSString0x80 import NMSString0x80
 from .TkAttachmentData import TkAttachmentData
