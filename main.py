@@ -180,6 +180,10 @@ class Create_Data():
         self.GeometryData['VertexCount'] = sum(self.v_stream_lens)
         self.GeometryData['MeshVertRStart'] = list(self.vert_bounds[i][0] for i in range(len(self.vert_bounds)))
         self.GeometryData['MeshVertREnd'] = list(self.vert_bounds[i][1] for i in range(len(self.vert_bounds)))
+        if self.GeometryData['IndexCount'] > 2**16:
+            self.GeometryData['Indices16Bit'] = 0
+        else:
+            self.GeometryData['Indices16Bit'] = 1
 
     def process_nodes(self):
         # this will iterate first over the list of mesh data and apply all the required information to the Mesh and Mesh-type Collisions objects.
@@ -201,6 +205,7 @@ class Create_Data():
                     # we only care about entity and material data for Mesh Objects
                     if mesh_obj.Material is not None:
                         mat_name = mesh_obj.Material['Name']
+                        
                         data['MATERIAL'] = os.path.join(self.path, self.name)+ '_{}'.format(mat_name.upper()) + '.MATERIAL.MBIN'
                     else:
                         data['MATERIAL'] = ''
@@ -225,8 +230,7 @@ class Create_Data():
                 elif obj._Type == 'MODEL':
                     data = {'GEOMETRY': str(self.path) + ".GEOMETRY.MBIN"}
                 elif obj._Type == 'REFERENCE':
-                    # TODO: Potentially get this information from blender? Or maybe just leave with a message in it for the user to add themselves?
-                    data = {'SCENEGRAPH': 'Enter in the path of the SCENE.MBIN you want to reference here.'}
+                    data = None
                 elif obj._Type == 'LIGHT':
                     data = None
             obj.create_attributes(data)
@@ -331,7 +335,7 @@ class Create_Data():
         self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for material in self.materials:
-            material.tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), material['Name'].rstrip('_Mat').upper()))
+            material.tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), material['Name'].upper()))
 
     def convert_to_mbin(self):
         # passes all the files produced by
@@ -340,21 +344,22 @@ class Create_Data():
             for file in files:
                 location = os.path.join(directory, file)
                 if os.path.splitext(location)[1] == '.exml':
-                    subprocess.call(["MBINCompiler.exe", location])
-                    #if os.path.splitext(os.path.splitext(location)[0])[1] == ".SCENE":
-                    os.remove(location)
+                    retcode = subprocess.call(["MBINCompiler.exe", location])
+                    if retcode == 0:
+                        os.remove(location)
 
         
 if __name__ == '__main__':
 
     main_obj = Model(Name = 'Square')
 
-    #def_mat = TkMaterialData(Name = 'Square1mat')
+    def_mat = TkMaterialData(Name = 'Square1mat')
 
     Obj1 = Mesh(Name = 'Square1',
                   Vertices = [(-1,1,0,1), (1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
                   Indexes = [(0,1,2), (2,3,0)],
-                  UVs = [(0.3,0,0,1), (0,0.2,0,1), (0,0.1,0,1), (0.1,0.2,0,1)])
+                  UVs = [(0.3,0,0,1), (0,0.2,0,1), (0,0.1,0,1), (0.1,0.2,0,1)],
+                Material = def_mat)
     main_obj.add_child(Obj1)
     Obj1_col = Collision(Name = 'Square1_col', CollisionType = 'Mesh', Vertices = [(-4,4,0,1),(4,4,0,1), (4,-4,0,1), (-4,-4,0,1)],
                       Indexes = [(0,1,2), (2,3,0)])
