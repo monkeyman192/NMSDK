@@ -51,3 +51,6 @@ Temporary Items
 classes/__pycache__/*
 classes/*.pyc
 __pycache__/
+*.blend
+*.blend1
+textures/*

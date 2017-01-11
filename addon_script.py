@@ -1,11 +1,11 @@
 bl_info = {  
  "name": "NMS Exporter",  
- "author": "gregkwaste / monkeyman192",  
- "version": (0, 7),  
+ "author": "gregkwaste, credits: monkeyman192",  
+ "version": (0, 7),
  "blender": (2, 7, 0),  
  "location": "File > Export",  
  "description": "Exports to NMS File format",  
- "warning": "",  
+ "warning": "",
  "wiki_url": "",  
  "tracker_url": "",  
  "category": "Export"} 
@@ -16,6 +16,16 @@ import os
 import sys
 from math import radians, degrees
 from mathutils import Matrix,Vector
+
+#Attempt to find 'blender.exe path'
+
+for path in sys.path:
+    if os.path.isdir(path):
+        if 'nms_imp' in os.listdir(path):
+            print("Found nms_imp at: ", path)
+            os.chdir(path)
+            break
+
 
 # Add script path to sys.path
 scriptpath = os.path.join(os.getcwd(),'nms_imp')
@@ -364,6 +374,7 @@ def main_exporter(exportpath):
     print('Blender Script')
     print('Create Data Call')
     
+    print('Creating .exmls')
     #Convert Paths
     directory = os.path.dirname(exportpath)
     mpath = os.path.dirname(os.path.abspath(exportpath))
@@ -374,7 +385,7 @@ def main_exporter(exportpath):
                 
     return {'FINISHED'}
 
-
+    return True
 
 
 class NMS_Export_Operator(Operator, ExportHelper):
@@ -408,7 +419,12 @@ class NMS_Export_Operator(Operator, ExportHelper):
 #            )
 
     def execute(self, context):
-        return main_exporter(self.filepath)
+        status = main_exporter(self.filepath)
+        self.report({'INFO'}, "Models Exported Successfully")
+        if status:
+            return {'FINISHED'}
+        else:
+            return {'CANCELLED'}
 
 
 # Only needed if you want to add into a dynamic menu
