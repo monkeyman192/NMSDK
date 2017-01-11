@@ -32,7 +32,7 @@ scriptpath = os.path.join(os.getcwd(),'nms_imp')
 #scriptpath = bpy.context.space_data.text.filepath
 #scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 #proj_path = os.path.dirname(scriptpath)
-#proj_path = bpy.path.abspath('//')
+proj_path = bpy.path.abspath('//')
 print(scriptpath)
 
 if not scriptpath in sys.path:
@@ -42,9 +42,9 @@ if not scriptpath in sys.path:
     
 from main import Create_Data
 from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData
-from classes import List, Vector4f, Collision
+from classes import List, Vector4f
 #Import Object Classes
-from classes.Object import Model, Mesh, Locator, Reference
+from classes.Object import Model, Mesh, Locator, Reference, Collision, Light
 from LOOKUPS import MATERIALFLAGS
 
 import main
@@ -224,24 +224,41 @@ def mesh_parser(ob):
 def parse_object(ob, parent):
     newob = None
     global material_dict
+    #Apply location/rotation/scale
+    #bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
     
     #Get transform
-    rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
-    trans, rot, scale = (ob.matrix_local).decompose()
+    matrix = ob.matrix_local
+    yzmat = Matrix()
+    yzmat[0] = Vector((1.0, 0.0, 0.0, 0.0))
+    yzmat[1] = Vector((0.0, 0.0, 1.0, 0.0))
+    yzmat[2] = Vector((0.0, 1.0, 0.0, 0.0))
+    yzmat[3] = Vector((0.0, 0.0, 0.0, 1.0))
+    
+    trans, rot, scale = (yzmat * ob.matrix_local * yzmat).decompose()
     rot = rot.to_euler()
     print(trans)
     print(rot)
     print(scale)
     
+    #transform = TkTransformData(TransX=trans[0],
+    #                           TransY=trans[1],
+    #                           TransZ=trans[2],
+    #                           RotX=degrees(rot[0]),
+    #                           RotY=degrees(rot[1]),
+    #                           RotZ=degrees(rot[2]),
+    #                           ScaleX=scale[0],
+    #                           ScaleY=scale[1],
+    #                           ScaleZ=scale[2])
     transform = TkTransformData(TransX=trans[0],
-                               TransY=trans[2],
-                               TransZ=trans[1],
+                               TransY=trans[1],
+                               TransZ=trans[2],
                                RotX=degrees(rot[0]),
-                               RotY=degrees(rot[2]),
-                               RotZ=degrees(rot[1]),
+                               RotY=degrees(rot[1]),
+                               RotZ=degrees(rot[2]),
                                ScaleX=scale[0],
-                               ScaleY=scale[2],
-                               ScaleZ=scale[1])
+                               ScaleY=scale[1],
+                               ScaleZ=scale[2])
     
     # Main switch to identify meshes or locators/references
     if ob.type == 'MESH':
@@ -320,11 +337,20 @@ def parse_object(ob, parent):
                 raise Exception("Missing REF Property, Set it")
             
             newob = Reference(Name = ob.name, Transform = transform, Scenegraph = scenegraph)
-        else:
+        elif (ob.name.startswith('NMS_LOCATOR')):
             print("Locator Detected")
-            actualname = ob.name.split("_")[1]
+            actualname = ob.name.split("_")[2]
+                        
             newob = Locator(Name = actualname, Transform = transform)
-    
+    #Light Objects
+    elif (ob.type =='LAMP'):
+        actualname = ob.name.split("_")[1]
+        #Get Color
+        col = tuple([ob.color[0], ob.color[1], ob.color[2]])
+        #Get Intensity
+        intensity = ob.data.energy
+        
+        newob = Light(Name=actualname, Transform = transform, Colour = col, Intensity = intensity)
     
     parent.add_child(newob)
     
