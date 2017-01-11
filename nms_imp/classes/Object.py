@@ -4,101 +4,275 @@
 from xml.etree.ElementTree import SubElement, Element, ElementTree
 from .TkSceneNodeData import TkSceneNodeData
 from .TkSceneNodeAttributeData import TkSceneNodeAttributeData
+from .TkTransformData import TkTransformData
+from .TkMaterialData import TkMaterialData
 from .List import List
+from .Errors import *
 from numbers import Number
 
+TYPES = ['MESH', 'LOCATOR', 'COLLISION', 'MODEL', 'REFERENCE']
+
 class Object():
-    def __init__(self, Type, Name, **kwargs):
-        self.Type = Type        # This can be any of a number of things. The parent object will generally be a MESH type
-        self.name = Name
-        self.Vertices = kwargs.get('Vertices', [])
-        self.Indexes = kwargs.get('Indexes', [])
-        self.Transform = kwargs.get('Transform', None)
+    """ Structure:
+    TkSceneNodeData:
+        Name
+        Type
+        Transform (TkTransformData)
+        Attributes (List of TkSceneNodeAttributeData). The specific values in this will depend on the Type.
+        Children (List of TkSceneNodeData)
+    end
+    """
+    
+    def __init__(self, **kwargs):
+        self.Transform = kwargs.get('Transform', TkTransformData())     # This will be given as a TkTransformData object.
+                                                                        # If this isn't specified the default value will be used.
 
-        self.Attributes = []
+        self.Attributes = None      # default to None so that it is handled properly if there are none.
 
-        self.Children = []
+        self.Children = []          # just a normal list so it is easier to iterate over
+        self.Parent = None          # set to None by default. Every child will have this set to something when it is added as a child.
 
-    def _create_dict(self):
-        # every object that is self.~ is copied into a different dictionary, self.data_dict
-        data_dict = dict()
-        for i in self.__dict__:
-            data_dict[i] = self.__dict__[i]
-        self.data_dict = data_dict
+        self.IsMesh = False         # whether or not something is a mesh. This will be modified when the object is created if required.
+
+        self.NodeData = None
+
+        self.ID = None              # this is a unique number that is used to effectively flatten the mesh data so that it
+                                    # can be related to the index in the main function.
+
+        self.provided_streams = set()  # list of provided data streams (only applicable to Mesh type Objects)
         
     def give_parent(self, parent):
-        self.parent = parent
+        self.Parent = parent
 
+    def populate_meshlist(self, obj):
+        # take the obj and pass it all the way up to the Model object and add the object to it's list of meshes
+        if self.Parent is not None:
+            # in this case we are a child of something, so pass the object up an order...
+            self.Parent.populate_meshlist(obj)
+        else:
+            #... until we hit the Model object who is the only object that has no parent.
+            self.ListOfMeshes.append(obj)
+            
     def add_child(self, child):
         self.Children.append(child)
+        child.give_parent(self)     # give the child it's parent
+        if child.IsMesh:
+            # if the child has mesh data, we want to pass the reference of the object up to the Model object
+            self.populate_meshlist(child)
 
-    def __getitem__(self, key):
-        # returns the object in self.data_dict with key
-        return self.data_dict[key]
+    def determine_included_streams(self):
+        # this will search through the different possible streams and determine which have been provided
+        for name in ['Vertices', 'Indexes', 'UVs', 'Normals', 'Tangents']:
+            if self.__dict__.get(name, None) is not None:
+                self.provided_streams = self.provided_streams.union(set([name]))
 
-    def __setitem__(self, key, value):
-        # assigns the value 'value' to self.data_dict[key]
-        # currently no checking so be careful! Incorrect use could lead to incorrect exml files!!!
-        self.data_dict[key] = value
-
-    def process(self):
-        # this is where the main processing of the child nodes occurs.
-        pass
+    def get_data(self):
+        # returns the NodeData attribute
+        return self.NodeData
 
     def construct_data(self):
         # iterate through all the children and create a TkSceneNode for every child with the appropriate properties.
         
         # call each child's process function
-        self.Child_Nodes = List()
-        for node in self.Children:
-            node.process()
-            self.Child_Nodes.append(node.get_data)      # this will return the self.NodeData object in the child Object
+        if len(self.Children) != 0:
+            self.Child_Nodes = List()
+            for child in self.Children:
+                child.construct_data()
+                self.Child_Nodes.append(child.get_data())      # this will return the self.NodeData object in the child Object
+        else:
+            self.Child_Nodes = None
+
+        self.NodeData = TkSceneNodeData(Name = self.Name,
+                            Type = self._Type,
+                            Transform = self.Transform,
+                            Attributes = self.Attributes,
+                            Children = self.Child_Nodes)
+            
 
         # next, create a TkSceneNodeData object and fill it with data
         # this won't get call until all the child nodes have already had their TkSceneNodeData objects created
-        self.NodeData = TkSceneNodeData(Name = self.Name,
-                                        Type = self.Type,
-                                        Transform = self.Transform,
-                                        Attributes = self.Attributes,
-                                        Children = self.Child_Nodes)
+
+
+class Locator(Object):
+    def __init__(self, Name, **kwargs):
+        super(Locator, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "LOCATOR"
+        self.hasAttachment = kwargs.get('ATTACHMENT', False)
+
+    def create_attributes(self, data):
+        if data is not None:
+            self.Attributes = List(TkSceneNodeAttributeData(Name = 'ATTACHMENT',
+                                                            Value = data['ATTACHMENT']))
+
+class Light(Object):
+    def __init__(self, Name, **kwargs):
+        super(Light, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "LIGHT"
+
+        self.Intensity = kwargs.get('Intensity', 40000)
+        self.Colour = kwargs.get('Colour', (1,1,1))
+
+    def create_attributes(self, data):
+        self.Attributes = List(TkSceneNodeAttributeData(Name = 'FOV',
+                                                       Value = '360.000000'),
+                               TkSceneNodeAttributeData(Name = 'FALLOFF',
+                                                       Value = 'quadratic'),
+                               TkSceneNodeAttributeData(Name = 'INTENSITY',
+                                                       Value = self.Intensity),
+                               TkSceneNodeAttributeData(Name = 'COL_R',
+                                                       Value = self.Colour[0]),
+                               TkSceneNodeAttributeData(Name = 'COL_G',
+                                                       Value = self.Colour[1]),
+                               TkSceneNodeAttributeData(Name = 'COL_B',
+                                                       Value = self.Colour[2]),
+                               TkSceneNodeAttributeData(Name = 'MATERIAL',
+                                                       Value = 'MATERIALS/LIGHT.MATERIAL.MBIN'))
+
+class Joint(Object):
+    def __init__(self, Name, **kwargs):
+        super(Locator, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "JOINT"
+
+    def create_attributes(self, data):
+        if data is not None:
+            self.Attributes = List(TkSceneNodeAttributeData(Name = 'JOINTINDEX',
+                                                            Value = data['JOINTINDEX']))
+
+class Emitter(Object):
+    def __init__(self, Name, **kwargs):
+        super(Locator, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "EMITTER"
+
+    def create_attributes(self, data):
+        if data is not None:
+            self.Attributes = List(TkSceneNodeAttributeData(Name = 'MATERIAL',
+                                                            Value = data['MATERIAL']),
+                                   TkSceneNodeAttributeData(Name = 'DATA',
+                                                            Value = data['DATA']))
+
+class Mesh(Object):
+    def __init__(self, Name, **kwargs):
+        super(Mesh, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "MESH"
+        self.Vertices = kwargs.get('Vertices', None)
+        self.Indexes = kwargs.get('Indexes', None)
+        self.Material = kwargs.get('Material', TkMaterialData(Name="EMPTY"))        # This will be given as a TkMaterialData object
+        self.UVs = kwargs.get('UVs', None)
+        self.Normals = kwargs.get('Normals', None)
+        self.Tangents = kwargs.get('Tangents', None)
+        self.IsMesh = True
+
+        self.determine_included_streams()   # find out what streams have been provided
+
+    def create_attributes(self, data):
+        # data will be just the information required for the Attributes
+        self.Attributes = List(TkSceneNodeAttributeData(Name = 'BATCHSTART',
+                                                        Value = data['BATCHSTART']),
+                               TkSceneNodeAttributeData(Name = 'BATCHCOUNT',
+                                                        Value = data['BATCHCOUNT']),
+                               TkSceneNodeAttributeData(Name = 'VERTRSTART',
+                                                        Value = data['VERTRSTART']),
+                               TkSceneNodeAttributeData(Name = 'VERTREND',
+                                                        Value = data['VERTREND']),
+                               TkSceneNodeAttributeData(Name = 'FIRSTSKINMAT',
+                                                        Value = 0),
+                               TkSceneNodeAttributeData(Name = 'LASTSKINMAT',
+                                                        Value = 0),
+                               TkSceneNodeAttributeData(Name = 'MATERIAL',
+                                                        Value = data['MATERIAL']),
+                               TkSceneNodeAttributeData(Name = 'MESHLINK',
+                                                        Value = self.Name + 'Shape'),
+                               TkSceneNodeAttributeData(Name = 'ATTACHMENT',
+                                                        Value = data['ATTACHMENT']))
         
 
-    def make_elements(self, name=None, main=False):
-        # creates a sub element tree that is to be returned or read by the parent class
-        # the optional 'main' argument is a boolean value that is almost always False.
-        # In the case of it being true, the SubElement is the primary one, and needs a 'Data' tag, not a 'Property' tag
+class Collision(Object):
+    def __init__(self, Name, **kwargs):
+        super(Collision, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "COLLISION"
+        self.CType = kwargs.get("CollisionType", "Mesh")
+        if self.CType == "Mesh":
+            # get the relevant bits of data from the kwargs
+            self.IsMesh = True
+            self.Vertices = kwargs.get('Vertices', None)
+            self.Indexes = kwargs.get('Indexes', None)
+            self.Material = None
+            self.UVs = kwargs.get('UVs', None)
+            self.Normals = kwargs.get('Normals', None)
+            self.Tangents = kwargs.get('Tangents', None)
 
-        # if a name is given then the struct is a single sub element.
-        # If no name is given then the sub element must be in a list and give it no name as the name is in the list
-        if main == False:
-            if name is not None:
-                self.element = SubElement(self.parent, 'Property', {'name': name, 'value':self.STRUCTNAME + '.xml'})
-            else:
-                self.element = SubElement(self.parent, 'Property', {'value':self.STRUCTNAME + '.xml'})
-        elif main == True:
-            # in this case, we expect the name to be specified.
-            # parent can be None in this case as it is is the main element
-            self.element = Element('Data', {'template': self.STRUCTNAME})
-            self.tree = ElementTree(self.element)
+            self.determine_included_streams()   # find out what streams have been provided
+        else:
+            # just give all 4 values. The required ones will be non-zero (deal with later in the main file...)
+            self.Width = kwargs.get('Width', 0)
+            self.Height = kwargs.get('Height', 0)
+            self.Depth = kwargs.get('Depth', 0)
+            self.Radius = kwargs.get('Radius', 0)
 
-        # iterate through all the data and determine type and sort it out appropriately
-        for pname in self.data_dict:
-            data = self.data_dict[pname]
-            if isinstance(data, Number):
-                # in this case convert the int or foat to a string
-                SubElement(self.element, 'Property', {'name': pname, 'value': str(data)})
-            elif isinstance(data, str):
-                # in this case we just add the string value as normal
-                SubElement(self.element, 'Property', {'name': pname, 'value': data})
-            elif isinstance(data, list):
-                # in this case we need to add each element of the list as a sub property
-                # first add the name as a SubElement
-                SE = SubElement(self.element, 'Property', {'name': pname})
-                for i in data:
-                    SubElement(SE, 'Property', {'value': str(i)})
-            elif data is None:
-                SubElement(self.element, 'Property', {'name': pname})
-            else:
-                # only other option is for it to be a class object.
-                data.give_parent(self.element)
-                data.make_elements(pname)
+    def create_attributes(self, data):
+        self.Attributes = List(TkSceneNodeAttributeData(Name = "TYPE",
+                                                        Value = self.CType))
+        if self.CType == 'Mesh':
+            self.Attributes.append(TkSceneNodeAttributeData(Name = 'BATCHSTART',
+                                                            Value = data['BATCHSTART']))
+            self.Attributes.append(TkSceneNodeAttributeData(Name = 'BATCHCOUNT',
+                                                            Value = data['BATCHCOUNT']))
+            self.Attributes.append(TkSceneNodeAttributeData(Name = 'VERTRSTART',
+                                                            Value = data['VERTRSTART']))
+            self.Attributes.append(TkSceneNodeAttributeData(Name = 'VERTREND',
+                                                            Value = data['VERTREND']))
+            self.Attributes.append(TkSceneNodeAttributeData(Name = 'FIRSTSKINMAT',
+                                                            Value = 0))
+            self.Attributes.append(TkSceneNodeAttributeData(Name = 'LASTSKINMAT',
+                                                            Value = 0))
+        elif self.CType == 'Box':
+            self.Attributes.append(TkSceneNodeAttributeData(Name = "WIDTH",
+                                                            Value = data['WIDTH']))
+            self.Attributes.append(TkSceneNodeAttributeData(Name = "HEIGHT",
+                                                            Value = data['HEIGHT']))
+            self.Attributes.append(TkSceneNodeAttributeData(Name = "DEPTH",
+                                                            Value = data['DEPTH']))
+        elif self.CType == 'Sphere':
+            self.Attributes.append(TkSceneNodeAttributeData(Name = "RADIUS",
+                                                            Value = data['RADIUS']))
+        elif self.CType == 'Capsule' or self.CType == 'Cylinder':
+            self.Attributes.append(TkSceneNodeAttributeData(Name = "RADIUS",
+                                                            Value = data['RADIUS']))
+            self.Attributes.append(TkSceneNodeAttributeData(Name = "HEIGHT",
+                                                            Value = data['HEIGHT']))
+
+class Model(Object):
+    def __init__(self, Name, **kwargs):
+        super(Model, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "MODEL"
+
+        self.ListOfMeshes = []      # this is a list of all the MESH objects or collisions of type MESH so that we can easily access it.
+                                    # The list will be automatically populated when a child is added to any children of this object.
+
+    def create_attributes(self, data):
+        # data will be just the information required for the Attributes
+        self.Attributes = List(TkSceneNodeAttributeData(Name = 'GEOMETRY',
+                                                        Value = data['GEOMETRY']))
+        
+
+class Reference(Object):
+    def __init__(self, Name, **kwargs):
+        # this will need to recieve SCENEGRAPH as an argument to be used.
+        # Hopefully this casn be given by blender? Maybe have the user enter it in or select the path from a popup??
+        super(Reference, self).__init__(**kwargs)
+        self.Name = Name
+        self._Type = "REFERENCE"
+
+        self.Scenegraph = kwargs.get("Scenegraph", "Enter in the path of the SCENE.MBIN you want to reference here.")
+
+
+    def create_attributes(self, data):
+        self.Attributes = List(TkSceneNodeAttributeData(Name = 'SCENEGRAPH',
+                                                        Value = self.Scenegraph))
