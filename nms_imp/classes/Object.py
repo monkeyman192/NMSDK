@@ -96,9 +96,9 @@ class Object():
 class Locator(Object):
     def __init__(self, Name, **kwargs):
         super(Locator, self).__init__(**kwargs)
-        self.Name = Name
+        self.Name = Name.upper()
         self._Type = "LOCATOR"
-        self.hasAttachment = kwargs.get('ATTACHMENT', False)
+        self.hasAttachment = kwargs.get('HasAttachment', False)
 
     def create_attributes(self, data):
         if data is not None:
@@ -108,7 +108,7 @@ class Locator(Object):
 class Light(Object):
     def __init__(self, Name, **kwargs):
         super(Light, self).__init__(**kwargs)
-        self.Name = Name
+        self.Name = Name.upper()
         self._Type = "LIGHT"
 
         self.Intensity = kwargs.get('Intensity', 40000)
@@ -133,7 +133,7 @@ class Light(Object):
 class Joint(Object):
     def __init__(self, Name, **kwargs):
         super(Locator, self).__init__(**kwargs)
-        self.Name = Name
+        self.Name = Name.upper()
         self._Type = "JOINT"
 
     def create_attributes(self, data):
@@ -144,7 +144,7 @@ class Joint(Object):
 class Emitter(Object):
     def __init__(self, Name, **kwargs):
         super(Locator, self).__init__(**kwargs)
-        self.Name = Name
+        self.Name = Name.upper()
         self._Type = "EMITTER"
 
     def create_attributes(self, data):
@@ -157,7 +157,7 @@ class Emitter(Object):
 class Mesh(Object):
     def __init__(self, Name, **kwargs):
         super(Mesh, self).__init__(**kwargs)
-        self.Name = Name
+        self.Name = Name.upper()
         self._Type = "MESH"
         self.Vertices = kwargs.get('Vertices', None)
         self.Indexes = kwargs.get('Indexes', None)
@@ -194,7 +194,7 @@ class Mesh(Object):
 class Collision(Object):
     def __init__(self, Name, **kwargs):
         super(Collision, self).__init__(**kwargs)
-        self.Name = Name
+        self.Name = Name.upper()
         self._Type = "COLLISION"
         self.CType = kwargs.get("CollisionType", "Mesh")
         if self.CType == "Mesh":
@@ -250,7 +250,7 @@ class Collision(Object):
 class Model(Object):
     def __init__(self, Name, **kwargs):
         super(Model, self).__init__(**kwargs)
-        self.Name = Name
+        self.Name = Name.upper()
         self._Type = "MODEL"
 
         self.ListOfMeshes = []      # this is a list of all the MESH objects or collisions of type MESH so that we can easily access it.
@@ -267,7 +267,7 @@ class Reference(Object):
         # this will need to recieve SCENEGRAPH as an argument to be used.
         # Hopefully this casn be given by blender? Maybe have the user enter it in or select the path from a popup??
         super(Reference, self).__init__(**kwargs)
-        self.Name = Name
+        self.Name = Name.upper()
         self._Type = "REFERENCE"
 
         self.Scenegraph = kwargs.get("Scenegraph", "Enter in the path of the SCENE.MBIN you want to reference here.")

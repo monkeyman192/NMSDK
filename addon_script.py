@@ -74,6 +74,8 @@ def parse_material(ob):
     slot = ob.material_slots[0]
     mat = slot.material
     print(mat.name)
+
+    proj_path = bpy.path.abspath('//')
     
     #Create the material
     matflags = List()

@@ -228,6 +228,7 @@ class Create_Data():
                     elif obj.CType == 'Capsule' or obj.CType == 'Cylinder':
                         data = {'RADIUS': obj.Radius, 'HEIGHT': obj.Height}
                 elif obj._Type == 'MODEL':
+                    obj.Name = self.path
                     data = {'GEOMETRY': str(self.path) + ".GEOMETRY.MBIN"}
                 elif obj._Type == 'REFERENCE':
                     data = None
