@@ -1,17 +1,18 @@
-# TkVertexLayout struct
+# TkAttachmentData struct
 
 from .Struct import Struct
+from .List import List
+from .TkPhysicsComponentData import TkPhysicsComponentData
 
-STRUCTNAME = 'TkVertexLayout'
+STRUCTNAME = 'TkAnimNodeFrameData'
 
-class TkVertexLayout(Struct):
+class TkAnimNodeFrameData(Struct):
     def __init__(self, **kwargs):
 
         """ Contents of the struct """
-        self.ElementCount = kwargs.get('ElementCount', 0)
-        self.Stride = kwargs.get('Stride', 0)
-        self.PlatformData = kwargs.get('PlatformData', "")
-        self.VertexElements = kwargs.get('VertexElements', None)
+        self.Rotations = kwargs.get('Rotations', None)
+        self.Translations = kwargs.get('Translations', None)
+        self.Scales = kwargs.get('Scales', None)
         """ End of the struct contents"""
 
         """ Run code to convert struct contents into self.data_dict """

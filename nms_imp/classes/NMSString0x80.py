@@ -1,17 +1,14 @@
-# TkVertexLayout struct
+# Vector4f struct
 
 from .Struct import Struct
 
-STRUCTNAME = 'TkVertexLayout'
+STRUCTNAME = 'NMSString0x80'
 
-class TkVertexLayout(Struct):
+class NMSString0x80(Struct):
     def __init__(self, **kwargs):
 
         """ Contents of the struct """
-        self.ElementCount = kwargs.get('ElementCount', 0)
-        self.Stride = kwargs.get('Stride', 0)
-        self.PlatformData = kwargs.get('PlatformData', "")
-        self.VertexElements = kwargs.get('VertexElements', None)
+        self.Value = kwargs.get('Value', "")
         """ End of the struct contents"""
 
         """ Run code to convert struct contents into self.data_dict """
@@ -19,4 +16,5 @@ class TkVertexLayout(Struct):
 
         # Parent needed so that it can be a SubElement of something
         self.parent = None
+
         self.STRUCTNAME = STRUCTNAME

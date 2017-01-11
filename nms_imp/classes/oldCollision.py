@@ -6,7 +6,7 @@ from .TkTransformData import TkTransformData
 
 PRIMITIVES = ['Box', 'Sphere', 'Capsule', 'Cylinder']
 
-class Collision():
+class oldCollision():
     def __init__(self, **kwargs):
 
         self.Type = kwargs.get('Type', None)

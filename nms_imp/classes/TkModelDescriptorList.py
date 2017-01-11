@@ -1,17 +1,15 @@
-# TkVertexLayout struct
+# TkSceneNodeData struct
 
 from .Struct import Struct
+from .List import List
 
-STRUCTNAME = 'TkVertexLayout'
+STRUCTNAME = 'TkModelDescriptorList'
 
-class TkVertexLayout(Struct):
+class TkModelDescriptorList(Struct):
     def __init__(self, **kwargs):
 
         """ Contents of the struct """
-        self.ElementCount = kwargs.get('ElementCount', 0)
-        self.Stride = kwargs.get('Stride', 0)
-        self.PlatformData = kwargs.get('PlatformData', "")
-        self.VertexElements = kwargs.get('VertexElements', None)
+        self.List = kwargs.get('List', List())
         """ End of the struct contents"""
 
         """ Run code to convert struct contents into self.data_dict """
