@@ -32,7 +32,10 @@ scriptpath = os.path.join(os.getcwd(),'nms_imp')
 #scriptpath = bpy.context.space_data.text.filepath
 #scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 #proj_path = os.path.dirname(scriptpath)
-proj_path = bpy.path.abspath('//')
+try:
+    proj_path = bpy.path.abspath('//')
+except:
+    pass
 print(scriptpath)
 
 if not scriptpath in sys.path:
