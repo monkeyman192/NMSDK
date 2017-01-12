@@ -1,7 +1,7 @@
 bl_info = {  
  "name": "NMS Exporter",  
  "author": "gregkwaste, credits: monkeyman192",  
- "version": (0, 7),
+ "version": (0, 8),
  "blender": (2, 7, 0),  
  "location": "File > Export",  
  "description": "Exports to NMS File format",  
@@ -262,7 +262,7 @@ def parse_object(ob, parent):
     
     # Main switch to identify meshes or locators/references
     if ob.type == 'MESH':
-        if ob.name.startswith("NMS_COLLISION"):
+        if ob.name.startswith("NMS_COLLISION"):     # syntax: NMS_COLLISION_<NAME>_<CTYPE>
             # COLLISION MESH
             print("Collision found: ", ob.name)
             split = ob.name.split("_")
@@ -304,7 +304,7 @@ def parse_object(ob, parent):
             print("Object Count: ", len(verts), len(luvs), len(norms), len(faces))
             print("Object Rotation: ", degrees(rot[0]), degrees(rot[2]), degrees(rot[1]))
             #Create Mesh Object
-            actualname = ob.name.split("_")[1]
+            actualname = ob.name.split("_")[1]      # syntax: NMS_<NAME>
             newob = Mesh(actualname, Transform = transform, Vertices=verts, UVs=luvs, Normals=norms, Indexes=faces)
             
             #Try to parse material
@@ -330,7 +330,7 @@ def parse_object(ob, parent):
     elif (ob.type=='EMPTY'):
         if (ob.name.startswith('NMS_REFERENCE')):
             print("Reference Detected")
-            actualname = ob.name.split("_")[2]
+            actualname = ob.name.split("_")[2]      # syntax: NMS_REFERENCE_<NAME>
             try:
                 scenegraph = ob["REF"]
             except:
@@ -339,12 +339,20 @@ def parse_object(ob, parent):
             newob = Reference(Name = ob.name, Transform = transform, Scenegraph = scenegraph)
         elif (ob.name.startswith('NMS_LOCATOR')):
             print("Locator Detected")
-            actualname = ob.name.split("_")[2]
+            actualname = ob.name.split("_")[2]      # syntax: NMS_LOCATOR_<NAME>
+            try:
+                HasAttachment = ob["HasAttachment"]
+                if HasAttachment == "True":
+                    HasAttachment = True
+                else:
+                    HasAttachment = False
+            except:
+                HasAttachment = False
                         
-            newob = Locator(Name = actualname, Transform = transform)
+            newob = Locator(Name = actualname, Transform = transform, HasAttachment = HasAttachment)
     #Light Objects
     elif (ob.type =='LAMP'):
-        actualname = ob.name.split("_")[1]
+        actualname = ob.name.split("_")[2]      # syntax: NMS_LIGHT_<NAME>
         #Get Color
         col = tuple([ob.color[0], ob.color[1], ob.color[2]])
         #Get Intensity
