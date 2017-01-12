@@ -189,8 +189,9 @@ def mesh_parser(ob):
     data.calc_tessface()
     uvcount = len(data.uv_layers)
     #Raise exception if UV Map is missing
-    if (uvcount <1):
+    if (uvcount < 1):
         raise Exception("Missing UV Map")
+    
     colcount = len(data.vertex_colors)
     id = 0
     for f in data.tessfaces:  # indices
@@ -204,7 +205,7 @@ def mesh_parser(ob):
 
         for vert in range(len(f.vertices)):
             co = data.vertices[f.vertices[vert]].co
-            norm = 100 * rot_x_mat * data.vertices[f.vertices[vert]].normal
+            norm = 100 * data.vertices[f.vertices[vert]].normal
             verts.append((co[0], co[2], co[1], 1.0)) #Invert YZ to match NMS game coords
             norms.append((norm[0], norm[2], norm[1], 1.0))
 
