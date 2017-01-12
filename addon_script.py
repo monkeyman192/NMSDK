@@ -32,10 +32,8 @@ scriptpath = os.path.join(os.getcwd(),'nms_imp')
 #scriptpath = bpy.context.space_data.text.filepath
 #scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 #proj_path = os.path.dirname(scriptpath)
-try:
-    proj_path = bpy.path.abspath('//')
-except:
-    pass
+#proj_path is set in the parse_material function
+
 print(scriptpath)
 
 if not scriptpath in sys.path:
@@ -208,7 +206,7 @@ def mesh_parser(ob):
             co = data.vertices[f.vertices[vert]].co
             norm = 100 * rot_x_mat * data.vertices[f.vertices[vert]].normal
             verts.append((co[0], co[2], co[1], 1.0)) #Invert YZ to match NMS game coords
-            norms.append((norm[0], norm[1], norm[2], 1.0))
+            norms.append((norm[0], norm[2], norm[1], 1.0))
 
             #Get Uvs
             uv = getattr(data.tessface_uv_textures[0].data[f.index], 'uv'+str(vert + 1))
