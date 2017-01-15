@@ -17,7 +17,7 @@ from tkinter import filedialog
 from tkinter import ttk
 
 # local imports
-from classes import *
+from .. import nms_imp
 from wckToolTips import ToolTipManager
 tt = ToolTipManager()
 
