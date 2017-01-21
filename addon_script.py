@@ -171,43 +171,143 @@ def parse_material(ob):
         
     return tkmatdata
 
+#Tangent Calculator
+def calc_tangents(faces, verts, norms, uvs):
+    tangents = []
+    #Init tangents
+    for i in range(len(verts)):
+        tangents.append(Vector((0,0,0,0)))
+    
+    #We assume that verts length will be a multiple of 3 since
+    #the mesh has been triangulated
+    
+    trisNum = len(faces)
+    #Iterate in triangles
+    for i in range(trisNum):
+        tri = faces[i]
+        vert_1 = tri[0]
+        vert_2 = tri[1]
+        vert_3 = tri[2]
+        
+        #Get Point Positions
+        P0 = Vector((verts[vert_1]));
+        P1 = Vector((verts[vert_2])) - P0;
+        P2 = Vector((verts[vert_3])) - P0;
+        
+        #print('Poss: ', P1, P2)
+        
+        P0_uv = Vector((uvs[vert_1]))
+        P1_uv = Vector((uvs[vert_2])) - P0_uv
+        P2_uv = Vector((uvs[vert_3])) - P0_uv
+        #Keep only the 1st uvmap
+        P1_uv = P1_uv.xy
+        P2_uv = P2_uv.xy
+        
+        
+        print('Uvs', P1_uv, P2_uv)
+        
+        #Matrix determinant
+        D = P1_uv[0] * P2_uv[1] - P2_uv[0] * P1_uv[0]
+        D = 1.0 / max(D, 0.0001) #Store the inverse right away
+        
+        #Apply equation
+        tang = D * (P2_uv[1] * P1 - P1_uv[1] * P2)
+        
+        #Orthogonalize Gram-Shmidt
+        n = Vector(norms[vert_1]);
+        tang = tang - n * tang.dot(n)
+        tang.normalize()
+        
+        #Add to existing
+        #Vert_1
+        tang1 = Vector(tangents[vert_1]) + tang;
+        tang1.normalize()
+        tangents[vert_1] = (tang1[0], tang1[1], tang1[2], 0.0)
+        #Vert_2
+        tang2 = Vector(tangents[vert_2]) + tang;
+        tang2.normalize()
+        tangents[vert_2] = (tang2[0], tang2[1], tang2[2], 0.0)
+        #Vert_3
+        tang3 = Vector(tangents[vert_3]) + tang;
+        tang3.normalize()
+        tangents[vert_3] = (tang3[0], tang3[1], tang3[2], 0.0)
+        
+
+    return tangents
+
+def apply_local_transforms(rotmat, verts, norms, tangents):
+    norm_mat = rotmat.inverted().transposed()
+    
+    print(len(verts), len(norms), len(tangents))
+    for i in range(len(verts)):
+        #Load Vertex
+        vert = rotmat * Vector((verts[i]))
+        #Store Transformed
+        verts[i] = (vert[0], vert[1], vert[2], 1.0)
+        #Load Normal
+        norm = norm_mat * Vector((norms[i]))
+        norm.normalize()
+        #Store Transformed normal
+        norms[i] = (norm[0], norm[1], norm[2], 0.0)
+        #Load Tangent
+        tang = norm_mat * Vector((tangents[i]))
+        tang.normalize()
+        #Store Transformed tangent
+        tangents[i] = (tang[0], tang[1], tang[2], 0.0)
+        
 #Main Mesh parser
 def mesh_parser(ob):
     #Lists
     verts = []
     norms = []
+    tangents = []
     luvs = []
     faces = []
     # Matrices
     object_matrix_wrld = ob.matrix_world
     rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
     scale_mat = Matrix.Scale(1, 4)
-    norm_mat = ob.matrix_world.inverted().transposed()
+    norm_mat = rot_x_mat.inverted().transposed()
     
     data = ob.data
-    #data.update(calc_tessface=True)  # convert ngons to tris
-    data.calc_tessface()
-    uvcount = len(data.uv_layers)
     #Raise exception if UV Map is missing
+    uvcount = len(data.uv_layers)
     if (uvcount < 1):
         raise Exception("Missing UV Map")
+        
+    
+    #data.update(calc_tessface=True)  # convert ngons to tris
+    data.calc_tessface()
+    try:
+        #pass
+        data.calc_tangents(data.uv_layers[0].name)
+    except:
+        raise Exception("Please Triangulate your Mesh")
+    
+    
     
     colcount = len(data.vertex_colors)
     id = 0
     for f in data.tessfaces:  # indices
+        polygon = data.polygons[f.index] #Load Polygon
         if len(f.vertices) == 4:
             faces.append((id, id + 1, id + 2))
-            faces.append((id + 3, id, id + 2))
+            faces.append((id, id + 2, id + 3))
             id += 4
         else:
             faces.append((id, id + 1, id + 2))
             id += 3
 
         for vert in range(len(f.vertices)):
+            #Store them untransformed and we will fix them after tangent calculation
             co = data.vertices[f.vertices[vert]].co
-            norm = 100 * data.vertices[f.vertices[vert]].normal
-            verts.append((co[0], co[2], co[1], 1.0)) #Invert YZ to match NMS game coords
-            norms.append((norm[0], norm[2], norm[1], 1.0))
+            norm = data.vertices[f.vertices[vert]].normal
+            
+            #norm =    100 * norm_mat * data.loops[f.vertices[vert]].normal
+            #tangent = 100 * norm_mat * data.loops[f.vertices[vert]].tangent
+            verts.append((co[0], co[1], co[2], 1.0)) #Invert YZ to match NMS game coords
+            norms.append((norm[0], norm[1], norm[2], 0.0))
+            #tangents.append((tangent[0], tangent[1], tangent[2], 0.0))
 
             #Get Uvs
             uv = getattr(data.tessface_uv_textures[0].data[f.index], 'uv'+str(vert + 1))
@@ -221,7 +321,14 @@ def mesh_parser(ob):
 #                    f.index) + '].color' + str(vert + 1) + '[2]*1023')
 #                eval('col_' + str(k) + '.append((r,g,b))')
 
-    return verts,norms,luvs,faces
+    #At this point mesh is triangulated
+    #I can get the triangulated input and calculate the tangents 
+    tangents = calc_tangents(faces, verts, norms, luvs)
+    
+    #Apply rotation and normal matrices on vertices and normal vectors
+    apply_local_transforms(rot_x_mat, verts, norms, tangents)
+    
+    return verts, norms, tangents, luvs, faces
 
 def parse_object(ob, parent):
     newob = None
@@ -276,7 +383,7 @@ def parse_object(ob, parent):
             optdict['CollisionType'] = colType
             
             if (colType == "Mesh"):
-                c_verts,c_norms,c_uvs,c_faces = mesh_parser(ob)
+                c_verts,c_norms,c_tangs,c_uvs,c_faces = mesh_parser(ob)
                 
                 #Reset Transforms on meshes
                 
@@ -284,6 +391,7 @@ def parse_object(ob, parent):
                 optdict['Indexes'] = c_faces
                 optdict['UVs'] = c_uvs
                 optdict['Normals'] = c_norms
+                optdict['Tangents'] = c_tangs
             #HANDLE Primitives
             elif (colType == "Box"):
                 optdict['Width']  = ob.dimensions[0]
@@ -302,12 +410,12 @@ def parse_object(ob, parent):
             # ACTUAL MESH
             #Parse object Geometry
             print('Exporting: ', ob.name)
-            verts,norms,luvs,faces = mesh_parser(ob)
+            verts,norms,tangs,luvs,faces = mesh_parser(ob)
             print("Object Count: ", len(verts), len(luvs), len(norms), len(faces))
             print("Object Rotation: ", degrees(rot[0]), degrees(rot[2]), degrees(rot[1]))
             #Create Mesh Object
             actualname = ob.name.split("_")[1]      # syntax: NMS_<NAME>
-            newob = Mesh(actualname, Transform = transform, Vertices=verts, UVs=luvs, Normals=norms, Indexes=faces)
+            newob = Mesh(actualname, Transform = transform, Vertices=verts, UVs=luvs, Normals=norms, Tangents=tangs, Indexes=faces)
             
             #Try to parse material
             try:
@@ -484,4 +592,4 @@ if __name__ == "__main__":
     register()
 
     # test call
-    bpy.ops.export_mesh.nms(filepath="J:\\Installs\\Steam\\steamapps\\common\\No Man's Sky\\GAMEDATA\\PCBANKS\\JUMBO")
+    bpy.ops.export_mesh.nms(filepath="J:\\Installs\\Steam\\steamapps\\common\\No Man's Sky\\GAMEDATA\\PCBANKS\\CONSTRUCTRAMP")
