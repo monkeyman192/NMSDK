@@ -295,16 +295,16 @@ class Create_Data():
         self.GeometryData['MeshAABBMax'] = List()
         
         for obj in self.Model.ListOfMeshes:
-            v_stream = obj.Vertices
-            x_verts = [i[0] for i in v_stream]
-            y_verts = [i[1] for i in v_stream]
-            z_verts = [i[2] for i in v_stream]
-            x_bounds = (min(x_verts), max(x_verts))
-            y_bounds = (min(y_verts), max(y_verts))
-            z_bounds = (min(z_verts), max(z_verts))
+            if obj.BBox is not None:
+                min_bounds = obj.BBox[0]
+                max_bounds = obj.BBox[1]
 
-            self.GeometryData['MeshAABBMin'].append(Vector4f(x=x_bounds[0], y=y_bounds[0], z=z_bounds[0], t=1))
-            self.GeometryData['MeshAABBMax'].append(Vector4f(x=x_bounds[1], y=y_bounds[1], z=z_bounds[1], t=1))
+                self.GeometryData['MeshAABBMin'].append(Vector4f(x=min_bounds[0], y=min_bounds[1], z=min_bounds[2], t=1))
+                self.GeometryData['MeshAABBMax'].append(Vector4f(x=max_bounds[0], y=max_bounds[1], z=max_bounds[2], t=1))
+            else:
+                print('Object {} has no bounding box. Please add one'.format(obj.Name))
+                self.GeometryData['MeshAABBMin'].append(Vector4f(x=0, y=0, z=0, t=1))
+                self.GeometryData['MeshAABBMax'].append(Vector4f(x=0, y=0, z=0, t=1))
 
     def process_materials(self):
         # process the material data and gives the textures the correct paths
