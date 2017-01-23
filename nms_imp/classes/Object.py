@@ -166,7 +166,6 @@ class Mesh(Object):
         self.Normals = kwargs.get('Normals', None)
         self.Tangents = kwargs.get('Tangents', None)
         self.IsMesh = True
-        self.BBox = kwargs.get('BBox', None)        # this will be a list of length 2 with each element being a 4-tuple.
 
         self.determine_included_streams()   # find out what streams have been provided
 
