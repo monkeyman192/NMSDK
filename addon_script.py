@@ -161,6 +161,8 @@ def parse_material(ob):
     
     sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, IsSRGB=False)
     matsamplers.append(sampl)
+
+    matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[46]))
     
     #Create materialdata struct
     tkmatdata = TkMaterialData(Name=mat.name,
@@ -222,15 +224,15 @@ def calc_tangents(faces, verts, norms, uvs):
         #Vert_1
         tang1 = Vector(tangents[vert_1]) + tang;
         tang1.normalize()
-        tangents[vert_1] = (tang1[0], tang1[1], tang1[2], 0.0)
+        tangents[vert_1] = (tang1[0], tang1[1], tang1[2], 1.0)
         #Vert_2
         tang2 = Vector(tangents[vert_2]) + tang;
         tang2.normalize()
-        tangents[vert_2] = (tang2[0], tang2[1], tang2[2], 0.0)
+        tangents[vert_2] = (tang2[0], tang2[1], tang2[2], 1.0)
         #Vert_3
         tang3 = Vector(tangents[vert_3]) + tang;
         tang3.normalize()
-        tangents[vert_3] = (tang3[0], tang3[1], tang3[2], 0.0)
+        tangents[vert_3] = (tang3[0], tang3[1], tang3[2], 1.0)
         
 
     return tangents
@@ -248,12 +250,12 @@ def apply_local_transforms(rotmat, verts, norms, tangents):
         norm = norm_mat * Vector((norms[i]))
         norm.normalize()
         #Store Transformed normal
-        norms[i] = (norm[0], norm[1], norm[2], 0.0)
+        norms[i] = (norm[0], norm[1], norm[2], 1.0)
         #Load Tangent
         tang = norm_mat * Vector((tangents[i]))
         tang.normalize()
         #Store Transformed tangent
-        tangents[i] = (tang[0], tang[1], tang[2], 0.0)
+        tangents[i] = (tang[0], tang[1], tang[2], 1.0)
         
 #Main Mesh parser
 def mesh_parser(ob):
@@ -278,18 +280,18 @@ def mesh_parser(ob):
     
     #data.update(calc_tessface=True)  # convert ngons to tris
     data.calc_tessface()
-    try:
+    #try:
         #pass
-        data.calc_tangents(data.uv_layers[0].name)
-    except:
-        raise Exception("Please Triangulate your Mesh")
+    #    data.calc_tangents(data.uv_layers[0].name)
+    #except:
+    #    raise Exception("Please Triangulate your Mesh")
     
     
     
     colcount = len(data.vertex_colors)
     id = 0
     for f in data.tessfaces:  # indices
-        polygon = data.polygons[f.index] #Load Polygon
+        #polygon = data.polygons[f.index] #Load Polygon
         if len(f.vertices) == 4:
             faces.append((id, id + 1, id + 2))
             faces.append((id, id + 2, id + 3))
@@ -301,12 +303,13 @@ def mesh_parser(ob):
         for vert in range(len(f.vertices)):
             #Store them untransformed and we will fix them after tangent calculation
             co = data.vertices[f.vertices[vert]].co
-            norm = data.vertices[f.vertices[vert]].normal
+            #norm = data.vertices[f.vertices[vert]].normal #Save Vertex Normal
+            norm = f.normal #Save face normal
             
             #norm =    100 * norm_mat * data.loops[f.vertices[vert]].normal
             #tangent = 100 * norm_mat * data.loops[f.vertices[vert]].tangent
             verts.append((co[0], co[1], co[2], 1.0)) #Invert YZ to match NMS game coords
-            norms.append((norm[0], norm[1], norm[2], 0.0))
+            norms.append((norm[0], norm[1], norm[2], 1.0))
             #tangents.append((tangent[0], tangent[1], tangent[2], 0.0))
 
             #Get Uvs
