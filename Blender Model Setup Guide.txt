@@ -17,16 +17,22 @@ nms compatible files. So lets get to the tasks.
 	directory with the blender.exe)
 	2. Open Blender, go to User Preferences->Addons, and install the supplied addon. Make sure to enable it as well (tick the checkbox)
 
+#TASK 1 --- "Create main scene object"
 
-#TASK 1 --- "GEOMETRY/OBJECT PREPARATION"
+	Due to how the importer works, every object that you want exported needs to be contained within an empty
+	object in blender that has the name NMS_SCENE.
+	Every object hierarchy that will be exported MUST be a child of this object.
+	The location of this object is best set to the origin.
+
+#TASK 2 --- "GEOMETRY/OBJECT PREPARATION"
 	
-	Make sure that EVERY object that you want to import contains a UVMap (even an empty one,
+	Make sure that every MESH object that you want to import contains a UVMap (even an empty one,
 	it doesn't matter) and it has been assigned to a material. Literally those are the only
 	requirements for getting models ready for the export process. Also overall, make sure that
 	you save your blend in the disk, and you are not working on a temporary session of blender.
 	This is critical for all the model file dependencies (such as textures) to work out.
 
-#TASK 2 --- "TEXTURE OPTIONS"
+#TASK 3 --- "TEXTURE OPTIONS"
 
 	For now each material can have up to 3 different textures. There is a fixed way on how
 	textures are handled and this is following the texture slot order in the material options.
@@ -40,7 +46,7 @@ nms compatible files. So lets get to the tasks.
 	material color, so even without setting textures right or setting any of them at all, will
 	not cause errors on the export process.
 
-#TASK 3 --- "LIT STATUS"
+#TASK 4 --- "LIT STATUS"
 	
 	LIT or UNLIT status of objects ingame is set via the "Shadeless" flag in the material options.
 	For now lit objects are in experimental phase because they require quite some more info concerning
@@ -48,7 +54,7 @@ nms compatible files. So lets get to the tasks.
 	for now is to enable this flag, in order to toggle the UNLIT flag. Using that flag the model will
 	use just the color information it gets from the diffuse texture or the main material color.
 
-#TASK 4 --- "NAMING CONVENTION"
+#TASK 5 --- "NAMING CONVENTION"
 	
 	Just to make things clearer and in order to enable modders to have full control over the objects
 	that are going to be exported into the game we have setup a specific very simple naming convention
@@ -57,12 +63,18 @@ nms compatible files. So lets get to the tasks.
 		- Object Names -
 			Only objects that their name starts with "NMS_" will be exported. 
 			Example: "NMS_SeanMurrayDoesntLie"
-		-Collision Names - 
-			Collision object names should have the following form : "COLLISION_[Collisiontype]_objectname"
+		- Collision Names - 
+			Collision object names should have the following form : "NMS_COLLISION_[Collisiontype]_objectname"
 			Collisiontype can be one of the following options: Mesh, Box, Cylinder, Capsule, Sphere.
-			Example: "COLLISION_Mesh_SeanMurraysShip"
+			Example: "NMS_COLLISION_Mesh_SeanMurraysShip"
+		- Locators - 
+			Locators Follow the naming convention "NMS_LOCATOR_name"
+		- References - 
+			References follow the naming convention "NMS_REFERENCE_name"
+		- Lights:
+			Lights are named "NMS_LIGHT_name"
 
-#TASK 5 --- "COLLISIONS"
+#TASK 6 --- "COLLISIONS"
 	
 	Collisions are optional. Either you add collisions or not, the main model parts will be exported 
 	without any problem. However if you want to be able to crash into your objects and give them a 
@@ -80,7 +92,7 @@ nms compatible files. So lets get to the tasks.
 
 	Collision Creation
 
-	As mentioned in the "TASK 4" section, collision objects should follow the naming : "COLLISION_[Collisiontype]_objectname".
+	As mentioned in the "TASK 5" section, collision objects should follow the naming : "NMS_COLLISION_[Collisiontype]_objectname".
 	If collisiontype is a mesh then the object should be the collision mesh as described above.
 	If collisiontype is going to be one of the primitives then the object should be one of blenders appropriate primitives
 	as well. For example if you want to create a sphere collision you should add an "IcoSphere" primitive, from the Add->Mesh
@@ -93,7 +105,11 @@ nms compatible files. So lets get to the tasks.
 	the main object as a parent of the collision object. The quickest way to do that is to go to the Outliner panel, select the collision
 	object , then shift select the main object, then get your mouse pointer into the 3D View and hit Ctrl + P and select the "Object" option.
 
-#TASK 6 --- "EXPORT PROCEDURE"
+#TASK 7 --- "APPLY TRANSFORMS"
+	
+	To ensure the importer has the correct transforms on objects, make sure that you apply the rotation and scale only on every object that is being exported.
+
+#TASK 8 --- "EXPORT PROCEDURE"
 
 	Once everything is setup properly you can proceed to the export process. The exporter is located in File->Export->Export to NMS XML Format.
 	A dialog will prompt you to set the export filename and the export directory. For now the path doesn't mean anything at all. Because of the way

@@ -240,6 +240,7 @@ class Create_Data():
     def create_vertex_layouts(self):
         # sort out what streams are given and create appropriate vertex layouts
         VertexElements = List()
+        SmallVertexElements = List()
         ElementCount = len(self.stream_list)
         for sID in self.stream_list:
             # sID is the SemanticID
@@ -251,15 +252,24 @@ class Create_Data():
                                                   Normalise = 0,
                                                   Instancing = "PerVertex",
                                                   PlatformData = ""))
+        for sID in [0,1]:
+            Offset = 8*sID
+            SmallVertexElements.append(TkVertexElement(SemanticID = sID,
+                                                  Size = 4,
+                                                  Type = 5131,
+                                                  Offset = Offset,
+                                                  Normalise = 0,
+                                                  Instancing = "PerVertex",
+                                                  PlatformData = ""))
         # fow now just make the small vert and vert layouts the same
         self.GeometryData['VertexLayout'] = TkVertexLayout(ElementCount = ElementCount,
                                                            Stride = 8*ElementCount,
                                                            PlatformData = "",
                                                            VertexElements = VertexElements)
-        self.GeometryData['SmallVertexLayout'] = TkVertexLayout(ElementCount = ElementCount,
-                                                                Stride = 8*ElementCount,
+        self.GeometryData['SmallVertexLayout'] = TkVertexLayout(ElementCount = 2,
+                                                                Stride = 16,
                                                                 PlatformData = "",
-                                                                VertexElements = VertexElements)
+                                                                VertexElements = SmallVertexElements)
         
     def mix_streams(self):
         # this combines all the input streams into one single stream with the correct offset etc as specified by the VertexLayout
@@ -267,6 +277,7 @@ class Create_Data():
         # Again, for now just make the SmallVertexStream the same. Later, change this.
         
         VertexStream = array('d')
+        SmallVertexStream = array('d')
         for i in range(self.num_mesh_objs):
             for j in range(self.v_stream_lens[i]):
                 for sID in self.stream_list:
@@ -274,12 +285,14 @@ class Create_Data():
                     # As self.stream_list is ordered this will be mixed in the correct way wrt. the VertexLayouts
                     try:    
                         VertexStream.extend(self.Model.ListOfMeshes[i].__dict__[REV_SEMANTICS[sID]][j])
+                        if sID in [0,1]:
+                            SmallVertexStream.extend(self.Model.ListOfMeshes[i].__dict__[REV_SEMANTICS[sID]][j])
                     except:
                         # in the case this fails there is an index error caused by collisions. In this case just add a default value
                         VertexStream.extend((0,0,0,1))
         
         self.GeometryData['VertexStream'] = VertexStream
-        self.GeometryData['SmallVertexStream'] = VertexStream
+        self.GeometryData['SmallVertexStream'] = SmallVertexStream
 
         # finally we can also flatten the index stream:
         IndexBuffer = array('I')
