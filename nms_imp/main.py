@@ -276,8 +276,8 @@ class Create_Data():
         # This also flattens each stream
         # Again, for now just make the SmallVertexStream the same. Later, change this.
         
-        VertexStream = array('d')
-        SmallVertexStream = array('d')
+        VertexStream = array('f')
+        SmallVertexStream = array('f')
         for i in range(self.num_mesh_objs):
             for j in range(self.v_stream_lens[i]):
                 for sID in self.stream_list:

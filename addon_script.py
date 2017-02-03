@@ -467,7 +467,8 @@ def parse_object(ob, parent):
     elif (ob.type =='LAMP'):
         actualname = ob.name.split("_")[2]      # syntax: NMS_LIGHT_<NAME>
         #Get Color
-        col = tuple([ob.color[0], ob.color[1], ob.color[2]])
+        col = tuple(ob.data.color)
+        print("colour: {}".format(col))
         #Get Intensity
         intensity = ob.data.energy
         
