@@ -205,8 +205,9 @@ class Create_Data():
                     # we only care about entity and material data for Mesh Objects
                     if mesh_obj.Material is not None:
                         mat_name = mesh_obj.Material['Name']
+                        print('material name: {}'.format(mat_name))
                         
-                        data['MATERIAL'] = os.path.join(self.path, self.name)+ '_{}'.format(mat_name.upper()) + '.MATERIAL.MBIN'
+                        data['MATERIAL'] = os.path.join(self.path, mat_name.upper()) + '.MATERIAL.MBIN'
                     else:
                         data['MATERIAL'] = ''
                     data['ATTACHMENT'] = os.path.join(self.ent_path, mesh_obj.Name.upper()) + '.ENTITY.MBIN'
@@ -349,7 +350,7 @@ class Create_Data():
         self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for material in self.materials:
-            material.tree.write("{0}_{1}.MATERIAL.exml".format(os.path.join(self.path, self.name), material['Name'].upper()))
+            material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.path, material['Name'].upper())))
 
     def convert_to_mbin(self):
         # passes all the files produced by

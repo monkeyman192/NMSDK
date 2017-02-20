@@ -132,7 +132,7 @@ def parse_material(ob):
     texpath = ""
     if tslots[1]:
         #Set _F24_AOMAP
-        matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[23]))
+        #matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[23]))
         #Create gMaskMap Sampler
         
         tex = tslots[1].texture
@@ -504,34 +504,66 @@ def main_exporter(exportpath):
     material_dict = {}
     material_ids = []
 
-    #Create main scene model
-    scene = Model(Name = mname)
     
     #Try to fetch NMS_SCENE node
     try:
         main_ob = scn.objects['NMS_SCENE']
     except:
         raise Exception("Missing NMS_SCENE Node, Create it!")
+
+    # check whether or not we will be exporting in batch mode
+    try:
+        # set the batch_export flag to be true if we need it to be
+        if int(main_ob['BATCH']) == 1:
+            batch_export = True
+        else:
+            batch_export = False
+    except:
+        # in this case the property musn't have been set, so just assume that the user wants normal export mode
+        batch_export = False
+
+    try:
+        group = main_ob['GROUP']
+    except:
+        group = mname
+
+    if batch_export == False:
+        #Create main scene model now
+        scene = Model(Name = mname)
     
     for ob in main_ob.children:
         if not ob.name.startswith('NMS'):
             continue
         print('Located Object for export', ob.name)
-        parse_object(ob, scene)
-        #scene.add_child(parse_object(ob))
-        
+        if batch_export:
+            # we will need to create an individual scene object for each mesh
+            if len(ob.name.split('_')) == 2:
+                if 'REFERENCE' not in ob.name:
+                    name = ob.name.split('_')[1]
+                    print("Processing object {}".format(name))
+                    scene = Model(Name = name)
+                    parse_object(ob, scene)
+                    directory = os.path.dirname(exportpath)
+                    mpath = os.path.dirname(os.path.abspath(exportpath))
+                    os.chdir(mpath)
+                    Create_Data(name,
+                                group,
+                                scene)
+                    
+        else:
+            # parse the entire scene all in one go.
+            parse_object(ob, scene)
 
-    print('Blender Script')
-    print('Create Data Call')
-    
     print('Creating .exmls')
     #Convert Paths
-    directory = os.path.dirname(exportpath)
-    mpath = os.path.dirname(os.path.abspath(exportpath))
-    os.chdir(mpath)
-    Create_Data(mname,
-                mname,
-                scene)
+    if not batch_export:
+        # we only want to run this if we aren't doing a batch export
+        directory = os.path.dirname(exportpath)
+        mpath = os.path.dirname(os.path.abspath(exportpath))
+        os.chdir(mpath)
+        Create_Data(mname,
+                    group,
+                    scene)
                 
     return {'FINISHED'}
 

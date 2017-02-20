@@ -14,6 +14,7 @@ __version__ = "0.5"
 
 from tkinter import *
 from tkinter import filedialog
+from tkinter import simpledialog
 from tkinter import ttk
 
 # local imports
@@ -33,12 +34,21 @@ class GUI(Frame):
         self.master = master
         Frame.__init__(self, self.master)
 
+        self.proc_name = StringVar()
+        self.proc_name.set("PROCMODEL")
+
         self.selected_dirs = set()      # this will contain the indexes of the selected files
 
         self.createWidgets()
 
     def createWidgets(self):
         # frame with buttons
+        name_frame = Frame(self.master)
+        name_label = Label(name_frame, text = "Name: ")
+        name_label.pack(side=LEFT)
+        name_entry = Entry(name_frame, textvariable = self.proc_name)
+        name_entry.pack(side = LEFT)
+        name_frame.pack()
         list_frame = Frame(self.master)
         self.data_view = ttk.Treeview(list_frame, columns = ['Object Name', 'Path'], displaycolumns = '#all', selectmode='extended')
         self.data_view.heading("Object Name", text="Object Name")
@@ -58,6 +68,9 @@ class GUI(Frame):
         remove_button = Button(button_frame, text="REMOVE", command=self.remove)
         remove_button.pack(side=LEFT)
         tt.register(remove_button, "Removes selected models from list")
+        mult_button = Button(button_frame, text="MULTIPLY", command=self.multiply)
+        mult_button.pack(side=LEFT)
+        tt.register(mult_button, "Makes copies of all selected entries in the list")
         run_button = Button(button_frame, text="RUN", command=self.run)
         run_button.pack(side=LEFT)
         tt.register(run_button, "Creates the proc-gen spawner for the selected models")
@@ -120,11 +133,19 @@ class GUI(Frame):
             # in this case we just want everything in the list
             self.selected_iids = self.data_view.get_children()
         self.selected_objects = list(self.data_view.item(iid)['values'][1] for iid in self.selected_iids)
-        DataGenerator('PROCTEST', self.selected_objects)
+        DataGenerator(self.proc_name.get().upper(), self.selected_objects)
 
     def add(self):
         self.path_name = filedialog.askdirectory(title="Specify path containing custom models")
         self.create_list()
+
+    def multiply(self):
+        # this creates n copies of all the selected entries in the list and adds them to the list
+        number = simpledialog.askinteger(prompt = "Enter a number: ", title = "Multiply!", minvalue=1)
+        selected = self.data_view.selection()
+        for iid in selected:
+            for i in range(number):
+                self.data_view.insert("", 'end', values = self.data_view.item(iid)['values'])
 
     def quit(self):
         self.master.destroy()
@@ -148,12 +169,12 @@ class DataGenerator():
         data_list = List()
         for i in range(len(self.objects)):
             data = dict()
-            data['Id'] = "_PROCOBJ_{}".format(i)
-            data['Name'] = "_PROCOBJ_{}".format(i)
+            data['Id'] = "_{0}_{1}".format(self.name.upper(), i)
+            data['Name'] = "_{0}_{1}".format(self.name.upper(), i)
             data['ReferencePaths'] = List(NMSString0x80(Value = '{}.SCENE.MBIN'.format(self.objects[i])))
             data['Chance'] = 0
             data_list.append(TkResourceDescriptorData(**data))
-        main_data = TkResourceDescriptorList(TypeId = "_PROCOBJ_",
+        main_data = TkResourceDescriptorList(TypeId = "_{}_".format(self.name.upper()),
                                              Descriptors = data_list)
         self.TkModelDescriptorList = TkModelDescriptorList(List = List(main_data))
         self.TkModelDescriptorList.make_elements(main=True)
@@ -163,7 +184,7 @@ class DataGenerator():
         self.SceneData = Model(os.path.join(self.path, self.name.upper()))
         self.SceneData.create_attributes({'GEOMETRY': os.path.join(self.path, '{}.GEOMETRY.MBIN'.format(self.name.upper()))})
         for i in range(len(self.objects)):
-            ref = Reference("_PROCOBJ_{}".format(i), Scenegraph = '{}.SCENE.MBIN'.format(self.objects[i]))
+            ref = Reference("_{0}_{1}".format(self.name.upper(), i), Scenegraph = '{}.SCENE.MBIN'.format(self.objects[i]))
             ref.create_attributes(None) # just pass None because it doesn't matter with how Reference is set up currently !!! THIS MIGHT CHANGE !!!
             self.SceneData.add_child(ref)
             
