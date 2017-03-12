@@ -50,6 +50,8 @@ class Create_Data():
         self.t_stream = []
         self.materials = set()      # this will hopefully mean that there will be at most one copy of each unique TkMaterialData struct in the set
 
+        self.Entities = []          # a list of any extra properties to go in each entity
+
         # extract the streams from the mesh objects.
         index = 0
         for mesh in self.Model.ListOfMeshes:
@@ -58,6 +60,7 @@ class Create_Data():
             self.uv_stream.append(mesh.UVs)
             self.n_stream.append(mesh.Normals)
             self.t_stream.append(mesh.Tangents)
+            self.Entities.append(mesh.EntityData)
             # also add in the material data to the list
             if mesh.Material is not None:
                 self.materials.add(mesh.Material)
@@ -81,7 +84,7 @@ class Create_Data():
         # This dictionary contains all the information for the geometry file 
         self.GeometryData = dict()
 
-        # create the attachment data here as we will just write it when creating the related nodes in the scene file
+        # This will just be some default entity with physics data
         self.TkAttachmentData = TkAttachmentData()      # this is created with the Physics Component Data by default
         self.TkAttachmentData.make_elements(main=True)
 
@@ -211,9 +214,12 @@ class Create_Data():
                     else:
                         data['MATERIAL'] = ''
                     data['ATTACHMENT'] = os.path.join(self.ent_path, mesh_obj.Name.upper()) + '.ENTITY.MBIN'
-                    
-                    # also write the entity file now as it is pretty much empty anyway
-                    self.TkAttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, mesh_obj.Name.upper())))
+
+                    # generate the entity data here
+                    AttachmentData = TkAttachmentData(Components = self.Entities[i])
+                    AttachmentData.make_elements(main=True)
+                    # also write the entity file now too as we don't need to do anything else to it
+                    AttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, mesh_obj.Name.upper())))
             else:
                 if obj._Type == 'LOCATOR':
                     if obj.hasAttachment == True:
