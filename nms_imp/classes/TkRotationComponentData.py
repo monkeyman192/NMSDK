@@ -1,16 +1,18 @@
-# TkAttachmentData struct
+# TkRotationComponentData struct
 
 from .Struct import Struct
-from .List import List
-from .TkPhysicsComponentData import TkPhysicsComponentData
+from .TkPhysicsData import TkPhysicsData
+from .TkVolumeTriggerType import TkVolumeTriggerType
+from .Vector4f import Vector4f
 
-STRUCTNAME = 'TkAttachmentData'
+STRUCTNAME = 'TkRotationComponentData'
 
-class TkAttachmentData(Struct):
+class TkRotationComponentData(Struct):
     def __init__(self, **kwargs):
 
         """ Contents of the struct """
-        self.Components = kwargs.get('Components', List(TkPhysicsComponentData()))
+        self.Speed = kwargs.get('Speed', 1)
+        self.Axis = kwargs.get('Axis', Vector4f(x = 0, y = 1, z = 0, t = 0))
         """ End of the struct contents"""
 
         """ Run code to convert struct contents into self.data_dict """

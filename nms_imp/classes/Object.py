@@ -6,6 +6,7 @@ from .TkSceneNodeData import TkSceneNodeData
 from .TkSceneNodeAttributeData import TkSceneNodeAttributeData
 from .TkTransformData import TkTransformData
 from .TkMaterialData import TkMaterialData
+from .TkPhysicsComponentData import TkPhysicsComponentData
 from .List import List
 from .Errors import *
 from numbers import Number
@@ -38,6 +39,12 @@ class Object():
 
         self.ID = None              # this is a unique number that is used to effectively flatten the mesh data so that it
                                     # can be related to the index in the main function.
+
+        self.ExtraEntityData = kwargs.get('ExtraEntityData', [])
+
+        self.EntityData = List(TkPhysicsComponentData())    # this can be populated with any extra stuff that needs to go into the entity.
+        for entity in self.ExtraEntityData:
+            self.EntityData.append(entity)
 
         self.provided_streams = set()  # list of provided data streams (only applicable to Mesh type Objects)
         

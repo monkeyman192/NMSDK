@@ -21,3 +21,4 @@ from .TkVolumeTriggerType import TkVolumeTriggerType
 from .TkModelDescriptorList import TkModelDescriptorList
 from .TkResourceDescriptorData import TkResourceDescriptorData
 from .TkResourceDescriptorList import TkResourceDescriptorList
+from .TkRotationComponentData import TkRotationComponentData
