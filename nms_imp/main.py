@@ -50,6 +50,8 @@ class Create_Data():
         self.t_stream = []
         self.materials = set()      # this will hopefully mean that there will be at most one copy of each unique TkMaterialData struct in the set
 
+        self.Entities = []          # a list of any extra properties to go in each entity
+
         # extract the streams from the mesh objects.
         index = 0
         for mesh in self.Model.ListOfMeshes:
@@ -58,6 +60,7 @@ class Create_Data():
             self.uv_stream.append(mesh.UVs)
             self.n_stream.append(mesh.Normals)
             self.t_stream.append(mesh.Tangents)
+            self.Entities.append(mesh.EntityData)
             # also add in the material data to the list
             if mesh.Material is not None:
                 self.materials.add(mesh.Material)
@@ -81,7 +84,7 @@ class Create_Data():
         # This dictionary contains all the information for the geometry file 
         self.GeometryData = dict()
 
-        # create the attachment data here as we will just write it when creating the related nodes in the scene file
+        # This will just be some default entity with physics data
         self.TkAttachmentData = TkAttachmentData()      # this is created with the Physics Component Data by default
         self.TkAttachmentData.make_elements(main=True)
 
@@ -105,7 +108,8 @@ class Create_Data():
         self.TkSceneNodeData = self.Model.get_data()
         self.TkSceneNodeData.make_elements(main=True)         # get the model to create all the required data and this will continue on down the tree
         for material in self.materials:
-            material.make_elements(main=True)
+            if type(material) != str:
+                material.make_elements(main=True)
 
         # write all the files
         self.write()
@@ -203,17 +207,23 @@ class Create_Data():
                 data['VERTREND'] = self.vert_bounds[i][1]
                 if mesh_obj._Type == 'MESH':
                     # we only care about entity and material data for Mesh Objects
-                    if mesh_obj.Material is not None:
-                        mat_name = mesh_obj.Material['Name']
-                        print('material name: {}'.format(mat_name))
-                        
-                        data['MATERIAL'] = os.path.join(self.path, mat_name.upper()) + '.MATERIAL.MBIN'
+                    if type(mesh_obj.Material) != str:
+                        if mesh_obj.Material is not None:
+                            mat_name = mesh_obj.Material['Name']
+                            print('material name: {}'.format(mat_name))
+                            
+                            data['MATERIAL'] = os.path.join(self.path, mat_name.upper()) + '.MATERIAL.MBIN'
+                        else:
+                            data['MATERIAL'] = ''
                     else:
-                        data['MATERIAL'] = ''
+                        data['MATERIAL'] = mesh_obj.Material
                     data['ATTACHMENT'] = os.path.join(self.ent_path, mesh_obj.Name.upper()) + '.ENTITY.MBIN'
-                    
-                    # also write the entity file now as it is pretty much empty anyway
-                    self.TkAttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, mesh_obj.Name.upper())))
+
+                    # generate the entity data here
+                    AttachmentData = TkAttachmentData(Components = self.Entities[i])
+                    AttachmentData.make_elements(main=True)
+                    # also write the entity file now too as we don't need to do anything else to it
+                    AttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, mesh_obj.Name.upper())))
             else:
                 if obj._Type == 'LOCATOR':
                     if obj.hasAttachment == True:
@@ -323,34 +333,37 @@ class Create_Data():
     def process_materials(self):
         # process the material data and gives the textures the correct paths
         for material in self.materials:
-            samplers = material['Samplers']
-            # this will have the order Diffuse, Masks, Normal and be a List
-            if samplers is not None:
-                for sample in samplers.subElements:
-                    # this will be a TkMaterialSampler object
-                    t_path = sample['Map']  # this should be the current absolute path to the image, we want to move it to the correct relative path
-                    new_path = os.path.join(self.texture_path, os.path.basename(t_path).upper())
-                    try:
-                        copy2(t_path, new_path)
-                    except FileNotFoundError:
-                        # in this case the path is probably broken, just set as empty if it wasn't before
-                        new_path = ""
-                    f_name, ext = os.path.splitext(new_path)
-                    if ext != '.DDS' and ext != '':
-                        # TODO: add code here to convert the image to dds format
-                        # in this case the file is not in the correct format. Put the correct file extension in the material file
-                        print('The file {} needs to be converted to .DDS format (file extention to be capitalised also!)'.format(new_path))
-                        sample['Map'] = f_name + '.DDS'
-                    else:
-                        # all good in this case
-                        sample['Map'] = new_path
+            if type(material) != str:
+                # in this case we are given actual material data, not just a string path location
+                samplers = material['Samplers']
+                # this will have the order Diffuse, Masks, Normal and be a List
+                if samplers is not None:
+                    for sample in samplers.subElements:
+                        # this will be a TkMaterialSampler object
+                        t_path = sample['Map']  # this should be the current absolute path to the image, we want to move it to the correct relative path
+                        new_path = os.path.join(self.texture_path, os.path.basename(t_path).upper())
+                        try:
+                            copy2(t_path, new_path)
+                        except FileNotFoundError:
+                            # in this case the path is probably broken, just set as empty if it wasn't before
+                            new_path = ""
+                        f_name, ext = os.path.splitext(new_path)
+                        if ext != '.DDS' and ext != '':
+                            # TODO: add code here to convert the image to dds format
+                            # in this case the file is not in the correct format. Put the correct file extension in the material file
+                            print('The file {} needs to be converted to .DDS format (file extention to be capitalised also!)'.format(new_path))
+                            sample['Map'] = f_name + '.DDS'
+                        else:
+                            # all good in this case
+                            sample['Map'] = new_path
                 
     def write(self):
         # write each of the exml files.
         self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for material in self.materials:
-            material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.path, material['Name'].upper())))
+            if type(material) != str:
+                material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.path, material['Name'].upper())))
 
     def convert_to_mbin(self):
         # passes all the files produced by

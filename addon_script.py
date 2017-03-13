@@ -42,7 +42,7 @@ if not scriptpath in sys.path:
     
     
 from main import Create_Data
-from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData
+from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData, TkRotationComponentData
 from classes import List, Vector4f
 #Import Object Classes
 from classes.Object import Model, Mesh, Locator, Reference, Collision, Light
@@ -333,13 +333,8 @@ def mesh_parser(ob):
     
     return verts, norms, tangents, luvs, faces
 
-def parse_object(ob, parent):
-    newob = None
-    global material_dict
-    #Apply location/rotation/scale
-    #bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-    
-    #Get transform
+def transform_to_NMS_coords(ob):
+    # this will return the local transform, rotation and scale of the object in the NMS coordinate system
     matrix = ob.matrix_local
     yzmat = Matrix()
     yzmat[0] = Vector((1.0, 0.0, 0.0, 0.0))
@@ -347,7 +342,15 @@ def parse_object(ob, parent):
     yzmat[2] = Vector((0.0, 1.0, 0.0, 0.0))
     yzmat[3] = Vector((0.0, 0.0, 0.0, 1.0))
     
-    trans, rot, scale = (yzmat * ob.matrix_local * yzmat).decompose()
+    return (yzmat * ob.matrix_local * yzmat).decompose()
+
+def parse_object(ob, parent):
+    newob = None
+    global material_dict
+    #Apply location/rotation/scale
+    #bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        
+    trans, rot, scale = transform_to_NMS_coords(ob)
     rot = rot.to_euler()
     print(trans)
     print(rot)
@@ -414,30 +417,46 @@ def parse_object(ob, parent):
             #Parse object Geometry
             print('Exporting: ', ob.name)
             verts,norms,tangs,luvs,faces = mesh_parser(ob)
+            entitydata = []
             print("Object Count: ", len(verts), len(luvs), len(norms), len(faces))
             print("Object Rotation: ", degrees(rot[0]), degrees(rot[2]), degrees(rot[1]))
+
+            # check whether the mesh has any child nodes we care about (such as a rotation vector)
+            for child in ob.children:
+                if child.name == 'ROTATION':
+                    # take the properties of the rotation vector and give it to the mesh as part of it's entity data
+                    rot = transform_to_NMS_coords(child)[1]
+                    axis = Matrix.Rotation(radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
+                    print(axis)
+                    rotation_data = TkRotationComponentData(Speed = child.empty_draw_size, Axis = Vector4f(x=axis[0],y=axis[1],z=axis[2],t=0))
+                    entitydata.append(rotation_data)
+            
             #Create Mesh Object
             actualname = ob.name.split("_")[1]      # syntax: NMS_<NAME>
-            newob = Mesh(actualname, Transform = transform, Vertices=verts, UVs=luvs, Normals=norms, Tangents=tangs, Indexes=faces)
+            newob = Mesh(actualname, Transform = transform, Vertices=verts, UVs=luvs, Normals=norms, Tangents=tangs, Indexes=faces, ExtraEntityData = entitydata)
             
             #Try to parse material
             try:
-                slot = ob.material_slots[0]
-                mat = slot.material
-                print(mat.name)
-                if not mat.name in material_dict:
-                    print("Parsing Material " + mat.name)
-                    material_ob = parse_material(ob)
-                    material_dict[mat.name] = material_ob
-                else:
-                    material_ob = material_dict[mat.name]
-                
-                print(material_ob)
-                #Attach material to Mesh
-                newob.Material = material_ob
-                
+                matpath = ob["MATERIAL"]
+                newob.Material = matpath
             except:
-                raise Exception("Missing Material")
+                try:
+                    slot = ob.material_slots[0]
+                    mat = slot.material
+                    print(mat.name)
+                    if not mat.name in material_dict:
+                        print("Parsing Material " + mat.name)
+                        material_ob = parse_material(ob)
+                        material_dict[mat.name] = material_ob
+                    else:
+                        material_ob = material_dict[mat.name]
+                    
+                    print(material_ob)
+                    #Attach material to Mesh
+                    newob.Material = material_ob
+                    
+                except:
+                    raise Exception("Missing Material")
     
     #Locator and Reference Objects
     elif (ob.type=='EMPTY'):
