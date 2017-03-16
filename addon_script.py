@@ -71,107 +71,112 @@ def parse_material(ob):
     # This function returns a tkmaterialdata object with all necessary material information
     
     #Get Material stuff
+    if ob.get('MATERIAL', None) is not None:
+        # if a material path has been specified simply use that
+        matpath = ob['MATERIAL']
+        return matpath
+    else:
+        # otherwise parse the actual material data
+        slot = ob.material_slots[0]
+        mat = slot.material
+        print(mat.name)
 
-    slot = ob.material_slots[0]
-    mat = slot.material
-    print(mat.name)
+        proj_path = bpy.path.abspath('//')
+        
+        #Create the material
+        matflags = List()
+        matsamplers = List()
+        matuniforms = List()
+        
+        tslots = mat.texture_slots
+        
+        #Fetch Uniforms
+        matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
+                                             Values=Vector4f(x=mat.diffuse_color.r,
+                                                             y=mat.diffuse_color.g,
+                                                             z=mat.diffuse_color.b,
+                                                             t=1.0)))
+        matuniforms.append(TkMaterialUniform(Name="gMaterialParamsVec4",
+                                             Values=Vector4f(x=0.0,
+                                                             y=0.0,
+                                                             z=0.0,
+                                                             t=0.0)))
+        matuniforms.append(TkMaterialUniform(Name="gMaterialSFXVec4",
+                                             Values=Vector4f(x=0.0,
+                                                             y=0.0,
+                                                             z=0.0,
+                                                             t=0.0)))
+        matuniforms.append(TkMaterialUniform(Name="gMaterialSFXColVec4",
+                                             Values=Vector4f(x=0.0,
+                                                             y=0.0,
+                                                             z=0.0,
+                                                             t=0.0)))
+        #Fetch Diffuse
+        texpath = ""
+        if tslots[0]:
+            #Set _F01_DIFFUSEMAP
+            matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
+            #Create gDiffuseMap Sampler
+            
+            tex = tslots[0].texture
+            #Check if there is no texture loaded
+            if not tex.type=='IMAGE':
+                raise Exception("Missing Image in Texture: " + tex.name)
+            
+            texpath = os.path.join(proj_path, tex.image.filepath[2:])
+        print(texpath)
+        sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath, IsSRGB=True)
+        matsamplers.append(sampl)
+        
+        #Check shadeless status
+        if (mat.use_shadeless):
+            #Set _F07_UNLIT
+            matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[6]))    
+        
+        #Fetch Mask
+        texpath = ""
+        if tslots[1]:
+            #Set _F24_AOMAP
+            #matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[23]))
+            #Create gMaskMap Sampler
+            
+            tex = tslots[1].texture
+            #Check if there is no texture loaded
+            if not tex.type=='IMAGE':
+                raise Exception("Missing Image in Texture: " + tex.name)
+            
+            texpath = os.path.join(proj_path, tex.image.filepath[2:])
+        
+        sampl = TkMaterialSampler(Name="gMaskMap", Map=texpath, IsSRGB=False)
+        matsamplers.append(sampl)
+        
+        #Fetch Normal Map
+        texpath = ""
+        if tslots[2]:
+            #Set _F03_NORMALMAP
+            matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[2]))
+            #Create gNormalMap Sampler
+            
+            tex = tslots[2].texture
+            #Check if there is no texture loaded
+            if not tex.type=='IMAGE':
+                raise Exception("Missing Image in Texture: " + tex.name)
+            
+            texpath = os.path.join(proj_path, tex.image.filepath[2:])
+        
+        sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, IsSRGB=False)
+        matsamplers.append(sampl)
 
-    proj_path = bpy.path.abspath('//')
-    
-    #Create the material
-    matflags = List()
-    matsamplers = List()
-    matuniforms = List()
-    
-    tslots = mat.texture_slots
-    
-    #Fetch Uniforms
-    matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
-                                         Values=Vector4f(x=mat.diffuse_color.r,
-                                                         y=mat.diffuse_color.g,
-                                                         z=mat.diffuse_color.b,
-                                                         t=1.0)))
-    matuniforms.append(TkMaterialUniform(Name="gMaterialParamsVec4",
-                                         Values=Vector4f(x=0.0,
-                                                         y=0.0,
-                                                         z=0.0,
-                                                         t=0.0)))
-    matuniforms.append(TkMaterialUniform(Name="gMaterialSFXVec4",
-                                         Values=Vector4f(x=0.0,
-                                                         y=0.0,
-                                                         z=0.0,
-                                                         t=0.0)))
-    matuniforms.append(TkMaterialUniform(Name="gMaterialSFXColVec4",
-                                         Values=Vector4f(x=0.0,
-                                                         y=0.0,
-                                                         z=0.0,
-                                                         t=0.0)))
-    #Fetch Diffuse
-    texpath = ""
-    if tslots[0]:
-        #Set _F01_DIFFUSEMAP
-        matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
-        #Create gDiffuseMap Sampler
+        matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[46]))
         
-        tex = tslots[0].texture
-        #Check if there is no texture loaded
-        if not tex.type=='IMAGE':
-            raise Exception("Missing Image in Texture: " + tex.name)
-        
-        texpath = os.path.join(proj_path, tex.image.filepath[2:])
-    print(texpath)
-    sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath, IsSRGB=True)
-    matsamplers.append(sampl)
-    
-    #Check shadeless status
-    if (mat.use_shadeless):
-        #Set _F07_UNLIT
-        matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[6]))    
-    
-    #Fetch Mask
-    texpath = ""
-    if tslots[1]:
-        #Set _F24_AOMAP
-        #matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[23]))
-        #Create gMaskMap Sampler
-        
-        tex = tslots[1].texture
-        #Check if there is no texture loaded
-        if not tex.type=='IMAGE':
-            raise Exception("Missing Image in Texture: " + tex.name)
-        
-        texpath = os.path.join(proj_path, tex.image.filepath[2:])
-    
-    sampl = TkMaterialSampler(Name="gMaskMap", Map=texpath, IsSRGB=False)
-    matsamplers.append(sampl)
-    
-    #Fetch Normal Map
-    texpath = ""
-    if tslots[2]:
-        #Set _F03_NORMALMAP
-        matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[2]))
-        #Create gNormalMap Sampler
-        
-        tex = tslots[2].texture
-        #Check if there is no texture loaded
-        if not tex.type=='IMAGE':
-            raise Exception("Missing Image in Texture: " + tex.name)
-        
-        texpath = os.path.join(proj_path, tex.image.filepath[2:])
-    
-    sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, IsSRGB=False)
-    matsamplers.append(sampl)
-
-    matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[46]))
-    
-    #Create materialdata struct
-    tkmatdata = TkMaterialData(Name=mat.name,
-                               Class='Opaque',
-                               Flags=matflags,
-                               Uniforms=matuniforms,
-                               Samplers=matsamplers)
-        
-    return tkmatdata
+        #Create materialdata struct
+        tkmatdata = TkMaterialData(Name=mat.name,
+                                   Class='Opaque',
+                                   Flags=matflags,
+                                   Uniforms=matuniforms,
+                                   Samplers=matsamplers)
+            
+        return tkmatdata
 
 #Tangent Calculator
 def calc_tangents(faces, verts, norms, uvs):
@@ -437,26 +442,22 @@ def parse_object(ob, parent):
             
             #Try to parse material
             try:
-                matpath = ob["MATERIAL"]
-                newob.Material = matpath
+                slot = ob.material_slots[0]
+                mat = slot.material
+                print(mat.name)
+                if not mat.name in material_dict:
+                    print("Parsing Material " + mat.name)
+                    material_ob = parse_material(ob)
+                    material_dict[mat.name] = material_ob
+                else:
+                    material_ob = material_dict[mat.name]
+                
+                print(material_ob)
+                #Attach material to Mesh
+                newob.Material = material_ob
+                
             except:
-                try:
-                    slot = ob.material_slots[0]
-                    mat = slot.material
-                    print(mat.name)
-                    if not mat.name in material_dict:
-                        print("Parsing Material " + mat.name)
-                        material_ob = parse_material(ob)
-                        material_dict[mat.name] = material_ob
-                    else:
-                        material_ob = material_dict[mat.name]
-                    
-                    print(material_ob)
-                    #Attach material to Mesh
-                    newob.Material = material_ob
-                    
-                except:
-                    raise Exception("Missing Material")
+                raise Exception("Missing Material")
     
     #Locator and Reference Objects
     elif (ob.type=='EMPTY'):
