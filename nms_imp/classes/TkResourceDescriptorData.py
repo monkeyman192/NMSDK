@@ -1,23 +1,22 @@
-# TkSceneNodeData struct
+# TkResourceDescriptorData struct
 
 from .Struct import Struct
 from .List import List
+from .String import String
 
 STRUCTNAME = 'TkResourceDescriptorData'
 
 class TkResourceDescriptorData(Struct):
     def __init__(self, **kwargs):
+        super(TkResourceDescriptorData, self).__init__()
 
         """ Contents of the struct """
-        self.Id = kwargs.get('Id', "_PROCOBJ_")
-        self.Name = kwargs.get('Name', "_PROCOBJ_")
-        self.ReferencePaths = kwargs.get("ReferencePaths", List())
-        self.Chance = kwargs.get("Chance", 0)
-        self.Children = kwargs.get("Children", None)
+        self.data['Id'] = String(kwargs.get('Id', "_PROCOBJ_"), 0x10)
+        self.data['Name'] = String(kwargs.get('Name', "_PROCOBJ_"), 0x80)
+        self.data['ReferencePaths'] = kwargs.get("ReferencePaths", List())
+        self.data['Chance'] = kwargs.get("Chance", 0)
+        self.data['Children'] = kwargs.get("Children", List())
         """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
 
         # Parent needed so that it can be a SubElement of something
         self.parent = None

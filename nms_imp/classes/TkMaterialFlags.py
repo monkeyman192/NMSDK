@@ -6,13 +6,12 @@ STRUCTNAME = 'TkMaterialFlags'
 
 class TkMaterialFlags(Struct):
     def __init__(self, **kwargs):
+        self.size = 0x4         # since this is actually an int...
+        super(TkMaterialFlags, self).__init__()
 
         """ Contents of the struct """
-        self.MaterialFlag = kwargs.get('MaterialFlag', "_F01_DIFFUSEMAP")
+        self.data['MaterialFlag'] = kwargs.get('MaterialFlag', "_F01_DIFFUSEMAP")
         """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
 
         # Parent needed so that it can be a SubElement of something
         self.parent = None

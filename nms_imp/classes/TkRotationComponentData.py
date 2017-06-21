@@ -9,14 +9,12 @@ STRUCTNAME = 'TkRotationComponentData'
 
 class TkRotationComponentData(Struct):
     def __init__(self, **kwargs):
+        super(TkRotationComponentData, self).__init__()
 
         """ Contents of the struct """
-        self.Speed = kwargs.get('Speed', 1)
-        self.Axis = kwargs.get('Axis', Vector4f(x = 0, y = 1, z = 0, t = 0))
+        self.data['Speed'] = kwargs.get('Speed', 1)
+        self.data['Axis'] = kwargs.get('Axis', Vector4f(x = 0, y = 1, z = 0, t = 0))
         """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
 
         # Parent needed so that it can be a SubElement of something
         self.parent = None

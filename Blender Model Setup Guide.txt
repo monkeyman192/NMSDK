@@ -59,10 +59,11 @@ nms compatible files. So lets get to the tasks.
 	Just to make things clearer and in order to enable modders to have full control over the objects
 	that are going to be exported into the game we have setup a specific very simple naming convention
 	for the "about to export" objects.
+	Only objects that their name starts with "NMS_" will be exported. 
 
-		- Object Names -
-			Only objects that their name starts with "NMS_" will be exported. 
-			Example: "NMS_SeanMurrayDoesntLie"
+		- Meshes -
+			Format: NMS_MESH_<name>
+			Example: "NMS_MESH_SeanMurrayDoesntLie"
 		- Collision Names - 
 			Collision object names should have the following form : "NMS_COLLISION_[Collisiontype]_objectname"
 			Collisiontype can be one of the following options: Mesh, Box, Cylinder, Capsule, Sphere.
@@ -70,9 +71,12 @@ nms compatible files. So lets get to the tasks.
 		- Locators - 
 			Locators Follow the naming convention "NMS_LOCATOR_name"
 		- References - 
-			References follow the naming convention "NMS_REFERENCE_name"
+			Format:		NMS_REFERENCE_<name>
+			Optional arguments:	REF	- the path to the scene you want to have referenced at this point.
 		- Lights:
-			Lights are named "NMS_LIGHT_name"
+			Format:		NMS_LIGHT_<name>
+		- Joints:
+			Format:		NMS_JOINT_<name>
 
 #TASK 6 --- "COLLISIONS"
 	
@@ -108,6 +112,10 @@ nms compatible files. So lets get to the tasks.
 #TASK 7 --- "APPLY TRANSFORMS"
 	
 	To ensure the importer has the correct transforms on objects, make sure that you apply the rotation and scale only on every object that is being exported.
+
+# (OPTIONAL) TASK 8 --- "ADD ANIMATIONS"
+	Animations can now be added. All mesh objects that you want animated need to be the child of a JOINT object, and it is the joint that must have the animation attached, not the mesh (subject to change...)
+	Further, mesh object needs a custom property called ANIM, with whatever value (also subject to change...)
 
 #TASK 8 --- "EXPORT PROCEDURE"
 

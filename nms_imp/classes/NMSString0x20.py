@@ -1,18 +1,17 @@
 # Vector4f struct
 
 from .Struct import Struct
+from .String import String
 
-STRUCTNAME = 'Vector4f'
+STRUCTNAME = 'NMSString0x20'
 
-class Vector4f(Struct):
+class NMSString0x20(Struct):
     def __init__(self, **kwargs):
-        super(Vector4f, self).__init__()
+        self.size = 0x20
+        super(NMSString0x20, self).__init__()
 
         """ Contents of the struct """
-        self.data['x'] = kwargs.get('x', 0.0)
-        self.data['y'] = kwargs.get('y', 0.0)
-        self.data['z'] = kwargs.get('z', 0.0)
-        self.data['t'] = kwargs.get('t', 0.0)
+        self.data['Value'] = String(kwargs.get('Value', ""), 0x20)
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something

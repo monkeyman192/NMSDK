@@ -1,8 +1,10 @@
 # mic_funcs (just import all)
 from .List import List
-from .oldCollision import oldCollision
+from .String import String
+from .Empty import Empty
 from .Object import Locator, Light, Mesh, Joint, Emitter, Collision, Model, Reference
 from .Vector4f import Vector4f
+from .NMSString0x20 import NMSString0x20
 from .NMSString0x80 import NMSString0x80
 from .TkAttachmentData import TkAttachmentData
 from .TkVertexLayout import TkVertexLayout
@@ -22,3 +24,11 @@ from .TkModelDescriptorList import TkModelDescriptorList
 from .TkResourceDescriptorData import TkResourceDescriptorData
 from .TkResourceDescriptorList import TkResourceDescriptorList
 from .TkRotationComponentData import TkRotationComponentData
+from .SerialisationMethods import *
+
+# animation things
+from .TkAnimMetadata import TkAnimMetadata
+from .TkAnimNodeData import TkAnimNodeData
+from .TkAnimNodeFrameData import TkAnimNodeFrameData
+from .TkAnimationComponentData import TkAnimationComponentData
+from .TkAnimationData import TkAnimationData

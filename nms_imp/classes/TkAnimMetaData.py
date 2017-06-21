@@ -1,25 +1,23 @@
-# TkAttachmentData struct
+# TkAnimMetadata struct
 
 from .Struct import Struct
 from .List import List
-from .TkPhysicsComponentData import TkPhysicsComponentData
+from .String import String
 from .TkAnimNodeFrameData import TkAnimNodeFrameData
 
-STRUCTNAME = 'TkAnimMetaData'
+STRUCTNAME = 'TkAnimMetadata'
 
-class TkAnimMetaData(Struct):
+class TkAnimMetadata(Struct):
     def __init__(self, **kwargs):
+        super(TkAnimMetadata, self).__init__()
 
         """ Contents of the struct """
-        self.FrameCount = kwargs.get('FrameCount', 0)
-        self.NodeCount = kwargs.get('NodeCount', 0)
-        self.NodeData = kwargs.get('NodeData', None)
-        self.AnimFrameData = kwargs.get('AnimFrameData', None)
-        self.StillFrameData = kwargs.get('StillFrameData', TkAnimNodeFrameData())
+        self.data['FrameCount'] = kwargs.get('FrameCount', 0)
+        self.data['NodeCount'] = kwargs.get('NodeCount', 0)
+        self.data['NodeData'] = kwargs.get('NodeData', List())
+        self.data['AnimFrameData'] = kwargs.get('AnimFrameData', List())
+        self.data['StillFrameData'] = kwargs.get('StillFrameData', TkAnimNodeFrameData())
         """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
 
         # Parent needed so that it can be a SubElement of something
         self.parent = None

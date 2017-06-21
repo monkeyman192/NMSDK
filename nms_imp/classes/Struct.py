@@ -3,14 +3,20 @@
 from xml.etree.ElementTree import SubElement, Element, ElementTree
 from numbers import Number
 from array import array
+from collections import OrderedDict
+from .String import String
+from .SerialisationMethods import *
+from .Empty import Empty
 
 class Struct():
     def __init__(self, **kwargs):
-        pass
+        self.data = OrderedDict()       # by having this as an ordered dict, we get stuff in their order of creation which is crucial for writing directly to an mbin
+        self.STRUCTNAME = "StructBaseClass"
 
+    """ THIS IS TO BE MADE REDUNDANT """
     def _create_dict(self):
         # every object that is self.~ is copied into a different dictionary, self.data_dict
-        data_dict = dict()
+        data_dict = OrderedDict()
         for i in self.__dict__:
             data_dict[i] = self.__dict__[i]
         self.data_dict = data_dict
@@ -20,12 +26,34 @@ class Struct():
 
     def __getitem__(self, key):
         # returns the object in self.data_dict with key
-        return self.data_dict[key]
+        return self.data[key]
 
     def __setitem__(self, key, value):
         # assigns the value 'value' to self.data_dict[key]
         # currently no checking so be careful! Incorrect use could lead to incorrect exml files!!!
-        self.data_dict[key] = value
+        self.data[key] = value
+
+    def __str__(self):
+        return "Name: {0}".format(self.STRUCTNAME)
+
+    def __len__(self):
+        # returns the length of the Struct in bytes. Works better when everything has values other than None by default.
+        length = 0
+        for key in self.data:
+            val = self.data[key]
+            # if it is an int or a float the size will be 4 bytes
+            if type(val) == int or type(val) == float:
+                length += 0x4
+            elif type(val) == bool:
+                length += 0x1
+            else:
+                # we can also see if the value has a length attribute (such as for NMSString0x80)
+                try:
+                    length += val.size
+                # otherwise just try call this function recursively
+                except:
+                    length += len(val)
+        return length
 
     def make_elements(self, name=None, main=False):
         # creates a sub element tree that is to be returned or read by the parent class
@@ -46,11 +74,16 @@ class Struct():
             self.tree = ElementTree(self.element)
 
         # iterate through all the data and determine type and sort it out appropriately
-        for pname in self.data_dict:
-            data = self.data_dict[pname]
+        for pname in self.data:
+            data = self.data[pname]
             if isinstance(data, Number):
                 # in this case convert the int or foat to a string
                 SubElement(self.element, 'Property', {'name': pname, 'value': str(data)})
+            elif isinstance(data, String):
+                # in this case we just add the string value as normal
+                SubElement(self.element, 'Property', {'name': pname, 'value': str(data.string)})
+            elif isinstance(data, Empty):
+                pass
             elif isinstance(data, str):
                 # in this case we just add the string value as normal
                 SubElement(self.element, 'Property', {'name': pname, 'value': data})
@@ -67,6 +100,40 @@ class Struct():
             elif data is None:
                 SubElement(self.element, 'Property', {'name': pname})
             else:
-                # only other option is for it to be a class object. This will either be a class object itself,
+                # only other option is for it to be a class object. This will be a class object itself
                 data.give_parent(self.element)
                 data.make_elements(pname)
+
+    def serialise(self, output, list_worker, return_data = False):
+        # serialise all the data...
+        serialised_data = ""        # I hope there isn't some string limit... this might get big...
+        for key in self.data:
+            data = self.data[key]
+            if hasattr(data, 'serialise'):      # check whether the object has a serialise function
+                data.serialise(output, list_worker, return_data)
+            else:
+                if type(data) == int:
+                    #print(data, 'data')
+                    serialised_data = to_chr(hexlify(struct.pack('<i', data)))
+                    list_worker['curr'] += 0x4
+                elif type(data) == float:
+                    serialised_data = to_chr(hexlify(struct.pack('<f', data)))
+                    list_worker['curr'] += 0x4
+                elif type(data) == bool:
+                    serialised_data = chr(data)
+                    list_worker['curr'] += 0x1
+                elif type(data) == str:
+                    try:
+                        # in this case we actually want the index
+                        val = self.__dict__[key].index(data)
+                        serialised_data = to_chr(hexlify(struct.pack('<i', val)))
+                        list_worker['curr'] += 0x4
+                    except:
+                        serialised_data = to_chr('FFFFFFFF')
+                        list_worker['curr'] += 0x4
+                #print(len(serialised_data), 'in struct')
+                if return_data == False:
+                    output.write(serialised_data)
+                    print('serialised {0}, with value {1}, ending at {2:#x}. File end = {3:#x}'.format(key, data, list_worker['curr'], list_worker['end']))
+        if return_data == True:
+            return serialised_data

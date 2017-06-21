@@ -94,10 +94,12 @@ class Object():
                             Transform = self.Transform,
                             Attributes = self.Attributes,
                             Children = self.Child_Nodes)
-            
 
-        # next, create a TkSceneNodeData object and fill it with data
-        # this won't get call until all the child nodes have already had their TkSceneNodeData objects created
+    def rebuild_entity(self):
+        # this is used to rebuild the entity data in case something else is added after the object is created
+        self.EntityData = List(TkPhysicsComponentData())    # this can be populated with any extra stuff that needs to go into the entity.
+        for entity in self.ExtraEntityData:
+            self.EntityData.append(entity)
 
 
 class Locator(Object):
@@ -139,14 +141,14 @@ class Light(Object):
 
 class Joint(Object):
     def __init__(self, Name, **kwargs):
-        super(Locator, self).__init__(**kwargs)
+        super(Joint, self).__init__(**kwargs)
         self.Name = Name.upper()
         self._Type = "JOINT"
+        self.JointIndex = kwargs.get("JointIndex", 1)
 
     def create_attributes(self, data):
-        if data is not None:
-            self.Attributes = List(TkSceneNodeAttributeData(Name = 'JOINTINDEX',
-                                                            Value = data['JOINTINDEX']))
+        self.Attributes = List(TkSceneNodeAttributeData(Name = 'JOINTINDEX',
+                                                        Value = self.JointIndex))
 
 class Emitter(Object):
     def __init__(self, Name, **kwargs):
@@ -174,6 +176,7 @@ class Mesh(Object):
         self.Tangents = kwargs.get('Tangents', None)
         self.IsMesh = True
         self.BBox = kwargs.get('BBox', None)        # this will be a list of length 2 with each element being a 4-tuple.
+        self.AnimData = kwargs.get('AnimData', None)    # the animation data 
 
         self.determine_included_streams()   # find out what streams have been provided
 

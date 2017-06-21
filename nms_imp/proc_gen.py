@@ -16,6 +16,7 @@ from tkinter import *
 from tkinter import filedialog
 from tkinter import simpledialog
 from tkinter import ttk
+from tkinter import messagebox
 
 # local imports
 from classes import *
@@ -133,7 +134,20 @@ class GUI(Frame):
             # in this case we just want everything in the list
             self.selected_iids = self.data_view.get_children()
         self.selected_objects = list(self.data_view.item(iid)['values'][1] for iid in self.selected_iids)
-        DataGenerator(self.proc_name.get().upper(), self.selected_objects)
+        if self.check_name(len(self.selected_objects)) == True:
+            DataGenerator(self.proc_name.get().upper(), self.selected_objects)
+
+    def check_name(self, length):
+        # this will check whether or not the entered name is valid
+        number_len = len(str(length))
+        if len(self.proc_name.get()) + number_len + 1 > 16:     # add 1 for the underscore
+            short_name = self.proc_name.get().upper()[:16-number_len-1]
+            if messagebox.askyesno("Name Error", "The name you have entered, '{0}', is too long.\n You can continue with a default shortened name ({1}) by pressing 'Yes',\n or press 'No' to go back and change the name".format(self.proc_name.get().upper(), short_name)):
+                return True
+            else:
+                return False
+        else:
+            return True
 
     def add(self):
         self.path_name = filedialog.askdirectory(title="Specify path containing custom models")

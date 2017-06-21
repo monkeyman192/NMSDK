@@ -1,6 +1,9 @@
 # TkPhysicsComponentData struct
 
 from .Struct import Struct
+from .Empty import Empty
+from .List import List
+from .String import String
 from .TkPhysicsData import TkPhysicsData
 from .TkVolumeTriggerType import TkVolumeTriggerType
 
@@ -8,19 +11,21 @@ STRUCTNAME = 'TkPhysicsComponentData'
 
 class TkPhysicsComponentData(Struct):
     def __init__(self, **kwargs):
+        super(TkPhysicsComponentData, self).__init__()
 
         """ Contents of the struct """
-        self.Data = kwargs.get('Data', TkPhysicsData())
-        self.VolumeTriggerType = kwargs.get('VolumeTriggerType', TkVolumeTriggerType())
-        self.SurfaceProperties = kwargs.get('SurfaceProperties', "None")
-        self.TriggerVolume = kwargs.get('TriggerVolume', False)
-        self.Climbable = kwargs.get('Climbable', False)
-        self.IgnoreModelOwner = kwargs.get('IgnoreModelOwner', False)
-        self.NoVehicleCollision = kwargs.get('NoVehicleCollision', False)
+        self.data['Data'] = kwargs.get('Data', TkPhysicsData())
+        self.data['RagdollData'] = kwargs.get('RagdollData', Empty(0x48))
+        self.data['VolumeTriggerType'] = kwargs.get('VolumeTriggerType', TkVolumeTriggerType())
+        self.SurfaceProperties = ["None", "Glass"]
+        self.data['SurfaceProperties'] = kwargs.get('SurfaceProperties', "None")
+        self.data['TriggerVolume'] = kwargs.get('TriggerVolume', True)
+        self.data['Climbable'] = kwargs.get('Climbable', False)
+        #self.data['RANDOMTEST'] = List(String("Test", 0x20), String('AnotherTESTWOW!!!', 0x20))
+        self.data['IgnoreModelOwner'] = kwargs.get('IgnoreModelOwner', True)
+        self.data['NoVehicleCollision'] = kwargs.get('NoVehicleCollision', False)
+        self.data['EndPadding'] = Empty(0x4)
         """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
 
         # Parent needed so that it can be a SubElement of something
         self.parent = None
