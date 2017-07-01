@@ -12,7 +12,7 @@ class TkAnimationData(Struct):
         """ Contents of the struct """
         self.data['Anim'] = kwargs.get('Anim', '')
         self.data['Filename'] = kwargs.get('Filename', '')
-        self.data['AnimType'] = kwargs.get('AnimType', 'OneShot')
+        self.data['AnimType'] = kwargs.get('AnimType', 'Loop')
         self.data['FrameStart'] = kwargs.get('FrameStart', 0)
         self.data['FrameEnd'] = kwargs.get('FrameEnd', 0)
         self.data['StartNode'] = kwargs.get('StartNode', '')
@@ -26,7 +26,7 @@ class TkAnimationData(Struct):
         self.data['ControlCreatureSize'] = kwargs.get('ControlCreatureSize', 'AllSizes')
         self.data['FlagsAdditive'] = kwargs.get('FlagsAdditive', 'False')
         self.data['FlagsMirrored'] = kwargs.get('FlagsMirrored', 'False')
-        self.data['FlagsActive'] = kwargs.get('FlagsActive', 'False')
+        self.data['FlagsActive'] = kwargs.get('FlagsActive', 'True')
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something

@@ -107,7 +107,7 @@ class Locator(Object):
         super(Locator, self).__init__(**kwargs)
         self.Name = Name.upper()
         self._Type = "LOCATOR"
-        self.hasAttachment = kwargs.get('HasAttachment', False)
+        self.HasAttachment = kwargs.get('HasAttachment', False)
 
     def create_attributes(self, data):
         if data is not None:
@@ -176,6 +176,7 @@ class Mesh(Object):
         self.Tangents = kwargs.get('Tangents', None)
         self.IsMesh = True
         self.BBox = kwargs.get('BBox', None)        # this will be a list of length 2 with each element being a 4-tuple.
+        self.HasAttachment = kwargs.get('HasAttachment', False)
         self.AnimData = kwargs.get('AnimData', None)    # the animation data 
 
         self.determine_included_streams()   # find out what streams have been provided
@@ -197,9 +198,10 @@ class Mesh(Object):
                                TkSceneNodeAttributeData(Name = 'MATERIAL',
                                                         Value = data['MATERIAL']),
                                TkSceneNodeAttributeData(Name = 'MESHLINK',
-                                                        Value = self.Name + 'Shape'),
-                               TkSceneNodeAttributeData(Name = 'ATTACHMENT',
-                                                        Value = data['ATTACHMENT']))
+                                                        Value = self.Name + 'Shape'))
+        if self.HasAttachment:
+            self.Attributes.append(TkSceneNodeAttributeData(Name = 'ATTACHMENT',
+                                                            Value = data['ATTACHMENT']))
         
 
 class Collision(Object):

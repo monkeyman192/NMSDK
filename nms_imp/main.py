@@ -27,7 +27,7 @@ def traverse(obj):
         yield obj
 
 class Create_Data():
-    def __init__(self, name, directory, model, anim_data = None):
+    def __init__(self, name, directory, model, anim_data = [], **commands):
 
         """
         name - the name of the file we want to create. Most entities  within will have a name derived from this.
@@ -78,6 +78,7 @@ class Create_Data():
         # generate some variables relating to the paths
         self.path = os.path.join(BASEPATH, self.directory, self.name)         # the path location including the file name.
         self.texture_path = os.path.join(self.path, 'TEXTURES')
+        self.anims_path = os.path.join(BASEPATH, self.directory, 'ANIMS')
         self.ent_path = os.path.join(self.path, 'ENTITIES')         # path location of the entity folder. Calling makedirs of this will ensure all the folders are made in one go
 
         self.create_paths()
@@ -112,14 +113,15 @@ class Create_Data():
             if type(material) != str:
                 material.make_elements(main=True)
 
-        if self.anim_data is not None:
-            self.anim_data.make_elements(main=True)
+        for anim_name in list(self.anim_data.keys()):
+            self.anim_data[anim_name].make_elements(main=True)
 
         # write all the files
         self.write()
 
         # convert all the created exml files to mbin files
-        self.convert_to_mbin()
+        if not commands.get('dont_compile', False):
+            self.convert_to_mbin()
 
     def create_paths(self):
         # check whether the require paths exist and make them
@@ -127,6 +129,8 @@ class Create_Data():
             os.makedirs(self.ent_path)
         if not os.path.exists(self.texture_path):
             os.makedirs(self.texture_path)
+        if not os.path.exists(self.anims_path):
+            os.makedirs(self.anims_path)
 
 
     def preprocess_streams(self):
@@ -221,16 +225,17 @@ class Create_Data():
                             data['MATERIAL'] = ''
                     else:
                         data['MATERIAL'] = mesh_obj.Material
-                    data['ATTACHMENT'] = os.path.join(self.ent_path, str(mesh_obj.Name).upper()) + '.ENTITY.MBIN'
+                    if obj.HasAttachment:
+                        data['ATTACHMENT'] = os.path.join(self.ent_path, str(mesh_obj.Name).upper()) + '.ENTITY.MBIN'
 
-                    # generate the entity data here
-                    AttachmentData = TkAttachmentData(Components = self.Entities[i])
-                    AttachmentData.make_elements(main=True)
-                    # also write the entity file now too as we don't need to do anything else to it
-                    AttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, str(mesh_obj.Name).upper())))
+                        # generate the entity data here
+                        AttachmentData = TkAttachmentData(Components = self.Entities[i])
+                        AttachmentData.make_elements(main=True)
+                        # also write the entity file now too as we don't need to do anything else to it
+                        AttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, str(mesh_obj.Name).upper())))
             else:
                 if obj._Type == 'LOCATOR':
-                    if obj.hasAttachment == True:
+                    if obj.HasAttachment == True:
                         data['ATTACHMENT'] = os.path.join(self.ent_path, str(obj.Name).upper()) + '.ENTITY.MBIN'
                         self.TkAttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, str(obj.Name).upper())))
                     else:
@@ -367,9 +372,13 @@ class Create_Data():
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for material in self.materials:
             if type(material) != str:
-                material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.path, str(material['Name']).upper())))
-        if self.anim_data is not None:
-            self.anim_data.tree.write("{}.ANIM.exml".format(self.path))
+                material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.texture_path, str(material['Name']).upper())))
+        if len(self.anim_data) != 0:
+            if len(self.anim_data) == 1:
+                list(self.anim_data.values())[0].tree.write("{}.ANIM.exml".format(self.path))       # get the value and output it
+            else:
+                for name in list(self.anim_data.keys()):
+                    self.anim_data[name].tree.write(os.path.join(self.anims_path, "{}.ANIM.exml".format(name.upper())))
 
     def convert_to_mbin(self):
         # passes all the files produced by

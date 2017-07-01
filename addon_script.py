@@ -1,7 +1,7 @@
 bl_info = {  
- "name": "NMS Exporter",  
- "author": "gregkwaste, credits: monkeyman192",  
- "version": (0, 8),
+ "name": "NMS Model Toolkit",  
+ "author": "gregkwaste, monkeyman192",  
+ "version": (0, 9),
  "blender": (2, 7, 0),  
  "location": "File > Export",  
  "description": "Exports to NMS File format",  
@@ -64,7 +64,7 @@ print(main.__file__)
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
 from bpy_extras.io_utils import ExportHelper
-from bpy.props import StringProperty, BoolProperty, EnumProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, FloatProperty
 from bpy.types import Operator
 
 
@@ -86,7 +86,31 @@ def object_is_animated(ob):
             return object_is_animated(ob.parent)
         else:
             return False
-    
+
+def get_all_actions(obj):
+    """Retrieve all actions given a blender object. Includes NLA-actions
+       Full credit to this code goes to misnomer on blender.stackexchange
+       (cf. https://blender.stackexchange.com/questions/14204/how-to-tell-which-object-uses-which-animation-action)"""
+    # slightly modified to return the name of the object, and the action
+    if obj.animation_data:
+        if obj.animation_data.action:
+            yield obj.name, obj.animation_data.action
+        for track in obj.animation_data.nla_tracks:
+            for strip in track.strips:
+                yield obj.name, strip.action
+
+def get_children(obj, curr_children, obj_type, just_names = False):
+    # return a flattened list of all the children of an object of a specified type.
+    # if just_name is True, then only return the names, otherwise return the actual objects themselves
+    for child in obj.children:
+        print(child.name, child.NMSNode_props.node_types)
+        if child.NMSNode_props.node_types == obj_type:
+            if just_names:
+                curr_children.append(child.name)
+            else:
+                curr_children.append(child)
+        curr_children += get_children(child, list(), obj_type, just_names)
+    return curr_children
 
 """ Misc. functions for transforming data """
 
@@ -193,6 +217,7 @@ class Exporter():
 
     def __init__(self, exportpath):
         self.global_scene = bpy.context.scene
+        self.global_scene.frame_set(0)      # set the frame to be the first one, just in case an export has already been run
         self.mname = os.path.basename(exportpath)
 
         self.state = None
@@ -216,25 +241,20 @@ class Exporter():
         
         #Try to fetch NMS_SCENE node
         try:
-            main_ob = self.global_scene.objects['NMS_SCENE']
+            self.NMSScene = self.global_scene.objects['NMS_SCENE']
         except:
             raise Exception("Missing NMS_SCENE Node, Create it!")
 
         # check whether or not we will be exporting in batch mode
-        try:
-            # set the batch_export flag to be true if we need it to be
-            if int(main_ob['BATCH']) == 1:
-                batch_export = True
-            else:
-                batch_export = False
-        except:
-            # in this case the property musn't have been set, so just assume that the user wants normal export mode
+        if self.NMSScene.NMSScene_props.batch_mode:
+            batch_export = True
+        else:
             batch_export = False
 
         # if there is a name for the group, use it.
-        try:
-            self.group_name = main_ob['GROUP']
-        except:
+        if self.NMSScene.NMSScene_props.group_name != "":
+            self.group_name = self.NMSScene.NMSScene_props.group_name
+        else:
             self.group_name = self.mname
 
         # if we aren't doing a batch export, set the scene as a model object that all will use as a parent
@@ -242,45 +262,51 @@ class Exporter():
             #Create main scene model now
             scene = Model(Name = self.mname)
 
-        # check to see if a name has been specified for the anim file for the scene
-        try:
-            self.animate = main_ob['ANIM']       # this is the name of the animation. Only allow one... (for now... because meh...)
-            self.anim_frames = self.global_scene.frame_end        # number of frames
-        except:
-            self.animate = None
-            self.anim_frames = 0
+        # pre-process the animation information.
+        self.scene_actions = set()      # set to contain all the actions that are used in the scene
+        self.joint_anim_data = dict()
+        self.anim_controller_obj = None     # this is the Mesh object that was specified as controlling the animations
 
-        # iterate through each of the children of the NMS_SCENE object
-        for ob in main_ob.children:
+
+        # get all the animation data first, so we can decide how we deal with anims. This data can be used to determine how many animations we actually have.
+        self.add_to_anim_data(self.NMSScene)
+        self.anim_frames = self.global_scene.frame_end        # number of frames        (same... for now)
+        print(self.scene_actions)
+        print(self.joint_anim_data)
+
+        # create any commands that need to be sent to the main script:
+        commands = {'dont_compile': self.NMSScene.NMSScene_props.dont_compile}
+
+        """ This will probably need to be re-worked to make sure it works... """
+        for ob in self.NMSScene.children:
             if not ob.name.startswith('NMS'):
                 continue
             print('Located Object for export', ob.name)
             if batch_export:
                 # we will need to create an individual scene object for each mesh
-                if len(ob.name.split('_')) == 2:
+                if len(ob.name.split('_')) == 2:        # this check needs to be changed to something more... good...
                     if 'REFERENCE' not in ob.name:
                         name = ob.name.split('_')[1]
+                        self.scene_directory = os.path.join(BASEPATH, self.group_name, name)
                         print("Processing object {}".format(name))
                         scene = Model(Name = name)
-                        extra_data['name'] = name
                         self.parse_object(ob, scene)#, scn, process_anim = animate is not None, anim_frame_data = anim_frame_data, extra_data = extra_data)
-                        if self.animate is not None:
-                            anim = self.anim_generator()
-                            #mbinc = mbinCompiler(anim, 'animation')
-                            #mbinc.serialise()
-                        else:
-                            anim = None
+                        anim = self.anim_generator()
                         directory = os.path.dirname(exportpath)
                         mpath = os.path.dirname(os.path.abspath(exportpath))
                         os.chdir(mpath)
                         Create_Data(name,
                                     self.group_name,
                                     scene,
-                                    anim)
+                                    anim,
+                                    **commands)
                         
             else:
                 # parse the entire scene all in one go.
+                self.scene_directory = os.path.join(BASEPATH, self.group_name, self.mname)      # set this here because... why not
                 self.parse_object(ob, scene)#, scn, process_anim = animate is not None, anim_frame_data = anim_frame_data, extra_data = extra_data)
+
+        self.process_anims()
 
         print('Creating .exmls')
         #Convert Paths
@@ -291,19 +317,26 @@ class Exporter():
             os.chdir(mpath)
             # create the animation stuff if necissary:
             print('bloop')
-            if self.animate is not None:
-                anim = self.anim_generator()
-                #mbinc = mbinCompiler(anim, 'animation')
-                #mbinc.serialise()
-            else:
-                anim = None
+            anim = self.anim_generator()
             Create_Data(self.mname,
                         self.group_name,
                         scene,
-                        anim)
+                        anim,
+                        **commands)
 
         self.state = 'FINISHED'
-        
+
+    def add_to_anim_data(self, ob):
+        for child in ob.children:
+            if child.NMSNode_props.node_types == "Joint":
+                # iterate over each child that is a joint
+                for name_action in get_all_actions(child):
+                    self.scene_actions.add(name_action[1])
+                    if name_action[0] not in self.joint_anim_data:
+                        self.joint_anim_data[name_action[0]] = [name_action[1]]
+                    else:
+                        self.joint_anim_data[name_action[0]].append(name_action[1])
+            self.add_to_anim_data(child)                    
 
     def parse_material(self, ob):
         # This function returns a tkmaterialdata object with all necessary material information
@@ -418,51 +451,55 @@ class Exporter():
 
     def anim_generator(self):
         # process the anim data into a TkAnimMetadata structure
-        # self.anim_frame_data is a dictionary with the key as the name of the object. the value is a list containing animation data
-        NodeData = List()
-        num_nodes = len(self.anim_frame_data)      # counts the number of object names in the anim data
-        ordered_nodes = []                          # this will be a list of the keys in an order such that any nodes without anim data will be at the end
-        for node in range(num_nodes):
-            node_name = list(self.anim_frame_data.keys())[node]
-            if len(self.anim_frame_data[node_name]) != 0:
-                # if the animation data isn't an empty list
-                ordered_nodes.insert(0, node_name)
-            else:
-                # in this case add to the end
-                ordered_nodes.append(node_name)
-        for node in range(num_nodes):
-            # for some reason in the game files these aren't always the same... Not quite sure what causes that... Maybe things that do or don't have actual data always need to be at the end.
-            # will amost certainly need to clean this up...
-            kwargs = {'Node': ordered_nodes[node], 'RotIndex': str(node), 'TransIndex': str(node), 'ScaleIndex': str(node)}
-            NodeData.append(TkAnimNodeData(**kwargs))
-        AnimFrameData = List()
-        stillRotations = List()
-        stillTranslations = List()
-        stillScales = List()
-        for frame in range(self.anim_frames):
-            Rotations = List()
-            Translations = List()
-            Scales = List()
-            for node in ordered_nodes:       # iterating over keys slightly more optimised (maybe?)
-                trans = self.anim_frame_data[node][frame][0]
-                rot = self.anim_frame_data[node][frame][1]
-                scale = self.anim_frame_data[node][frame][2]
-                Rotations.append(Vector4f(x = rot[0], y = rot[1], z = rot[2], t = rot[3]))
-                Translations.append(Vector4f(x = trans[0], y = trans[1], z = trans[2], t = 1.0))
-                Scales.append(Vector4f(x = scale[0], y = scale[1], z = scale[2], t = 1.0))
-                if frame == 0:
-                    stillRotations.append(Vector4f(x = rot[0], y = rot[1], z = rot[2], t = rot[3]))
-                    stillTranslations.append(Vector4f(x = trans[0], y = trans[1], z = trans[2], t = 1.0))
-                    stillScales.append(Vector4f(x = scale[0], y = scale[1], z = scale[2], t = 1.0))
-            FrameData = TkAnimNodeFrameData(Rotations = Rotations, Translations = Translations, Scales = Scales)
-            AnimFrameData.append(FrameData)
-        StillFrameData = TkAnimNodeFrameData(Rotations = stillRotations, Translations = stillTranslations, Scales = stillScales)
+        joint_list = get_children(self.NMSScene, list(), "Joint", just_names = True)        # list of the names of every joint
+        print("joint list:", joint_list)
+        num_nodes = len(joint_list)
+        AnimationFiles = {}
+        for action in self.anim_frame_data:
+            action_data = self.anim_frame_data[action]
+            NodeData = List()
+            active_nodes = list(action_data.keys())
+            print("active nodes ", active_nodes, " for {}".format(action))
+            ordered_nodes = list() + active_nodes                # list of all the nodes with the ones with animation data first (empty ones will be appended on)
+            for node in joint_list:
+                # only need to add on empty ones to the end
+                if node not in active_nodes:
+                    ordered_nodes.append(node)
+            print(ordered_nodes)
+            for node in range(num_nodes):
+                kwargs = {'Node': ordered_nodes[node][len("NMS_"):], 'RotIndex': str(node), 'TransIndex': str(node), 'ScaleIndex': str(node)}
+                NodeData.append(TkAnimNodeData(**kwargs))
+            AnimFrameData = List()
+            stillRotations = List()
+            stillTranslations = List()
+            stillScales = List()
+            for frame in range(self.anim_frames):
+                Rotations = List()
+                Translations = List()
+                Scales = List()
+                # the active nodes will be in the same order as the ordered list because we constructed it that way
+                # only iterate over the active nodes
+                for node in active_nodes:
+                    trans = action_data[node][frame][0]
+                    rot = action_data[node][frame][1]
+                    scale = action_data[node][frame][2]
+                    Rotations.append(Vector4f(x = rot[0], y = rot[1], z = rot[2], t = rot[3]))
+                    Translations.append(Vector4f(x = trans[0], y = trans[1], z = trans[2], t = 1.0))
+                    Scales.append(Vector4f(x = scale[0], y = scale[1], z = scale[2], t = 1.0))
+                    if frame == 0:
+                        stillRotations.append(Vector4f(x = rot[0], y = rot[1], z = rot[2], t = rot[3]))
+                        stillTranslations.append(Vector4f(x = trans[0], y = trans[1], z = trans[2], t = 1.0))
+                        stillScales.append(Vector4f(x = scale[0], y = scale[1], z = scale[2], t = 1.0))
+                FrameData = TkAnimNodeFrameData(Rotations = Rotations, Translations = Translations, Scales = Scales)
+                AnimFrameData.append(FrameData)
+            StillFrameData = TkAnimNodeFrameData(Rotations = stillRotations, Translations = stillTranslations, Scales = stillScales)
 
-        return TkAnimMetadata(FrameCount = str(self.anim_frames),
-                              NodeCount = str(num_nodes),
-                              NodeData = NodeData,
-                              AnimFrameData = AnimFrameData,
-                              StillFrameData = StillFrameData)
+            AnimationFiles[action] = (TkAnimMetadata(FrameCount = str(self.anim_frames),
+                                                     NodeCount = str(num_nodes),
+                                                     NodeData = NodeData,
+                                                     AnimFrameData = AnimFrameData,
+                                                     StillFrameData = StillFrameData))
+        return AnimationFiles
         
     #Main Mesh parser
     def mesh_parser(self, ob):
@@ -564,14 +601,13 @@ class Exporter():
         
         # Main switch to identify meshes or locators/references
         if ob.type == 'MESH':
-            if ob.name.upper().startswith("NMS_COLLISION"):     # syntax: NMS_COLLISION_<CTYPE>_<NAME>
+            if ob.NMSNode_props.node_types == 'Collision':
                 # COLLISION MESH
                 print("Collision found: ", ob.name)
-                data = ob.name[len("NMS_COLLISION_"):].upper()
-                colType = COLDICT[data[:data.index("_")].upper()]       # this way it doesn't matter what the user puts in as long as they spelt the collision type correctly
+                colType = ob.NMSCollision_props.collision_types
                 
                 optdict = {}
-                optdict['Name'] = data[data.index("_") + 1:]
+                optdict['Name'] = self.scene_directory
                 optdict['Transform'] = transform
                 optdict['CollisionType'] = colType
                 
@@ -599,7 +635,7 @@ class Exporter():
                     raise Exception("Unsupported Collision")
                 
                 newob = Collision(**optdict)
-            else:
+            elif ob.NMSNode_props.node_types == 'Mesh':
                 # ACTUAL MESH
                 #Parse object Geometry
                 print('Exporting: ', ob.name)
@@ -618,61 +654,69 @@ class Exporter():
                         entitydata.append(rotation_data)
                 
                 #Create Mesh Object
-                actualname = ob.name[len("NMS_MESH_"):].upper()      # syntax: NMS_MESH_<NAME>
-                newob = Mesh(Name = actualname, Transform = transform, Vertices=verts, UVs=luvs, Normals=norms, Tangents=tangs, Indexes=faces, ExtraEntityData = entitydata)
+                actualname = ob.name[len("NMS_"):].upper()
+                newob = Mesh(Name = actualname,
+                             Transform = transform,
+                             Vertices=verts,
+                             UVs=luvs,
+                             Normals=norms,
+                             Tangents=tangs,
+                             Indexes=faces,
+                             ExtraEntityData = entitydata,
+                             HasAttachment = ob.NMSMesh_props.has_entity)
+
+                # check to see if the mesh's entity will be animation controller, if so assign to the anim_controller_obj variable
+                if ob.NMSEntity_props.is_anim_controller:
+                    self.anim_controller_obj = newob
                 
                 #Try to parse material
-                try:
-                    slot = ob.material_slots[0]
-                    mat = slot.material
-                    print(mat.name)
-                    if not mat.name in self.material_dict:
-                        print("Parsing Material " + mat.name)
-                        material_ob = self.parse_material(ob)
-                        self.material_dict[mat.name] = material_ob
-                    else:
-                        material_ob = self.material_dict[mat.name]
-                    
-                    print(material_ob)
-                    #Attach material to Mesh
-                    newob.Material = material_ob
-                    
-                except:
-                    raise Exception("Missing Material")
+                if ob.NMSMesh_props.material_path != "":
+                    newob.Material = ob.NMSMesh_props.material_path
+                else:
+                    try:
+                        slot = ob.material_slots[0]
+                        mat = slot.material
+                        print(mat.name)
+                        if not mat.name in self.material_dict:
+                            print("Parsing Material " + mat.name)
+                            material_ob = self.parse_material(ob)
+                            self.material_dict[mat.name] = material_ob
+                        else:
+                            material_ob = self.material_dict[mat.name]
+                        
+                        print(material_ob)
+                        #Attach material to Mesh
+                        newob.Material = material_ob
+                        
+                    except:
+                        raise Exception("Missing Material")
         
         #Locator and Reference Objects
         elif (ob.type=='EMPTY'):
-            if (ob.name.upper().startswith('NMS_REFERENCE')):
+            if ob.NMSNode_props.node_types == 'Reference':
                 print("Reference Detected")
-                actualname = ob.name[len("NMS_REFERENCE_"):].upper()      # syntax: NMS_REFERENCE_<NAME>
+                actualname = ob.name[len("NMS_"):].upper()
                 try:
-                    scenegraph = ob["REF"]
+                    scenegraph = ob.NMSReference_props.reference_path
                 except:
                     raise Exception("Missing REF Property, Set it")
                 
                 newob = Reference(Name = actualname, Transform = transform, Scenegraph = scenegraph)
-            elif (ob.name.upper().startswith('NMS_LOCATOR')):
+            elif ob.NMSNode_props.node_types == 'Locator':
                 print("Locator Detected")
-                actualname = ob.name[len("NMS_LOCATOR_"):].upper()      # syntax: NMS_LOCATOR_<NAME>
-                try:
-                    HasAttachment = ob["HasAttachment"]
-                    if HasAttachment == "True":
-                        HasAttachment = True
-                    else:
-                        HasAttachment = False
-                except:
-                    HasAttachment = False
+                actualname = ob.name[len("NMS_"):].upper()
+                HasAttachment = ob.NMSLocator_props.has_entity
                             
                 newob = Locator(Name = actualname, Transform = transform, HasAttachment = HasAttachment)
-            elif ob.name.upper().startswith("NMS_JOINT_"):
+            elif ob.NMSNode_props.node_types == 'Joint':
                 print("Joint Detected")
-                actualname = ob.name[len("NMS_JOINT_"):].upper()      # syntax: NMS_JOINT_<NAME>
+                actualname = ob.name[len("NMS_"):].upper()
                 self.joints += 1
                 newob = Joint(Name = actualname, Transform = transform, JointIndex = self.joints)
                 
         #Light Objects
         elif (ob.type =='LAMP'):
-            actualname = ob.name[len("NMS_LIGHT_"):].upper()      # syntax: NMS_LIGHT_<NAME>
+            actualname = ob.name[len("NMS_"):].upper()      # syntax: NMS_LIGHT_<NAME>
             #Get Color
             col = tuple(ob.data.color)
             print("colour: {}".format(col))
@@ -680,38 +724,6 @@ class Exporter():
             intensity = ob.data.energy
             
             newob = Light(Name=actualname, Transform = transform, Colour = col, Intensity = intensity)
-
-        # let's find out if the object has any animation data:
-        # every node in the scene must have anim data. Obviously if something doesn't move we want it to be just empty, but let's solve that problem later...
-        if self.animate is not None:
-            self.anim_frame_data[actualname] = []       # create empty list to be populated with frame data
-            # only generate data for things that either are animated or are a joint (?)
-            if object_is_animated(ob) or (newob._Type == "JOINT"):
-                for frame in range(self.anim_frames):
-                    # need to change the frame of the scene to appropriate one
-                    self.global_scene.frame_set(frame)
-                    # now need to re-get the data
-                    trans, rot_q, scale = transform_to_NMS_coords(ob)
-                    print("data for frame {}".format(frame))
-                    print(trans, rot_q, scale)
-                    self.anim_frame_data[actualname].append((trans, rot_q, scale))      # this is the anim_data that will be processed later
-                path = os.path.join(BASEPATH, self.group_name.upper(), self.mname.upper())
-                try:
-                    # if the user specifies that the object should have animation data in the entity add it
-                    hasAnim = ob['HASANIM']
-                    print('hs anim!')
-                    # if the code hasn't broken by now then give the object's entity file the anim data
-                    anim_entity = TkAnimationComponentData(Idle = TkAnimationData())
-                    print('what')
-                    entitydata.append(anim_entity)
-                    print(entitydata)
-                    print('is')
-                    print(newob.ExtraEntityData)
-                    newob.ExtraEntityData = entitydata      # update the entity data directly
-                    newob.rebuild_entity()
-                    print('going on?')
-                except:
-                    pass
         
         parent.add_child(newob)
         
@@ -723,6 +735,59 @@ class Exporter():
 
         return newob
 
+    def process_anims(self):
+        # get all the data. We will then consider number of actions globally and process the entity stuff accordingly
+        entitydata = []
+        for action in self.scene_actions:
+            print("processing anim {}".format(action.name))
+            # this is the current action.
+            # get the list of joints that use this action
+            animated_joints = []        # list of joints that use the current action
+            action_data = dict()
+            # get the list of joints using current action, and set their action to the current one
+            for name in self.joint_anim_data:
+                if action in self.joint_anim_data[name]:
+                    animated_joints.append(name)
+                    self.global_scene.objects[name].animation_data.action = action      # set the actions of each joint (with this action) to be the current active one
+                    action_data[name] = list()
+                    
+            for frame in range(self.anim_frames):       # let's hope none of the anims have different amounts of frames... should be easy to fix though... later...
+                # need to change the frame of the scene to appropriate one
+                self.global_scene.frame_set(frame)
+                # now need to re-get the data
+                #print("processing frame {}".format(frame))
+                for name in animated_joints:
+                    ob = self.global_scene.objects[name]
+                    trans, rot_q, scale = transform_to_NMS_coords(ob)
+                    action_data[name].append((trans, rot_q, scale))      # this is the anim_data that will be processed later
+            # add all the animation data to the anim frame data for the particular action
+            self.anim_frame_data[action.name] = action_data
+
+        # now semi-process the animation data to generate data for the animation controller entity file
+        if len(self.anim_frame_data) == 1:
+            # in this case we only have the idle animation.
+            path = os.path.join(BASEPATH, self.group_name.upper(), self.mname.upper())
+            anim_entity = TkAnimationComponentData(Idle = TkAnimationData())
+            entitydata.append(anim_entity)
+            self.anim_controller_obj.ExtraEntityData = entitydata      # update the entity data directly
+            self.anim_controller_obj.rebuild_entity()
+        elif len(self.anim_frame_data) > 1:
+            # in this case all the anims are not idle ones, and we need some kind of real data
+            Anims = List()
+            path = os.path.join(BASEPATH, self.group_name.upper(), 'ANIMS')
+            for action in self.anim_frame_data:
+                name = action
+                AnimationData = TkAnimationData(Anim = name,
+                                                Filename = os.path.join(path, "{}.ANIM.MBIN".format(name.upper())),
+                                                FlagsActive = True)
+                Anims.append(AnimationData)
+            anim_entity = TkAnimationComponentData(Idle = TkAnimationData(),
+                                                   Anims = Anims)
+            entitydata.append(anim_entity)
+            self.anim_controller_obj.ExtraEntityData = entitydata      # update the entity data directly
+            self.anim_controller_obj.rebuild_entity()
+
+
 class NMS_Export_Operator(Operator, ExportHelper):
     """This appears in the tooltip of the operator and in the generated docs"""
     bl_idname = "export_mesh.nms"  # important since its how bpy.ops.import_test.some_data is constructed
@@ -730,28 +795,6 @@ class NMS_Export_Operator(Operator, ExportHelper):
 
     # ExportHelper mixin class uses this
     filename_ext = ""
-
-#    filter_glob = StringProperty(
-#            default="*.txt",
-#            options={'HIDDEN'},
-#            maxlen=255,  # Max internal buffer length, longer would be clamped.
-#            )
-
-    # List of operator properties, the attributes will be assigned
-    # to the class instance from the operator settings before calling.
-#    use_setting = BoolProperty(
-#            name="Example Boolean",
-#            description="Example Tooltip",
-#            default=True,
-#            )
-
-#    type = EnumProperty(
-#            name="Example Enum",
-#            description="Choose between two items",
-#            items=(('OPT_A', "First Option", "Description one"),
-#                   ('OPT_B', "Second Option", "Description two")),
-#            default='OPT_A',
-#            )
 
     def execute(self, context):
         main_exporter = Exporter(self.filepath)
@@ -763,19 +806,358 @@ class NMS_Export_Operator(Operator, ExportHelper):
             return {'CANCELLED'}
 
 
+def update_after_enum(self, context):
+    print('self.my_enum ---->', self.node_types)
+
+""" Various properties for each of the different node types """
+
+class NMSNodeProperties(bpy.types.PropertyGroup):
+    """ Properties for the NMS Nodes """
+    is_NMS_node = BoolProperty(name = "Is NMS Node?",
+                               description = "Enable if the object is a node in the scene file",
+                               default = True)
+    
+    node_types = EnumProperty(name = "Node Types",
+                              description = "Select what type of Node this will be",
+                              items = [("Mesh" , "Mesh" , "Standard mesh for visible objects."),
+                                       ("Collision", "Collision", "Shape of collision for object."),
+                                       ("Locator", "Locator", "Locator object, used for interaction locations etc."),
+                                       ("Reference", "Reference", "Node used to allow other scenes to be placed at this point in space"),
+                                       ("Joint", "Joint", "Node used primarily for animations. All meshes that are to be animated MUST be a direct child of a joint object"),
+                                       ("Light", "Light", "Light that will emit light of a certain colour")],
+                              update=update_after_enum)
+
+class NMSMeshProperties(bpy.types.PropertyGroup):
+    has_entity = BoolProperty(name = "Requires Entity",
+                              description = "Whether or not the mesh requires an entity file. Not all meshes require an entity file. Read the detailed guidelines in the readme for more details.",
+                              default = False)
+    material_path = StringProperty(name = "Material",
+                                   description = "(Optional) Path to material mbin file to use instead of automattical exporting material attached to this mesh.")
+
+class NMSLightProperties(bpy.types.PropertyGroup):
+    intensity_value = FloatProperty(name = "Intensity",
+                                    description = "Intensity of the light.")
+
+class NMSEntityProperties(bpy.types.PropertyGroup):
+    is_anim_controller = BoolProperty(name = "Is animation controller?",
+                                      description = "When ticked, this entity contains all the required animation information. Only tick this for one entity per scene.",
+                                      default = False)
+    is_flyable = BoolProperty(name = "Is flyable?",
+                              description = "If true, the entity file will contain the required components to make the object pilotable.",
+                              default = False)
+
+class NMSAnimationProperties(bpy.types.PropertyGroup):
+    anim_loops = BoolProperty(name = "Loops",
+                              description = "If true, the the animation will loop.",
+                              default = False)
+    anim_loops_choice = EnumProperty(name = "Animation Type",
+                                   description = "Type of animation",
+                                   items = [("OneShot" , "OneShot" , "Animation runs once (per trigger)"),
+                                            ("Loop", "Loop", "Animation loops continuously")])
+
+class NMSLocatorProperties(bpy.types.PropertyGroup):
+    has_entity = BoolProperty(name = "Requires Entity",
+                              description = "Whether or not the mesh requires an entity file. Not all meshes require an entity file. Read the detailed guidelines in the readme for more details.",
+                              default = False)
+
+class NMSReferenceProperties(bpy.types.PropertyGroup):
+    reference_path = StringProperty(name = "Reference Path",
+                                    description = "Path to scene to be referenced at this location.")
+
+class NMSSceneProperties(bpy.types.PropertyGroup):
+    batch_mode = BoolProperty(name = "Batch Mode",
+                              description = "If ticked, each direct child of this node will be exported separately",
+                              default = False)
+    group_name = StringProperty(name = "Group Name",
+                                description = "Group name so that models that all belong in the same folder are placed there (path becomes group_name/name)")
+    dont_compile = BoolProperty(name = "Don't compile to .mbin",
+                                description = "If true, the exml files will not be compiled to an mbin file. This saves a lot of time waiting for the geometry files to compile",
+                                default = False)
+
+class NMSCollisionProperties(bpy.types.PropertyGroup):
+    collision_types = EnumProperty(name = "Collision Types",
+                                   description = "Type of collision to be used",
+                                   items = [("Mesh" , "Mesh" , "Mesh Collision"),
+                                            ("Box", "Box", "Box (rectangular prism collision"),
+                                            ("Sphere", "Sphere", "Spherical collision"),
+                                            ("Cylinder", "Cylinder", "Cylindrical collision")])
+
+""" Various panels for each of the property types """
+
+class NMSNodePropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Node Properties"
+    bl_idname = "OBJECT_PT_node_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object.name.startswith("NMS") and not context.object.name.startswith("NMS_SCENE"):
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSNode_props, "node_types", expand=True)
+
+class NMSReferencePropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Reference Properties"
+    bl_idname = "OBJECT_PT_reference_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object.name.startswith("NMS") and context.object.NMSNode_props.node_types == 'Reference':
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSReference_props, "reference_path")
+
+class NMSMeshPropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Mesh Properties"
+    bl_idname = "OBJECT_PT_mesh_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object.name.startswith("NMS") and context.object.NMSNode_props.node_types == 'Mesh' and not context.object.name.startswith("NMS_SCENE"):
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSMesh_props, "has_entity")
+        row = layout.row()
+        row.prop(obj.NMSMesh_props, "material_path")
+
+class NMSEntityPropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Entity Properties"
+    bl_idname = "OBJECT_PT_entity_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object.name.startswith("NMS") and (context.object.NMSMesh_props.has_entity or context.object.NMSLocator_props.has_entity):
+            # only a mesh or locator can have an associated entity file
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSEntity_props, "is_anim_controller")
+        row = layout.row()
+        row.prop(obj.NMSEntity_props, "is_flyable")
+
+class NMSAnimationPropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Animation Properties"
+    bl_idname = "OBJECT_PT_animation_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object.name.startswith("NMS") and context.object.NMSNode_props.node_types == 'Mesh':     # fix
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSAnimation_props, "anim_loops")
+        row = layout.row()
+        row.prop(obj.NMSAnimation_props, "anim_loops_choice", expand = True)
+
+class NMSLocatorPropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Locator Properties"
+    bl_idname = "OBJECT_PT_locator_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object.name.startswith("NMS") and context.object.NMSNode_props.node_types == 'Locator':
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSLocator_props, "has_entity")
+
+class NMSLightPropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Light Properties"
+    bl_idname = "OBJECT_PT_light_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object.name.startswith("NMS") and context.object.NMSNode_props.node_types == 'Light':
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSLight_props, "intensity_value")
+
+class NMSCollisionPropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Collision Properties"
+    bl_idname = "OBJECT_PT_collision_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object.name.startswith("NMS") and context.object.NMSNode_props.node_types == 'Collision':
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSCollision_props, "collision_types", expand=True)
+
+class NMSScenePropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Scene Properties"
+    bl_idname = "OBJECT_PT_scene_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        # this should only show for an object that is called NMS_SCENE
+        if context.object.name.startswith("NMS_SCENE"):
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSScene_props, "batch_mode")
+        row = layout.row()
+        row.prop(obj.NMSScene_props, "group_name", expand = True)
+        row = layout.row()
+        row.prop(obj.NMSScene_props, "dont_compile")
+
+
 # Only needed if you want to add into a dynamic menu
 def menu_func_export(self, context):
     self.layout.operator(NMS_Export_Operator.bl_idname, text="Export to NMS XML Format ")
 
-
 def register():
     bpy.utils.register_class(NMS_Export_Operator)
     bpy.types.INFO_MT_file_export.append(menu_func_export)
+    # register the properties
+    bpy.utils.register_class(NMSNodeProperties)
+    bpy.utils.register_class(NMSSceneProperties)
+    bpy.utils.register_class(NMSMeshProperties)
+    bpy.utils.register_class(NMSReferenceProperties)
+    bpy.utils.register_class(NMSLocatorProperties)
+    bpy.utils.register_class(NMSLightProperties)
+    bpy.utils.register_class(NMSEntityProperties)
+    #bpy.utils.register_class(NMSAnimationProperties)
+    bpy.utils.register_class(NMSCollisionProperties)
+    # link the properties with the objects' internal variables
+    bpy.types.Object.NMSNode_props = bpy.props.PointerProperty(type=NMSNodeProperties)
+    bpy.types.Object.NMSScene_props = bpy.props.PointerProperty(type=NMSSceneProperties)
+    bpy.types.Object.NMSMesh_props = bpy.props.PointerProperty(type=NMSMeshProperties)
+    bpy.types.Object.NMSReference_props = bpy.props.PointerProperty(type=NMSReferenceProperties)
+    bpy.types.Object.NMSLocator_props = bpy.props.PointerProperty(type=NMSLocatorProperties)
+    bpy.types.Object.NMSLight_props = bpy.props.PointerProperty(type=NMSLightProperties)
+    bpy.types.Object.NMSEntity_props = bpy.props.PointerProperty(type=NMSEntityProperties)
+    #bpy.types.Object.NMSAnimation_props = bpy.props.PointerProperty(type=NMSAnimationProperties)
+    bpy.types.Object.NMSCollision_props = bpy.props.PointerProperty(type=NMSCollisionProperties)
+    # register the panels
+    bpy.utils.register_class(NMSScenePropertyPanel)
+    bpy.utils.register_class(NMSNodePropertyPanel)
+    bpy.utils.register_class(NMSMeshPropertyPanel)
+    bpy.utils.register_class(NMSReferencePropertyPanel)
+    bpy.utils.register_class(NMSLocatorPropertyPanel)
+    bpy.utils.register_class(NMSLightPropertyPanel)
+    bpy.utils.register_class(NMSEntityPropertyPanel)
+    #bpy.utils.register_class(NMSAnimationPropertyPanel)
+    bpy.utils.register_class(NMSCollisionPropertyPanel)
 
 
 def unregister():
     bpy.utils.unregister_class(NMS_Export_Operator)
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
+    # unregister the property classes
+    bpy.utils.unregister_class(NMSNodeProperties)
+    bpy.utils.unregister_class(NMSSceneProperties)
+    bpy.utils.unregister_class(NMSMeshProperties)
+    bpy.utils.unregister_class(NMSReferenceProperties)
+    bpy.utils.unregister_class(NMSLocatorProperties)
+    bpy.utils.unregister_class(NMSLightProperties)
+    bpy.utils.unregister_class(NMSEntityProperties)
+    #bpy.utils.unregister_class(NMSAnimationProperties)
+    bpy.utils.unregister_class(NMSCollisionProperties)
+    # delete the properties from the objects
+    del bpy.types.Object.NMSNode_props
+    del bpy.types.Object.NMSScene_props
+    del bpy.types.Object.NMSMesh_props
+    del bpy.types.Object.NMSReference_props
+    del bpy.types.Object.NMSLocator_props
+    del bpy.types.Object.NMSLight_props
+    del bpy.types.Object.NMSEntity_props
+    #del bpy.types.Object.NMSAnimation_props
+    del bpy.types.Object.NMSCollision_props
+    # unregister the panels
+    bpy.utils.unregister_class(NMSScenePropertyPanel)
+    bpy.utils.unregister_class(NMSNodePropertyPanel)
+    bpy.utils.unregister_class(NMSMeshPropertyPanel)
+    bpy.utils.unregister_class(NMSReferencePropertyPanel)
+    bpy.utils.unregister_class(NMSLocatorPropertyPanel)
+    bpy.utils.unregister_class(NMSLightPropertyPanel)
+    bpy.utils.unregister_class(NMSEntityPropertyPanel)
+    #bpy.utils.unregister_class(NMSAnimationPropertyPanel)
+    bpy.utils.unregister_class(NMSCollisionPropertyPanel)
 
 
 if __name__ == "__main__":
