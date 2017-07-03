@@ -122,10 +122,11 @@ class Light(Object):
 
         self.Intensity = kwargs.get('Intensity', 40000)
         self.Colour = kwargs.get('Colour', (1,1,1))
+        self.FOV = kwargs.get('FOV', 360.0)
 
     def create_attributes(self, data):
         self.Attributes = List(TkSceneNodeAttributeData(Name = 'FOV',
-                                                       Value = '360.000000'),
+                                                       Value = self.FOV),
                                TkSceneNodeAttributeData(Name = 'FALLOFF',
                                                        Value = 'quadratic'),
                                TkSceneNodeAttributeData(Name = 'INTENSITY',

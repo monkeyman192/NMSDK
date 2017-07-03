@@ -721,9 +721,9 @@ class Exporter():
             col = tuple(ob.data.color)
             print("colour: {}".format(col))
             #Get Intensity
-            intensity = ob.data.energy
+            intensity = ob.NMSLight_props.intensity_value
             
-            newob = Light(Name=actualname, Transform = transform, Colour = col, Intensity = intensity)
+            newob = Light(Name=actualname, Transform = transform, Colour = col, Intensity = intensity, FOV = ob.NMSLight_props.FOV_value)
         
         parent.add_child(newob)
         
@@ -837,6 +837,11 @@ class NMSMeshProperties(bpy.types.PropertyGroup):
 class NMSLightProperties(bpy.types.PropertyGroup):
     intensity_value = FloatProperty(name = "Intensity",
                                     description = "Intensity of the light.")
+    FOV_value = FloatProperty(name = "FOV",
+                              description = "Field if View of the lightsource.",
+                              default = 360,
+                              min = 0,
+                              max = 360)
 
 class NMSEntityProperties(bpy.types.PropertyGroup):
     is_anim_controller = BoolProperty(name = "Is animation controller?",
@@ -1037,6 +1042,8 @@ class NMSLightPropertyPanel(bpy.types.Panel):
         obj = context.object
         row = layout.row()
         row.prop(obj.NMSLight_props, "intensity_value")
+        row = layout.row()
+        row.prop(obj.NMSLight_props, "FOV_value")
 
 class NMSCollisionPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
