@@ -32,3 +32,8 @@ from .TkAnimNodeData import TkAnimNodeData
 from .TkAnimNodeFrameData import TkAnimNodeFrameData
 from .TkAnimationComponentData import TkAnimationComponentData
 from .TkAnimationData import TkAnimationData
+
+# structs for the entity files
+# space ship ones
+from .GcSpaceshipComponentData import GcSpaceshipComponentData
+from .GcSpaceshipClasses import GcSpaceshipClasses

@@ -65,7 +65,7 @@ print(main.__file__)
 # invoke() function which calls the file selector.
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, FloatProperty
-from bpy.types import Operator
+from bpy.types import Operator, NodeTree, Node, NodeSocket
 
 
 def write_some_data(context, filepath, use_some_setting):
@@ -94,10 +94,10 @@ def get_all_actions(obj):
     # slightly modified to return the name of the object, and the action
     if obj.animation_data:
         if obj.animation_data.action:
-            yield obj.name, obj.animation_data.action
+            yield obj.name, obj.NMSAnimation_props.anim_name, obj.animation_data.action
         for track in obj.animation_data.nla_tracks:
             for strip in track.strips:
-                yield obj.name, strip.action
+                yield obj.name, obj.NMSAnimation_props.anim_name, strip.action
 
 def get_children(obj, curr_children, obj_type, just_names = False):
     # return a flattened list of all the children of an object of a specified type.
@@ -147,7 +147,7 @@ def calc_tangents(faces, verts, norms, uvs):
         P2_uv = P2_uv.xy
         
         
-        print('Uvs', P1_uv, P2_uv)
+        #print('Uvs', P1_uv, P2_uv)
         
         #Matrix determinant
         D = P1_uv[0] * P2_uv[1] - P2_uv[0] * P1_uv[0]
@@ -264,7 +264,8 @@ class Exporter():
 
         # pre-process the animation information.
         self.scene_actions = set()      # set to contain all the actions that are used in the scene
-        self.joint_anim_data = dict()
+        self.joint_anim_data = dict()       # this will be a dictionary with the key being the joint name, and the data being the actions associated with it
+        self.animation_anim_data = dict()   # this will be a dictionary with the key being the animation name, and the data being the actions associated with it
         self.anim_controller_obj = None     # this is the Mesh object that was specified as controlling the animations
 
 
@@ -272,7 +273,8 @@ class Exporter():
         self.add_to_anim_data(self.NMSScene)
         self.anim_frames = self.global_scene.frame_end        # number of frames        (same... for now)
         print(self.scene_actions)
-        print(self.joint_anim_data)
+        #print(self.joint_anim_data)
+        print(self.animation_anim_data)
 
         # create any commands that need to be sent to the main script:
         commands = {'dont_compile': self.NMSScene.NMSScene_props.dont_compile}
@@ -331,11 +333,10 @@ class Exporter():
             if child.NMSNode_props.node_types == "Joint":
                 # iterate over each child that is a joint
                 for name_action in get_all_actions(child):
-                    self.scene_actions.add(name_action[1])
-                    if name_action[0] not in self.joint_anim_data:
-                        self.joint_anim_data[name_action[0]] = [name_action[1]]
-                    else:
-                        self.joint_anim_data[name_action[0]].append(name_action[1])
+                    self.scene_actions.add(name_action[2])
+                    if name_action[1] not in self.animation_anim_data:
+                        self.animation_anim_data[name_action[1]] = list()
+                    self.animation_anim_data[name_action[1]].append([name_action[0], name_action[2]])
             self.add_to_anim_data(child)                    
 
     def parse_material(self, ob):
@@ -455,7 +456,7 @@ class Exporter():
         print("joint list:", joint_list)
         num_nodes = len(joint_list)
         AnimationFiles = {}
-        for action in self.anim_frame_data:
+        for action in self.anim_frame_data:     #action is the name of the action, as specified by the animation panel
             action_data = self.anim_frame_data[action]
             NodeData = List()
             active_nodes = list(action_data.keys())
@@ -666,7 +667,7 @@ class Exporter():
                              HasAttachment = ob.NMSMesh_props.has_entity)
 
                 # check to see if the mesh's entity will be animation controller, if so assign to the anim_controller_obj variable
-                if ob.NMSEntity_props.is_anim_controller:
+                if ob.NMSEntity_props.is_anim_controller and ob.NMSMesh_props.has_entity:
                     self.anim_controller_obj = newob
                 
                 #Try to parse material
@@ -738,30 +739,25 @@ class Exporter():
     def process_anims(self):
         # get all the data. We will then consider number of actions globally and process the entity stuff accordingly
         entitydata = []
-        for action in self.scene_actions:
-            print("processing anim {}".format(action.name))
-            # this is the current action.
-            # get the list of joints that use this action
-            animated_joints = []        # list of joints that use the current action
+        for anim_name in self.animation_anim_data:
+            print("processing anim {}".format(anim_name))
             action_data = dict()
-            # get the list of joints using current action, and set their action to the current one
-            for name in self.joint_anim_data:
-                if action in self.joint_anim_data[name]:
-                    animated_joints.append(name)
-                    self.global_scene.objects[name].animation_data.action = action      # set the actions of each joint (with this action) to be the current active one
-                    action_data[name] = list()
+            for jnt_action in self.animation_anim_data[anim_name]:
+                self.global_scene.objects[jnt_action[0]].animation_data.action = jnt_action[1]      # set the actions of each joint (with this action) to be the current active one
+                action_data[jnt_action[0]] = list()         # initialise an empty list for the data to be put into with the requisite key
                     
             for frame in range(self.anim_frames):       # let's hope none of the anims have different amounts of frames... should be easy to fix though... later...
                 # need to change the frame of the scene to appropriate one
                 self.global_scene.frame_set(frame)
                 # now need to re-get the data
                 #print("processing frame {}".format(frame))
-                for name in animated_joints:
+                for jnt_action in self.animation_anim_data[anim_name]:
+                    name = jnt_action[0]        # name of the joint that is animated
                     ob = self.global_scene.objects[name]
                     trans, rot_q, scale = transform_to_NMS_coords(ob)
                     action_data[name].append((trans, rot_q, scale))      # this is the anim_data that will be processed later
             # add all the animation data to the anim frame data for the particular action
-            self.anim_frame_data[action.name] = action_data
+            self.anim_frame_data[anim_name] = action_data
 
         # now semi-process the animation data to generate data for the animation controller entity file
         if len(self.anim_frame_data) == 1:
@@ -781,11 +777,13 @@ class Exporter():
                                                 Filename = os.path.join(path, "{}.ANIM.MBIN".format(name.upper())),
                                                 FlagsActive = True)
                 Anims.append(AnimationData)
+                print(action, 'hello')
             anim_entity = TkAnimationComponentData(Idle = TkAnimationData(),
                                                    Anims = Anims)
             entitydata.append(anim_entity)
             self.anim_controller_obj.ExtraEntityData = entitydata      # update the entity data directly
             self.anim_controller_obj.rebuild_entity()
+            print(self.anim_controller_obj.Name, self.anim_controller_obj.EntityData)
 
 
 class NMS_Export_Operator(Operator, ExportHelper):
@@ -852,9 +850,8 @@ class NMSEntityProperties(bpy.types.PropertyGroup):
                               default = False)
 
 class NMSAnimationProperties(bpy.types.PropertyGroup):
-    anim_loops = BoolProperty(name = "Loops",
-                              description = "If true, the the animation will loop.",
-                              default = False)
+    anim_name = StringProperty(name = "Animation Name",
+                                   description = "Name of the animation. All animations with the same name here will be combined into one.")
     anim_loops_choice = EnumProperty(name = "Animation Type",
                                    description = "Type of animation",
                                    items = [("OneShot" , "OneShot" , "Animation runs once (per trigger)"),
@@ -988,8 +985,11 @@ class NMSAnimationPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if context.object.name.startswith("NMS") and context.object.NMSNode_props.node_types == 'Mesh':     # fix
-            return True
+        if context.object.name.startswith("NMS") and context.object.animation_data:
+            if context.object.animation_data.action:
+                return True
+            else:
+                return False
         else:
             return False
 
@@ -997,7 +997,7 @@ class NMSAnimationPropertyPanel(bpy.types.Panel):
         layout = self.layout
         obj = context.object
         row = layout.row()
-        row.prop(obj.NMSAnimation_props, "anim_loops")
+        row.prop(obj.NMSAnimation_props, "anim_name")
         row = layout.row()
         row.prop(obj.NMSAnimation_props, "anim_loops_choice", expand = True)
 
@@ -1108,7 +1108,7 @@ def register():
     bpy.utils.register_class(NMSLocatorProperties)
     bpy.utils.register_class(NMSLightProperties)
     bpy.utils.register_class(NMSEntityProperties)
-    #bpy.utils.register_class(NMSAnimationProperties)
+    bpy.utils.register_class(NMSAnimationProperties)
     bpy.utils.register_class(NMSCollisionProperties)
     # link the properties with the objects' internal variables
     bpy.types.Object.NMSNode_props = bpy.props.PointerProperty(type=NMSNodeProperties)
@@ -1118,7 +1118,7 @@ def register():
     bpy.types.Object.NMSLocator_props = bpy.props.PointerProperty(type=NMSLocatorProperties)
     bpy.types.Object.NMSLight_props = bpy.props.PointerProperty(type=NMSLightProperties)
     bpy.types.Object.NMSEntity_props = bpy.props.PointerProperty(type=NMSEntityProperties)
-    #bpy.types.Object.NMSAnimation_props = bpy.props.PointerProperty(type=NMSAnimationProperties)
+    bpy.types.Object.NMSAnimation_props = bpy.props.PointerProperty(type=NMSAnimationProperties)
     bpy.types.Object.NMSCollision_props = bpy.props.PointerProperty(type=NMSCollisionProperties)
     # register the panels
     bpy.utils.register_class(NMSScenePropertyPanel)
@@ -1128,7 +1128,7 @@ def register():
     bpy.utils.register_class(NMSLocatorPropertyPanel)
     bpy.utils.register_class(NMSLightPropertyPanel)
     bpy.utils.register_class(NMSEntityPropertyPanel)
-    #bpy.utils.register_class(NMSAnimationPropertyPanel)
+    bpy.utils.register_class(NMSAnimationPropertyPanel)
     bpy.utils.register_class(NMSCollisionPropertyPanel)
 
 
@@ -1143,7 +1143,7 @@ def unregister():
     bpy.utils.unregister_class(NMSLocatorProperties)
     bpy.utils.unregister_class(NMSLightProperties)
     bpy.utils.unregister_class(NMSEntityProperties)
-    #bpy.utils.unregister_class(NMSAnimationProperties)
+    bpy.utils.unregister_class(NMSAnimationProperties)
     bpy.utils.unregister_class(NMSCollisionProperties)
     # delete the properties from the objects
     del bpy.types.Object.NMSNode_props
@@ -1153,7 +1153,7 @@ def unregister():
     del bpy.types.Object.NMSLocator_props
     del bpy.types.Object.NMSLight_props
     del bpy.types.Object.NMSEntity_props
-    #del bpy.types.Object.NMSAnimation_props
+    del bpy.types.Object.NMSAnimation_props
     del bpy.types.Object.NMSCollision_props
     # unregister the panels
     bpy.utils.unregister_class(NMSScenePropertyPanel)
@@ -1163,7 +1163,7 @@ def unregister():
     bpy.utils.unregister_class(NMSLocatorPropertyPanel)
     bpy.utils.unregister_class(NMSLightPropertyPanel)
     bpy.utils.unregister_class(NMSEntityPropertyPanel)
-    #bpy.utils.unregister_class(NMSAnimationPropertyPanel)
+    bpy.utils.unregister_class(NMSAnimationPropertyPanel)
     bpy.utils.unregister_class(NMSCollisionPropertyPanel)
 
 
