@@ -37,3 +37,24 @@ from .TkAnimationData import TkAnimationData
 # space ship ones
 from .GcSpaceshipComponentData import GcSpaceshipComponentData
 from .GcSpaceshipClasses import GcSpaceshipClasses
+
+# Action trigger structs
+from .GcPlayAudioAction import GcPlayAudioAction
+from .GcNodeActivationAction import GcNodeActivationAction
+from .GcDestroyAction import GcDestroyAction
+from .GcCameraShakeAction import GcCameraShakeAction
+from .GcDisplayText import GcDisplayText
+from .GcParticleAction import GcParticleAction
+from .GcStateTimeEvent import GcStateTimeEvent
+from .GcPlayerNearbyEvent import GcPlayerNearbyEvent
+from .GcBeenShotEvent import GcBeenShotEvent
+from .GcAnimFrameEvent import GcAnimFrameEvent
+from .GcWarpAction import GcWarpAction
+from .GcSpawnAction import GcSpawnAction
+from .GcActionTrigger import GcActionTrigger
+from .GcActionTriggerState import GcActionTriggerState
+from .GcTriggerActionComponentData import GcTriggerActionComponentData
+from .GcPainAction import GcPainAction
+from .GcPlayAnimAction import GcPlayAnimAction
+from .GcGoToStateAction import GcGoToStateAction
+from .GcRewardAction import GcRewardAction

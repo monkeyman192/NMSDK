@@ -98,6 +98,7 @@ class Object():
     def rebuild_entity(self):
         # this is used to rebuild the entity data in case something else is added after the object is created
         self.EntityData = List(TkPhysicsComponentData())    # this can be populated with any extra stuff that needs to go into the entity.
+        print(self.ExtraEntityData)
         for entity in self.ExtraEntityData:
             self.EntityData.append(entity)
 

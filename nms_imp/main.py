@@ -235,6 +235,7 @@ class Create_Data():
                         AttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, str(mesh_obj.Name).upper())))
             else:
                 if obj._Type == 'LOCATOR':
+                    # this will probably need to be changed a bit...
                     if obj.HasAttachment == True:
                         data['ATTACHMENT'] = os.path.join(self.ent_path, str(obj.Name).upper()) + '.ENTITY.MBIN'
                         self.TkAttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, str(obj.Name).upper())))
