@@ -7,6 +7,7 @@ from nodeitems_utils import NodeCategory, NodeItem
 def retBool(x):
     return bool(x)
 
+# Is this how it would work?
 # custom button in the node editor to change the mode to the custom NMS mode
 class NMSATTree(NodeTree):
     '''NMS Action Trigger entity creator'''
