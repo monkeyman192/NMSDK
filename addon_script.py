@@ -441,6 +441,7 @@ class Exporter():
             #Create materialdata struct
             tkmatdata = TkMaterialData(Name=mat.name,
                                        Class='Opaque',
+                                       CastShadow = True,
                                        Flags=matflags,
                                        Uniforms=matuniforms,
                                        Samplers=matsamplers)
@@ -543,8 +544,8 @@ class Exporter():
             for vert in range(len(f.vertices)):
                 #Store them untransformed and we will fix them after tangent calculation
                 co = data.vertices[f.vertices[vert]].co
-                #norm = data.vertices[f.vertices[vert]].normal #Save Vertex Normal
-                norm = f.normal #Save face normal
+                norm = data.vertices[f.vertices[vert]].normal #Save Vertex Normal
+                #norm = f.normal #Save face normal
                 
                 #norm =    100 * norm_mat * data.loops[f.vertices[vert]].normal
                 #tangent = 100 * norm_mat * data.loops[f.vertices[vert]].tangent
