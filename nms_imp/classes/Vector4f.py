@@ -1,6 +1,7 @@
 # Vector4f struct
 
 from .Struct import Struct
+from struct import pack
 
 STRUCTNAME = 'Vector4f'
 
@@ -19,3 +20,9 @@ class Vector4f(Struct):
         self.parent = None
 
         self.STRUCTNAME = STRUCTNAME
+
+    def __bytes__(self):
+        data = bytearray()
+        for d in  ['x', 'y', 'z', 't']:
+            data.extend(pack('<f', self.data[d]))
+        return bytes(data)

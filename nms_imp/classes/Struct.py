@@ -7,6 +7,7 @@ from collections import OrderedDict
 from .String import String
 from .SerialisationMethods import *
 from .Empty import Empty
+from .List import List
 
 class Struct():
     def __init__(self, **kwargs):
@@ -109,6 +110,8 @@ class Struct():
         serialised_data = ""        # I hope there isn't some string limit... this might get big...
         for key in self.data:
             data = self.data[key]
+            if isinstance(data, array) or isinstance(data, list):
+                data = List(*list(data))
             if hasattr(data, 'serialise'):      # check whether the object has a serialise function
                 data.serialise(output, list_worker, return_data)
             else:

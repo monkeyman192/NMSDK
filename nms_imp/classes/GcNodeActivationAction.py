@@ -11,7 +11,7 @@ class GcNodeActivationAction(Struct):
         """ Contents of the struct """
         self.data['NodeActiveState'] = kwargs.get('NodeActiveState', "Activate")
         self.data['Name'] = kwargs.get('Name', "")
-        self.data['IncludePhysics'] = bool(kwargs.get('IncludePhysics', True))
+        self.data['IncludePhysics'] = bool(kwargs.get('IncludePhysics', False))
         self.data['UseMasterModel'] = bool(kwargs.get('UseMasterModel', False))
         """ End of the struct contents"""
 
