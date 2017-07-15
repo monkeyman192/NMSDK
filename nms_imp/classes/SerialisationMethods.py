@@ -1,11 +1,11 @@
-import struct
+from struct import pack, unpack
 from binascii import hexlify, unhexlify
 
 null = chr(0)
 
 def fth(f):
     # converts a float value to hex
-    return hex(struct.unpack('<I', struct.pack('<f', f))[0])
+    return hex(unpack('<I', pack('<f', f))[0])
 
 def hex_flip(h):
     # this takes some hex number that is 8 characters long, and re-arranges them from aa bb cc dd to dd cc bb aa (because NMS...)
@@ -19,24 +19,41 @@ def to_chr(string):
     return out_string
 
 def serialise(x):
-    if type(x) == int:
-        return to_chr(hexlify(struct.pack('<i', x)))
+    if type(x) == bytes:
+        # in this case it is already sorted are ready to write
+        return x
+    elif type(x) == int:
+        return pack('<i', x)
     elif type(x) == float:
-        return to_chr(hexlify(struct.pack('<f', x)))
+        return pack('<f', x)
+    else:
+        # in this case just call bytes(~) on the object and hope we get something useful.
+        # this should work because we can give custom classes a __bytes__ class method so that it returns the goods!
+        return bytes(x)
 
-def pad(string, length):
+def pad(input_data, length):
+    data = bytearray()
+    if isinstance(input_data, str):
+        data.extend(pack('{}s'.format(length), string))
+    elif isinstance(input_data, bytes):
+        data.extend(input_data)
+        data.extend(pack('{}s'.format(length - len(input_data)), b''))
     # pads the string to the required length with the null character
-    return string.ljust(length, null)
+    return data
 
-def list_header(offset, size):
+def list_header(offset, size, end):
     # returns the pointer information for the list
     # 0x10 bytes long
+    data = bytearray()
     pointer_location = pad(serialise(offset), 0x8)
-    pointer_size = to_chr(hexlify(struct.pack('<i', size)))
-    end = to_chr('01FEFEFE')            # this will need to be specified potentially
-    s = pointer_location + pointer_size + end
-    return pointer_location + pointer_size + end
+    data.extend(pointer_location)
+    pointer_size = pack('<i', size)
+    data.extend(pointer_size)
+    data.extend(end)        # assume this is already a bytes object
+    return data
 
 def list_footer(foot):
     # some lists have different things at their ends... this can be used to generate them
     pass
+
+#print(hexlify(pack('<f', 0.125)))

@@ -442,6 +442,7 @@ class Exporter():
             #Create materialdata struct
             tkmatdata = TkMaterialData(Name=mat.name,
                                        Class='Opaque',
+                                       CastShadow = True,
                                        Flags=matflags,
                                        Uniforms=matuniforms,
                                        Samplers=matsamplers)

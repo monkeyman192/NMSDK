@@ -14,6 +14,7 @@ import subprocess
 from LOOKUPS import *
 from shutil import copy2
 from array import array
+from mbincompiler import mbinCompiler
 
 BASEPATH = 'CUSTOMMODELS'
 
@@ -27,7 +28,7 @@ def traverse(obj):
         yield obj
 
 class Create_Data():
-    def __init__(self, name, directory, model, anim_data = [], **commands):
+    def __init__(self, name, directory, model, anim_data = dict(), **commands):
 
         """
         name - the name of the file we want to create. Most entities  within will have a name derived from this.
@@ -369,7 +370,9 @@ class Create_Data():
                 
     def write(self):
         # write each of the exml files.
-        self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
+        #self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
+        mbinc = mbinCompiler(self.TkGeometryData, "{}.GEOMETRY.MBIN.PC".format(self.path))
+        mbinc.serialise()
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for material in self.materials:
             if type(material) != str:

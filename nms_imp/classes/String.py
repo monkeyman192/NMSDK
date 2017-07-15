@@ -1,5 +1,7 @@
 # String structure for compatibility with exporting directly to mbins
 
+from struct import pack
+
 null = chr(0)
 
 class String():
@@ -12,6 +14,9 @@ class String():
 
     def __len__(self):
         return self.size
+
+    def __bytes__(self):
+        return pack('{}s'.format(self.size), self.string.encode('utf-8'))
 
     def serialise(self, output, list_worker, move_end = False, return_data = False):
         # if this procedure is being called to retrive a serialised version of the data, simply return it

@@ -5,11 +5,14 @@ from .SerialisationMethods import list_header as header
 from .SerialisationMethods import serialise
 
 class List():
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         self.size = 0x10        # this is how much space the list takes up in a struct
         self.subElements = [] # the list of the sub elements
+        self._format = kwargs.get('_format', None)
         for e in args:
             self.subElements.append(e)
+
+        self.curr_index = 0
 
     def give_parent(self, parent):
         self.parent = parent
@@ -18,9 +21,12 @@ class List():
         # iterate through the elements in the list and call their make_elements function
         # all objects in this list class will be another class with a make_elements function defined as they should all be a subclass of Struct.
         self.element = SubElement(self.parent, 'Property', {'name': name})
-        for element in self.subElements:
-            element.give_parent(self.element)
-            element.make_elements()
+        try:
+            for element in self.subElements:
+                element.give_parent(self.element)
+                element.make_elements()
+        except:
+            return
 
     def append(self, element):
         self.subElements.append(element)
@@ -29,10 +35,31 @@ class List():
         self.length = len(self.subElements)
         return self.length
 
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.curr_index >= len(self):
+            raise StopIteration
+        else:
+            self.curr_index += 1
+            return self.subElements[self.curr_index - 1]
+
+    def __bytes__(self):
+        data = bytearray()
+        for val in self.subElements:
+            try:
+                data.extend(bytes(val))
+            except:
+                data.extend(serialise(val))
+        return bytes(data)
+
     def data_len(self):
         # returns the total length of the data when it would be serialised (TOTAL. ie. size of each element * length of list)
         try:
             return len(self.subElements[0])*len(self)
+        except TypeError:
+            return 4*len(self)
         except IndexError:
             return 0
 
@@ -44,7 +71,7 @@ class List():
             offset = 0
         size = len(self)
         h = header(offset, size)
-        #print(len(h), 'bloop')
+        print(len(h), 'bloop')
         output.write(h)      # this serialises the list header.
         list_worker['curr'] += 0x10
 
