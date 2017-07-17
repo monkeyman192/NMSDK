@@ -149,6 +149,7 @@ class NMSMeshPropertyPanel(bpy.types.Panel):
         obj = context.object
         row = layout.row()
         row.prop(obj.NMSMesh_props, "has_entity")
+        row = layout.row()
         row.prop(obj.NMSMesh_props, "create_tangents")
         row = layout.row()
         row.prop(obj.NMSMesh_props, "material_path")

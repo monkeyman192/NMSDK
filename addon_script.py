@@ -571,7 +571,7 @@ class Exporter():
         if (ob.NMSMesh_props.create_tangents):
             tangents = calc_tangents(faces, verts, norms, luvs)
         else:
-            tangents = [Vector((0,0,0,0)) for i in range(len(verts))]
+            tangents = []
             
         
         #Apply rotation and normal matrices on vertices and normal vectors
@@ -604,127 +604,125 @@ class Exporter():
         entitydata = []
         
         # Main switch to identify meshes or locators/references
-        if ob.type == 'MESH':
-            if ob.NMSNode_props.node_types == 'Collision':
-                # COLLISION MESH
-                print("Collision found: ", ob.name)
-                colType = ob.NMSCollision_props.collision_types
+        if ob.NMSNode_props.node_types == 'Collision':
+            # COLLISION MESH
+            print("Collision found: ", ob.name)
+            colType = ob.NMSCollision_props.collision_types
+            
+            optdict = {}
+            optdict['Name'] = self.scene_directory
+            optdict['Transform'] = transform
+            optdict['CollisionType'] = colType
+            
+            if (colType == "Mesh"):
+                c_verts,c_norms,c_tangs,c_uvs,c_faces = self.mesh_parser(ob)
                 
-                optdict = {}
-                optdict['Name'] = self.scene_directory
-                optdict['Transform'] = transform
-                optdict['CollisionType'] = colType
+                #Reset Transforms on meshes
                 
-                if (colType == "Mesh"):
-                    c_verts,c_norms,c_tangs,c_uvs,c_faces = self.mesh_parser(ob)
-                    
-                    #Reset Transforms on meshes
-                    
-                    optdict['Vertices'] = c_verts
-                    optdict['Indexes'] = c_faces
-                    optdict['UVs'] = c_uvs
-                    optdict['Normals'] = c_norms
-                    optdict['Tangents'] = c_tangs
-                #HANDLE Primitives
-                elif (colType == "Box"):
-                    optdict['Width']  = ob.dimensions[0]
-                    optdict['Depth']  = ob.dimensions[1]
-                    optdict['Height'] = ob.dimensions[2]
-                elif (colType == "Sphere"):
-                    optdict['Radius'] = ob.dimensions[0] / 2.0
-                elif (colType == "Cylinder"):
-                    optdict['Radius'] = ob.dimensions[0] / 2.0
-                    optdict['Height'] = ob.dimensions[2]
-                else:
-                    raise Exception("Unsupported Collision")
-                
-                newob = Collision(**optdict)
-            elif ob.NMSNode_props.node_types == 'Mesh':
-                # ACTUAL MESH
-                #Parse object Geometry
-                print('Exporting: ', ob.name)
-                verts,norms,tangs,luvs,faces = self.mesh_parser(ob)
-                print("Object Count: ", len(verts), len(luvs), len(norms), len(faces))
-                print("Object Rotation: ", degrees(rot[0]), degrees(rot[2]), degrees(rot[1]))
+                optdict['Vertices'] = c_verts
+                optdict['Indexes'] = c_faces
+                optdict['UVs'] = c_uvs
+                optdict['Normals'] = c_norms
+                optdict['Tangents'] = c_tangs
+            #HANDLE Primitives
+            elif (colType == "Box"):
+                optdict['Width']  = ob.dimensions[0]
+                optdict['Depth']  = ob.dimensions[1]
+                optdict['Height'] = ob.dimensions[2]
+            elif (colType == "Sphere"):
+                optdict['Radius'] = ob.dimensions[0] / 2.0
+            elif (colType == "Cylinder"):
+                optdict['Radius'] = ob.dimensions[0] / 2.0
+                optdict['Height'] = ob.dimensions[2]
+            else:
+                raise Exception("Unsupported Collision")
+            
+            newob = Collision(**optdict)
+        elif ob.NMSNode_props.node_types == 'Mesh':
+            # ACTUAL MESH
+            #Parse object Geometry
+            print('Exporting: ', ob.name)
+            verts,norms,tangs,luvs,faces = self.mesh_parser(ob)
+            print("Object Count: ", len(verts), len(luvs), len(norms), len(faces))
+            print("Object Rotation: ", degrees(rot[0]), degrees(rot[2]), degrees(rot[1]))
 
-                # check whether the mesh has any child nodes we care about (such as a rotation vector)
-                for child in ob.children:
-                    if child.name.upper() == 'ROTATION':
-                        # take the properties of the rotation vector and give it to the mesh as part of it's entity data
-                        rot = transform_to_NMS_coords(child)[1]
-                        axis = Matrix.Rotation(radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
-                        print(axis)
-                        rotation_data = TkRotationComponentData(Speed = child.empty_draw_size, Axis = Vector4f(x=axis[0],y=axis[1],z=axis[2],t=0))
-                        entitydata.append(rotation_data)
-                        
-                # check to see if the mesh's entity will get the action trigger data
-                if ob.NMSEntity_props.has_action_triggers and ob.NMSMesh_props.has_entity:
-                    print(ob.name)
-                    entitydata.append(ParseNodes())
-                
-                #Create Mesh Object
-                actualname = ob.name[len("NMS_"):].upper()
-                newob = Mesh(Name = actualname,
-                             Transform = transform,
-                             Vertices=verts,
-                             UVs=luvs,
-                             Normals=norms,
-                             Tangents=tangs,
-                             Indexes=faces,
-                             ExtraEntityData = entitydata,
-                             HasAttachment = ob.NMSMesh_props.has_entity)
+            # check whether the mesh has any child nodes we care about (such as a rotation vector)
+            for child in ob.children:
+                if child.name.upper() == 'ROTATION':
+                    # take the properties of the rotation vector and give it to the mesh as part of it's entity data
+                    rot = transform_to_NMS_coords(child)[1]
+                    axis = Matrix.Rotation(radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
+                    print(axis)
+                    rotation_data = TkRotationComponentData(Speed = child.empty_draw_size, Axis = Vector4f(x=axis[0],y=axis[1],z=axis[2],t=0))
+                    entitydata.append(rotation_data)
+                    
+            # check to see if the mesh's entity will get the action trigger data
+            if ob.NMSEntity_props.has_action_triggers and ob.NMSMesh_props.has_entity:
+                print(ob.name)
+                entitydata.append(ParseNodes())
+            
+            #Create Mesh Object
+            actualname = ob.name[len("NMS_"):].upper()
+            newob = Mesh(Name = actualname,
+                         Transform = transform,
+                         Vertices=verts,
+                         UVs=luvs,
+                         Normals=norms,
+                         Tangents=tangs,
+                         Indexes=faces,
+                         ExtraEntityData = entitydata,
+                         HasAttachment = ob.NMSMesh_props.has_entity)
 
-                # check to see if the mesh's entity will be animation controller, if so assign to the anim_controller_obj variable
-                if ob.NMSEntity_props.is_anim_controller and ob.NMSMesh_props.has_entity:
-                    self.anim_controller_obj = newob
-                
-                #Try to parse material
-                if ob.NMSMesh_props.material_path != "":
-                    newob.Material = ob.NMSMesh_props.material_path
-                else:
-                    try:
-                        slot = ob.material_slots[0]
-                        mat = slot.material
-                        print(mat.name)
-                        if not mat.name in self.material_dict:
-                            print("Parsing Material " + mat.name)
-                            material_ob = self.parse_material(ob)
-                            self.material_dict[mat.name] = material_ob
-                        else:
-                            material_ob = self.material_dict[mat.name]
-                        
-                        print(material_ob)
-                        #Attach material to Mesh
-                        newob.Material = material_ob
-                        
-                    except:
-                        raise Exception("Missing Material")
+            # check to see if the mesh's entity will be animation controller, if so assign to the anim_controller_obj variable
+            if ob.NMSEntity_props.is_anim_controller and ob.NMSMesh_props.has_entity:
+                self.anim_controller_obj = newob
+            
+            #Try to parse material
+            if ob.NMSMesh_props.material_path != "":
+                newob.Material = ob.NMSMesh_props.material_path
+            else:
+                try:
+                    slot = ob.material_slots[0]
+                    mat = slot.material
+                    print(mat.name)
+                    if not mat.name in self.material_dict:
+                        print("Parsing Material " + mat.name)
+                        material_ob = self.parse_material(ob)
+                        self.material_dict[mat.name] = material_ob
+                    else:
+                        material_ob = self.material_dict[mat.name]
+                    
+                    print(material_ob)
+                    #Attach material to Mesh
+                    newob.Material = material_ob
+                    
+                except:
+                    raise Exception("Missing Material")
         
         #Locator and Reference Objects
-        elif (ob.type=='EMPTY'):
-            if ob.NMSNode_props.node_types == 'Reference':
-                print("Reference Detected")
-                actualname = ob.name[len("NMS_"):].upper()
-                try:
-                    scenegraph = ob.NMSReference_props.reference_path
-                except:
-                    raise Exception("Missing REF Property, Set it")
-                
-                newob = Reference(Name = actualname, Transform = transform, Scenegraph = scenegraph)
-            elif ob.NMSNode_props.node_types == 'Locator':
-                print("Locator Detected")
-                actualname = ob.name[len("NMS_"):].upper()
-                HasAttachment = ob.NMSLocator_props.has_entity
-                            
-                newob = Locator(Name = actualname, Transform = transform, HasAttachment = HasAttachment)
-            elif ob.NMSNode_props.node_types == 'Joint':
-                print("Joint Detected")
-                actualname = ob.name[len("NMS_"):].upper()
-                self.joints += 1
-                newob = Joint(Name = actualname, Transform = transform, JointIndex = self.joints)
+        elif ob.NMSNode_props.node_types == 'Reference':
+            print("Reference Detected")
+            actualname = ob.name[len("NMS_"):].upper()
+            try:
+                scenegraph = ob.NMSReference_props.reference_path
+            except:
+                raise Exception("Missing REF Property, Set it")
+            
+            newob = Reference(Name = actualname, Transform = transform, Scenegraph = scenegraph)
+        elif ob.NMSNode_props.node_types == 'Locator':
+            print("Locator Detected")
+            actualname = ob.name[len("NMS_"):].upper()
+            HasAttachment = ob.NMSLocator_props.has_entity
+                        
+            newob = Locator(Name = actualname, Transform = transform, HasAttachment = HasAttachment)
+        elif ob.NMSNode_props.node_types == 'Joint':
+            print("Joint Detected")
+            actualname = ob.name[len("NMS_"):].upper()
+            self.joints += 1
+            newob = Joint(Name = actualname, Transform = transform, JointIndex = self.joints)
                 
         #Light Objects
-        elif (ob.type =='LAMP'):
+        elif ob.NMSNode_props.node_types == 'Light':
             actualname = ob.name[len("NMS_"):].upper()      # syntax: NMS_LIGHT_<NAME>
             #Get Color
             col = tuple(ob.data.color)
