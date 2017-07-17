@@ -192,10 +192,11 @@ def apply_local_transforms(rotmat, verts, norms, tangents):
         #Store Transformed normal
         norms[i] = (norm[0], norm[1], norm[2], 1.0)
         #Load Tangent
-        tang = norm_mat * Vector((tangents[i]))
-        tang.normalize()
-        #Store Transformed tangent
-        tangents[i] = (tang[0], tang[1], tang[2], 1.0)
+        if (ob.NMSMesh_props.create_tangents):
+            tang = norm_mat * Vector((tangents[i]))
+            tang.normalize()
+            #Store Transformed tangent
+            tangents[i] = (tang[0], tang[1], tang[2], 1.0)
 
 def transform_to_NMS_coords(ob):
     # this will return the local transform, rotation and scale of the object in the NMS coordinate system
