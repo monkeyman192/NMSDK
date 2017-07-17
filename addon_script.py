@@ -118,7 +118,6 @@ def calc_tangents(faces, verts, norms, uvs):
     #Init tangents
     for i in range(len(verts)):
         tangents.append(Vector((0,0,0,0)))
-    
     #We assume that verts length will be a multiple of 3 since
     #the mesh has been triangulated
     
@@ -157,22 +156,24 @@ def calc_tangents(faces, verts, norms, uvs):
         #Orthogonalize Gram-Shmidt
         n = Vector(norms[vert_1]);
         tang = tang - n * tang.dot(n)
-        tang.normalize()
+        # tang.normalize()
         
         #Add to existing
         #Vert_1
-        tang1 = Vector(tangents[vert_1]) + tang;
-        tang1.normalize()
-        tangents[vert_1] = (tang1[0], tang1[1], tang1[2], 1.0)
+        tangents[vert_1] += tang
         #Vert_2
-        tang2 = Vector(tangents[vert_2]) + tang;
-        tang2.normalize()
-        tangents[vert_2] = (tang2[0], tang2[1], tang2[2], 1.0)
+        tangents[vert_2] += tang
         #Vert_3
-        tang3 = Vector(tangents[vert_3]) + tang;
-        tang3.normalize()
-        tangents[vert_3] = (tang3[0], tang3[1], tang3[2], 1.0)
-        
+        #tang3 = Vector(tangents[vert_3]) + tang;
+        #tang3.normalize()
+        tangents[vert_3] += tang
+
+    #Fix tangents
+    for i in range(len(verts)):
+        tang = tangents[i]
+        tang.normalize()
+        tangents[i] = (tangents[i].x, tangents[i].y, tangents[i].z, 1.0)
+    
 
     return tangents
 
@@ -201,7 +202,7 @@ def transform_to_NMS_coords(ob):
     matrix = ob.matrix_local
     yzmat = Matrix()
     yzmat[0] = Vector((1.0, 0.0, 0.0, 0.0))
-    yzmat[1] = Vector((0.0, 0.0, 1.0, 0.0))
+    yzmat[1] = Vector((0.0, 0.0, -1.0, 0.0))
     yzmat[2] = Vector((0.0, 1.0, 0.0, 0.0))
     yzmat[3] = Vector((0.0, 0.0, 0.0, 1.0))
     
@@ -566,8 +567,12 @@ class Exporter():
     #                eval('col_' + str(k) + '.append((r,g,b))')
 
         #At this point mesh is triangulated
-        #I can get the triangulated input and calculate the tangents 
-        tangents = calc_tangents(faces, verts, norms, luvs)
+        #I can get the triangulated input and calculate the tangents
+        if (ob.NMSMesh_props.create_tangents):
+            tangents = calc_tangents(faces, verts, norms, luvs)
+        else:
+            tangents = [Vector((0,0,0,0)) for i in range(len(verts))]
+            
         
         #Apply rotation and normal matrices on vertices and normal vectors
         apply_local_transforms(rot_x_mat, verts, norms, tangents)
@@ -827,4 +832,4 @@ if __name__ == "__main__":
     register()
 
     # test call
-    bpy.ops.export_mesh.nms(filepath="J:\\Installs\\Steam\\steamapps\\common\\No Man's Sky\\GAMEDATA\\PCBANKS\\CONSTRUCTRAMP")
+    bpy.ops.export_mesh.nms(filepath="J:\\Installs\\Steam\\steamapps\\common\\No Man's Sky\\GAMEDATA\\PCBANKS\\CUBE_ODD")
