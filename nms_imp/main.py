@@ -376,7 +376,7 @@ class Create_Data():
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         for material in self.materials:
             if type(material) != str:
-                material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.texture_path, str(material['Name']).upper())))
+                material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.path, str(material['Name']).upper())))
         if len(self.anim_data) != 0:
             if len(self.anim_data) == 1:
                 list(self.anim_data.values())[0].tree.write("{}.ANIM.exml".format(self.path))       # get the value and output it
