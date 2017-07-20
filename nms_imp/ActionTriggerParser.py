@@ -27,8 +27,6 @@ def ParseNodes():
         for node in ActionTrigger.nodes:
             if node.bl_idname.endswith('Event'):
                 Trigger = node
-            elif node.bl_idname.endswith('ActionTrigger'):
-                Builder = node
             else:
                 # we could check, but the only other option is an action, and not all actions end with Action (looking at you DisplayText!)
                 Actions.append(node)
