@@ -75,7 +75,10 @@ class NMSSceneProperties(bpy.types.PropertyGroup):
                                 description = "Group name so that models that all belong in the same folder are placed there (path becomes group_name/name)")
     dont_compile = BoolProperty(name = "Don't compile to .mbin",
                                 description = "If true, the exml files will not be compiled to an mbin file. This saves a lot of time waiting for the geometry files to compile",
-                                default = False)
+                                default = False)            ### this needs to be removed
+    AT_only = BoolProperty(name = "ActionTriggers Only",
+                           description = "If this box is ticked, all the action trigger data will be exported directly to an ENTITY file in the specified location with the project name. Anything else in the project is ignored",
+                           default = False)
 
 class NMSCollisionProperties(bpy.types.PropertyGroup):
     collision_types = EnumProperty(name = "Collision Types",
@@ -296,6 +299,8 @@ class NMSScenePropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSScene_props, "group_name", expand = True)
         row = layout.row()
         row.prop(obj.NMSScene_props, "dont_compile")
+        row = layout.row()
+        row.prop(obj.NMSScene_props, "AT_only")
 
 class NMSPanels():
     @staticmethod

@@ -51,6 +51,7 @@ from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMateri
 from classes import TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData             # imports relating to animations
 from classes import TkAnimationComponentData, TkAnimationData                       # entity animation classes
 from classes import List, Vector4f
+from classes import TkAttachmentData
 #Import Object Classes
 from classes.Object import Model, Mesh, Locator, Reference, Collision, Light, Joint
 from LOOKUPS import MATERIALFLAGS
@@ -177,7 +178,7 @@ def calc_tangents(faces, verts, norms, uvs):
 
     return tangents
 
-def apply_local_transforms(rotmat, verts, norms, tangents):
+def apply_local_transforms(rotmat, verts, norms, tangents, create_tangents = False):
     norm_mat = rotmat.inverted().transposed()
     
     print(len(verts), len(norms), len(tangents))
@@ -192,7 +193,7 @@ def apply_local_transforms(rotmat, verts, norms, tangents):
         #Store Transformed normal
         norms[i] = (norm[0], norm[1], norm[2], 1.0)
         #Load Tangent
-        if (ob.NMSMesh_props.create_tangents):
+        if create_tangents:
             tang = norm_mat * Vector((tangents[i]))
             tang.normalize()
             #Store Transformed tangent
@@ -250,80 +251,90 @@ class Exporter():
         else:
             batch_export = False
 
-        # if there is a name for the group, use it.
-        if self.NMSScene.NMSScene_props.group_name != "":
-            self.group_name = self.NMSScene.NMSScene_props.group_name
-        else:
-            self.group_name = self.mname
-
-        # if we aren't doing a batch export, set the scene as a model object that all will use as a parent
-        if batch_export == False:
-            #Create main scene model now
-            scene = Model(Name = self.mname)
-
-        # pre-process the animation information.
-        self.scene_actions = set()      # set to contain all the actions that are used in the scene
-        self.joint_anim_data = dict()       # this will be a dictionary with the key being the joint name, and the data being the actions associated with it
-        self.animation_anim_data = dict()   # this will be a dictionary with the key being the animation name, and the data being the actions associated with it
-        self.anim_controller_obj = None     # this is the Mesh object that was specified as controlling the animations
-
-
-        # get all the animation data first, so we can decide how we deal with anims. This data can be used to determine how many animations we actually have.
-        self.add_to_anim_data(self.NMSScene)
-        self.anim_frames = self.global_scene.frame_end        # number of frames        (same... for now)
-        print(self.scene_actions)
-        #print(self.joint_anim_data)
-        print(self.animation_anim_data)
-
-        # create any commands that need to be sent to the main script:
-        commands = {'dont_compile': self.NMSScene.NMSScene_props.dont_compile}
-
-        """ This will probably need to be re-worked to make sure it works... """
-        for ob in self.NMSScene.children:
-            if not ob.name.startswith('NMS'):
-                continue
-            print('Located Object for export', ob.name)
-            if batch_export:
-                # we will need to create an individual scene object for each mesh
-                if len(ob.name.split('_')) == 2:        # this check needs to be changed to something more... good...
-                    if 'REFERENCE' not in ob.name:
-                        name = ob.name.split('_')[1]
-                        self.scene_directory = os.path.join(BASEPATH, self.group_name, name)
-                        print("Processing object {}".format(name))
-                        scene = Model(Name = name)
-                        self.parse_object(ob, scene)#, scn, process_anim = animate is not None, anim_frame_data = anim_frame_data, extra_data = extra_data)
-                        anim = self.anim_generator()
-                        directory = os.path.dirname(exportpath)
-                        mpath = os.path.dirname(os.path.abspath(exportpath))
-                        os.chdir(mpath)
-                        Create_Data(name,
-                                    self.group_name,
-                                    scene,
-                                    anim,
-                                    **commands)
-                        
-            else:
-                # parse the entire scene all in one go.
-                self.scene_directory = os.path.join(BASEPATH, self.group_name, self.mname)      # set this here because... why not
-                self.parse_object(ob, scene)#, scn, process_anim = animate is not None, anim_frame_data = anim_frame_data, extra_data = extra_data)
-
-        self.process_anims()
-
-        print('Creating .exmls')
-        #Convert Paths
-        if not batch_export:
-            # we only want to run this if we aren't doing a batch export
-            directory = os.path.dirname(exportpath)
+        if self.NMSScene.NMSScene_props.AT_only:
+            # in this case we want to export just the entity with action trigger data, nothing else
+            entitydata = ParseNodes()
+            entity = TkAttachmentData(Components = List(entitydata))
+            entity.make_elements(main = True)
             mpath = os.path.dirname(os.path.abspath(exportpath))
             os.chdir(mpath)
-            # create the animation stuff if necissary:
-            print('bloop')
-            anim = self.anim_generator()
-            Create_Data(self.mname,
-                        self.group_name,
-                        scene,
-                        anim,
-                        **commands)
+            entity.tree.write("{}.ENTITY.exml".format(self.mname))
+        else:
+            # run the program normally
+            # if there is a name for the group, use it.
+            if self.NMSScene.NMSScene_props.group_name != "":
+                self.group_name = self.NMSScene.NMSScene_props.group_name
+            else:
+                self.group_name = self.mname
+
+            # if we aren't doing a batch export, set the scene as a model object that all will use as a parent
+            if batch_export == False:
+                #Create main scene model now
+                scene = Model(Name = self.mname)
+
+            # pre-process the animation information.
+            self.scene_actions = set()      # set to contain all the actions that are used in the scene
+            self.joint_anim_data = dict()       # this will be a dictionary with the key being the joint name, and the data being the actions associated with it
+            self.animation_anim_data = dict()   # this will be a dictionary with the key being the animation name, and the data being the actions associated with it
+            self.anim_controller_obj = None     # this is the Mesh object that was specified as controlling the animations
+
+
+            # get all the animation data first, so we can decide how we deal with anims. This data can be used to determine how many animations we actually have.
+            self.add_to_anim_data(self.NMSScene)
+            self.anim_frames = self.global_scene.frame_end        # number of frames        (same... for now)
+            print(self.scene_actions)
+            #print(self.joint_anim_data)
+            print(self.animation_anim_data)
+
+            # create any commands that need to be sent to the main script:
+            commands = {'dont_compile': self.NMSScene.NMSScene_props.dont_compile}
+
+            """ This will probably need to be re-worked to make sure it works... """
+            for ob in self.NMSScene.children:
+                if not ob.name.startswith('NMS'):
+                    continue
+                print('Located Object for export', ob.name)
+                if batch_export:
+                    # we will need to create an individual scene object for each mesh
+                    if len(ob.name.split('_')) == 2:        # this check needs to be changed to something more... good...
+                        if 'REFERENCE' not in ob.name:
+                            name = ob.name.split('_')[1]
+                            self.scene_directory = os.path.join(BASEPATH, self.group_name, name)
+                            print("Processing object {}".format(name))
+                            scene = Model(Name = name)
+                            self.parse_object(ob, scene)#, scn, process_anim = animate is not None, anim_frame_data = anim_frame_data, extra_data = extra_data)
+                            anim = self.anim_generator()
+                            directory = os.path.dirname(exportpath)
+                            mpath = os.path.dirname(os.path.abspath(exportpath))
+                            os.chdir(mpath)
+                            Create_Data(name,
+                                        self.group_name,
+                                        scene,
+                                        anim,
+                                        **commands)
+                            
+                else:
+                    # parse the entire scene all in one go.
+                    self.scene_directory = os.path.join(BASEPATH, self.group_name, self.mname)      # set this here because... why not
+                    self.parse_object(ob, scene)#, scn, process_anim = animate is not None, anim_frame_data = anim_frame_data, extra_data = extra_data)
+
+            self.process_anims()
+
+            print('Creating .exmls')
+            #Convert Paths
+            if not batch_export:
+                # we only want to run this if we aren't doing a batch export
+                directory = os.path.dirname(exportpath)
+                mpath = os.path.dirname(os.path.abspath(exportpath))
+                os.chdir(mpath)
+                # create the animation stuff if necissary:
+                print('bloop')
+                anim = self.anim_generator()
+                Create_Data(self.mname,
+                            self.group_name,
+                            scene,
+                            anim,
+                            **commands)
 
         self.state = 'FINISHED'
 
@@ -576,7 +587,7 @@ class Exporter():
             
         
         #Apply rotation and normal matrices on vertices and normal vectors
-        apply_local_transforms(rot_x_mat, verts, norms, tangents)
+        apply_local_transforms(rot_x_mat, verts, norms, tangents, create_tangents = ob.NMSMesh_props.create_tangents)
         
         return verts, norms, tangents, luvs, faces
 
