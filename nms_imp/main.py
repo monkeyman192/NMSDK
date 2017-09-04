@@ -50,6 +50,7 @@ class Create_Data():
         self.uv_stream = []
         self.n_stream = []
         self.t_stream = []
+        self.chvertex_stream = []
         self.materials = set()      # this will hopefully mean that there will be at most one copy of each unique TkMaterialData struct in the set
 
         self.Entities = []          # a list of any extra properties to go in each entity
@@ -62,6 +63,7 @@ class Create_Data():
             self.uv_stream.append(mesh.UVs)
             self.n_stream.append(mesh.Normals)
             self.t_stream.append(mesh.Tangents)
+            self.chvertex_stream.append(mesh.CHVerts)
             self.Entities.append(mesh.EntityData)
             # also add in the material data to the list
             if mesh.Material is not None:
@@ -155,11 +157,13 @@ class Create_Data():
 
         self.i_stream_lens = list()
         self.v_stream_lens = list()
+        self.ch_stream_lens = list()
 
         # populate the lists containing the lengths of each individual stream
         for index in range(self.num_mesh_objs):
             self.i_stream_lens.append(len(self.index_stream[index]))
             self.v_stream_lens.append(len(self.vertex_stream[index]))
+            self.ch_stream_lens.append(len(self.chvertex_stream[index]))
 
     def fix_names(self):
         # just make sure that the name and path is all in uppercase
@@ -173,6 +177,18 @@ class Create_Data():
         self.batches = list((sum(index_counts[:i]), index_counts[i]) for i in range(self.num_mesh_objs))
         # vertices
         self.vert_bounds = list((sum(self.v_stream_lens[:i]), sum(self.v_stream_lens[:i+1])-1) for i in range(self.num_mesh_objs))
+        # bounded hull data
+        self.hull_bounds = list((sum(self.ch_stream_lens[:i]), sum(self.ch_stream_lens[:i+1])-1) for i in range(self.num_mesh_objs))
+        print(self.hull_bounds)
+
+        # CollisionIndexCount
+        # go over all the meshes and add all the batches. Not sure if this can be optimised to be obtained earier... Probably...
+        ColIndexCount = 0
+        for i in range(len(self.Model.ListOfMeshes)):
+            mesh = self.Model.ListOfMeshes[i]
+            if mesh._Type == 'COLLISION':
+                if mesh.CType == 'Mesh':
+                    ColIndexCount += sum(index_counts[:i]) - index_counts[i]
 
         # we need to fix up the index stream as the numbering needs to be continuous across all the streams
         k = 0       # additive constant
@@ -191,12 +207,21 @@ class Create_Data():
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = 3*sum(self.i_stream_lens)
         self.GeometryData['VertexCount'] = sum(self.v_stream_lens)
+        self.GeometryData['CollisionIndexCount'] = ColIndexCount
         self.GeometryData['MeshVertRStart'] = list(self.vert_bounds[i][0] for i in range(len(self.vert_bounds)))
         self.GeometryData['MeshVertREnd'] = list(self.vert_bounds[i][1] for i in range(len(self.vert_bounds)))
+        self.GeometryData['BoundHullVertSt'] = list(self.hull_bounds[i][0] for i in range(len(self.hull_bounds)))
+        self.GeometryData['BoundHullVertEd'] = list(self.hull_bounds[i][1] for i in range(len(self.hull_bounds)))
         if self.GeometryData['IndexCount'] > 2**16:
             self.GeometryData['Indices16Bit'] = 0
         else:
             self.GeometryData['Indices16Bit'] = 1
+
+        # might as well also populate the hull data since we only need to union it all:
+        hull_data = []
+        for vert_list in self.chvertex_stream:
+            hull_data += vert_list
+        self.GeometryData['BoundHullVerts'] = hull_data
 
     def process_nodes(self):
         # this will iterate first over the list of mesh data and apply all the required information to the Mesh and Mesh-type Collisions objects.
@@ -214,6 +239,8 @@ class Create_Data():
                 data['BATCHCOUNT'] = self.batches[i][1]
                 data['VERTRSTART'] = self.vert_bounds[i][0]
                 data['VERTREND'] = self.vert_bounds[i][1]
+                data['BOUNDHULLST'] = self.hull_bounds[i][0]
+                data['BOUNDHULLED'] = self.hull_bounds[i][1]
                 if mesh_obj._Type == 'MESH':
                     # we only care about entity and material data for Mesh Objects
                     if type(mesh_obj.Material) != str:

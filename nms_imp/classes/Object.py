@@ -69,6 +69,7 @@ class Object():
 
     def determine_included_streams(self):
         # this will search through the different possible streams and determine which have been provided
+        # we will not include CHVerts as this will be given by default anyway and we don't need to a semantic ID for it
         for name in ['Vertices', 'Indexes', 'UVs', 'Normals', 'Tangents']:
             if self.__dict__.get(name, None) is not None:
                 self.provided_streams = self.provided_streams.union(set([name]))
@@ -172,10 +173,12 @@ class Mesh(Object):
         self._Type = "MESH"
         self.Vertices = kwargs.get('Vertices', None)
         self.Indexes = kwargs.get('Indexes', None)
+        self.LodLevel = kwargs.get('LodLevel', 0)
         self.Material = kwargs.get('Material', TkMaterialData(Name="EMPTY"))        # This will be given as a TkMaterialData object or a string.
         self.UVs = kwargs.get('UVs', None)
         self.Normals = kwargs.get('Normals', None)
         self.Tangents = kwargs.get('Tangents', None)
+        self.CHVerts = kwargs.get('CHVerts', None)
         self.IsMesh = True
         self.BBox = kwargs.get('BBox', None)        # this will be a list of length 2 with each element being a 4-tuple.
         self.HasAttachment = kwargs.get('HasAttachment', False)
@@ -197,6 +200,12 @@ class Mesh(Object):
                                                         Value = 0),
                                TkSceneNodeAttributeData(Name = 'LASTSKINMAT',
                                                         Value = 0),
+                               TkSceneNodeAttributeData(Name = 'LODLEVEL',
+                                                        Value = self.LodLevel),
+                               TkSceneNodeAttributeData(Name = 'BOUNDHULLST',
+                                                        Value = data.get('BOUNDHULLST', 0)),
+                               TkSceneNodeAttributeData(Name = 'BOUNDHULLED',
+                                                        Value = data.get('BOUNDHULLED', 0)),
                                TkSceneNodeAttributeData(Name = 'MATERIAL',
                                                         Value = data['MATERIAL']),
                                TkSceneNodeAttributeData(Name = 'MESHLINK',
@@ -221,6 +230,7 @@ class Collision(Object):
             self.UVs = kwargs.get('UVs', None)
             self.Normals = kwargs.get('Normals', None)
             self.Tangents = kwargs.get('Tangents', None)
+            self.CHVerts = kwargs.get('CHVerts', None)
 
             self.determine_included_streams()   # find out what streams have been provided
         else:
@@ -246,6 +256,10 @@ class Collision(Object):
                                                             Value = 0))
             self.Attributes.append(TkSceneNodeAttributeData(Name = 'LASTSKINMAT',
                                                             Value = 0))
+            self.Attributes.append(TkSceneNodeAttributeData(Name = 'BOUNDHULLST',
+                                                            Value = data.get('BOUNDHULLST', 0)))
+            self.Attributes.append(TkSceneNodeAttributeData(Name = 'BOUNDHULLED',
+                                                            Value = data.get('BOUNDHULLED', 0)))
         elif self.CType == 'Box':
             self.Attributes.append(TkSceneNodeAttributeData(Name = "WIDTH",
                                                             Value = data['WIDTH']))
@@ -274,7 +288,9 @@ class Model(Object):
     def create_attributes(self, data):
         # data will be just the information required for the Attributes
         self.Attributes = List(TkSceneNodeAttributeData(Name = 'GEOMETRY',
-                                                        Value = data['GEOMETRY']))
+                                                        Value = data['GEOMETRY']),
+                               TkSceneNodeAttributeData(Name = 'NUMLODS',
+                                                        Value = data.get('NUMLODS', 1)))
         
 
 class Reference(Object):

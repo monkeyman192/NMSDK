@@ -7,10 +7,6 @@ def fth(f):
     # converts a float value to hex
     return hex(unpack('<I', pack('<f', f))[0])
 
-def hex_flip(h):
-    # this takes some hex number that is 8 characters long, and re-arranges them from aa bb cc dd to dd cc bb aa (because NMS...)
-    return h[8:] + h[6:8] + h[4:6] + h[2:4]
-
 def to_chr(string):
     # this is a string of hex data
     out_string = ''

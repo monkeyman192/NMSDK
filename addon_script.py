@@ -202,10 +202,18 @@ def apply_local_transforms(rotmat, verts, norms, tangents, create_tangents = Fal
 def transform_to_NMS_coords(ob):
     # this will return the local transform, rotation and scale of the object in the NMS coordinate system
     matrix = ob.matrix_local
+    """if ob.parent.name == 'NMS_SCENE':
+        yzmat = Matrix.Rotation(radians(-90), 4, 'X')
+        yzmat = Matrix()
+        yzmat[0] = Vector((1.0, 0.0, 0.0, 0.0))
+        yzmat[1] = Vector((0.0, 0.0, -1.0, 0.0))
+        yzmat[2] = Vector((0.0, 1.0, 0.0, 0.0))
+        yzmat[3] = Vector((0.0, 0.0, 0.0, 1.0))
+    else:"""
     yzmat = Matrix()
     yzmat[0] = Vector((1.0, 0.0, 0.0, 0.0))
-    yzmat[1] = Vector((0.0, 0.0, -1.0, 0.0))
-    yzmat[2] = Vector((0.0, 1.0, 0.0, 0.0))
+    yzmat[1] = Vector((0.0, 1.0, 0.0, 0.0))
+    yzmat[2] = Vector((0.0, 0.0, 1.0, 0.0))
     yzmat[3] = Vector((0.0, 0.0, 0.0, 1.0))
     
     return (yzmat * ob.matrix_local * yzmat).decompose()
@@ -220,6 +228,8 @@ class Exporter():
         self.global_scene.frame_set(0)      # set the frame to be the first one, just in case an export has already been run
         self.mname = os.path.basename(exportpath)
 
+        self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
+
         self.state = None
         
         icounter = 0
@@ -229,6 +239,7 @@ class Exporter():
         indices  = []
         uvs      = []
         tangents = []
+        chverts = []
 
         materials = []
         collisions = []
@@ -237,6 +248,8 @@ class Exporter():
         
         self.anim_frame_data = dict()
 
+        self.CollisionIndexCount = 0        # this is the total number of collision indexes. The geometry file as of 1.3 requires it.
+
         self.joints = 0     # current number of joints. This is incremented as required.
         
         #Try to fetch NMS_SCENE node
@@ -244,6 +257,9 @@ class Exporter():
             self.NMSScene = self.global_scene.objects['NMS_SCENE']
         except:
             raise Exception("Missing NMS_SCENE Node, Create it!")
+
+        # apply rotation to entire model
+        self.NMSScene.matrix_world = self.blend_to_NMS_mat*self.NMSScene.matrix_world
 
         # check whether or not we will be exporting in batch mode
         if self.NMSScene.NMSScene_props.batch_mode:
@@ -335,6 +351,9 @@ class Exporter():
                             scene,
                             anim,
                             **commands)
+                
+        # undo rotation
+        self.NMSScene.matrix_world = self.blend_to_NMS_mat.inverted()*self.NMSScene.matrix_world
 
         self.state = 'FINISHED'
 
@@ -499,6 +518,7 @@ class Exporter():
                     Translations.append(Vector4f(x = trans[0], y = trans[1], z = trans[2], t = 1.0))
                     Scales.append(Vector4f(x = scale[0], y = scale[1], z = scale[2], t = 1.0))
                     if frame == 0:
+                        # set all the still frame data (I assume this is right?? Don't think it has to be...)
                         stillRotations.append(Vector4f(x = rot[0], y = rot[1], z = rot[2], t = rot[3]))
                         stillTranslations.append(Vector4f(x = trans[0], y = trans[1], z = trans[2], t = 1.0))
                         stillScales.append(Vector4f(x = scale[0], y = scale[1], z = scale[2], t = 1.0))
@@ -521,8 +541,9 @@ class Exporter():
         tangents = []
         luvs = []
         faces = []
+        chverts = []        # convex hull vert data
         # Matrices
-        object_matrix_wrld = ob.matrix_world
+        #object_matrix_wrld = ob.matrix_world
         rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
         scale_mat = Matrix.Scale(1, 4)
         norm_mat = rot_x_mat.inverted().transposed()
@@ -584,12 +605,20 @@ class Exporter():
             tangents = calc_tangents(faces, verts, norms, luvs)
         else:
             tangents = []
-            
+
+        # finally, let's find the convex hull data of the mesh:
+        bpy.ops.object.mode_set(mode = 'EDIT')
+        bm = bmesh.from_edit_mesh(data)
+        ch = bmesh.ops.convex_hull(bm, input = bm.verts)['geom']        #convex hull data. Includes face and edges and stuff...
+        for i in ch:
+            if type(i) == bmesh.types.BMVert:
+                chverts.append(Vector4f(x = i.co[0], y = i.co[1], z = i.co[2], t = 1.0))
+        bpy.ops.object.mode_set(mode = 'OBJECT')
         
         #Apply rotation and normal matrices on vertices and normal vectors
-        apply_local_transforms(rot_x_mat, verts, norms, tangents, create_tangents = ob.NMSMesh_props.create_tangents)
+        """apply_local_transforms(rot_x_mat, verts, norms, tangents, create_tangents = ob.NMSMesh_props.create_tangents)"""
         
-        return verts, norms, tangents, luvs, faces
+        return verts, norms, tangents, luvs, faces, chverts
 
     def parse_object(self, ob, parent):#, global_scene, process_anim = False, anim_frame_data = dict(), extra_data = dict()):
         newob = None
@@ -627,7 +656,7 @@ class Exporter():
             optdict['CollisionType'] = colType
             
             if (colType == "Mesh"):
-                c_verts,c_norms,c_tangs,c_uvs,c_faces = self.mesh_parser(ob)
+                c_verts, c_norms, c_tangs, c_uvs, c_faces, c_chverts = self.mesh_parser(ob)
                 
                 #Reset Transforms on meshes
                 
@@ -636,6 +665,8 @@ class Exporter():
                 optdict['UVs'] = c_uvs
                 optdict['Normals'] = c_norms
                 optdict['Tangents'] = c_tangs
+                optdict['CHVerts'] = c_chverts
+                self.CollisionIndexCount += len(c_faces)        # I think?
             #HANDLE Primitives
             elif (colType == "Box"):
                 optdict['Width']  = ob.dimensions[0]
@@ -654,11 +685,12 @@ class Exporter():
             # ACTUAL MESH
             #Parse object Geometry
             print('Exporting: ', ob.name)
-            verts,norms,tangs,luvs,faces = self.mesh_parser(ob)
-            print("Object Count: ", len(verts), len(luvs), len(norms), len(faces))
+            verts, norms, tangs, luvs, faces, chverts = self.mesh_parser(ob)
+            print("Object Count: ", len(verts), len(luvs), len(norms), len(faces), len(chverts))
             print("Object Rotation: ", degrees(rot[0]), degrees(rot[2]), degrees(rot[1]))
 
             # check whether the mesh has any child nodes we care about (such as a rotation vector)
+            """ This will need to be re-done!!! """
             for child in ob.children:
                 if child.name.upper() == 'ROTATION':
                     # take the properties of the rotation vector and give it to the mesh as part of it's entity data
@@ -682,6 +714,7 @@ class Exporter():
                          Normals=norms,
                          Tangents=tangs,
                          Indexes=faces,
+                         CHVerts = chverts,
                          ExtraEntityData = entitydata,
                          HasAttachment = ob.NMSMesh_props.has_entity)
 

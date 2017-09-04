@@ -196,7 +196,8 @@ class DataGenerator():
     def generate_scene(self):
         # first generate the data
         self.SceneData = Model(os.path.join(self.path, self.name.upper()))
-        self.SceneData.create_attributes({'GEOMETRY': os.path.join(self.path, '{}.GEOMETRY.MBIN'.format(self.name.upper()))})
+        self.SceneData.create_attributes({'GEOMETRY': os.path.join(self.path, '{}.GEOMETRY.MBIN'.format(self.name.upper())),
+                                          'NUMLODS': 1})
         for i in range(len(self.objects)):
             ref = Reference("_{0}_{1}".format(self.name.upper(), i), Scenegraph = '{}.SCENE.MBIN'.format(self.objects[i]))
             ref.create_attributes(None) # just pass None because it doesn't matter with how Reference is set up currently !!! THIS MIGHT CHANGE !!!
