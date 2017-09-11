@@ -228,7 +228,7 @@ class Exporter():
         self.global_scene.frame_set(0)      # set the frame to be the first one, just in case an export has already been run
         self.mname = os.path.basename(exportpath)
 
-        self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
+        self.blend_to_NMS_mat = Matrix.Rotation(radians(90), 4, 'Y')
 
         self.state = None
         
@@ -259,7 +259,10 @@ class Exporter():
             raise Exception("Missing NMS_SCENE Node, Create it!")
 
         # apply rotation to entire model
+        self.global_scene.objects.active = self.NMSScene
         self.NMSScene.matrix_world = self.blend_to_NMS_mat*self.NMSScene.matrix_world
+        bpy.ops.object.transform_apply(location = True, rotation = True, scale = True)
+        
 
         # check whether or not we will be exporting in batch mode
         if self.NMSScene.NMSScene_props.batch_mode:
@@ -353,7 +356,10 @@ class Exporter():
                             **commands)
                 
         # undo rotation
+        self.global_scene.objects.active = self.NMSScene
         self.NMSScene.matrix_world = self.blend_to_NMS_mat.inverted()*self.NMSScene.matrix_world
+        bpy.ops.object.transform_apply(location = True, rotation = True, scale = True)
+        
 
         self.state = 'FINISHED'
 
@@ -535,6 +541,7 @@ class Exporter():
         
     #Main Mesh parser
     def mesh_parser(self, ob):
+        self.global_scene.objects.active = ob
         #Lists
         verts = []
         norms = []
