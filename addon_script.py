@@ -228,7 +228,7 @@ class Exporter():
         self.global_scene.frame_set(0)      # set the frame to be the first one, just in case an export has already been run
         self.mname = os.path.basename(exportpath)
 
-        self.blend_to_NMS_mat = Matrix.Rotation(radians(90), 4, 'Y')
+        self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
 
         self.state = None
         
@@ -257,6 +257,12 @@ class Exporter():
             self.NMSScene = self.global_scene.objects['NMS_SCENE']
         except:
             raise Exception("Missing NMS_SCENE Node, Create it!")
+
+        # to ensure the rotation is applied correctly, first delect any selected objects in the scene,
+        # then select and activate the NMS_SCENE object
+        for ob in bpy.context.selected_objects:
+            ob.select = False
+        self.NMSScene.select = True
 
         # apply rotation to entire model
         self.global_scene.objects.active = self.NMSScene
