@@ -1,15 +1,3 @@
-bl_info = {  
- "name": "NMS Model Toolkit",  
- "author": "gregkwaste, monkeyman192",  
- "version": (0, 9),
- "blender": (2, 7, 0),  
- "location": "File > Export",  
- "description": "Exports to NMS File format",  
- "warning": "",
- "wiki_url": "",  
- "tracker_url": "",  
- "category": "Export"} 
- 
 import bpy
 import bmesh
 import os
@@ -258,8 +246,15 @@ class Exporter():
         except:
             raise Exception("Missing NMS_SCENE Node, Create it!")
 
+        # to ensure the rotation is applied correctly, first delect any selected objects in the scene,
+        # then select and activate the NMS_SCENE object
+        self.select_only(self.NMSScene)
+
         # apply rotation to entire model
+        self.global_scene.objects.active = self.NMSScene
         self.NMSScene.matrix_world = self.blend_to_NMS_mat*self.NMSScene.matrix_world
+        # apply rotation to all child nodes
+        self.rotate_all(self.NMSScene)
 
         # check whether or not we will be exporting in batch mode
         if self.NMSScene.NMSScene_props.batch_mode:
@@ -353,9 +348,31 @@ class Exporter():
                             **commands)
                 
         # undo rotation
+        self.select_only(self.NMSScene)
+        self.global_scene.objects.active = self.NMSScene
         self.NMSScene.matrix_world = self.blend_to_NMS_mat.inverted()*self.NMSScene.matrix_world
+        # apply rotation to all child nodes
+        self.rotate_all(self.NMSScene)
+
+        self.global_scene.frame_set(0)
+        
 
         self.state = 'FINISHED'
+
+    def select_only(self, ob):
+        # sets only the provided object to be selected
+        for obj in bpy.context.selected_objects:
+            obj.select = False
+        ob.select = True
+
+    def rotate_all(self, ob):
+        # this will apply the rotation transform the object, and then call this function on it's children
+        self.global_scene.objects.active = ob
+        self.select_only(ob)
+        bpy.ops.object.transform_apply(rotation = True)
+        for child in ob.children:
+            if child.name.upper() != 'ROTATION':
+                self.rotate_all(child)
 
     def add_to_anim_data(self, ob):
         for child in ob.children:
@@ -535,6 +552,7 @@ class Exporter():
         
     #Main Mesh parser
     def mesh_parser(self, ob):
+        self.global_scene.objects.active = ob
         #Lists
         verts = []
         norms = []
@@ -544,9 +562,9 @@ class Exporter():
         chverts = []        # convex hull vert data
         # Matrices
         #object_matrix_wrld = ob.matrix_world
-        rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
-        scale_mat = Matrix.Scale(1, 4)
-        norm_mat = rot_x_mat.inverted().transposed()
+        #rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
+        #scale_mat = Matrix.Scale(1, 4)
+        #norm_mat = rot_x_mat.inverted().transposed()
         
         data = ob.data
         #Raise exception if UV Map is missing
@@ -626,7 +644,7 @@ class Exporter():
         #bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
 
         # get the objects' location and convert to NMS coordinates
-        trans, rot_q, scale = transform_to_NMS_coords(ob)
+        trans, rot_q, scale = ob.matrix_local.decompose()#transform_to_NMS_coords(ob)
         rot = rot_q.to_euler()
         print(trans)
         print(rot)
@@ -687,17 +705,17 @@ class Exporter():
             print('Exporting: ', ob.name)
             verts, norms, tangs, luvs, faces, chverts = self.mesh_parser(ob)
             print("Object Count: ", len(verts), len(luvs), len(norms), len(faces), len(chverts))
-            print("Object Rotation: ", degrees(rot[0]), degrees(rot[2]), degrees(rot[1]))
+            print("Object Rotation: ", degrees(rot[0]), degrees(rot[1]), degrees(rot[2]))
 
             # check whether the mesh has any child nodes we care about (such as a rotation vector)
             """ This will need to be re-done!!! """
             for child in ob.children:
                 if child.name.upper() == 'ROTATION':
                     # take the properties of the rotation vector and give it to the mesh as part of it's entity data
-                    rot = transform_to_NMS_coords(child)[1]
-                    axis = Matrix.Rotation(radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
+                    axis = child.rotation_quaternion*Vector((0,0,1))
+                    #axis = Matrix.Rotation(radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
                     print(axis)
-                    rotation_data = TkRotationComponentData(Speed = child.empty_draw_size, Axis = Vector4f(x=axis[0],y=axis[1],z=axis[2],t=0))
+                    rotation_data = TkRotationComponentData(Speed = child.NMSRotation_props.speed, Axis = Vector4f(x=axis[0],y=axis[1],z=axis[2],t=0))
                     entitydata.append(rotation_data)
                     
             # check to see if the mesh's entity will get the action trigger data
@@ -768,7 +786,7 @@ class Exporter():
                 
         #Light Objects
         elif ob.NMSNode_props.node_types == 'Light':
-            actualname = ob.name[len("NMS_"):].upper()      # syntax: NMS_LIGHT_<NAME>
+            actualname = ob.name[len("NMS_"):].upper()
             #Get Color
             col = tuple(ob.data.color)
             print("colour: {}".format(col))
@@ -806,7 +824,7 @@ class Exporter():
                 for jnt_action in self.animation_anim_data[anim_name]:
                     name = jnt_action[0]        # name of the joint that is animated
                     ob = self.global_scene.objects[name]
-                    trans, rot_q, scale = transform_to_NMS_coords(ob)
+                    trans, rot_q, scale = ob.matrix_local.decompose()#transform_to_NMS_coords(ob)
                     action_data[name].append((trans, rot_q, scale))      # this is the anim_data that will be processed later
             # add all the animation data to the anim frame data for the particular action
             self.anim_frame_data[anim_name] = action_data
@@ -851,28 +869,3 @@ class NMS_Export_Operator(Operator, ExportHelper):
             return {'FINISHED'}
         else:
             return {'CANCELLED'}
-
-
-# Only needed if you want to add into a dynamic menu
-def menu_func_export(self, context):
-    self.layout.operator(NMS_Export_Operator.bl_idname, text="Export to NMS XML Format ")
-
-def register():
-    bpy.utils.register_class(NMS_Export_Operator)
-    bpy.types.INFO_MT_file_export.append(menu_func_export)
-    NMSPanels.register()
-    customNodes.register()
-
-
-def unregister():
-    bpy.utils.unregister_class(NMS_Export_Operator)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export)
-    NMSPanels.unregister()
-    customNodes.unregister()
-
-
-if __name__ == "__main__":
-    register()
-
-    # test call
-    bpy.ops.export_mesh.nms(filepath="J:\\Installs\\Steam\\steamapps\\common\\No Man's Sky\\GAMEDATA\\PCBANKS\\CUBE_ODD")

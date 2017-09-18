@@ -63,6 +63,10 @@ class NMSLocatorProperties(bpy.types.PropertyGroup):
                               description = "Whether or not the mesh requires an entity file. Not all meshes require an entity file. Read the detailed guidelines in the readme for more details.",
                               default = False)
 
+class NMSRotationProperties(bpy.types.PropertyGroup):
+    speed = FloatProperty(name = "Speed",
+                          description = "Speed of the rotation around the specified axis.")
+
 class NMSReferenceProperties(bpy.types.PropertyGroup):
     reference_path = StringProperty(name = "Reference Path",
                                     description = "Path to scene to be referenced at this location.")
@@ -230,6 +234,27 @@ class NMSLocatorPropertyPanel(bpy.types.Panel):
         row = layout.row()
         row.prop(obj.NMSLocator_props, "has_entity")
 
+class NMSRotationPropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Rotation Properties"
+    bl_idname = "OBJECT_PT_rotation_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object.name.upper() == 'ROTATION':
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSRotation_props, "speed")
+
 class NMSLightPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Light Properties"
@@ -313,6 +338,7 @@ class NMSPanels():
         bpy.utils.register_class(NMSLocatorProperties)
         bpy.utils.register_class(NMSLightProperties)
         bpy.utils.register_class(NMSEntityProperties)
+        bpy.utils.register_class(NMSRotationProperties)
         bpy.utils.register_class(NMSAnimationProperties)
         bpy.utils.register_class(NMSCollisionProperties)
         # link the properties with the objects' internal variables
@@ -321,6 +347,7 @@ class NMSPanels():
         bpy.types.Object.NMSMesh_props = bpy.props.PointerProperty(type=NMSMeshProperties)
         bpy.types.Object.NMSReference_props = bpy.props.PointerProperty(type=NMSReferenceProperties)
         bpy.types.Object.NMSLocator_props = bpy.props.PointerProperty(type=NMSLocatorProperties)
+        bpy.types.Object.NMSRotation_props = bpy.props.PointerProperty(type=NMSRotationProperties)
         bpy.types.Object.NMSLight_props = bpy.props.PointerProperty(type=NMSLightProperties)
         bpy.types.Object.NMSEntity_props = bpy.props.PointerProperty(type=NMSEntityProperties)
         bpy.types.Object.NMSAnimation_props = bpy.props.PointerProperty(type=NMSAnimationProperties)
@@ -331,6 +358,7 @@ class NMSPanels():
         bpy.utils.register_class(NMSMeshPropertyPanel)
         bpy.utils.register_class(NMSReferencePropertyPanel)
         bpy.utils.register_class(NMSLocatorPropertyPanel)
+        bpy.utils.register_class(NMSRotationPropertyPanel)
         bpy.utils.register_class(NMSLightPropertyPanel)
         bpy.utils.register_class(NMSEntityPropertyPanel)
         bpy.utils.register_class(NMSAnimationPropertyPanel)
@@ -342,6 +370,7 @@ class NMSPanels():
         bpy.utils.unregister_class(NMSNodeProperties)
         bpy.utils.unregister_class(NMSSceneProperties)
         bpy.utils.unregister_class(NMSMeshProperties)
+        bpy.utils.unregister_class(NMSRotationProperties)
         bpy.utils.unregister_class(NMSReferenceProperties)
         bpy.utils.unregister_class(NMSLocatorProperties)
         bpy.utils.unregister_class(NMSLightProperties)
@@ -353,6 +382,7 @@ class NMSPanels():
         del bpy.types.Object.NMSScene_props
         del bpy.types.Object.NMSMesh_props
         del bpy.types.Object.NMSReference_props
+        del bpy.types.Object.NMSRotation_props
         del bpy.types.Object.NMSLocator_props
         del bpy.types.Object.NMSLight_props
         del bpy.types.Object.NMSEntity_props
@@ -364,6 +394,7 @@ class NMSPanels():
         bpy.utils.unregister_class(NMSMeshPropertyPanel)
         bpy.utils.unregister_class(NMSReferencePropertyPanel)
         bpy.utils.unregister_class(NMSLocatorPropertyPanel)
+        bpy.utils.unregister_class(NMSRotationPropertyPanel)
         bpy.utils.unregister_class(NMSLightPropertyPanel)
         bpy.utils.unregister_class(NMSEntityPropertyPanel)
         bpy.utils.unregister_class(NMSAnimationPropertyPanel)

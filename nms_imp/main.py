@@ -188,7 +188,8 @@ class Create_Data():
             mesh = self.Model.ListOfMeshes[i]
             if mesh._Type == 'COLLISION':
                 if mesh.CType == 'Mesh':
-                    ColIndexCount += sum(index_counts[:i]) - index_counts[i]
+                    print(index_counts, sum(index_counts[:i]), index_counts[i])
+                    ColIndexCount += index_counts[i]
 
         # we need to fix up the index stream as the numbering needs to be continuous across all the streams
         k = 0       # additive constant
