@@ -40,11 +40,24 @@ class Object():
         self.ID = None              # this is a unique number that is used to effectively flatten the mesh data so that it
                                     # can be related to the index in the main function.
 
-        self.ExtraEntityData = kwargs.get('ExtraEntityData', [])
+        self.ExtraEntityData = kwargs.get('ExtraEntityData', dict())
 
-        self.EntityData = List(TkPhysicsComponentData())    # this can be populated with any extra stuff that needs to go into the entity.
-        for entity in self.ExtraEntityData:
-            self.EntityData.append(entity)
+        if type(self.ExtraEntityData) == str:
+            self.EntityData = None
+            self.EntityPath = self.ExtraEntityData          # this will be the path or name of the file. If just name it will need to be processed later...
+        else:
+            try:
+                self.EntityData = dict()
+                entityname = list(self.ExtraEntityData.keys())[0]   # there should be only one key...
+                self.EntityPath = entityname
+                self.EntityData[entityname] = List(TkPhysicsComponentData())    # this can be populated with any extra stuff that needs to go into the entity.
+                for entity in self.ExtraEntityData[entityname]:
+                    self.EntityData[entityname].append(entity)
+            except IndexError:
+                # in this case we are being passed an empty dictionary.
+                # set the entity data to be None
+                self.EntityData = None
+                self.EntityPath = ''
 
         self.provided_streams = set()  # list of provided data streams (only applicable to Mesh type Objects)
         
@@ -59,6 +72,12 @@ class Object():
         else:
             #... until we hit the Model object who is the only object that has no parent.
             self.ListOfMeshes.append(obj)
+
+    def populate_entitylist(self, obj):
+        if self.Parent is not None:
+            self.Parent.populate_endtitylist(ob)
+        else:
+            self.ListOfEntities.append(obj)
             
     def add_child(self, child):
         self.Children.append(child)
@@ -66,6 +85,8 @@ class Object():
         if child.IsMesh:
             # if the child has mesh data, we want to pass the reference of the object up to the Model object
             self.populate_meshlist(child)
+        if child._Type == 'LOCATOR' or child._Type == 'MESH':
+            self.populate_entitylist(child)
 
     def determine_included_streams(self):
         # this will search through the different possible streams and determine which have been provided
@@ -98,10 +119,14 @@ class Object():
 
     def rebuild_entity(self):
         # this is used to rebuild the entity data in case something else is added after the object is created
-        self.EntityData = List(TkPhysicsComponentData())    # this can be populated with any extra stuff that needs to go into the entity.
-        print(self.ExtraEntityData)
-        for entity in self.ExtraEntityData:
-            self.EntityData.append(entity)
+        if type(self.ExtraEntityData) == str:
+            self.EntityData = self.ExtraEntityData
+        else:
+            self.EntityData = dict()
+            entityname = list(self.ExtraEntityData.keys())[0]   # there should be only one key...
+            self.EntityData[entityname] = List(TkPhysicsComponentData())    # this can be populated with any extra stuff that needs to go into the entity.
+            for entity in self.ExtraEntityData[entityname]:
+                self.EntityData[entityname].append(entity)
 
 
 class Locator(Object):
@@ -284,6 +309,7 @@ class Model(Object):
 
         self.ListOfMeshes = []      # this is a list of all the MESH objects or collisions of type MESH so that we can easily access it.
                                     # The list will be automatically populated when a child is added to any children of this object.
+        self.ListOfEntities = []    # this works similarly to the above...
 
     def create_attributes(self, data):
         # data will be just the information required for the Attributes

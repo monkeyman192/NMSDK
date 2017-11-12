@@ -25,6 +25,7 @@ def register():
     bpy.types.INFO_MT_file_export.append(menu_func_export)
     NMSPanels.register()
     customNodes.register()
+    NMSEntities.register()
 
 
 def unregister():
@@ -32,6 +33,7 @@ def unregister():
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
     NMSPanels.unregister()
     customNodes.unregister()
+    NMSEntities.unregister()
 
 
 if __name__ == "__main__":

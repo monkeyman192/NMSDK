@@ -53,7 +53,7 @@ class Create_Data():
         self.chvertex_stream = []
         self.materials = set()      # this will hopefully mean that there will be at most one copy of each unique TkMaterialData struct in the set
 
-        self.Entities = []          # a list of any extra properties to go in each entity
+        #self.Entities = []          # a list of any extra properties to go in each entity
 
         # extract the streams from the mesh objects.
         index = 0
@@ -64,12 +64,13 @@ class Create_Data():
             self.n_stream.append(mesh.Normals)
             self.t_stream.append(mesh.Tangents)
             self.chvertex_stream.append(mesh.CHVerts)
-            self.Entities.append(mesh.EntityData)
             # also add in the material data to the list
             if mesh.Material is not None:
                 self.materials.add(mesh.Material)
             mesh.ID = index             # assign the index location of the data to the Object so that it knows where its data is
             index += 1
+        #for obj in self.Model.ListOfEntities:
+        #    self.Entities.append(obj.EntityData)
 
         self.num_mesh_objs = index      # this is the total number of objects that have mesh data
 
@@ -255,19 +256,29 @@ class Create_Data():
                     else:
                         data['MATERIAL'] = mesh_obj.Material
                     if obj.HasAttachment:
-                        data['ATTACHMENT'] = os.path.join(self.ent_path, str(mesh_obj.Name).upper()) + '.ENTITY.MBIN'
-
-                        # generate the entity data here
-                        AttachmentData = TkAttachmentData(Components = self.Entities[i])
-                        AttachmentData.make_elements(main=True)
-                        # also write the entity file now too as we don't need to do anything else to it
-                        AttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, str(mesh_obj.Name).upper())))
+                        if obj.EntityData is not None:
+                            ent_path = os.path.join(self.ent_path, str(obj.EntityPath).upper())
+                            data['ATTACHMENT'] = '{}.ENTITY.MBIN'.format(ent_path)
+                            # also need to generate the entity data
+                            AttachmentData = TkAttachmentData(Components = list(obj.EntityData.values())[0])        # this is the actual entity data
+                            AttachmentData.make_elements(main=True)
+                            # also write the entity file now too as we don't need to do anything else to it
+                            AttachmentData.tree.write("{}.ENTITY.exml".format(ent_path))
+                        else:
+                            data['ATTACHMENT'] = obj.EntityPath
             else:
                 if obj._Type == 'LOCATOR':
-                    # this will probably need to be changed a bit...
-                    if obj.HasAttachment == True:
-                        data['ATTACHMENT'] = os.path.join(self.ent_path, str(obj.Name).upper()) + '.ENTITY.MBIN'
-                        self.TkAttachmentData.tree.write("{}.ENTITY.exml".format(os.path.join(self.ent_path, str(obj.Name).upper())))
+                    if obj.HasAttachment:
+                        if obj.EntityData is not None:
+                            ent_path = os.path.join(self.ent_path, str(obj.EntityPath).upper())
+                            data = {'ATTACHMENT': '{}.ENTITY.MBIN'.format(ent_path)}
+                            # also need to generate the entity data
+                            AttachmentData = TkAttachmentData(Components = list(obj.EntityData.values())[0])        # this is the actual entity data
+                            AttachmentData.make_elements(main=True)
+                            # also write the entity file now too as we don't need to do anything else to it
+                            AttachmentData.tree.write("{}.ENTITY.exml".format(ent_path))
+                        else:
+                            data['ATTACHMENT'] = obj.EntityPath
                     else:
                         data = None
                 elif obj._Type == 'COLLISION':

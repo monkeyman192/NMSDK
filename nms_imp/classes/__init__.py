@@ -58,3 +58,8 @@ from .GcPainAction import GcPainAction
 from .GcPlayAnimAction import GcPlayAnimAction
 from .GcGoToStateAction import GcGoToStateAction
 from .GcRewardAction import GcRewardAction
+
+# Entity structs
+from .GcObjectPlacementComponentData import GcObjectPlacementComponentData
+from .GcScannerIconTypes import GcScannerIconTypes
+from .GcScannableComponentData import GcScannableComponentData

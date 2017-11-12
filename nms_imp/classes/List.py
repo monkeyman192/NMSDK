@@ -10,7 +10,11 @@ class List():
         self.subElements = [] # the list of the sub elements
         self._format = kwargs.get('_format', None)
         for e in args:
-            self.subElements.append(e)
+            if type(e) == list:
+                for i in e:
+                    self.subElements.append(i)
+            else:
+                self.subElements.append(e)
 
         self.curr_index = 0
 

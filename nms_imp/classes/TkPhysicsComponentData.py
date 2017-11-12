@@ -19,10 +19,9 @@ class TkPhysicsComponentData(Struct):
         self.data['VolumeTriggerType'] = kwargs.get('VolumeTriggerType', TkVolumeTriggerType())
         self.SurfaceProperties = ["None", "Glass"]
         self.data['SurfaceProperties'] = kwargs.get('SurfaceProperties', "None")
-        self.data['TriggerVolume'] = kwargs.get('TriggerVolume', True)
+        self.data['TriggerVolume'] = kwargs.get('TriggerVolume', False)
         self.data['Climbable'] = kwargs.get('Climbable', False)
-        #self.data['RANDOMTEST'] = List(String("Test", 0x20), String('AnotherTESTWOW!!!', 0x20))
-        self.data['IgnoreModelOwner'] = kwargs.get('IgnoreModelOwner', True)
+        self.data['IgnoreModelOwner'] = kwargs.get('IgnoreModelOwner', False)
         self.data['NoVehicleCollision'] = kwargs.get('NoVehicleCollision', False)
         self.data['EndPadding'] = Empty(0x4)
         """ End of the struct contents"""

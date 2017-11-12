@@ -2,6 +2,7 @@ import bpy
 import bmesh
 import os
 import sys
+from idprop.types import IDPropertyGroup
 from math import radians, degrees
 from mathutils import Matrix,Vector
 from BlenderExtensions import *
@@ -35,11 +36,12 @@ if not scriptpath in sys.path:
     
     
 from main import Create_Data
-from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData, TkRotationComponentData
-from classes import TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData             # imports relating to animations
-from classes import TkAnimationComponentData, TkAnimationData                       # entity animation classes
-from classes import List, Vector4f
-from classes import TkAttachmentData
+from classes import *
+#from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData, TkRotationComponentData
+#from classes import TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData             # imports relating to animations
+#from classes import TkAnimationComponentData, TkAnimationData                       # entity animation classes
+#from classes import List, Vector4f
+#from classes import TkAttachmentData
 #Import Object Classes
 from classes.Object import Model, Mesh, Locator, Reference, Collision, Light, Joint
 from LOOKUPS import MATERIALFLAGS
@@ -619,7 +621,7 @@ class Exporter():
 
         #At this point mesh is triangulated
         #I can get the triangulated input and calculate the tangents
-        if (ob.NMSMesh_props.create_tangents):
+        if (self.NMSScene.NMSScene_props.create_tangents):
             tangents = calc_tangents(faces, verts, norms, luvs)
         else:
             tangents = []
@@ -631,12 +633,36 @@ class Exporter():
         for i in ch:
             if type(i) == bmesh.types.BMVert:
                 chverts.append(Vector4f(x = i.co[0], y = i.co[1], z = i.co[2], t = 1.0))
+        del ch
+        del bm
         bpy.ops.object.mode_set(mode = 'OBJECT')
+        
         
         #Apply rotation and normal matrices on vertices and normal vectors
         """apply_local_transforms(rot_x_mat, verts, norms, tangents, create_tangents = ob.NMSMesh_props.create_tangents)"""
         
         return verts, norms, tangents, luvs, faces, chverts
+
+    def recurce_entity(self, parent, obj):
+        # this will return the class object of the property recursively
+
+        # Just doing all in one line because it's going to be nasty either way...
+        cls = eval(getattr(parent, parent[obj].name).__class__.__name__.split('_')[1])     # ewwwwww. If there is a better way to do this I'd LOVE to know!
+
+        prop_group = getattr(parent, parent[obj].name)
+
+        properties = dict()
+
+        # iterate through each of the keys in the property group
+        for prop in prop_group.keys():     #  parent[obj]
+            # if it isn't a property group itself then just add the data to the properties dict
+            if not isinstance(prop_group[prop], IDPropertyGroup):
+                properties[prop] = getattr(prop_group, prop)
+            else:
+                # otherwise call this function on the property
+                properties[prop] = self.recurce_entity(prop_group, prop_group[prop])
+        return cls(**properties)
+        
 
     def parse_object(self, ob, parent):#, global_scene, process_anim = False, anim_frame_data = dict(), extra_data = dict()):
         newob = None
@@ -660,7 +686,35 @@ class Exporter():
                                    ScaleY=scale[1],
                                    ScaleZ=scale[2])
 
-        entitydata = []
+        entitydata = dict()
+
+        # let's first sort out any entity data that is specified:
+        if ob.NMSMesh_props.has_entity or ob.NMSLocator_props.has_entity:
+            print('this has an entity:', ob)
+            # we need to pull information from two places:
+            # ob.NMSEntity_props
+            # check to see if the mesh's entity will get the action trigger data
+            if '/' in ob.NMSEntity_props.name_or_path or '\\' in ob.NMSEntity_props.name_or_path:
+                # in this case just set the data to be a string with a path
+                entitydata = ob.NMSEntity_props.name_or_path
+            else:
+                entitydata[ob.NMSEntity_props.name_or_path] = list()
+                if ob.NMSEntity_props.has_action_triggers:
+                    entitydata[ob.NMSEntity_props.name_or_path].append(ParseNodes())
+            # and ob.EntityStructs
+            # this could potentially be it's own class?
+            for struct in ob.EntityStructs:
+                # this is the name of the struct
+                cls = eval(struct.name)         # create an instance of the struct
+                properties = dict()
+                sub_props = getattr(ob, 'NMS_{0}_props'.format(struct.name))        # this is the list of all the properties in the struct
+                # iterate over each of the sub-properties
+                for prop in sub_props.keys():
+                    if isinstance(sub_props[prop], IDPropertyGroup):
+                        properties[prop] = self.recurce_entity(sub_props, prop)
+                    else:
+                        properties[prop] = getattr(sub_props, prop)
+                entitydata[ob.NMSEntity_props.name_or_path].append(cls(**properties))
         
         # Main switch to identify meshes or locators/references
         if ob.NMSNode_props.node_types == 'Collision':
@@ -717,11 +771,6 @@ class Exporter():
                     print(axis)
                     rotation_data = TkRotationComponentData(Speed = child.NMSRotation_props.speed, Axis = Vector4f(x=axis[0],y=axis[1],z=axis[2],t=0))
                     entitydata.append(rotation_data)
-                    
-            # check to see if the mesh's entity will get the action trigger data
-            if ob.NMSEntity_props.has_action_triggers and ob.NMSMesh_props.has_entity:
-                print(ob.name)
-                entitydata.append(ParseNodes())
             
             #Create Mesh Object
             actualname = ob.name[len("NMS_"):].upper()
@@ -777,7 +826,7 @@ class Exporter():
             actualname = ob.name[len("NMS_"):].upper()
             HasAttachment = ob.NMSLocator_props.has_entity
                         
-            newob = Locator(Name = actualname, Transform = transform, HasAttachment = HasAttachment)
+            newob = Locator(Name = actualname, Transform = transform, ExtraEntityData = entitydata, HasAttachment = HasAttachment)
         elif ob.NMSNode_props.node_types == 'Joint':
             print("Joint Detected")
             actualname = ob.name[len("NMS_"):].upper()
