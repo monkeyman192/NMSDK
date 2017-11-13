@@ -71,3 +71,11 @@ from .GcRealitySubstanceCategory import GcRealitySubstanceCategory
 from .GcStatTrackType import GcStatTrackType
 from .GcSubstanceAmount import GcSubstanceAmount
 from .TkTextureResource import TkTextureResource
+from .GcInteractionComponentData import GcInteractionComponentData
+from .GcInteractionType import GcInteractionType
+from .TkModelRendererData import TkModelRendererData
+from .TkModelRendererCameraData import TkModelRendererCameraData
+from .TkCameraWanderData import TkCameraWanderData
+from .GcAlienRace import GcAlienRace
+from .GcInteractionActivationCost import GcInteractionActivationCost
+from .GcInteractionDof import GcInteractionDof

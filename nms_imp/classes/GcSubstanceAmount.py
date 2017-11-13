@@ -2,6 +2,7 @@
 
 from .Struct import Struct
 from .GcRealitySubstanceCategory import GcRealitySubstanceCategory
+from .GcRarity import GcRarity
 
 STRUCTNAME = 'GcSubstanceAmount'
 

@@ -1,15 +1,15 @@
-# GcStatTrackType  struct
+# GcInteractionType struct
 
 from .Struct import Struct
 
-STRUCTNAME = 'GcStatTrackType '
+STRUCTNAME = 'GcInteractionType'
 
-class GcStatTrackType (Struct):
+class GcInteractionType(Struct):
     def __init__(self, **kwargs):
-        super(GcStatTrackType , self).__init__()
+        super(GcInteractionType, self).__init__()
 
         """ Contents of the struct """
-        self.data['StatTrackType'] = kwargs.get('StatTrackType', "SET")
+        self.data['InteractionType'] = kwargs.get('InteractionType', "NPC")
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something
