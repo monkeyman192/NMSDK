@@ -2,10 +2,7 @@
 
 from .Struct import Struct
 from .GcRealitySubstanceCategory import GcRealitySubstanceCategory
-<<<<<<< HEAD
 from .GcRarity import GcRarity
-=======
->>>>>>> refs/remotes/monkeyman192/Experimental
 
 STRUCTNAME = 'GcSubstanceAmount'
 

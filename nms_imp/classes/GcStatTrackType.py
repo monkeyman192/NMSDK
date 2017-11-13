@@ -9,11 +9,7 @@ class GcStatTrackType (Struct):
         super(GcStatTrackType , self).__init__()
 
         """ Contents of the struct """
-<<<<<<< HEAD
         self.data['StatTrackType'] = kwargs.get('StatTrackType', "SET")
-=======
-        self.data['StatTrackType'] = kwargs.get('StatTrackType', 'None')
->>>>>>> refs/remotes/monkeyman192/Experimental
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something
