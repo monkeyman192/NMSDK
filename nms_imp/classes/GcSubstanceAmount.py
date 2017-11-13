@@ -1,6 +1,7 @@
 # GcSubstanceAmount struct
 
 from .Struct import Struct
+from .GcRealitySubstanceCategory import GcRealitySubstanceCategory
 
 STRUCTNAME = 'GcSubstanceAmount'
 
