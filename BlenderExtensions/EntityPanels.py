@@ -5,10 +5,6 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, F
 
 """ Various properties for each of the different panel types """
 
-def get_structname(name):
-    # damnit blender why do I need to do this!?!
-    return name
-
 class NMSEntityProperties(bpy.types.PropertyGroup):
     name_or_path = StringProperty(name = "Name or path",
                           description = "Name or path of the entity file to be produced.\nThis name can be shared by other objects in the scene\nAny name here with forward or backslashes will be assume to be a path")
@@ -23,10 +19,10 @@ class EntityItem(bpy.types.PropertyGroup):
     # very simple property group to contain the names
     name = bpy.props.StringProperty(name = "Struct Name")
 
+""" Struct specific properties """
+
 class NMS_GcObjectPlacementComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for GcObjectPlacementComponentData """
-
-    #structname = StringProperty(get = lambda: get_structname('GcObjectPlacementComponentData'))
     
     GroupNodeName = StringProperty(name = "GroupNodeName",
                                    default = "_Clump")
@@ -46,11 +42,8 @@ class NMS_GcObjectPlacementComponentData_Properties(bpy.types.PropertyGroup):
 
 class NMS_GcScannerIconTypes_Properties(bpy.types.PropertyGroup):
     """ Properties for GcScannerIconTypes """
-
-    #_structname = 'GcScannerIconTypes'
-    structname = StringProperty()
     
-    ScanIconType = EnumProperty(name = "ScanIconType",
+    ScanIconType = EnumProperty(name = "Scan Icon Type",
                                 items = [('None', 'None', 'None'),
                                          ('Health', 'Health', 'Health'),
                                          ('Shield', 'Shield', 'Shield'),
@@ -78,15 +71,35 @@ class NMS_GcScannerIconTypes_Properties(bpy.types.PropertyGroup):
 class NMS_GcScannableComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for GcScannableComponentData """
     
-    #structname = StringProperty(get = lambda: get_structname('GcScannableComponentData'))
-    
     ScanRange = FloatProperty(name = "ScanRange",
                               description = "Distance away the object can be picked up by a scanner")
     ScanName = StringProperty(name = "ScanName")
     ScanTime = FloatProperty(name = "ScanTime")
-    IconType = bpy.props.PointerProperty(name = 'GcScannerIconTypes', type=NMS_GcScannerIconTypes_Properties)
+    IconType = bpy.props.PointerProperty(type=NMS_GcScannerIconTypes_Properties)
     PermanentIcon = BoolProperty(name = "PermanentIcon")
     PermanentIconRadius = FloatProperty(name = "PermanentIconRadius")
+
+class NMS_GcProjectileImpactType_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcProjectileImpactType """
+
+    Impact = EnumProperty(name = "Impact",
+                          items = [("dummy", "dummy", "dummy")])
+
+class NMS_GcShootableComponentData_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcShootableComponentData """
+
+    Health = IntProperty(name = "Health", default = 200)
+    AutoAimTarget = BoolProperty(name = "AutoAimTarget", default = False)
+    PlayerOnly = BoolProperty(name = "PlayerOnly", default = False)
+    ImpactShake = Boolproperty(name = "ImpactShake", default = True)
+    ImpactShakeEffect = StringProperty(name = "ImpactShakeEffect", maxlen = 0x10)
+    ForceImpactType = Pointerproperty(type = NMS_GcProjectileImpactType_Properties)
+    IncreaseWanted = IntProperty(name = "IncreaseWanted", default = 0, min = 0, max = 5)
+    IncreaseWantedThresholdTime = FloatProperty(name = "IncreaseWantedThresholdTime", default = 0.5)
+    UseMiningDamage = BoolProperty(name = "UseMiningDamage", default = False)
+    MinDamage = Intproperty(name = "MinDamage", default = 0)
+    StaticUntilShot = BoolProperty(name = "StaticUntilShot", default = False)
+    RequiredTech = StringProperty(name = "RequiredTech", maxlen = 0x20)    
 
 # this function is essentially a wrapper for the boxes so they have a top section with name and a button to remove the box
 # I wanted this to be able to be implemented as a decorator but I am bad at python :'(
@@ -164,6 +177,36 @@ class DATA_PT_entities(bpy.types.Panel):
         row.prop(obj.NMS_GcScannableComponentData_props, "PermanentIcon")
         row = layout.row()
         row.prop(obj.NMS_GcScannableComponentData_props, "PermanentIconRadius")
+
+    def GcShootableComponentData(self, layout, obj):
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "Health")
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "AutoAimTarget")
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "PlayerOnly")
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "ImpactShake")
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "ImpactShakeEffect")
+        # sub box for the ForceImpactType
+        box = layout.box()
+        box.label(text = "ForceImpactType")
+        row = box.row()
+        row.prop(obj.NMS_GcShootableComponentData_props.ForceImpactType, "Impact")
+        #end IconType box
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "IncreaseWanted")
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "IncreaseWantedThresholdTime")
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "UseMiningDamage")
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "MinDamage")
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "StaticUntilShot")
+        row = layout.row()
+        row.prop(obj.NMS_GcShootableComponentData_props, "RequiredTech")
         
 
 # this will add the selected struct to the selectable list
@@ -172,7 +215,8 @@ class AddEntityStruct(bpy.types.Operator):
     bl_label = "Add Entity Struct"
 
     structs = EnumProperty(items = [("GcObjectPlacementComponentData", "GcObjectPlacementComponentData", "Relates to placements of objects in the SelectableObjectsTable in Metadata"),
-                                    ("GcScannableComponentData", "GcScannableComponentData", "This allows the entity to be scannable")])
+                                    ("GcScannableComponentData", "GcScannableComponentData", "This allows the entity to be scannable"),
+                                    ("GcShootableComponentData", "GcShootableComponentData", "Describes how the entity reacts to being shot")])
 
     def execute(self, context):
         obj = context.object
@@ -221,6 +265,8 @@ class NMSEntities():
         bpy.utils.register_class(NMS_GcObjectPlacementComponentData_Properties)
         bpy.utils.register_class(NMS_GcScannerIconTypes_Properties)
         bpy.utils.register_class(NMS_GcScannableComponentData_Properties)
+        bpy.utils.register_class(NMS_GcProjectileImpactType_Properties)
+        bpy.utils.register_class(NMS_GcShootableComponentData_Properties)
         bpy.utils.register_class(AddEntityStruct)
         bpy.utils.register_class(RemoveEntityStruct)
         bpy.utils.register_class(NMSEntityProperties)
@@ -229,6 +275,7 @@ class NMSEntities():
         
         bpy.types.Object.NMS_GcObjectPlacementComponentData_props = bpy.props.PointerProperty(type=NMS_GcObjectPlacementComponentData_Properties)
         bpy.types.Object.NMS_GcScannableComponentData_props = bpy.props.PointerProperty(type=NMS_GcScannableComponentData_Properties)
+        bpy.types.Object.NMS_GcShootableComponentData_props = bpy.props.PointerProperty(type=NMS_GcShootableComponentData_Properties)
         bpy.types.Object.NMSEntity_props = bpy.props.PointerProperty(type=NMSEntityProperties)
 
         # register the panels
@@ -243,6 +290,8 @@ class NMSEntities():
         bpy.utils.unregister_class(NMS_GcObjectPlacementComponentData_Properties)
         bpy.utils.register_class(NMS_GcScannerIconTypes_Properties)
         bpy.utils.unregister_class(NMS_GcScannableComponentData_Properties)
+        bpy.utils.unregister_class(NMS_GcProjectileImpactType_Properties)
+        bpy.utils.unregister_class(NMS_GcShootableComponentData_Properties)
         bpy.utils.unregister_class(AddEntityStruct)
         bpy.utils.unregister_class(RemoveEntityStruct)
         bpy.utils.unregister_class(NMSEntityProperties)
@@ -250,6 +299,7 @@ class NMSEntities():
         #delete the properties from the objects
         del bpy.types.Object.EntityStructs
         del bpy.types.Object.NMS_GcObjectPlacementComponentData_props
+        del bpy.types.Object.NMS_GcShootableComponentData_props
         del bpy.types.Object.NMSEntity_props
 
         # unregister the panels

@@ -63,3 +63,5 @@ from .GcRewardAction import GcRewardAction
 from .GcObjectPlacementComponentData import GcObjectPlacementComponentData
 from .GcScannerIconTypes import GcScannerIconTypes
 from .GcScannableComponentData import GcScannableComponentData
+from .GcProjectileImpactType import GcProjectileImpactType
+from .GcShootableComponentData import GcShootableComponentData
