@@ -4,7 +4,7 @@ from .Struct import Struct
 
 STRUCTNAME = 'GcInteractionDof'
 
-class GcInteractDof(Struct):
+class GcInteractionDof(Struct):
     def __init__(self, **kwargs):
         super(GcInteractionDof, self).__init__()
 
