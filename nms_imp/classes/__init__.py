@@ -65,3 +65,9 @@ from .GcScannerIconTypes import GcScannerIconTypes
 from .GcScannableComponentData import GcScannableComponentData
 from .GcProjectileImpactType import GcProjectileImpactType
 from .GcShootableComponentData import GcShootableComponentData
+from .GcDestructableComponentData import GcDestructableComponentData
+from .GcRarity import GcRarity
+from .GcRealitySubstanceCategory import GcRealitySubstanceCategory
+from .GcStatTrackType import GcStatTrackType
+from .GcSubstanceAmount import GcSubstanceAmount
+from .TkTextureResource import TkTextureResource
