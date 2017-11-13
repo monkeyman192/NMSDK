@@ -1,6 +1,7 @@
 # GcDestructableComponentData struct
 
 from .Struct import Struct
+from .List import List
 
 STRUCTNAME = 'GcDestructableComponentData'
 
@@ -18,7 +19,7 @@ class GcDestructableComponentData(Struct):
         self.data['LootReward'] = kwargs.get('LootReward', "")
         self.data['LootRewardAmountMin'] = kwargs.get('LootRewardAmountMin', 0)
         self.data['LootRewardAmountMax'] = kwargs.get('LootRewardAmountMax', 0)
-        self.data['GivesSubstances'] = kwargs.get('GivesSubstances', GcSubstanceAmount(), GcSubstanceAmount())
+        self.data['GivesSubstances'] = kwargs.get('GivesSubstances', List())
         self.data['StatsToTrack'] = kwargs.get('StatsToTrack', GcStatTrackType())
         self.data['GivesReward'] = kwargs.get('GivesReward', "")
         self.data['HardModeSubstanceMultiplier'] = kwargs.get('HardModeSubstanceMultiplier', 1)
