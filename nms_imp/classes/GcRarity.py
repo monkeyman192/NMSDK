@@ -9,7 +9,7 @@ class GcRarity(Struct):
         super(GcRarity, self).__init__()
 
         """ Contents of the struct """
-        self.data['Rarity'] = kwargs.get('Rarity', 'None')
+        self.data['Rarity'] = kwargs.get('Rarity', "Common")
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something
