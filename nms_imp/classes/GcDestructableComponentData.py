@@ -2,6 +2,9 @@
 
 from .Struct import Struct
 from .List import List
+from .GcStatTrackType import GcStatTrackType
+from .TkTextureResource import TkTextureResource
+from .GcSubstanceAmount import GcSubstanceAmount
 
 STRUCTNAME = 'GcDestructableComponentData'
 
