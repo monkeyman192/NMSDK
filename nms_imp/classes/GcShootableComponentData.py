@@ -2,6 +2,7 @@
 
 from .Struct import Struct
 from .GcProjectileImpactType import GcProjectileImpactType
+from .List import List
 
 STRUCTNAME = 'GcShootableComponentData'
 
@@ -22,6 +23,7 @@ class GcShootableComponentData(Struct):
         self.data['MinDamage'] = kwargs.get('MinDamage', 0)
         self.data['StaticUntilShot'] = kwargs.get('StaticUntilShot', False)
         self.data['RequiredTech'] = kwargs.get('RequiredTech', "")
+        
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something

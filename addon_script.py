@@ -643,24 +643,40 @@ class Exporter():
         
         return verts, norms, tangents, luvs, faces, chverts
 
-    def recurce_entity(self, parent, obj):
+    def recurce_entity(self, parent, obj, list_element = None, index = 0):
         # this will return the class object of the property recursively
 
         # Just doing all in one line because it's going to be nasty either way...
-        cls = eval(getattr(parent, parent[obj].name).__class__.__name__.split('_')[1])     # ewwwwww. If there is a better way to do this I'd LOVE to know!
-
-        prop_group = getattr(parent, parent[obj].name)
+        print('obj: ', obj)
+        try:
+            if list_element is None:
+                cls = eval(getattr(parent, obj).__class__.__name__.split('_')[1])     # ewwwwww. If there is a better way to do this I'd LOVE to know!
+                #cls = eval(getattr(parent, parent[obj].name).__class__.__name__.split('_')[1])     # ewwwwww. If there is a better way to do this I'd LOVE to know!
+            else:
+                cls = eval(getattr(parent, obj)[index].__class__.__name__.split('_')[1])     # ewwwwww. If there is a better way to do this I'd LOVE to know!
+        except TypeError:
+            print('shit!')
+            print(obj)
 
         properties = dict()
 
+        if list_element is None:
+            prop_group = getattr(parent, obj)
+            entries = prop_group.keys()
+        else:
+            prop_group = getattr(parent, obj)[index]
+            entries = list_element.keys()
+
         # iterate through each of the keys in the property group
-        for prop in prop_group.keys():     #  parent[obj]
+        for prop in entries:     #  parent[obj]
             # if it isn't a property group itself then just add the data to the properties dict
             if not isinstance(prop_group[prop], IDPropertyGroup):
                 properties[prop] = getattr(prop_group, prop)
             else:
                 # otherwise call this function on the property
-                properties[prop] = self.recurce_entity(prop_group, prop_group[prop])
+                print('recursing ', prop)
+                properties[prop] = self.recurce_entity(prop_group, prop)
+                #properties[prop] = self.recurce_entity(prop_group, prop_group[prop])
         return cls(**properties)
         
 
@@ -712,6 +728,12 @@ class Exporter():
                 for prop in sub_props.keys():
                     if isinstance(sub_props[prop], IDPropertyGroup):
                         properties[prop] = self.recurce_entity(sub_props, prop)
+                    elif isinstance(sub_props[prop], list):
+                        properties[prop] = List()
+                        counter = 0
+                        for le in sub_props[prop]:      # le = list_element
+                            properties[prop].append(self.recurce_entity(sub_props, prop, list_element = le, index = counter))
+                            counter += 1
                     else:
                         properties[prop] = getattr(sub_props, prop)
                 entitydata[ob.NMSEntity_props.name_or_path].append(cls(**properties))

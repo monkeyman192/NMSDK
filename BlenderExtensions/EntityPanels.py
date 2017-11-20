@@ -48,8 +48,6 @@ class NMS_GcObjectPlacementComponentData_Properties(bpy.types.PropertyGroup):
 class NMS_GcScannerIconTypes_Properties(bpy.types.PropertyGroup):
     """ Properties for GcScannerIconTypes """
 
-    list_index_ = IntProperty()         # this will be an internal variable used to track it's index in a list (just in case this object ends up in a list...)
-    
     ScanIconType = EnumProperty(name = "Scan Icon Type",
                                 items = [('None', 'None', 'None'),
                                          ('Health', 'Health', 'Health'),
@@ -88,9 +86,7 @@ class NMS_GcScannableComponentData_Properties(bpy.types.PropertyGroup):
 
 class NMS_GcProjectileImpactType_Properties(bpy.types.PropertyGroup):
     """ Properties for GcProjectileImpactType """
-
-    list_index_ = IntProperty()         # this will be an internal variable used to track it's index in a list (just in case this object ends up in a list...)
-
+    
     Impact = EnumProperty(name = "Impact",
                           items = [("Default", "Default", "Default"),
                                   ("Terrain", "Terrain", "Terrain"),
@@ -121,24 +117,83 @@ class NMS_GcShootableComponentData_Properties(bpy.types.PropertyGroup):
     StaticUntilShot = BoolProperty(name = "Static Until Shot", default = False)
     RequiredTech = StringProperty(name = "Required Tech", maxlen = 0x20)
 
-    TestList = CollectionProperty(type = NMS_GcProjectileImpactType_Properties)
+class NMS_TkTextureResource_Properties(bpy.types.PropertyGroup):
+    """ Properties for TkTextureResource """
+	
+    Filename = StringProperty(name = "Filename", maxlen = 0x80)
+	
+class NMS_GcStatTrackType_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcStatTrackType """
+
+    StatTrackType = EnumProperty(name = "StatTrackType",
+                          items = [("Set", "Set", "Set"),
+                                  ("Add", "Add", "Add"),
+                                  ("Max", "Max", "Max"),
+                                  ("Min", "Min", "Min")])
+
+
+class NMS_GcRarity_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcRarity """
+
+    Rarity = EnumProperty(name = "Rarity",
+                          items = [("Common", "Common", "Common"),
+                                  ("Uncommon", "Uncommon", "Uncommon"),
+                                  ("Rare", "Rare", "Rare"),
+                                  ("Extraordinary", "Extraordinary", "Extraordinary"),
+                                  ("None", "None", "None")])
+	
+class NMS_GcRealitySubstanceCategory_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcRealitySubstanceCategory """
+
+    SubstanceCategory = EnumProperty(name = "SubstanceCategory",
+                          items = [("Commodity", "Commodity", "Commodity"),
+                                  ("Technology", "Technology", "Technology"),
+                                  ("Fuel", "Fuel", "Fuel"),
+                                  ("Tradeable", "Tradeable", "Tradeable"),
+                                  ("Special", "Special", "Special"),
+                                  ("BuildingPart", "BuildingPart", "BuildingPart")])
+								  
+class NMS_GcSubstanceAmount_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcSubstanceAmount """
+	
+    AmountMin = IntProperty(name = "AmountMin", default = 0)
+    AmountMax = IntProperty(name = "AmountMax", default = 0)
+    Specific = StringProperty(name = "Specific", maxlen = 0x10)
+    SubstanceCategory = PointerProperty(type = NMS_GcRealitySubstanceCategory_Properties)
+    Rarity = PointerProperty(type = NMS_GcRarity_Properties)
+	
+class NMS_GcDestructableComponentData_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcDestructableComponentData """
+
+    Explosion = StringProperty(name = "Explosion", maxlen = 0x10)
+    ExplosionScale = FloatProperty(name = "ExplosionScale")
+    ExplosionScaleToBounds = BoolProperty(name = "ExplosionScaleToBounds", default = False)
+    VehicleDestroyEffect = StringProperty(name = "VehicleDestroyEffect", maxlen = 0x10)
+    TriggerAction = StringProperty(name = "TriggerAction", maxlen = 0x10)
+    IncreaseWanted = IntProperty(name = "IncreaseWanted", default = 0, min = 0, max = 5)
+    LootReward = StringProperty(name = "LootReward", maxlen = 0x10)
+    LootRewardAmountMin = IntProperty(name = "LootRewardAmountMin", default = 0)
+    LootRewardAmountMax = IntProperty(name = "LootRewardAmountMax", default = 0)
+    GivesSubstances = CollectionProperty(type = NMS_GcSubstanceAmount_Properties)
+    StatsToTrack = PointerProperty(type = NMS_GcStatTrackType_Properties)
+    GivesReward = StringProperty(name = "GivesReward", maxlen = 0x10)
+    HardModeSubstanceMultiplier = FloatProperty(name = "HardModeSubstanceMultiplier")
+    RemoveModel = BoolProperty(name = "RemoveModel", default = True)
+    DestroyedModel = PointerProperty(type = NMS_TkTextureResource_Properties)
+    DestroyedModelUsesScale = BoolProperty(name = "DestroyedModelUsesScale", default = False)
+    DestroyForce = FloatProperty(name = "DestroyForce")
+    DestroyForceRadius = FloatProperty(name = "DestroyForceRadius")
+    DestroyEffect = StringProperty(name = "DestroyEffect", maxlen = 0x10)
+    DestroyEffectPoint = StringProperty(name = "DestroyEffectPoint", maxlen = 0x10)
+    DestroyEffectTime = FloatProperty(name = "DestroyEffectTime")
+    ShowInteract = BoolProperty(name = "ShowInteract", default = False)
+    ShowInteractRange = FloatProperty(name = "ShowInteractRange")
+    GrenadeSingleHit = BoolProperty(name = "GrenadeSingleHit", default = True)
 
 def rgetattr(obj, attr):
     def _getattr(obj, name):
         return getattr(obj, name)
     return reduce(_getattr, [obj]+attr.split('.'))
-
-def ListBox(cls, obj, layout, list_struct, prop_name, name):
-    # a container function to be called to create a list box
-    # class is required so that the panel layout can pass itself into this so the correct attributes can be found
-    listbox = ListEntryAdder(layout.box(), list_struct, prop_name)
-    j = 0
-    for i in obj.NMS_GcShootableComponentData_props.TestList:
-        print(i)
-        box = ListEntityTop(listbox, list_struct, prop_name, name, j)
-        # add the object and give it the appropriate index
-        getattr(cls, name)(box, obj, index = j)
-        j += 1
 
 # this function is essentially a wrapper for the boxes so they have a top section with name and a button to remove the box
 # I wanted this to be able to be implemented as a decorator but I am bad at python :'(
@@ -147,6 +202,8 @@ def EntityPanelTop(layout, name):
     row.label(text = name)
     s = row.split()
     s.alignment = 'RIGHT'
+    s.operator('wm.move_entity_struct_up', text = '', icon = 'TRIA_UP', emboss = False).struct_name = name
+    s.operator('wm.move_entity_struct_down', text = '', icon = 'TRIA_DOWN', emboss = False).struct_name = name
     s.operator('wm.remove_entity_struct', text = '', icon = 'PANEL_CLOSE', emboss = False).remove_name = name
     newbox = layout.box()
     return newbox
@@ -174,6 +231,43 @@ def ListEntryAdder(box, list_struct, prop_name):
     op.prop_name = prop_name
     op.list_struct = list_struct
     return box
+
+class RowGen():
+    """ simple wrapper class to make the individual functions in DATA_PT_entities half the size... """
+    def __init__(self, ctx, layout):
+        """
+        ctx is the object property that will be read from
+        layout is the blender layout to write the rows to
+        """
+        self.ctx = ctx
+        self.layout = layout
+
+    def row(self, prop):
+        """ Just create a new row and add a new property with the specified name """
+        r = self.layout.row()
+        r.prop(self.ctx, prop)
+
+    def mrow(self, props = []):
+        # not sure if I'll use this... but might be nice
+        for prop in props:
+            self.row(prop)
+
+    def box(self, prop):
+        new_ctx = getattr(self.ctx, prop)
+        new_layout = self.layout.box()
+        new_layout.label(text = prop)
+        return RowGen(new_ctx, new_layout)
+
+    def listbox(self, cls, obj, list_struct, prop_name, name):
+        # a container function to be called to create a list box
+        # class is required so that the panel layout can pass itself into this so the correct attributes can be found
+        listbox = ListEntryAdder(self.layout.box(), list_struct, prop_name)
+        j = 0
+        for i in getattr(self.ctx, prop_name):
+            box = ListEntityTop(listbox, list_struct, prop_name, name, j)
+            # add the object and give it the appropriate index
+            getattr(cls, name)(box, obj, index = j)
+            j += 1
 
 # this is the main class that contains all the information... It's going to be BIG with all the structs in it...
 class DATA_PT_entities(bpy.types.Panel):
@@ -210,72 +304,82 @@ class DATA_PT_entities(bpy.types.Panel):
             getattr(self, struct.name)(box, obj)
 
     def GcObjectPlacementComponentData(self, layout, obj):
-        row = layout.row()
-        row.prop(obj.NMS_GcObjectPlacementComponentData_props, "GroupNodeName")
-        row = layout.row()
-        row.prop(obj.NMS_GcObjectPlacementComponentData_props, "ActivationType")
-        row = layout.row()
-        row.prop(obj.NMS_GcObjectPlacementComponentData_props, "FractionOfNodesActive")
-        row = layout.row()
-        row.prop(obj.NMS_GcObjectPlacementComponentData_props, "MaxNodesActivated")
-        row = layout.row()
-        row.prop(obj.NMS_GcObjectPlacementComponentData_props, "MaxGroupsActivated")
-        row = layout.row()
-        row.prop(obj.NMS_GcObjectPlacementComponentData_props, "UseRaycast")
+        r = RowGen(obj.NMS_GcObjectPlacementComponentData_props, layout)
+        r.row("GroupNodeName")
+        r.row("ActivationType")
+        r.row("FractionOfNodesActive")
+        r.row("MaxNodesActivated")
+        r.row("MaxGroupsActivated")
+        r.row("UseRaycast")
 
     def GcScannableComponentData(self, layout, obj):
-        row = layout.row()
-        row.prop(obj.NMS_GcScannableComponentData_props, "ScanRange")
-        row = layout.row()
-        row.prop(obj.NMS_GcScannableComponentData_props, "ScanName")
-        row = layout.row()
-        row.prop(obj.NMS_GcScannableComponentData_props, "ScanTime")
-        # sub box for the IconType
-        box = layout.box()
-        box.label(text = "IconType")
-        row = box.row()
-        row.prop(obj.NMS_GcScannableComponentData_props.IconType, "ScanIconType")
-        #end IconType box
-        row = layout.row()
-        row.prop(obj.NMS_GcScannableComponentData_props, "PermanentIcon")
-        row = layout.row()
-        row.prop(obj.NMS_GcScannableComponentData_props, "PermanentIconRadius")
+        r = RowGen(obj.NMS_GcScannableComponentData_props, layout)
+        r.row("ScanRange")
+        r.row("ScanName")
+        r.row("ScanTime")
+        b = r.box("IconType")
+        b.row("ScanIconType")
+        r.row("PermanentIcon")
+        r.row("PermanentIconRadius")
 
     def GcShootableComponentData(self, layout, obj):
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "Health")
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "AutoAimTarget")
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "PlayerOnly")
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "ImpactShake")
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "ImpactShakeEffect")
-        # sub box for the ForceImpactType
-        box = layout.box()
-        box.label(text = "ForceImpactType")
-        row = box.row()
-        row.prop(obj.NMS_GcShootableComponentData_props.ForceImpactType, "Impact")
-        #end IconType box
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "IncreaseWanted")
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "IncreaseWantedThresholdTime")
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "UseMiningDamage")
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "MinDamage")
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "StaticUntilShot")
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props, "RequiredTech")
+        r = RowGen(obj.NMS_GcShootableComponentData_props, layout)
+        r.row("Health")
+        r.row("AutoAimTarget")
+        r.row("PlayerOnly")
+        r.row("ImpactShake")
+        r.row("ImpactShakeEffect")
+        b = r.box("ForceImpactType")
+        b.row("Impact")
+        r.row("IncreaseWanted")
+        r.row("IncreaseWantedThresholdTime")
+        r.row("UseMiningDamage")
+        r.row("MinDamage")
+        r.row("StaticUntilShot")
+        r.row("RequiredTech")
 
-        ListBox(self, obj, layout, "NMS_GcShootableComponentData_props", "TestList", "GcProjectileImpactType")      # this is a bit long... would be nicer if it could be more concise... :/           
+        #ListBox(self, obj, layout, "NMS_GcShootableComponentData_props", "TestList", "GcProjectileImpactType")      # this is a bit long... would be nicer if it could be more concise... :/
 
-    def GcProjectileImpactType(self, layout, obj, index = 0):
-        row = layout.row()
-        row.prop(obj.NMS_GcShootableComponentData_props.TestList[index], "Impact")
+    def GcDestructableComponentData(self, layout, obj):
+        r = RowGen(obj.NMS_GcDestructableComponentData_props, layout)
+        r.row("Explosion")
+        r.row("ExplosionScale")
+        r.row("ExplosionScaleToBounds")
+        r.row("VehicleDestroyEffect")
+        r.row("TriggerAction")
+        r.row("IncreaseWanted")
+        r.row("LootReward")
+        r.row("LootRewardAmountMin")
+        r.row("LootRewardAmountMax")
+        r.listbox(self, obj, "NMS_GcDestructableComponentData_props", "GivesSubstances", "GcSubstanceAmount")
+        b = r.box("StatsToTrack")
+        b.row("StatTrackType")
+        r.row("GivesReward")
+        r.row("HardModeSubstanceMultiplier")
+        r.row("RemoveModel")
+        b = r.box("DestroyedModel")
+        b.row("Filename")
+        r.row("DestroyedModelUsesScale")
+        r.row("DestroyForce")
+        r.row("DestroyForceRadius")
+        r.row("DestroyEffect")
+        r.row("DestroyEffectPoint")
+        r.row("DestroyEffectTime")
+        r.row("ShowInteract")
+        r.row("ShowInteractRange")
+        r.row("GrenadeSingleHit")
+
+    def GcSubstanceAmount(self, layout, obj, index = 0):
+        r = RowGen(obj.NMS_GcDestructableComponentData_props.GivesSubstances[index], layout)
+        r.row("AmountMin")
+        r.row("AmountMax")
+        r.row("Specific")
+        b = r.box("SubstanceCategory")
+        b.row("SubstanceCategory")
+        b = r.box("Rarity")
+        b.row("Rarity")
+
+""" Operators required for button functionality in the UI elements """
 
 class AddListStruct(bpy.types.Operator):
     bl_idname = 'wm.add_list_struct'
@@ -283,14 +387,11 @@ class AddListStruct(bpy.types.Operator):
 
     list_struct = StringProperty()      # name of the struct that is to be added
     prop_name = StringProperty()        # name of the property containing the CollectionProperty
-    curr_index = IntProperty()
-    #sub_name = StringProperty()
+    curr_index = IntProperty()          # not needed??
 
     def execute(self, context):
         obj = context.object
         list_obj = rgetattr(obj, "{0}.{1}".format(self.list_struct, self.prop_name)).add()
-        #list_obj.list_index_ = self.curr_index
-        #self.curr_index += 1
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -319,17 +420,28 @@ class AddEntityStruct(bpy.types.Operator):
 
     structs = EnumProperty(items = [("GcObjectPlacementComponentData", "GcObjectPlacementComponentData", "Relates to placements of objects in the SelectableObjectsTable in Metadata"),
                                     ("GcScannableComponentData", "GcScannableComponentData", "This allows the entity to be scannable"),
-                                    ("GcShootableComponentData", "GcShootableComponentData", "Describes how the entity reacts to being shot")])
+                                    ("GcShootableComponentData", "GcShootableComponentData", "Describes how the entity reacts to being shot"),
+                                    ("GcDestructableComponentData", "GcDestructableComponentData", "Decribes what happens when the object is destroyed")])
 
     def execute(self, context):
         # add the struct name to the objects' list of structs so that it can be drawn in the UI
         obj = context.object
-        new_name = obj.EntityStructs.add()
-        new_name.name = self.structs
+        # only add the struct if it isn't already in the list
+        if not self.entity_exists(obj, self.structs):
+            new_name = obj.EntityStructs.add()
+            new_name.name = self.structs
         return {"FINISHED"}
 
     def invoke(self, context, event):
         return self.execute(context)
+
+    @staticmethod
+    def entity_exists(obj, name):
+        #  returns True if the named struct is already in the obj's EntityStructs
+        for i in obj.EntityStructs:
+            if i.name == name:
+                return True
+        return False
 
 # this will allow the cross to remove the box from the entity panel
 class RemoveEntityStruct(bpy.types.Operator):
@@ -351,15 +463,60 @@ class RemoveEntityStruct(bpy.types.Operator):
 
     def invoke(self, context, event):
         return self.execute(context)
-        
+
+class MoveEntityUp(bpy.types.Operator):
+    bl_idname = 'wm.move_entity_struct_up'
+    bl_label = "Move Entity Struct Up"
+
+    struct_name = StringProperty(name = 'struct_name')
+
+    def execute(self, context):
+        obj = context.object
+        i = self.get_index(obj)
+
+        # make sure that the object isn't at the top of the list and move
+        if i != 0:
+            obj.EntityStructs.move(i, i-1)
+
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+    def get_index(self, obj):
+        for i, struct in enumerate(obj.EntityStructs):
+            if struct.name == self.struct_name:
+                return i
+
+class MoveEntityDown(bpy.types.Operator):
+    bl_idname = 'wm.move_entity_struct_down'
+    bl_label = "Move Entity Struct Down"
+
+    struct_name = StringProperty(name = 'struct_name')
+
+    def execute(self, context):
+        obj = context.object
+        i = self.get_index(obj)
+
+        # make sure that the object isn't at the top of the list and move
+        if i != len(obj.EntityStructs):
+            obj.EntityStructs.move(i, i+1)
+
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+    def get_index(self, obj):
+        for i, struct in enumerate(obj.EntityStructs):
+            if struct.name == self.struct_name:
+                return i
+
+""" Class to contain all the registration information to be called from the nmsdk.py file """
 
 class NMSEntities():
     @staticmethod
     def register():
-        # give the objects a custom empty set
-        # this will be checked by the addon_script to find out what data the entity is being given..
-        #print('hi')
-        #bpy.types.Object.EntityStructs = set()
         # do entity items first...
         bpy.utils.register_class(EntityItem)
         bpy.types.Object.EntityStructs = CollectionProperty(type = EntityItem)
@@ -370,10 +527,18 @@ class NMSEntities():
         bpy.utils.register_class(NMS_GcScannableComponentData_Properties)
         bpy.utils.register_class(NMS_GcProjectileImpactType_Properties)
         bpy.utils.register_class(NMS_GcShootableComponentData_Properties)
+        bpy.utils.register_class(NMS_TkTextureResource_Properties)
+        bpy.utils.register_class(NMS_GcStatTrackType_Properties)
+        bpy.utils.register_class(NMS_GcRarity_Properties)
+        bpy.utils.register_class(NMS_GcRealitySubstanceCategory_Properties)
+        bpy.utils.register_class(NMS_GcSubstanceAmount_Properties)
+        bpy.utils.register_class(NMS_GcDestructableComponentData_Properties)
         bpy.utils.register_class(AddListStruct)
         bpy.utils.register_class(RemoveListStruct)
         bpy.utils.register_class(AddEntityStruct)
         bpy.utils.register_class(RemoveEntityStruct)
+        bpy.utils.register_class(MoveEntityDown)
+        bpy.utils.register_class(MoveEntityUp)
         bpy.utils.register_class(NMSEntityProperties)
 
         # link the properties with the objects' internal variables
@@ -381,9 +546,10 @@ class NMSEntities():
         bpy.types.Object.NMS_GcObjectPlacementComponentData_props = PointerProperty(type=NMS_GcObjectPlacementComponentData_Properties)
         bpy.types.Object.NMS_GcScannableComponentData_props = PointerProperty(type=NMS_GcScannableComponentData_Properties)
         bpy.types.Object.NMS_GcShootableComponentData_props = PointerProperty(type=NMS_GcShootableComponentData_Properties)
+        bpy.types.Object.NMS_GcDestructableComponentData_props = PointerProperty(type=NMS_GcDestructableComponentData_Properties)
         bpy.types.Object.NMSEntity_props = PointerProperty(type=NMSEntityProperties)
 
-        # register the panels
+        # register the panel
         bpy.utils.register_class(DATA_PT_entities)
 
     @staticmethod
@@ -397,17 +563,26 @@ class NMSEntities():
         bpy.utils.unregister_class(NMS_GcScannableComponentData_Properties)
         bpy.utils.unregister_class(NMS_GcProjectileImpactType_Properties)
         bpy.utils.unregister_class(NMS_GcShootableComponentData_Properties)
+        bpy.utils.unregister_class(NMS_TkTextureResource_Properties)
+        bpy.utils.unregister_class(NMS_GcStatTrackType_Properties)
+        bpy.utils.unregister_class(NMS_GcRarity_Properties)
+        bpy.utils.unregister_class(NMS_GcRealitySubstanceCategory_Properties)
+        bpy.utils.unregister_class(NMS_GcSubstanceAmount_Properties)
+        bpy.utils.unregister_class(NMS_GcDestructableComponentData_Properties)
         bpy.utils.unregister_class(AddListStruct)
         bpy.utils.unregister_class(RemoveListStruct)
         bpy.utils.unregister_class(AddEntityStruct)
         bpy.utils.unregister_class(RemoveEntityStruct)
+        bpy.utils.unregister_class(MoveEntityDown)
+        bpy.utils.unregister_class(MoveEntityUp)
         bpy.utils.unregister_class(NMSEntityProperties)
 
         #delete the properties from the objects
         del bpy.types.Object.EntityStructs
         del bpy.types.Object.NMS_GcObjectPlacementComponentData_props
         del bpy.types.Object.NMS_GcShootableComponentData_props
+        del bpy.types.Object.NMS_GcDestructableComponentData_props
         del bpy.types.Object.NMSEntity_props
 
-        # unregister the panels
+        # unregister the panel
         bpy.utils.unregister_class(DATA_PT_entities)
