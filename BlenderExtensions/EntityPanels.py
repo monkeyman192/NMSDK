@@ -29,7 +29,6 @@ def ListProperty(type_):
 # GcObjectPlacementComponentData related properties
 class NMS_GcObjectPlacementComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for GcObjectPlacementComponentData """
-    
     GroupNodeName = StringProperty(name = "Group Node Name",
                                    default = "_Clump")
     ActivationType = EnumProperty(name = "Activation Type",
@@ -47,20 +46,8 @@ class NMS_GcObjectPlacementComponentData_Properties(bpy.types.PropertyGroup):
                               default = False)
     
 # GcScannableComponentData related properties
-class NMS_GcScannableComponentData_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcScannableComponentData """
-    
-    ScanRange = FloatProperty(name = "Scan Range",
-                              description = "Distance away the object can be picked up by a scanner")
-    ScanName = StringProperty(name = "Scan Name")
-    ScanTime = FloatProperty(name = "Scan Time")
-    IconType = PointerProperty(type=NMS_GcScannerIconTypes_Properties)
-    PermanentIcon = BoolProperty(name = "Permanent Icon")
-    PermanentIconRadius = FloatProperty(name = "Permanent Icon Radius")
-
 class NMS_GcScannerIconTypes_Properties(bpy.types.PropertyGroup):
     """ Properties for GcScannerIconTypes """
-
     ScanIconType = EnumProperty(name = "Scan Icon Type",
                                 items = [('None', 'None', 'None'),
                                          ('Health', 'Health', 'Health'),
@@ -86,26 +73,19 @@ class NMS_GcScannerIconTypes_Properties(bpy.types.PropertyGroup):
                                          ('Trade', 'Trade', 'Trade'),
                                          ('Exotic', 'Exotic', 'Exotic')])
 
+class NMS_GcScannableComponentData_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcScannableComponentData """
+    ScanRange = FloatProperty(name = "Scan Range",
+                              description = "Distance away the object can be picked up by a scanner")
+    ScanName = StringProperty(name = "Scan Name")
+    ScanTime = FloatProperty(name = "Scan Time")
+    IconType = PointerProperty(type=NMS_GcScannerIconTypes_Properties)
+    PermanentIcon = BoolProperty(name = "Permanent Icon")
+    PermanentIconRadius = FloatProperty(name = "Permanent Icon Radius")
+
 # GcShootableComponentData related properties
-class NMS_GcShootableComponentData_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcShootableComponentData """
-
-    Health = IntProperty(name = "Health", default = 200, min = 0)
-    AutoAimTarget = BoolProperty(name = "Auto Aim Target", default = False)
-    PlayerOnly = BoolProperty(name = "Player Only", default = False)
-    ImpactShake = BoolProperty(name = "Impact Shake", default = True)
-    ImpactShakeEffect = StringProperty(name = "Impact Shake Effect", maxlen = 0x10)
-    ForceImpactType = PointerProperty(type = NMS_GcProjectileImpactType_Properties)
-    IncreaseWanted = IntProperty(name = "Increase Wanted", default = 0, min = 0, max = 5)
-    IncreaseWantedThresholdTime = FloatProperty(name = "Increase Wanted Threshold Time", default = 0.5)
-    UseMiningDamage = BoolProperty(name = "Use Mining Damage", default = False)
-    MinDamage = IntProperty(name = "Min Damage", default = 0)
-    StaticUntilShot = BoolProperty(name = "Static Until Shot", default = False)
-    RequiredTech = StringProperty(name = "Required Tech", maxlen = 0x20)
-
 class NMS_GcProjectileImpactType_Properties(bpy.types.PropertyGroup):
     """ Properties for GcProjectileImpactType """
-    
     Impact = EnumProperty(name = "Impact",
                           items = [("Default", "Default", "Default"),
                                   ("Terrain", "Terrain", "Terrain"),
@@ -119,16 +99,29 @@ class NMS_GcProjectileImpactType_Properties(bpy.types.PropertyGroup):
                                   ("Cargo", "Cargo", "Cargo"),
                                   ("Ship", "Ship", "Ship"),
                                   ("Plant", "Plant", "Plant")])
+    
+class NMS_GcShootableComponentData_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcShootableComponentData """
+    Health = IntProperty(name = "Health", default = 200, min = 0)
+    AutoAimTarget = BoolProperty(name = "Auto Aim Target", default = False)
+    PlayerOnly = BoolProperty(name = "Player Only", default = False)
+    ImpactShake = BoolProperty(name = "Impact Shake", default = True)
+    ImpactShakeEffect = StringProperty(name = "Impact Shake Effect", maxlen = 0x10)
+    ForceImpactType = PointerProperty(type = NMS_GcProjectileImpactType_Properties)
+    IncreaseWanted = IntProperty(name = "Increase Wanted", default = 0, min = 0, max = 5)
+    IncreaseWantedThresholdTime = FloatProperty(name = "Increase Wanted Threshold Time", default = 0.5)
+    UseMiningDamage = BoolProperty(name = "Use Mining Damage", default = False)
+    MinDamage = IntProperty(name = "Min Damage", default = 0)
+    StaticUntilShot = BoolProperty(name = "Static Until Shot", default = False)
+    RequiredTech = StringProperty(name = "Required Tech", maxlen = 0x20)
 
-
+# GcDestructableComponentData related properties
 class NMS_TkTextureResource_Properties(bpy.types.PropertyGroup):
     """ Properties for TkTextureResource """
-	
     Filename = StringProperty(name = "Filename", maxlen = 0x80)
 	
 class NMS_GcStatTrackType_Properties(bpy.types.PropertyGroup):
     """ Properties for GcStatTrackType """
-
     StatTrackType = EnumProperty(name = "StatTrackType",
                           items = [("Set", "Set", "Set"),
                                   ("Add", "Add", "Add"),
@@ -138,7 +131,6 @@ class NMS_GcStatTrackType_Properties(bpy.types.PropertyGroup):
 
 class NMS_GcRarity_Properties(bpy.types.PropertyGroup):
     """ Properties for GcRarity """
-
     Rarity = EnumProperty(name = "Rarity",
                           items = [("Common", "Common", "Common"),
                                   ("Uncommon", "Uncommon", "Uncommon"),
@@ -148,7 +140,6 @@ class NMS_GcRarity_Properties(bpy.types.PropertyGroup):
 	
 class NMS_GcRealitySubstanceCategory_Properties(bpy.types.PropertyGroup):
     """ Properties for GcRealitySubstanceCategory """
-
     SubstanceCategory = EnumProperty(name = "SubstanceCategory",
                           items = [("Commodity", "Commodity", "Commodity"),
                                   ("Technology", "Technology", "Technology"),
@@ -159,17 +150,14 @@ class NMS_GcRealitySubstanceCategory_Properties(bpy.types.PropertyGroup):
 								  
 class NMS_GcSubstanceAmount_Properties(bpy.types.PropertyGroup):
     """ Properties for GcSubstanceAmount """
-	
     AmountMin = IntProperty(name = "AmountMin", default = 0)
     AmountMax = IntProperty(name = "AmountMax", default = 0)
     Specific = StringProperty(name = "Specific", maxlen = 0x10)
     SubstanceCategory = PointerProperty(type = NMS_GcRealitySubstanceCategory_Properties)
     Rarity = PointerProperty(type = NMS_GcRarity_Properties)
 
-# GcDestructableComponentData related properties
 class NMS_GcDestructableComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for GcDestructableComponentData """
-
     Explosion = StringProperty(name = "Explosion", maxlen = 0x10)
     ExplosionScale = FloatProperty(name = "ExplosionScale")
     ExplosionScaleToBounds = BoolProperty(name = "ExplosionScaleToBounds", default = False)
@@ -196,6 +184,50 @@ class NMS_GcDestructableComponentData_Properties(bpy.types.PropertyGroup):
     GrenadeSingleHit = BoolProperty(name = "GrenadeSingleHit", default = True)
 
 # GcSimpleInteractionComponentData related properties
+class NMS_GcSizeIndicator_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcSizeIndicator """
+    SizeIndicator = EnumProperty(name = "SizeIndicator",
+                                 items = [("Small", "Small", "Small"),
+                                          ("Medium", "Medium", "Medium"),
+                                          ("Large" , "Large" , "Large" )])
+
+class NMS_NMSString0x10_Properties(bpy.types.PropertyGroup):
+    """ Properties for NMSString0x10 """
+    Value = StringProperty(name = "Value", maxlen = 0x10)
+
+class NMS_GcInteractionActivationCost_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcInteractionActivationCost """
+    SubstanceId = StringProperty(name = "SubstanceId")
+    AltIds = CollectionProperty(type = NMS_NMSString0x10_Properties)
+    Cost = IntProperty(name = "Cost")
+    Repeat = BoolProperty(name = "Repeat")
+    RequiredTech = StringProperty(name = "RequiredTech")
+
+class NMS_GcStatsEnum_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcStatsEnum """
+    Stat = EnumProperty(name = "Stat",
+                        items = [("None", "None", "None")])     # gonna need to check this...
+
+class NMS_GcDiscoveryTypes_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcDiscoveryTypes """
+    DiscoveryType = EnumProperty(name = "DiscoveryType",
+                                 items = [("Unknown", "Unknown", "Unknown"),
+                                          ("SolarSystem", "SolarSystem", "SolarSystem"),
+                                          ("Planet", "Planet", "Planet"),
+                                          ("Animal", "Animal", "Animal"),
+                                          ("Flora", "Flora", "Flora"),
+                                          ("Mineral", "Mineral", "Mineral"),
+                                          ("Sector", "Sector", "Sector"),
+                                          ("Building", "Building", "Building"),
+                                          ("Interactable", "Interactable", "Interactable"),
+                                          ("Sentinel" , "Sentinel" , "Sentinel")])
+
+
+class NMS_GcBaseBuildingTriggerAction_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcBaseBuildingTriggerAction """
+    ID = StringProperty(name = "ID")
+    TimeDelay = IntProperty(name = "TimeDelay")
+
 class NMS_GcSimpleInteractionComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for GcSimpleInteractionComponentData """
     SimpleInteractionType = EnumProperty(name = "SimpleInteractionType",
@@ -241,63 +273,7 @@ class NMS_GcSimpleInteractionComponentData_Properties(bpy.types.PropertyGroup):
     ScanIcon = PointerProperty(type = NMS_GcDiscoveryTypes_Properties)
     BaseBuildingTriggerActions = CollectionProperty(type = NMS_GcBaseBuildingTriggerAction_Properties)
 
-class NMS_GcSizeIndicator_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcSizeIndicator """
-
-    SizeIndicator = EnumProperty(name = "SizeIndicator",
-                                 items = [("Small", "Small", "Small"),
-                                          ("Medium", "Medium", "Medium"),
-                                          ("Large" , "Large" , "Large" )])
-
-class NMS_NMSString0x10_Properties(bpy.types.PropertyGroup):
-    """ Properties for NMSString0x10 """
-
-    Value = StringProperty(name = "Value", maxlen = 0x10)
-
-class NMS_GcInteractionActivationCost_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcInteractionActivationCost """
-
-    SubstanceId = StringProperty(name = "SubstanceId")
-    AltIds = CollectionProperty(type = NMS_NMSString0x10_Properties)
-    Cost = IntProperty(name = "Cost")
-    Repeat = BoolProperty(name = "Repeat")
-    RequiredTech = StringProperty(name = "RequiredTech")
-
-class NMS_GcStatsEnum_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcStatsEnum """
-
-    Stat = EnumProperty(name = "Stat",
-                        items = [("None", "None", "None")])     # gonna need to check this...
-
-class NMS_GcDiscoveryTypes_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcDiscoveryTypes """
-
-    DiscoveryType = EnumProperty(name = "DiscoveryType",
-                                 items = [("Unknown", "Unknown", "Unknown"),
-                                          ("SolarSystem", "SolarSystem", "SolarSystem"),
-                                          ("Planet", "Planet", "Planet"),
-                                          ("Animal", "Animal", "Animal"),
-                                          ("Flora", "Flora", "Flora"),
-                                          ("Mineral", "Mineral", "Mineral"),
-                                          ("Sector", "Sector", "Sector"),
-                                          ("Building", "Building", "Building"),
-                                          ("Interactable", "Interactable", "Interactable"),
-                                          ("Sentinel" , "Sentinel" , "Sentinel" )])
-
-
-class NMS_GcBaseBuildingTriggerAction_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcBaseBuildingTriggerAction """
-
-    ID = StringProperty(name = "ID")
-    TimeDelay = IntProperty(name = "TimeDelay")
-
 # GcCustomInventoryComponentData related properties
-class NMS_GcCustomInventoryComponentData_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcCustomInventoryComponentData """
-    Size = StringProperty(name = "Size")
-    DesiredTechs = CollectionProperty(type = NMS_GcInventoryTechProbability_Properties)
-    Cool = BoolProperty(name = "Cool")
-    
 class NMS_GcInventoryTechProbability_Properties(bpy.types.PropertyGroup):
     """ Properties for GcInventoryTechProbability """
     Tech = StringProperty(name = "Tech")
@@ -307,15 +283,13 @@ class NMS_GcInventoryTechProbability_Properties(bpy.types.PropertyGroup):
                                                    ("Common", "Common", "Common"),
                                                    ("Always", "Always", "Always")])
 
-# GcAISpaceshipComponentData related properties
-class NMS_GcAISpaceshipComponentData_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcAISpaceshipComponentData """
-    Type = PointerProperty(type = NMS_GcAISpaceshipTypes_Properties)
-    Class = PointerProperty(type = NMS_GcSpaceshipClasses_Properties)
-    Axis = PointerProperty(type = NMS_GcPrimaryAxis_Properties)
-    Hangar = PointerProperty(type = NMS_TkTextureResource_Properties)
-    IsSpaceAnomaly = BoolProperty(name = "IsSpaceAnomaly")
-    
+class NMS_GcCustomInventoryComponentData_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcCustomInventoryComponentData """
+    Size = StringProperty(name = "Size")
+    DesiredTechs = CollectionProperty(type = NMS_GcInventoryTechProbability_Properties)
+    Cool = BoolProperty(name = "Cool")
+
+# GcAISpaceshipComponentData related properties    
 class NMS_GcAISpaceshipTypes_Properties(bpy.types.PropertyGroup):
     """ Properties for GcAISpaceshipTypes """
     ShipType = EnumProperty(name = "ShipType",
@@ -342,37 +316,31 @@ class NMS_GcPrimaryAxis_Properties(bpy.types.PropertyGroup):
                                items = [("Z", "Z", "Z"),
                                         ("ZNeg", "ZNeg", "ZNeg")])
 
+class NMS_GcAISpaceshipComponentData_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcAISpaceshipComponentData """
+    Type = PointerProperty(type = NMS_GcAISpaceshipTypes_Properties)
+    Class = PointerProperty(type = NMS_GcSpaceshipClasses_Properties)
+    Axis = PointerProperty(type = NMS_GcPrimaryAxis_Properties)
+    Hangar = PointerProperty(type = NMS_TkTextureResource_Properties)
+    IsSpaceAnomaly = BoolProperty(name = "IsSpaceAnomaly")
+
 # TkAudioComponentData related properties
-class NMS_TkAudioComponentData_Properties(bpy.types.PropertyGroup):
-    """ Properties for TkAudioComponentData """
-    Ambient = StringProperty(name = "Ambient")
-    MaxDistance = IntProperty(name = "MaxDistance")
-    AnimTriggers = CollectionProperty(type = NMS_TkAudioAnimTrigger_Properties)
-    
 class NMS_TkAudioAnimTrigger_Properties(bpy.types.PropertyGroup):
     """ Properties for TkAudioAnimTrigger """
     Sound = StringProperty(name = "Sound")
     Anim = StringProperty(name = "Anim")
     FrameStart = IntProperty(name = "FrameStart")
+    
+class NMS_TkAudioComponentData_Properties(bpy.types.PropertyGroup):
+    """ Properties for TkAudioComponentData """
+    Ambient = StringProperty(name = "Ambient")
+    MaxDistance = IntProperty(name = "MaxDistance")
+    AnimTriggers = CollectionProperty(type = NMS_TkAudioAnimTrigger_Properties)
 
 # GcEncyclopediaComponentData related properties
 class NMS_GcEncyclopediaComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for GcEncyclopediaComponentData """
     Type = PointerProperty(type = NMS_GcDiscoveryTypes_Properties)
-    
-class NMS_GcDiscoveryTypes_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcDiscoveryTypes """
-    DiscoveryType = EnumProperty(name = "DiscoveryType",
-                                 items = [("Unknown", "Unknown", "Unknown"),
-                                          ("SolarSystem", "SolarSystem", "SolarSystem"),
-                                          ("Planet", "Planet", "Planet"),
-                                          ("Animal", "Animal", "Animal"),
-                                          ("Flora", "Flora", "Flora"),
-                                          ("Mineral", "Mineral", "Mineral"),
-                                          ("Sector", "Sector", "Sector"),
-                                          ("Building", "Building", "Building"),
-                                          ("Interactable", "Interactable", "Interactable"),
-                                          ("Sentinel", "Sentinel", "Sentinel")])
 
 # GcEncounterComponentData related properties
 class NMS_GcEncounterComponentData_Properties(bpy.types.PropertyGroup):
@@ -400,35 +368,7 @@ class NMS_GcSpaceshipComponentData_Properties(bpy.types.PropertyGroup):
     FoVFixedDistance = FloatProperty(name = "FoVFixedDistance")
     WheelModel = StringProperty(name = "WheelModel")
 
-# GcInteractionComponentData realted properties
-class NMS_GcInteractionComponentData_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcInteractionComponentData """
-    InteractionAction = EnumProperty(name = "InteractionAction",
-                                     items = [("PressButton", "PressButton", "PressButton"),
-                                              ("HoldButton", "HoldButton", "HoldButton"),
-                                              ("Shoot", "Shoot", "Shoot")])
-    InteractionType = PointerProperty(type = NMS_GcInteractionType_Properties)
-    Renderer = PointerProperty(type = NMS_TkModelRendererData_Properties)
-    Race = PointerProperty(type = NMS_GcAlienRace_Properties)
-    AttractDistanceSq = FloatProperty(name = "AttractDistanceSq")
-    RepeatInteraction = BoolProperty(name = "RepeatInteraction")
-    UseInteractCamera = BoolProperty(name = "UseInteractCamera")
-    BlendToCameraTime = FloatProperty(name = "BlendToCameraTime")
-    BlendFromCameraTime = FloatProperty(name = "BlendFromCameraTime")
-    ActivationCost = PointerProperty(type = NMS_GcInteractionActivationCost_Properties)
-    TriggerAction = StringProperty(name = "TriggerAction", maxlen = 0x10)
-    BroadcastTriggerAction = BoolProperty(name = "BroadcastTriggerAction")
-    InteractAngle = FloatProperty(name = "InteractAngle")
-    InteractDistance = FloatProperty(name = "InteractDistance")
-    InteractInvertFace = BoolProperty(name = "InteractInvertFace")
-    SecondaryInteractionType = PointerProperty(type = NMS_GcInteractionType_Properties)
-    SecondaryActivationCost = PointerProperty(type = NMS_GcInteractionActivationCost_Properties)
-    EventRenderers = CollectionProperty(type = NMS_TkModelRendererData_Properties)
-    SecondaryCameraTransitionTime = FloatProperty(name = "SecondaryCameraTransitionTime")
-    DoInteractionsInOrder = BoolProperty(name = "DoInteractionsInOrder")
-    DepthOfField = PointerProperty(type = NMS_GcInteractionDof_Properties)
-    PuzzleMissionOverrideTable = CollectionProperty(type = NMS_GcAlienPuzzleMissionOverride_Properties)
-    
+# GcInteractionComponentData realted properties    
 class NMS_GcInteractionType_Properties(bpy.types.PropertyGroup):
     """ Properties for GcInteractionType """
     InteractionType = EnumProperty(name = "InteractionType",
@@ -545,12 +485,6 @@ class NMS_GcAlienRace_Properties(bpy.types.PropertyGroup):
                                       ("Diplomats", "Diplomats", "Diplomats"),
                                       ("None", "None", "None")])
 
-class NMS_TkCameraWanderData_Properties(bpy.types.PropertyGroup):
-    """ Properties for TkCameraWanderData """
-    CamWander = BoolProperty(name = "CamWander")
-    CamWanderPhase = FloatProperty(name = "CamWanderPhase")
-    CamWanderAmplitude = FloatProperty(name = "CamWanderAmplitude")
-
 class NMS_GcInteractionDof_Properties(bpy.types.PropertyGroup):
     """ Properties for GcInteractionDof """
     IsEnabled = BoolProperty(name = "IsEnabled")
@@ -564,6 +498,34 @@ class NMS_GcAlienPuzzleMissionOverride_Properties(bpy.types.PropertyGroup):
     """ Properties for GcAlienPuzzleMissionOverride """
     Mission = StringProperty(name = "Mission")
     Puzzle = StringProperty(name = "Puzzle")
+
+class NMS_GcInteractionComponentData_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcInteractionComponentData """
+    InteractionAction = EnumProperty(name = "InteractionAction",
+                                     items = [("PressButton", "PressButton", "PressButton"),
+                                              ("HoldButton", "HoldButton", "HoldButton"),
+                                              ("Shoot", "Shoot", "Shoot")])
+    InteractionType = PointerProperty(type = NMS_GcInteractionType_Properties)
+    Renderer = PointerProperty(type = NMS_TkModelRendererData_Properties)
+    Race = PointerProperty(type = NMS_GcAlienRace_Properties)
+    AttractDistanceSq = FloatProperty(name = "AttractDistanceSq")
+    RepeatInteraction = BoolProperty(name = "RepeatInteraction")
+    UseInteractCamera = BoolProperty(name = "UseInteractCamera")
+    BlendToCameraTime = FloatProperty(name = "BlendToCameraTime")
+    BlendFromCameraTime = FloatProperty(name = "BlendFromCameraTime")
+    ActivationCost = PointerProperty(type = NMS_GcInteractionActivationCost_Properties)
+    TriggerAction = StringProperty(name = "TriggerAction", maxlen = 0x10)
+    BroadcastTriggerAction = BoolProperty(name = "BroadcastTriggerAction")
+    InteractAngle = FloatProperty(name = "InteractAngle")
+    InteractDistance = FloatProperty(name = "InteractDistance")
+    InteractInvertFace = BoolProperty(name = "InteractInvertFace")
+    SecondaryInteractionType = PointerProperty(type = NMS_GcInteractionType_Properties)
+    SecondaryActivationCost = PointerProperty(type = NMS_GcInteractionActivationCost_Properties)
+    EventRenderers = CollectionProperty(type = NMS_TkModelRendererData_Properties)
+    SecondaryCameraTransitionTime = FloatProperty(name = "SecondaryCameraTransitionTime")
+    DoInteractionsInOrder = BoolProperty(name = "DoInteractionsInOrder")
+    DepthOfField = PointerProperty(type = NMS_GcInteractionDof_Properties)
+    PuzzleMissionOverrideTable = CollectionProperty(type = NMS_GcAlienPuzzleMissionOverride_Properties)
 
 ## miscellaneous functions
 
