@@ -59,9 +59,10 @@ class TkGeometryData(Struct):
         curr_offset = 0xF0      # starting offset. When we don't have 
 
         list_data = []
-
-        if self.data['IndexCount'] %2 != 0:
+        
+        if self.data['IndexCount'] %2 != 0 or self.data['IndexCount'] > 32767:
             # in this case we have an odd number of verts. set the Indices16Bit value to be 0
+            # or we have too many verts to pack it using a half...
             self.data['Indices16Bit'] = 0
 
         Indices16Bit = self.data['Indices16Bit']

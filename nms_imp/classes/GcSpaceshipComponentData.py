@@ -11,13 +11,13 @@ class GcSpaceshipComponentData(Struct):
 
         """ Contents of the struct """
         self.data['ShipClass'] = kwargs.get('ShipClass', GcSpaceshipClasses())
-        self.data['Cockpit'] = kwargs.get('Cockpit', "MODELS/COMMON/SPACECRAFT/SCIENTIFIC/INTERIORS/CANOPYA_INTERIOR.SCENE.MBIN")
-        self.data['MaxHeadTurn'] = kwargs.get('MaxHeadTurn', 12)
-        self.data['MaxHeadPitchUp'] = kwargs.get('MaxHeadPitchUp', 15)
-        self.data['MaxHeadPitchDown'] = kwargs.get('MaxHeadPitchDown', 10)
-        self.data['BaseHealth'] = kwargs.get('BaseHealth', 4)
-        self.data['FoVFixedDistance'] = kwargs.get('FoVFixedDistance', 1.5)
-        self.data['WheelModel'] = kwargs.get('WheelModel', "")
+        self.data['Cockpit'] = kwargs.get('Cockpit', '')
+        self.data['MaxHeadTurn'] = kwargs.get('MaxHeadTurn', 0)
+        self.data['MaxHeadPitchUp'] = kwargs.get('MaxHeadPitchUp', 0)
+        self.data['MaxHeadPitchDown'] = kwargs.get('MaxHeadPitchDown', 0)
+        self.data['BaseHealth'] = kwargs.get('BaseHealth', 0)
+        self.data['FoVFixedDistance'] = kwargs.get('FoVFixedDistance', 0)
+        self.data['WheelModel'] = kwargs.get('WheelModel', '')
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something

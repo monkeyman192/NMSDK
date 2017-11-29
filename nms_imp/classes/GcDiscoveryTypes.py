@@ -1,15 +1,15 @@
-# GcSpaceshipClasses struct
+# GcDiscoveryTypes struct
 
 from .Struct import Struct
 
-STRUCTNAME = 'GcSpaceshipClasses'
+STRUCTNAME = 'GcDiscoveryTypes'
 
-class GcSpaceshipClasses(Struct):
+class GcDiscoveryTypes(Struct):
     def __init__(self, **kwargs):
-        super(GcSpaceshipClasses, self).__init__()
+        super(GcDiscoveryTypes, self).__init__()
 
         """ Contents of the struct """
-        self.data['ShipClass'] = kwargs.get('ShipClass', "Freighter")
+        self.data['DiscoveryType'] = kwargs.get('DiscoveryType', "Unknown")
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something

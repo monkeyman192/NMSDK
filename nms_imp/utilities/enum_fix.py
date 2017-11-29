@@ -5,7 +5,7 @@
 """ '"Default", "Terrain", "Substance", "Rock", "Asteroid", "Shield", "Creature", "Robot", "Freighter", "Cargo", "Ship", "Plant"' """
 # ie. enter list as comma separated values
 
-data = '"Default", "Terrain", "Substance", "Rock", "Asteroid", "Shield", "Creature", "Robot", "Freighter", "Cargo", "Ship", "Plant"'
+data = '"Traders", "Warriors", "Explorers", "Robots", "Atlas", "Diplomats", "None"'
 
 for val in data.split(','):
     print('({0}, {0}, {0}),'.format(val.lstrip(' ')))
