@@ -75,7 +75,7 @@ class Object():
 
     def populate_entitylist(self, obj):
         if self.Parent is not None:
-            self.Parent.populate_endtitylist(ob)
+            self.Parent.populate_entitylist(obj)
         else:
             self.ListOfEntities.append(obj)
             

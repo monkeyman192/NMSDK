@@ -191,22 +191,20 @@ def apply_local_transforms(rotmat, verts, norms, tangents, create_tangents = Fal
 
 def transform_to_NMS_coords(ob):
     # this will return the local transform, rotation and scale of the object in the NMS coordinate system
-    matrix = ob.matrix_local
-    """if ob.parent.name == 'NMS_SCENE':
-        yzmat = Matrix.Rotation(radians(-90), 4, 'X')
-        yzmat = Matrix()
-        yzmat[0] = Vector((1.0, 0.0, 0.0, 0.0))
-        yzmat[1] = Vector((0.0, 0.0, -1.0, 0.0))
-        yzmat[2] = Vector((0.0, 1.0, 0.0, 0.0))
-        yzmat[3] = Vector((0.0, 0.0, 0.0, 1.0))
-    else:"""
-    yzmat = Matrix()
-    yzmat[0] = Vector((1.0, 0.0, 0.0, 0.0))
-    yzmat[1] = Vector((0.0, 1.0, 0.0, 0.0))
-    yzmat[2] = Vector((0.0, 0.0, 1.0, 0.0))
-    yzmat[3] = Vector((0.0, 0.0, 0.0, 1.0))
     
-    return (yzmat * ob.matrix_local * yzmat).decompose()
+    M = Matrix()
+    M[0] = Vector((1.0, 0.0, 0.0, 0.0))
+    M[1] = Vector((0.0, 0.0, 1.0, 0.0))
+    M[2] = Vector((0.0, -1.0, 0.0, 0.0))
+    M[3] = Vector((0.0, 0.0, 0.0, 1.0))
+
+    Minv = Matrix()
+    Minv[0] = Vector((1.0, 0.0, 0.0, 0.0))
+    Minv[1] = Vector((0.0, 0.0, -1.0, 0.0))
+    Minv[2] = Vector((0.0, 1.0, 0.0, 0.0))
+    Minv[3] = Vector((0.0, 0.0, 0.0, 1.0))
+
+    return (M*ob.matrix_local*Minv).decompose()
 
 """ Main exporter class with all the other functions contained in one place """
 
@@ -218,7 +216,12 @@ class Exporter():
         self.global_scene.frame_set(0)      # set the frame to be the first one, just in case an export has already been run
         self.mname = os.path.basename(exportpath)
 
-        self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
+        #self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
+        """self.blend_to_NMS_mat = Matrix()
+        self.blend_to_NMS_mat[0] = Vector((1.0, 0.0, 0.0, 0.0))
+        self.blend_to_NMS_mat[1] = Vector((0.0, 0.0, 1.0, 0.0))
+        self.blend_to_NMS_mat[2] = Vector((0.0, -1.0, 0.0, 0.0))
+        self.blend_to_NMS_mat[3] = Vector((0.0, 0.0, 0.0, 1.0))"""
 
         self.state = None
         
@@ -252,11 +255,11 @@ class Exporter():
         # then select and activate the NMS_SCENE object
         self.select_only(self.NMSScene)
 
-        # apply rotation to entire model
+        """# apply rotation to entire model
         self.global_scene.objects.active = self.NMSScene
         self.NMSScene.matrix_world = self.blend_to_NMS_mat*self.NMSScene.matrix_world
         # apply rotation to all child nodes
-        self.rotate_all(self.NMSScene)
+        self.rotate_all(self.NMSScene)"""
 
         # check whether or not we will be exporting in batch mode
         if self.NMSScene.NMSScene_props.batch_mode:
@@ -349,12 +352,12 @@ class Exporter():
                             anim,
                             **commands)
                 
-        # undo rotation
+        """# undo rotation
         self.select_only(self.NMSScene)
         self.global_scene.objects.active = self.NMSScene
         self.NMSScene.matrix_world = self.blend_to_NMS_mat.inverted()*self.NMSScene.matrix_world
         # apply rotation to all child nodes
-        self.rotate_all(self.NMSScene)
+        self.rotate_all(self.NMSScene)"""
 
         self.global_scene.frame_set(0)
         
@@ -565,6 +568,7 @@ class Exporter():
         # Matrices
         #object_matrix_wrld = ob.matrix_world
         #rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
+        #ob.matrix_world = rot_x_mat*ob.matrix_world
         #scale_mat = Matrix.Scale(1, 4)
         #norm_mat = rot_x_mat.inverted().transposed()
         
@@ -603,7 +607,7 @@ class Exporter():
                 
                 #norm =    100 * norm_mat * data.loops[f.vertices[vert]].normal
                 #tangent = 100 * norm_mat * data.loops[f.vertices[vert]].tangent
-                verts.append((co[0], co[1], co[2], 1.0)) #Invert YZ to match NMS game coords
+                verts.append((co[0], co[2], -co[1], 1.0)) #Invert YZ to match NMS game coords
                 norms.append((norm[0], norm[1], norm[2], 1.0))
                 #tangents.append((tangent[0], tangent[1], tangent[2], 0.0))
 
@@ -636,10 +640,12 @@ class Exporter():
         del ch
         del bm
         bpy.ops.object.mode_set(mode = 'OBJECT')
+
+        #ob.matrix_world = rot_x_mat.inverted()*ob.matrix_world
         
         
         #Apply rotation and normal matrices on vertices and normal vectors
-        """apply_local_transforms(rot_x_mat, verts, norms, tangents, create_tangents = ob.NMSMesh_props.create_tangents)"""
+        #apply_local_transforms(rot_x_mat, verts, norms, tangents, create_tangents = self.NMSScene.NMSScene_props.create_tangents)
         
         return verts, norms, tangents, luvs, faces, chverts
 
@@ -686,7 +692,7 @@ class Exporter():
         #bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
 
         # get the objects' location and convert to NMS coordinates
-        trans, rot_q, scale = ob.matrix_local.decompose()#transform_to_NMS_coords(ob)
+        trans, rot_q, scale = transform_to_NMS_coords(ob) #ob.matrix_local.decompose()
         rot = rot_q.to_euler()
         print(trans)
         print(rot)
@@ -746,7 +752,16 @@ class Exporter():
             
             optdict = {}
             optdict['Name'] = self.scene_directory
-            optdict['Transform'] = transform
+            # do a slightly modified transform data as we want the scale to always be (1,1,1)
+            optdict['Transform'] = TkTransformData(TransX=trans[0],
+                                   TransY=trans[1],
+                                   TransZ=trans[2],
+                                   RotX=degrees(rot[0]),
+                                   RotY=degrees(rot[1]),
+                                   RotZ=degrees(rot[2]),
+                                   ScaleX=1,
+                                   ScaleY=1,
+                                   ScaleZ=1)
             optdict['CollisionType'] = colType
             
             if (colType == "Mesh"):
@@ -763,14 +778,14 @@ class Exporter():
                 self.CollisionIndexCount += len(c_faces)        # I think?
             #HANDLE Primitives
             elif (colType == "Box"):
-                optdict['Width']  = ob.dimensions[0]
-                optdict['Depth']  = ob.dimensions[1]
-                optdict['Height'] = ob.dimensions[2]
+                optdict['Width']  = 2*scale[0]
+                optdict['Depth']  = 2*scale[2]
+                optdict['Height'] = 2*scale[1]
             elif (colType == "Sphere"):
-                optdict['Radius'] = ob.dimensions[0] / 2.0
+                optdict['Radius'] = scale[0]
             elif (colType == "Cylinder"):
-                optdict['Radius'] = ob.dimensions[0] / 2.0
-                optdict['Height'] = ob.dimensions[2]
+                optdict['Radius'] = scale[0]
+                optdict['Height'] = 2*scale[1]
             else:
                 raise Exception("Unsupported Collision")
             
@@ -895,7 +910,7 @@ class Exporter():
                 for jnt_action in self.animation_anim_data[anim_name]:
                     name = jnt_action[0]        # name of the joint that is animated
                     ob = self.global_scene.objects[name]
-                    trans, rot_q, scale = ob.matrix_local.decompose()#transform_to_NMS_coords(ob)
+                    trans, rot_q, scale = transform_to_NMS_coords(ob)   # ob.matrix_local.decompose()
                     action_data[name].append((trans, rot_q, scale))      # this is the anim_data that will be processed later
             # add all the animation data to the anim frame data for the particular action
             self.anim_frame_data[anim_name] = action_data
