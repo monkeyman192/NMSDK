@@ -7,6 +7,7 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, F
 
 class NMSNodeProperties(bpy.types.PropertyGroup):
     """ Properties for the NMS Nodes """
+    # is the is_NMS_node needed??? (don't think so... flag for deletion...)
     is_NMS_node = BoolProperty(name = "Is NMS Node?",
                                description = "Enable if the object is a node in the scene file",
                                default = True)
@@ -18,6 +19,8 @@ class NMSNodeProperties(bpy.types.PropertyGroup):
                                        ("Reference", "Reference", "Node used to allow other scenes to be placed at this point in space"),
                                        ("Joint", "Joint", "Node used primarily for animations. All meshes that are to be animated MUST be a direct child of a joint object"),
                                        ("Light", "Light", "Light that will emit light of a certain colour")])
+    override_name = StringProperty(name = "Override name",
+                                   description = "A name to be used to override the name given from blender. This should be used with caution and sparingly. Only use if you require multiple nodes in the scene to have the same name. Will not work for Collisions.")
 
 class NMSMeshProperties(bpy.types.PropertyGroup):
     has_entity = BoolProperty(name = "Requires Entity",
@@ -71,6 +74,9 @@ class NMSSceneProperties(bpy.types.PropertyGroup):
     AT_only = BoolProperty(name = "ActionTriggers Only",
                            description = "If this box is ticked, all the action trigger data will be exported directly to an ENTITY file in the specified location with the project name. Anything else in the project is ignored",
                            default = False)
+    is_proc = BoolProperty(name = "Is a proc-gen scene?",
+                           description = "If checked, then a new panel will appear that can be used to describe the proc-gen nature of the scene",
+                           default = False)
 
 class NMSCollisionProperties(bpy.types.PropertyGroup):
     collision_types = EnumProperty(name = "Collision Types",
@@ -79,6 +85,19 @@ class NMSCollisionProperties(bpy.types.PropertyGroup):
                                             ("Box", "Box", "Box (rectangular prism collision"),
                                             ("Sphere", "Sphere", "Spherical collision"),
                                             ("Cylinder", "Cylinder", "Cylindrical collision")])
+    transform_type = EnumProperty(name = "Scale Transform",
+                                  description = "Whether or not to use the transform data, or the dimensions of the primitive",
+                                  items = [("Transform", "Transform", "Use Scale transform data"),
+                                           ("Dimensions", "Dimensions", "Use the inherent object dimensions (will also retain the transform data in the scene)")])
+
+class NMSDescriptorProperties(bpy.types.PropertyGroup):
+    choice_types = EnumProperty(name = "Proc type",
+                               description = "Whether or not to have the model always eselected, or randomly selected.",
+                               items = [("Always" , "Always" , "Node is always rendered (provided parents are rendered)"),
+                                        ("Random", "Random", "Node is randomly selected out of all others in the same hierarchy")])
+    proc_prefix = StringProperty(name = "Proc prefix",
+                                 description = "The prefix to put in front of the part name to indicate what procedural rule to be grouped with.")
+    
 
 """ Various panels for each of the property types """
 
@@ -102,6 +121,8 @@ class NMSNodePropertyPanel(bpy.types.Panel):
         obj = context.object
         row = layout.row()
         row.prop(obj.NMSNode_props, "node_types", expand=True)
+        row = layout.row()
+        row.prop(obj.NMSNode_props, "override_name")
 
 class NMSReferencePropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
@@ -258,6 +279,8 @@ class NMSCollisionPropertyPanel(bpy.types.Panel):
         obj = context.object
         row = layout.row()
         row.prop(obj.NMSCollision_props, "collision_types", expand=True)
+        row = layout.row()
+        row.prop(obj.NMSCollision_props, "transform_type", expand=True)
 
 class NMSScenePropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
@@ -288,6 +311,39 @@ class NMSScenePropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSScene_props, "dont_compile")
         row = layout.row()
         row.prop(obj.NMSScene_props, "AT_only")
+        row = layout.row()
+        row.prop(obj.NMSScene_props, "is_proc")
+
+class NMSDescriptorPropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Descriptor Properties"
+    bl_idname = "OBJECT_PT_descriptor_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            if (context.object.name.startswith("NMS")
+                and (context.object.NMSNode_props.node_types == 'Mesh' or
+                     context.object.NMSNode_props.node_types == "Locator" or
+                     context.object.NMSNode_props.node_types == "Reference")
+                and bpy.context.scene.objects['NMS_SCENE'].NMSScene_props.is_proc == True
+                and not context.object == bpy.context.scene.objects['NMS_SCENE']):
+                return True
+            else:
+                return False
+        except:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSDescriptor_props, "choice_types", expand=False)
+        row = layout.row()
+        row.prop(obj.NMSDescriptor_props, "proc_prefix")
 
 class NMSPanels():
     @staticmethod
@@ -302,6 +358,7 @@ class NMSPanels():
         bpy.utils.register_class(NMSRotationProperties)
         bpy.utils.register_class(NMSAnimationProperties)
         bpy.utils.register_class(NMSCollisionProperties)
+        bpy.utils.register_class(NMSDescriptorProperties)
         # link the properties with the objects' internal variables
         bpy.types.Object.NMSNode_props = bpy.props.PointerProperty(type=NMSNodeProperties)
         bpy.types.Object.NMSScene_props = bpy.props.PointerProperty(type=NMSSceneProperties)
@@ -312,6 +369,7 @@ class NMSPanels():
         bpy.types.Object.NMSLight_props = bpy.props.PointerProperty(type=NMSLightProperties)
         bpy.types.Object.NMSAnimation_props = bpy.props.PointerProperty(type=NMSAnimationProperties)
         bpy.types.Object.NMSCollision_props = bpy.props.PointerProperty(type=NMSCollisionProperties)
+        bpy.types.Object.NMSDescriptor_props = bpy.props.PointerProperty(type=NMSDescriptorProperties)
         # register the panels
         bpy.utils.register_class(NMSScenePropertyPanel)
         bpy.utils.register_class(NMSNodePropertyPanel)
@@ -322,6 +380,7 @@ class NMSPanels():
         bpy.utils.register_class(NMSLightPropertyPanel)
         bpy.utils.register_class(NMSAnimationPropertyPanel)
         bpy.utils.register_class(NMSCollisionPropertyPanel)
+        bpy.utils.register_class(NMSDescriptorPropertyPanel)
 
     @staticmethod
     def unregister():
@@ -335,6 +394,7 @@ class NMSPanels():
         bpy.utils.unregister_class(NMSLightProperties)
         bpy.utils.unregister_class(NMSAnimationProperties)
         bpy.utils.unregister_class(NMSCollisionProperties)
+        bpy.utils.unregister_class(NMSDescriptorProperties)
         # delete the properties from the objects
         del bpy.types.Object.NMSNode_props
         del bpy.types.Object.NMSScene_props
@@ -345,6 +405,7 @@ class NMSPanels():
         del bpy.types.Object.NMSLight_props
         del bpy.types.Object.NMSAnimation_props
         del bpy.types.Object.NMSCollision_props
+        del bpy.types.Object.NMSDescriptor_props
         # unregister the panels
         bpy.utils.unregister_class(NMSScenePropertyPanel)
         bpy.utils.unregister_class(NMSNodePropertyPanel)
@@ -355,3 +416,4 @@ class NMSPanels():
         bpy.utils.unregister_class(NMSLightPropertyPanel)
         bpy.utils.unregister_class(NMSAnimationPropertyPanel)
         bpy.utils.unregister_class(NMSCollisionPropertyPanel)
+        bpy.utils.unregister_class(NMSDescriptorPropertyPanel)

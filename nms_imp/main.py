@@ -27,8 +27,13 @@ def traverse(obj):
     else:
         yield obj
 
+# simple function to take a list and move the entry at the ith index to the first place
+def movetofront(lst, i):
+    k = lst.pop(i)          # this will break if i > len(lst)...
+    return [k] + lst
+
 class Create_Data():
-    def __init__(self, name, directory, model, anim_data = dict(), **commands):
+    def __init__(self, name, directory, model, anim_data = dict(), descriptor = None, **commands):
 
         """
         name - the name of the file we want to create. Most entities  within will have a name derived from this.
@@ -41,6 +46,7 @@ class Create_Data():
         self.directory = directory        # the path that the file is supposed to be located at
         self.Model = model                  # this is the main model file for the entire scene.
         self.anim_data = anim_data          # animation data (defaults to None)
+        self.descriptor = descriptor
 
         self.fix_names()
 
@@ -113,6 +119,7 @@ class Create_Data():
         self.Model.construct_data()
         self.TkSceneNodeData = self.Model.get_data()
         self.TkSceneNodeData.make_elements(main=True)         # get the model to create all the required data and this will continue on down the tree
+        self.descriptor.make_elements(main = True)
         for material in self.materials:
             if type(material) != str:
                 material.make_elements(main=True)
@@ -160,6 +167,16 @@ class Create_Data():
         self.v_stream_lens = list()
         self.ch_stream_lens = list()
 
+        # to fix 1.3x mesh collisions, we need to make all the mesh collisions have their indexes first
+        # we require a mapping to know which is which though
+        self.index_mapping = list(range(len(self.Model.ListOfMeshes)))        # the unchanged mapping
+        for i in range(len(self.Model.ListOfMeshes)):
+            mesh = self.Model.ListOfMeshes[i]
+            if mesh._Type == 'COLLISION':
+                if mesh.CType == 'Mesh':
+                    self.index_mapping = movetofront(self.index_mapping, i)         # move the index it is now located at so we can construct it correctly in the scene
+        print(self.index_mapping, 'index_mapping')
+
         # populate the lists containing the lengths of each individual stream
         for index in range(self.num_mesh_objs):
             self.i_stream_lens.append(len(self.index_stream[index]))
@@ -175,12 +192,18 @@ class Create_Data():
         # This will do the main processing of the different streams.
         # indexes
         index_counts = list(3*x for x in self.i_stream_lens)    # the total number of index points in each object
-        self.batches = list((sum(index_counts[:i]), index_counts[i]) for i in range(self.num_mesh_objs))
+        print(index_counts, 'index counts')
+        # now, re-order the indexes:
+        new_index_counts = list(index_counts[self.index_mapping[i]] for i in range(len(index_counts)))
+        print(new_index_counts, 'new_index_counts')
+        # and sort out the batches
+        self.batches = list((sum(new_index_counts[:i]), new_index_counts[i]) for i in range(self.num_mesh_objs))
+        print(self.batches, 'batches')
         # vertices
         self.vert_bounds = list((sum(self.v_stream_lens[:i]), sum(self.v_stream_lens[:i+1])-1) for i in range(self.num_mesh_objs))
         # bounded hull data
-        self.hull_bounds = list((sum(self.ch_stream_lens[:i]), sum(self.ch_stream_lens[:i+1])-1) for i in range(self.num_mesh_objs))
-        print(self.hull_bounds)
+        self.hull_bounds = list((sum(self.ch_stream_lens[:i]), sum(self.ch_stream_lens[:i+1])) for i in range(self.num_mesh_objs))
+        print(self.hull_bounds, 'bound hulls')
 
         # CollisionIndexCount
         # go over all the meshes and add all the batches. Not sure if this can be optimised to be obtained earier... Probably...
@@ -189,7 +212,7 @@ class Create_Data():
             mesh = self.Model.ListOfMeshes[i]
             if mesh._Type == 'COLLISION':
                 if mesh.CType == 'Mesh':
-                    print(index_counts, sum(index_counts[:i]), index_counts[i])
+                    #print(index_counts, sum(index_counts[:i]), index_counts[i])
                     ColIndexCount += index_counts[i]
 
         # we need to fix up the index stream as the numbering needs to be continuous across all the streams
@@ -204,7 +227,15 @@ class Create_Data():
                     curr_max = local_max
             # now we set k to be the current max and this is added on to the next set.
             k = curr_max + 1
-                
+
+        #print(self.index_stream)
+        print('reshuffling indexes')
+        # now we need to re-shuffle the index data
+        new_index_data = list(range(self.num_mesh_objs))        # just fill with numbers for now, they will be overridden
+        for i in range(self.num_mesh_objs):
+            new_index_data[self.index_mapping[i]] = self.index_stream[i]
+        self.index_stream = new_index_data
+        #print(self.index_stream)
 
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = 3*sum(self.i_stream_lens)
@@ -237,8 +268,8 @@ class Create_Data():
 
                 data = dict()
 
-                data['BATCHSTART'] = self.batches[i][0]
-                data['BATCHCOUNT'] = self.batches[i][1]
+                data['BATCHSTART'] = self.batches[self.index_mapping[i]][0]
+                data['BATCHCOUNT'] = self.batches[self.index_mapping[i]][1]
                 data['VERTRSTART'] = self.vert_bounds[i][0]
                 data['VERTREND'] = self.vert_bounds[i][1]
                 data['BOUNDHULLST'] = self.hull_bounds[i][0]
@@ -278,7 +309,7 @@ class Create_Data():
                             # also write the entity file now too as we don't need to do anything else to it
                             AttachmentData.tree.write("{}.ENTITY.exml".format(ent_path))
                         else:
-                            data['ATTACHMENT'] = obj.EntityPath
+                            data = {'ATTACHMENT': obj.EntityPath}
                     else:
                         data = None
                 elif obj._Type == 'COLLISION':
@@ -305,6 +336,7 @@ class Create_Data():
         ElementCount = len(self.stream_list)
         for sID in self.stream_list:
             # sID is the SemanticID
+            # if sID in [0,1]:
             Offset = 8*self.stream_list.index(sID)
             VertexElements.append(TkVertexElement(SemanticID = sID,
                                                   Size = 4,
@@ -313,6 +345,17 @@ class Create_Data():
                                                   Normalise = 0,
                                                   Instancing = "PerVertex",
                                                   PlatformData = ""))
+            """ for the INT_2_10_10_10_REV stuff
+            elif sID in [2,3]:
+                Offset = 16 + (sID - 2)*4
+                VertexElements.append(TkVertexElement(SemanticID = sID,
+                                                      Size = 4,
+                                                      Type = 36255,
+                                                      Offset = Offset,
+                                                      Normalise = 0,
+                                                      Instancing = "PerVertex",
+                                                      PlatformData = ""))
+            """
         for sID in [0,1]:
             Offset = 8*sID
             SmallVertexElements.append(TkVertexElement(SemanticID = sID,
@@ -323,8 +366,9 @@ class Create_Data():
                                                   Instancing = "PerVertex",
                                                   PlatformData = ""))
         # fow now just make the small vert and vert layouts the same
+        """ Vertex layout needs to be changed for the new normals/tangent format"""
         self.GeometryData['VertexLayout'] = TkVertexLayout(ElementCount = ElementCount,
-                                                           Stride = 8*ElementCount,
+                                                           Stride = 8*ElementCount,     # this is 6* is normals and tangents, and 5* if just normals
                                                            PlatformData = "",
                                                            VertexElements = VertexElements)
         self.GeometryData['SmallVertexLayout'] = TkVertexLayout(ElementCount = 2,
@@ -413,6 +457,7 @@ class Create_Data():
         mbinc = mbinCompiler(self.TkGeometryData, "{}.GEOMETRY.MBIN.PC".format(self.path))
         mbinc.serialise()
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
+        self.descriptor.tree.write("{}.DESCRIPTOR.exml".format(self.path))
         for material in self.materials:
             if type(material) != str:
                 material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.path, str(material['Name']).upper())))
