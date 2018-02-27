@@ -36,6 +36,7 @@ if not scriptpath in sys.path:
     
     
 from main import Create_Data
+from helper_funcs import get_children       # will need to clean up if more functions are added...
 from classes import *
 from Descriptor import Node_List, Node_Data, Descriptor
 #from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData, TkRotationComponentData
@@ -88,22 +89,6 @@ def get_all_actions(obj):
         for track in obj.animation_data.nla_tracks:
             for strip in track.strips:
                 yield obj.name, obj.NMSAnimation_props.anim_name, strip.action
-
-def get_children(obj, curr_children, obj_types, just_names = False):
-    # return a flattened list of all the children of an object of a specified type.
-    # if just_name is True, then only return the names, otherwise return the actual objects themselves
-    if type(obj_types) == str:
-        obj_types = [obj_types]
-    # otherwise we'll just assume that it is a list of strings
-    for child in obj.children:
-        print(child.name, child.NMSNode_props.node_types)
-        if child.NMSNode_props.node_types in obj_types:
-            if just_names:
-                curr_children.append(child.name)
-            else:
-                curr_children.append(child)
-        curr_children += get_children(child, list(), obj_types, just_names)
-    return curr_children
 
 """ Misc. functions for transforming data """
 

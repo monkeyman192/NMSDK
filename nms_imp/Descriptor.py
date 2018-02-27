@@ -4,6 +4,7 @@ __author__ = "monkeyman192"
 
 from classes import *
 from collections import OrderedDict as odict
+from helper_funcs import get_children
 
 # might need these? although if this is called to create descriptors, probably not
 import os
@@ -90,6 +91,16 @@ class Node_Data():
     def to_exml(self):
         # first, we need to do some processing on the name.
         # if the name starts with the prefix, then we need to sort it out so that it is correct
+
+        def not_proc(ob):
+            # returns true if the object is not proc
+            # nest the if statements this way as subsequent of statements require the previous ones to be true
+            if ob.NMSDescriptor_props.proc_prefix == "":        # ie. not proc
+                if ob.NMSNode_props.node_types == "Reference":
+                    if ob.NMSReference_props.reference_path != "":
+                        return True
+            return False
+        
         prefix = self.obj.NMSDescriptor_props.proc_prefix.strip("_")
         stripped_name = self.obj.name[len("NMS_"):].upper()
         if stripped_name.strip('_').upper().startswith(prefix):
@@ -97,6 +108,17 @@ class Node_Data():
         else:
             # hopefully the user hasn't messed anything up...
             name = "_{0}_{1}".format(prefix, stripped_name.strip('_').upper())
+
+        # get the list off all children of self.obj that are ref nodes and aren't proc
+        non_proc_refs = get_children(self.obj, [], "Reference", not_proc)
+        additional_ref_paths = set()
+        for child in non_proc_refs:
+            additional_ref_paths.add(child.NMSReference_props.reference_path)
+
+        additional_refs = List()
+        for path in additional_ref_paths:
+            additional_refs.append(NMSString0x80(Value = path))
+        
         if self.obj.NMSNode_props.node_types == 'Reference':
             refs = List(NMSString0x80(Value = self.obj.NMSReference_props.reference_path))
         else:
@@ -104,11 +126,16 @@ class Node_Data():
         children = List()
         for child in self.children:
             children.append(child.to_exml())
+        # check how many children there are so we aren't making empty TkModelDescriptorList's for nothing
+        if len(children) == 0:
+            _children = List()
+        else:
+            _children = List(TkModelDescriptorList(List = children))
         return TkResourceDescriptorData(Id = name,
                                         Name = name,
-                                        ReferencePaths = refs,
+                                        ReferencePaths = refs + additional_refs,
                                         Chance = 0,
-                                        Children = List(TkModelDescriptorList(List = children)))
+                                        Children = _children)
             
 
 if __name__ == "__main__":

@@ -42,6 +42,10 @@ class List():
     def __iter__(self):
         return self
 
+    def __add__(self, other):
+        # add two lists together
+        return List(self.subElements + other.subElements)
+
     def __next__(self):
         if self.curr_index >= len(self):
             raise StopIteration
