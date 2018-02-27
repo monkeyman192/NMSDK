@@ -14,7 +14,12 @@ MATERIALFLAGS = ["_F01_DIFFUSEMAP", "_F02_SKINNED", "_F03_NORMALMAP", "_F04_", "
                  "_F56_", "_F57_", "_F58_", "_F59_", "_F60_",
                  "_F61_", "_F62_", "_F63_", "_F64_"]
 
-SEMANTICS = {0: 'vertex_stream',
-             1: 'uv_stream',
-             2: 'n_stream',
-             3: 't_stream'}
+SEMANTICS = {'Vertices': 0,
+             'UVs': 1,
+             'Normals': 2,
+             'Tangents': 3}
+
+REV_SEMANTICS = {0: 'Vertices',
+                 1: 'UVs',
+                 2: 'Normals',
+                 3: 'Tangents'}

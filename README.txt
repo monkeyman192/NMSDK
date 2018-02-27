@@ -1,13 +1,10 @@
-NMS Custom Model Importer - alpha
+NMS Custom Model Importer - "NMSDK"
 coded by monkeyman192 and gregkwaste
 
-Custom blender addon to export models from blender into a format that is compatible with No Man's Sky.
+This is a blender plugin and more!
+You can find install instructions in the NMSDK-tutorial word document.
+Please note that this isn't currently up to date, but will be soon.
 
-For a full guide on how to prepare models in blender for exporting read 'Blender Model Setup Guide.txt'
-For a full guide on how to add the exported model into No Man's Sky, read 'Adding Model to Mod Guide.txt'
+If you have any issues, please let me know.
 
-Any issues please check the Issues page here and we will attempt to fix them as soon as possible.
-
-At the moment this addon is limited to exporting static models with textures and collisions. Support will hopefully come in the future for more features!
-
-Enjoy!
+Also, we'd love it if you credited us if you use this tool in a mod! To let other people know it exists if they are interested in mking custom models themselves!

@@ -8,13 +8,12 @@ STRUCTNAME = 'TkAttachmentData'
 
 class TkAttachmentData(Struct):
     def __init__(self, **kwargs):
+        super(TkAttachmentData, self).__init__()
 
         """ Contents of the struct """
-        self.Components = kwargs.get('Components', List(TkPhysicsComponentData()))
+        self.data['Components'] = kwargs.get('Components', List(TkPhysicsComponentData()))
+        self.data['LodDistances'] = kwargs.get('LodDistances', [0, 50, 80, 150, 500])
         """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
 
         # Parent needed so that it can be a SubElement of something
         self.parent = None

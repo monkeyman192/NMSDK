@@ -1,21 +1,21 @@
 # TkVertexLayout struct
 
 from .Struct import Struct
+from .String import String
+from .List import List
 
 STRUCTNAME = 'TkVertexLayout'
 
 class TkVertexLayout(Struct):
     def __init__(self, **kwargs):
+        super(TkVertexLayout, self).__init__()
 
         """ Contents of the struct """
-        self.ElementCount = kwargs.get('ElementCount', None)
-        self.Stride = kwargs.get('Stride', None)
-        self.PlatformData = kwargs.get('PlatformData', None)
-        self.VertexElements = kwargs.get('VertexElements', None)
+        self.data['ElementCount'] = kwargs.get('ElementCount', 0)
+        self.data['Stride'] = kwargs.get('Stride', 0)
+        self.data['PlatformData'] = String(kwargs.get('PlatformData', ""), 0x8)
+        self.data['VertexElements'] = kwargs.get('VertexElements', List())
         """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
 
         # Parent needed so that it can be a SubElement of something
         self.parent = None

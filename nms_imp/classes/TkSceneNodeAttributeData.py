@@ -1,21 +1,20 @@
 # TkSceneNodeAttributeData struct
 
 from .Struct import Struct
+from .String import String
 
 STRUCTNAME = 'TkSceneNodeAttributeData'
 
 class TkSceneNodeAttributeData(Struct):
     def __init__(self, **kwargs):
+        super(TkSceneNodeAttributeData, self).__init__()
 
         """ Contents of the struct """
-        self.Name = kwargs.get('Name', None)
-        self.AltID = kwargs.get('AltID', "")
-        self.Value = kwargs.get('Value', None)
+        self.data['Name'] = String(kwargs.get('Name', ""), 0x10)
+        self.data['AltID'] = String(kwargs.get('AltID', ""), 0x10)
+        self.data['Value'] = String(kwargs.get('Value', ""), 0x100)
         """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
-
+                  
         # Parent needed so that it can be a SubElement of something
         self.parent = None
         self.STRUCTNAME = STRUCTNAME

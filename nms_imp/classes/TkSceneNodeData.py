@@ -1,22 +1,23 @@
 # TkSceneNodeData struct
 
 from .Struct import Struct
+from .String import String
+from .TkTransformData import TkTransformData
+from .List import List
 
 STRUCTNAME = 'TkSceneNodeData'
 
 class TkSceneNodeData(Struct):
     def __init__(self, **kwargs):
+        super(TkSceneNodeData, self).__init__()
 
         """ Contents of the struct """
-        self.Name = kwargs.get('Name', None)
-        self.Type = kwargs.get('Type', 'MODEL')
-        self.Transform = kwargs.get('Transform', None)
-        self.Attributes = kwargs.get('Attributes', None)
-        self.Children = kwargs.get('Children', None)
+        self.data['Name'] = String(kwargs.get('Name', ""), 0x80)
+        self.data['Type'] = String(kwargs.get('Type', 'MODEL'), 0x10)
+        self.data['Transform'] = kwargs.get('Transform', TkTransformData())
+        self.data['Attributes'] = kwargs.get('Attributes', List())
+        self.data['Children'] = kwargs.get('Children', List())
         """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
 
         # Parent needed so that it can be a SubElement of something
         self.parent = None

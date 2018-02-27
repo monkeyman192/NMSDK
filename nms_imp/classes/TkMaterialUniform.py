@@ -1,20 +1,21 @@
 # TkMaterialUniform struct
 
 from .Struct import Struct
+from .String import String
+from .Vector4f import Vector4f
+from .List import List
 
 STRUCTNAME = 'TkMaterialUniform'
 
 class TkMaterialUniform(Struct):
     def __init__(self, **kwargs):
+        super(TkMaterialUniform, self).__init__()
 
         """ Contents of the struct """
-        self.Name = kwargs.get('Name', None)
-        self.Values = kwargs.get('Values', None)
-        self.ExtendedValues = kwargs.get('ExtendedValues', None)
+        self.data['Name'] = String(kwargs.get('Name', None), 0x20)
+        self.data['Values'] = kwargs.get('Values', Vector4f())
+        self.data['ExtendedValues'] = kwargs.get('ExtendedValues', List())
         """ End of the struct contents"""
-
-        """ Run code to convert struct contents into self.data_dict """
-        self._create_dict()
 
         # Parent needed so that it can be a SubElement of something
         self.parent = None
