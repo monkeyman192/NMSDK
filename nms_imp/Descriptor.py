@@ -31,6 +31,9 @@ class Descriptor():
             out += str(child)
         return out
 
+    def __len__(self):
+        return len(self.children)
+
     def to_exml(self):
         main_data = List()
         for child in self.children:

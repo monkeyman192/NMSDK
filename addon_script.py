@@ -412,14 +412,14 @@ class Exporter():
             
             #Fetch Uniforms
             matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
-                                                 Values=Vector4f(x=mat.diffuse_color.r,
-                                                                 y=mat.diffuse_color.g,
-                                                                 z=mat.diffuse_color.b,
+                                                 Values=Vector4f(x=1.0,
+                                                                 y=1.0,
+                                                                 z=1.0,
                                                                  t=1.0)))
             matuniforms.append(TkMaterialUniform(Name="gMaterialParamsVec4",
-                                                 Values=Vector4f(x=0.0,
-                                                                 y=0.0,
-                                                                 z=0.0,
+                                                 Values=Vector4f(x=1.0,
+                                                                 y=0.5,
+                                                                 z=1.0,
                                                                  t=0.0)))
             matuniforms.append(TkMaterialUniform(Name="gMaterialSFXVec4",
                                                  Values=Vector4f(x=0.0,
@@ -487,6 +487,8 @@ class Exporter():
             sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, IsSRGB=False)
             matsamplers.append(sampl)
 
+            matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[24]))
+            matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[38]))
             matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[46]))
             
             #Create materialdata struct
@@ -593,7 +595,7 @@ class Exporter():
         
         print(descriptor_struct)
 
-        return descriptor_struct.to_exml()
+        return descriptor_struct
         
     #Main Mesh parser
     def mesh_parser(self, ob):

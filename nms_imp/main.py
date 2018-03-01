@@ -119,7 +119,11 @@ class Create_Data():
         self.Model.construct_data()
         self.TkSceneNodeData = self.Model.get_data()
         self.TkSceneNodeData.make_elements(main=True)         # get the model to create all the required data and this will continue on down the tree
-        self.descriptor.make_elements(main = True)
+        if len(self.descriptor) != 0:
+            self.descriptor = self.descriptor.to_exml()
+            self.descriptor.make_elements(main = True)
+        else:
+            self.descriptor = None
         for material in self.materials:
             if type(material) != str:
                 material.make_elements(main=True)
@@ -457,7 +461,8 @@ class Create_Data():
         mbinc = mbinCompiler(self.TkGeometryData, "{}.GEOMETRY.MBIN.PC".format(self.path))
         mbinc.serialise()
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
-        self.descriptor.tree.write("{}.DESCRIPTOR.exml".format(self.path))
+        if self.descriptor is not None:
+            self.descriptor.tree.write("{}.DESCRIPTOR.exml".format(self.path))
         for material in self.materials:
             if type(material) != str:
                 material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.path, str(material['Name']).upper())))
