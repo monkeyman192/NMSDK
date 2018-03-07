@@ -36,6 +36,7 @@ if not scriptpath in sys.path:
     
     
 from main import Create_Data
+from helper_funcs import get_children       # will need to clean up if more functions are added...
 from classes import *
 from Descriptor import Node_List, Node_Data, Descriptor
 #from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData, TkRotationComponentData
@@ -89,22 +90,6 @@ def get_all_actions(obj):
             for strip in track.strips:
                 yield obj.name, obj.NMSAnimation_props.anim_name, strip.action
 
-def get_children(obj, curr_children, obj_types, just_names = False):
-    # return a flattened list of all the children of an object of a specified type.
-    # if just_name is True, then only return the names, otherwise return the actual objects themselves
-    if type(obj_types) == str:
-        obj_types = [obj_types]
-    # otherwise we'll just assume that it is a list of strings
-    for child in obj.children:
-        print(child.name, child.NMSNode_props.node_types)
-        if child.NMSNode_props.node_types in obj_types:
-            if just_names:
-                curr_children.append(child.name)
-            else:
-                curr_children.append(child)
-        curr_children += get_children(child, list(), obj_types, just_names)
-    return curr_children
-
 """ Misc. functions for transforming data """
 
 #Tangent Calculator
@@ -142,7 +127,7 @@ def calc_tangents(faces, verts, norms, uvs):
         #print('Uvs', P1_uv, P2_uv)
         
         #Matrix determinant
-        D = P1_uv[0] * P2_uv[1] - P2_uv[0] * P1_uv[0]
+        D = P1_uv[0] * P2_uv[1] - P2_uv[0] * P1_uv[1]
         D = 1.0 / max(D, 0.0001) #Store the inverse right away
         
         #Apply equation
@@ -416,6 +401,12 @@ class Exporter():
             mat = slot.material
             print(mat.name)
 
+            # find any additional material flags specificed by the user
+            add_matflags = set()
+            for i in ob.NMSMaterial_props.material_additions:
+                if i != 0:              # 0 is just the empty one we don't care about
+                    s.add(i - 1)        # subtract 1 to account for the index start in the struct...
+
             proj_path = bpy.path.abspath('//')
             
             #Create the material
@@ -427,14 +418,14 @@ class Exporter():
             
             #Fetch Uniforms
             matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
-                                                 Values=Vector4f(x=mat.diffuse_color.r,
-                                                                 y=mat.diffuse_color.g,
-                                                                 z=mat.diffuse_color.b,
+                                                 Values=Vector4f(x=1.0,
+                                                                 y=1.0,
+                                                                 z=1.0,
                                                                  t=1.0)))
             matuniforms.append(TkMaterialUniform(Name="gMaterialParamsVec4",
-                                                 Values=Vector4f(x=0.0,
-                                                                 y=0.0,
-                                                                 z=0.0,
+                                                 Values=Vector4f(x=1.0,
+                                                                 y=0.5,
+                                                                 z=1.0,
                                                                  t=0.0)))
             matuniforms.append(TkMaterialUniform(Name="gMaterialSFXVec4",
                                                  Values=Vector4f(x=0.0,
@@ -450,7 +441,8 @@ class Exporter():
             texpath = ""
             if tslots[0]:
                 #Set _F01_DIFFUSEMAP
-                matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
+                add_matflags.add(0)
+                #matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
                 #Create gDiffuseMap Sampler
                 
                 tex = tslots[0].texture
@@ -466,7 +458,8 @@ class Exporter():
             #Check shadeless status
             if (mat.use_shadeless):
                 #Set _F07_UNLIT
-                matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[6]))    
+                add_matflags.add(6)
+                #matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[6]))    
             
             #Fetch Mask
             texpath = ""
@@ -489,7 +482,8 @@ class Exporter():
             texpath = ""
             if tslots[2]:
                 #Set _F03_NORMALMAP
-                matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[2]))
+                add_matflags.add(2)
+                #matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[2]))
                 #Create gNormalMap Sampler
                 
                 tex = tslots[2].texture
@@ -502,7 +496,14 @@ class Exporter():
             sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, IsSRGB=False)
             matsamplers.append(sampl)
 
-            matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[46]))
+            add_matflags.add(24)
+            add_matflags.add(38)
+            add_matflags.add(46)
+
+            lst = list(add_matflags)        # convert to list so we can order
+            lst.sort()
+            for flag in lst:
+                matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[flag]))
             
             #Create materialdata struct
             tkmatdata = TkMaterialData(Name=mat.name,
@@ -608,7 +609,7 @@ class Exporter():
         
         print(descriptor_struct)
 
-        return descriptor_struct.to_exml()
+        return descriptor_struct
         
     #Main Mesh parser
     def mesh_parser(self, ob):

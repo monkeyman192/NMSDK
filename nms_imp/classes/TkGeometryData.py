@@ -147,19 +147,28 @@ class TkGeometryData(Struct):
                 list_data['IndexBuffer'] = data
                 #list_data.append(data)
             elif pname in ['VertexStream', 'SmallVertexStream']:
-                length = 2*len(self.data[pname])        # total length. With INT_2_10_10_10_REV format normals and verts they are half the size, so this will be int(1.5*~)
+                length = int(1.5*len(self.data[pname]))        # total length. With INT_2_10_10_10_REV format normals and verts they are half the size, so this will be int(1.5*~)
                 output.write(list_header(curr_offset + bytes_in_list, length, lst_end))
                 curr_offset -= 0x10
                 bytes_in_list += length
                 data = bytearray()
-                """ for p, val in patterned(self.data[pname], half=[0,1], int_rev=[2,3]):
-                    if p == 'half':
-                        data.extend(binary16(val))    # write the half-float representation of the data
-                    else:
-                        data.extend(write(val))       # write the INT_2_10_10_10_REV representation of the data
+                start_indexes = range(len(self.data[pname]))[0::4]      # [0, 4, 8, etc up to final point] These are the indexes at which things start
+                spec = 0                                    # this will keep track of what type of data we are dealing with
+                for start_index in start_indexes:
+                    d = self.data[pname][start_index:start_index+4]
+                    if spec in [0, 1]:
+                        for val in d:
+                            data.extend(binary16(val))    # write the half-float representation of the data
+                    elif spec in [2,3]:
+                        data.extend(write(d))       # write the INT_2_10_10_10_REV representation of the data
+                    if pname == 'VertexStream':
+                        spec = (spec + 1)%4
+                    elif pname == 'SmallVertexStream':
+                        spec = (spec + 1)%2
                 """
                 for val in self.data[pname]:
                     data.extend(binary16(val))
+                """
                 list_data[pname] = data
                 #list_data.append(data)
             elif 'Padding' in pname:

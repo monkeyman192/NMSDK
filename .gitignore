@@ -54,3 +54,4 @@ __pycache__/
 *.blend
 *.blend1
 textures/*
+nms_imp/test.py

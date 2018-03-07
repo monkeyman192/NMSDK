@@ -27,10 +27,10 @@ def traverse(obj):
     else:
         yield obj
 
-# simple function to take a list and move the entry at the ith index to the first place
-def movetofront(lst, i):
+# simple function to take a list and move the entry at the ith index to the the index 'index' (in the new list with the value pop'd)
+def movetoindex(lst, i, index):
     k = lst.pop(i)          # this will break if i > len(lst)...
-    return [k] + lst
+    return lst[:index] + [k] + lst[index:]
 
 class Create_Data():
     def __init__(self, name, directory, model, anim_data = dict(), descriptor = None, **commands):
@@ -119,7 +119,11 @@ class Create_Data():
         self.Model.construct_data()
         self.TkSceneNodeData = self.Model.get_data()
         self.TkSceneNodeData.make_elements(main=True)         # get the model to create all the required data and this will continue on down the tree
-        self.descriptor.make_elements(main = True)
+        if len(self.descriptor) != 0:
+            self.descriptor = self.descriptor.to_exml()
+            self.descriptor.make_elements(main = True)
+        else:
+            self.descriptor = None
         for material in self.materials:
             if type(material) != str:
                 material.make_elements(main=True)
@@ -170,11 +174,13 @@ class Create_Data():
         # to fix 1.3x mesh collisions, we need to make all the mesh collisions have their indexes first
         # we require a mapping to know which is which though
         self.index_mapping = list(range(len(self.Model.ListOfMeshes)))        # the unchanged mapping
+        insert_point = 0                                                        # an int to keep track of where to place the value (incremented by loop)
         for i in range(len(self.Model.ListOfMeshes)):
             mesh = self.Model.ListOfMeshes[i]
             if mesh._Type == 'COLLISION':
                 if mesh.CType == 'Mesh':
-                    self.index_mapping = movetofront(self.index_mapping, i)         # move the index it is now located at so we can construct it correctly in the scene
+                    self.index_mapping = movetoindex(self.index_mapping, i, insert_point)         # move the index it is now located at 'insert_point' so we can construct it correctly in the scene
+                    insert_point += 1
         print(self.index_mapping, 'index_mapping')
 
         # populate the lists containing the lengths of each individual stream
@@ -233,7 +239,7 @@ class Create_Data():
         # now we need to re-shuffle the index data
         new_index_data = list(range(self.num_mesh_objs))        # just fill with numbers for now, they will be overridden
         for i in range(self.num_mesh_objs):
-            new_index_data[self.index_mapping[i]] = self.index_stream[i]
+            new_index_data[self.index_mapping.index(i)] = self.index_stream[i]
         self.index_stream = new_index_data
         #print(self.index_stream)
 
@@ -268,8 +274,8 @@ class Create_Data():
 
                 data = dict()
 
-                data['BATCHSTART'] = self.batches[self.index_mapping[i]][0]
-                data['BATCHCOUNT'] = self.batches[self.index_mapping[i]][1]
+                data['BATCHSTART'] = self.batches[self.index_mapping.index(i)][0]
+                data['BATCHCOUNT'] = self.batches[self.index_mapping.index(i)][1]
                 data['VERTRSTART'] = self.vert_bounds[i][0]
                 data['VERTREND'] = self.vert_bounds[i][1]
                 data['BOUNDHULLST'] = self.hull_bounds[i][0]
@@ -336,16 +342,16 @@ class Create_Data():
         ElementCount = len(self.stream_list)
         for sID in self.stream_list:
             # sID is the SemanticID
-            # if sID in [0,1]:
-            Offset = 8*self.stream_list.index(sID)
-            VertexElements.append(TkVertexElement(SemanticID = sID,
-                                                  Size = 4,
-                                                  Type = 5131,
-                                                  Offset = Offset,
-                                                  Normalise = 0,
-                                                  Instancing = "PerVertex",
-                                                  PlatformData = ""))
-            """ for the INT_2_10_10_10_REV stuff
+            if sID in [0,1]:
+                Offset = 8*self.stream_list.index(sID)
+                VertexElements.append(TkVertexElement(SemanticID = sID,
+                                                      Size = 4,
+                                                      Type = 5131,
+                                                      Offset = Offset,
+                                                      Normalise = 0,
+                                                      Instancing = "PerVertex",
+                                                      PlatformData = ""))
+            #for the INT_2_10_10_10_REV stuff
             elif sID in [2,3]:
                 Offset = 16 + (sID - 2)*4
                 VertexElements.append(TkVertexElement(SemanticID = sID,
@@ -355,7 +361,7 @@ class Create_Data():
                                                       Normalise = 0,
                                                       Instancing = "PerVertex",
                                                       PlatformData = ""))
-            """
+            
         for sID in [0,1]:
             Offset = 8*sID
             SmallVertexElements.append(TkVertexElement(SemanticID = sID,
@@ -368,7 +374,7 @@ class Create_Data():
         # fow now just make the small vert and vert layouts the same
         """ Vertex layout needs to be changed for the new normals/tangent format"""
         self.GeometryData['VertexLayout'] = TkVertexLayout(ElementCount = ElementCount,
-                                                           Stride = 8*ElementCount,     # this is 6* is normals and tangents, and 5* if just normals
+                                                           Stride = 6*ElementCount,     # this is 6* if normals and tangents are INT_2_10_10_10_REV, and 5* if just normals
                                                            PlatformData = "",
                                                            VertexElements = VertexElements)
         self.GeometryData['SmallVertexLayout'] = TkVertexLayout(ElementCount = 2,
@@ -457,7 +463,8 @@ class Create_Data():
         mbinc = mbinCompiler(self.TkGeometryData, "{}.GEOMETRY.MBIN.PC".format(self.path))
         mbinc.serialise()
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
-        self.descriptor.tree.write("{}.DESCRIPTOR.exml".format(self.path))
+        if self.descriptor is not None:
+            self.descriptor.tree.write("{}.DESCRIPTOR.exml".format(self.path))
         for material in self.materials:
             if type(material) != str:
                 material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.path, str(material['Name']).upper())))

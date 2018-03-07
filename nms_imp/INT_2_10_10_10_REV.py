@@ -31,18 +31,19 @@ def write(verts):
     # writes the verts to a INT_2_10_10_10_REV
     # verts will come in as the format [x,y,z,w], so need to swap to [z,y,x,w]
     out = 0
+    newverts = [0,0,0,0]
     for i in range(3):
         a = int(verts[i]*511)        # maybe floor/ceil is needed??
         # implement a reverse twos compliment to get the signed binary representation
         if abs(a) == a:
-            verts[i] = a
+            newverts[i] = a
         else:
-            verts[i] = (abs(a) ^ 0b1111111111) +1
+            newverts[i] = (abs(a) ^ 0b1111111111) +1
 
-    verts[0], verts[2] = verts[2], verts[0]                 # flip the x and z
+    newverts[0], newverts[2] = newverts[2], newverts[0]                 # flip the x and z
 
     for i in range(4):
-        out = out | (verts[i] << i*10)
+        out = out | (newverts[i] << i*10)
     return struct.pack('<I', out)
     
 

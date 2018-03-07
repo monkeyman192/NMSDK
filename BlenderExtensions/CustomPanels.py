@@ -1,7 +1,7 @@
 # All the custom panels and properties for all the different object types
 
 import bpy
-from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, FloatProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, FloatProperty, IntVectorProperty
 
 """ Various properties for each of the different node types """
 
@@ -27,7 +27,17 @@ class NMSMeshProperties(bpy.types.PropertyGroup):
                               description = "Whether or not the mesh requires an entity file. Not all meshes require an entity file. Read the detailed guidelines in the readme for more details.",
                               default = False)
     material_path = StringProperty(name = "Material",
-                                   description = "(Optional) Path to material mbin file to use instead of automattical exporting material attached to this mesh.")
+                                   description = "(Optional) Path to material mbin file to use instead of automatical exporting material attached to this mesh.")
+
+class NMSMaterialProperties(bpy.types.PropertyGroup):
+    material_additions = IntVectorProperty(name = "Force material properties",
+                                           description = "List of flags to be added (use int prefix). Ie. '_F14_UVSCROLL' == 14",
+                                           min = 0,
+                                           max = 64,
+                                           soft_min = 0,
+                                           soft_max = 64,
+                                           size = 5)
+                                           
 
 class NMSLightProperties(bpy.types.PropertyGroup):
     intensity_value = FloatProperty(name = "Intensity",
@@ -144,6 +154,27 @@ class NMSReferencePropertyPanel(bpy.types.Panel):
         obj = context.object
         row = layout.row()
         row.prop(obj.NMSReference_props, "reference_path")
+
+class NMSMaterialPropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Material Properties"
+    bl_idname = "MATERIAL_PT_material_properties"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "material"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object.name.startswith("NMS") and context.object.NMSNode_props.node_types == 'Mesh' and not context.object.name.startswith("NMS_SCENE"):
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.prop(obj.NMSMaterial_props, "material_additions")
 
 class NMSMeshPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
@@ -352,6 +383,7 @@ class NMSPanels():
         bpy.utils.register_class(NMSNodeProperties)
         bpy.utils.register_class(NMSSceneProperties)
         bpy.utils.register_class(NMSMeshProperties)
+        bpy.utils.register_class(NMSMaterialProperties)
         bpy.utils.register_class(NMSReferenceProperties)
         bpy.utils.register_class(NMSLocatorProperties)
         bpy.utils.register_class(NMSLightProperties)
@@ -363,6 +395,7 @@ class NMSPanels():
         bpy.types.Object.NMSNode_props = bpy.props.PointerProperty(type=NMSNodeProperties)
         bpy.types.Object.NMSScene_props = bpy.props.PointerProperty(type=NMSSceneProperties)
         bpy.types.Object.NMSMesh_props = bpy.props.PointerProperty(type=NMSMeshProperties)
+        bpy.types.Object.NMSMaterial_props = bpy.props.PointerProperty(type=NMSMaterialProperties)
         bpy.types.Object.NMSReference_props = bpy.props.PointerProperty(type=NMSReferenceProperties)
         bpy.types.Object.NMSLocator_props = bpy.props.PointerProperty(type=NMSLocatorProperties)
         bpy.types.Object.NMSRotation_props = bpy.props.PointerProperty(type=NMSRotationProperties)
@@ -374,6 +407,7 @@ class NMSPanels():
         bpy.utils.register_class(NMSScenePropertyPanel)
         bpy.utils.register_class(NMSNodePropertyPanel)
         bpy.utils.register_class(NMSMeshPropertyPanel)
+        bpy.utils.register_class(NMSMaterialPropertyPanel)
         bpy.utils.register_class(NMSReferencePropertyPanel)
         bpy.utils.register_class(NMSLocatorPropertyPanel)
         bpy.utils.register_class(NMSRotationPropertyPanel)
@@ -388,6 +422,7 @@ class NMSPanels():
         bpy.utils.unregister_class(NMSNodeProperties)
         bpy.utils.unregister_class(NMSSceneProperties)
         bpy.utils.unregister_class(NMSMeshProperties)
+        bpy.utils.unregister_class(NMSMaterialProperties)
         bpy.utils.unregister_class(NMSRotationProperties)
         bpy.utils.unregister_class(NMSReferenceProperties)
         bpy.utils.unregister_class(NMSLocatorProperties)
@@ -399,6 +434,7 @@ class NMSPanels():
         del bpy.types.Object.NMSNode_props
         del bpy.types.Object.NMSScene_props
         del bpy.types.Object.NMSMesh_props
+        del bpy.types.Object.NMSMaterial_props
         del bpy.types.Object.NMSReference_props
         del bpy.types.Object.NMSRotation_props
         del bpy.types.Object.NMSLocator_props
@@ -410,6 +446,7 @@ class NMSPanels():
         bpy.utils.unregister_class(NMSScenePropertyPanel)
         bpy.utils.unregister_class(NMSNodePropertyPanel)
         bpy.utils.unregister_class(NMSMeshPropertyPanel)
+        bpy.utils.unregister_class(NMSMaterialPropertyPanel)
         bpy.utils.unregister_class(NMSReferencePropertyPanel)
         bpy.utils.unregister_class(NMSLocatorPropertyPanel)
         bpy.utils.unregister_class(NMSRotationPropertyPanel)
