@@ -10,7 +10,7 @@ def read(verts):
         print((verts & (sel << i*10)) >> i*10, 10)
         output.append(twos_complement((verts & (sel << i*10)) >> i*10, 10))     # read the x, y, z components
     output.append((verts & (sel << 30)) >> 30)                                  # read the w component seperately (don't need sign)
-    output[0], output[2] = output[2], output[0]                                 # swap x and z components of output
+    #output[0], output[2] = output[2], output[0]                                 # swap x and z components of output
     norm = (output[0]**2 + output[1]**2 + output[2]**2)**0.5                    # calculate the norm of the x,y,z components of the array
     for i in range(3):
         output[i] = output[i]/norm                                              # then normalise
@@ -31,7 +31,7 @@ def write(verts):
     # writes the verts to a INT_2_10_10_10_REV
     # verts will come in as the format [x,y,z,w], so need to swap to [z,y,x,w]
     out = 0
-    newverts = [0,0,0,0]
+    newverts = [0,0,0,1]
     for i in range(3):
         a = int(verts[i]*511)        # maybe floor/ceil is needed??
         # implement a reverse twos compliment to get the signed binary representation
@@ -40,7 +40,7 @@ def write(verts):
         else:
             newverts[i] = (abs(a) ^ 0b1111111111) +1
 
-    newverts[0], newverts[2] = newverts[2], newverts[0]                 # flip the x and z
+    #newverts[0], newverts[2] = newverts[2], newverts[0]                 # flip the x and z
 
     for i in range(4):
         out = out | (newverts[i] << i*10)
