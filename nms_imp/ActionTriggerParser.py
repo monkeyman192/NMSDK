@@ -35,20 +35,21 @@ def ParseNodes():
         # we know that the Trigger will have just one output, the Actions will have just one input, and the Builder will have one input and many outputs (all off the one socket)
         # we don't actually care about the inputs and ouputs though as they are just visual.
 
-        Trigger_struct = FillStruct(Trigger)
-        Action_structs = list(FillStruct(action) for action in Actions)
+        if Trigger is not None or len(Actions) != 0:
+            Trigger_struct = FillStruct(Trigger)
+            Action_structs = list(FillStruct(action) for action in Actions)
 
-        # fill the inner-most ActionTrigger struct with data
-        ActionTriggerData = {'Trigger': Trigger_struct,
-                             'Action': List()}
-        for action in Action_structs:
-            ActionTriggerData['Action'].append(action)
+            # fill the inner-most ActionTrigger struct with data
+            ActionTriggerData = {'Trigger': Trigger_struct,
+                                 'Action': List()}
+            for action in Action_structs:
+                ActionTriggerData['Action'].append(action)
 
-        Triggers = GcActionTrigger(**ActionTriggerData)
-        # next create the data for the action trigger state and add to the list of action trigger data in the outmost struct
-        Data = GcActionTriggerState(StateID = name,
-                                    Triggers = List(Triggers))
-        entityData['States'].append(Data)
+            Triggers = GcActionTrigger(**ActionTriggerData)
+            # next create the data for the action trigger state and add to the list of action trigger data in the outmost struct
+            Data = GcActionTriggerState(StateID = name,
+                                        Triggers = List(Triggers))
+            entityData['States'].append(Data)
 
     return entityData
 

@@ -11,7 +11,7 @@ def retBool(x):
 class NMSATTree(NodeTree):
     '''NMS Action Trigger entity creator'''
     bl_idname = 'NMSATTree'
-    bl_label = 'MNS Action Trigger Tree'
+    bl_label = 'NMS Action Trigger Tree'
     bl_icon = 'NODETREE'
 
 # custom socket type. Contains no data but just has the name of the socket for clarity.
