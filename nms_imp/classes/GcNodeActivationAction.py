@@ -12,6 +12,7 @@ class GcNodeActivationAction(Struct):
         self.data['NodeActiveState'] = kwargs.get('NodeActiveState', "Activate")
         self.data['Name'] = kwargs.get('Name', "")
         self.data['IncludePhysics'] = bool(kwargs.get('IncludePhysics', False))
+        self.data['NotifyNPC'] = bool(kwargs.get('NotifyNPC', False))
         self.data['UseMasterModel'] = bool(kwargs.get('UseMasterModel', False))
         """ End of the struct contents"""
 

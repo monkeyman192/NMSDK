@@ -184,6 +184,8 @@ class NMS_NodeActivationAction(Node, NMSATNode):
                            description = 'Name of scene node you wish to affect.')
     IncludePhysics = BoolProperty(name = 'Include physics',
                                     description = 'Unclear effects.')
+    NotifyNPC = BoolProperty(name = 'Notify NPC',
+                                    description = 'Unclear effects.')
     UseMasterModel = BoolProperty(name = 'Use master model',
                                     description = 'Unclear effects.')
 
@@ -194,6 +196,7 @@ class NMS_NodeActivationAction(Node, NMSATNode):
         layout.prop(self, "NodeActiveState")
         layout.prop(self, "Name")
         layout.prop(self, "IncludePhysics")
+        layout.prop(self, "NotifyNPC")
         layout.prop(self, "UseMasterModel")
 
     def draw_label(self):
