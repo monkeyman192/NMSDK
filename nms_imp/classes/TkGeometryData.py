@@ -39,8 +39,9 @@ class TkGeometryData(Struct):
         self.data['VertexLayout'] = kwargs.get('VertexLayout', TkVertexLayout())
         self.data['SmallVertexLayout'] = kwargs.get('SmallVertexLayout', TkVertexLayout())
         self.data['IndexBuffer'] = kwargs.get('IndexBuffer', List())
-        self.data['VertexStream'] = kwargs.get('VertexStream', List())
-        self.data['SmallVertexStream'] = kwargs.get('SmallVertexStream', List())
+        self.data['StreamMetaDataArray'] = kwargs.get('StreamMetaDataArray', List())
+        #self.data['VertexStream'] = kwargs.get('VertexStream', List())
+        #self.data['SmallVertexStream'] = kwargs.get('SmallVertexStream', List())
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something
@@ -59,7 +60,7 @@ class TkGeometryData(Struct):
         lst_end = b'\x01\x00\x00\x00'
 
         bytes_in_list = 0
-        curr_offset = 0xF0      # starting offset. When we don't have 
+        curr_offset = 0xE0
 
         list_data = OrderedDict()
         
@@ -99,7 +100,6 @@ class TkGeometryData(Struct):
             elif pname in ['MeshAABBMin', 'MeshAABBMax']:
                 length = len(self.data[pname])
                 extra_offset = 8*len(self.data['BoundHullVertSt'])     # to compensate for the moving of the data earlier
-                print(len)
                 output.write(list_header(curr_offset + bytes_in_list - extra_offset, length, lst_end))
                 bytes_in_list += 0x10*length
                 curr_offset -= 0x10
@@ -171,6 +171,12 @@ class TkGeometryData(Struct):
                 """
                 list_data[pname] = data
                 #list_data.append(data)
+            elif pname == 'StreamMetaDataArray':
+                length = len(self.data[pname])
+                output.write(list_header(curr_offset + bytes_in_list, length, lst_end))
+                curr_offset -= 0x10
+                bytes_in_list += 0x98*length
+                list_data[pname] = bytes(self.data[pname])
             elif 'Padding' in pname:
                 self.data[pname].serialise(output)
         for data in list_data.keys():

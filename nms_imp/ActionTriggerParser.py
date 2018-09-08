@@ -76,3 +76,21 @@ for node in ActionTrigger.nodes:
     for 
     node_structure.append({'name': node.name})
 """
+
+
+"""
+# Code from Ray Mairlot from Blender stackexchange:
+# https://blender.stackexchange.com/questions/63898/how-do-i-get-the-children-of-a-frame-node
+
+import bpy
+
+children = []
+nodes = bpy.context.scene.node_tree.nodes
+frameNode = nodes['Frame']
+
+for node in nodes:
+    if node.parent == frameNode:  
+        children.append(node)
+
+print(children)
+"""

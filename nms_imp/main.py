@@ -15,6 +15,10 @@ from LOOKUPS import *
 from shutil import copy2
 from array import array
 from mbincompiler import mbinCompiler
+from StreamCompiler import StreamData, TkMeshMetaData
+from DataSerialise import TkVertexStream, TkIndexStream
+from struct import pack
+from hashlib import sha256
 
 BASEPATH = 'CUSTOMMODELS'
 
@@ -31,6 +35,19 @@ def traverse(obj):
 def movetoindex(lst, i, index):
     k = lst.pop(i)          # this will break if i > len(lst)...
     return lst[:index] + [k] + lst[index:]
+
+def nmsHash(data):
+    """
+    Lazy hash function for mesh data
+    This is simply the last 16 hexadecimal degits of a sha256 hash
+    """
+    if isinstance(data, list):
+        d = array('f')
+        for verts in data:
+            d.extend(verts)
+    else:
+        d = data
+    return int(sha256(d).hexdigest()[-16:], 16)
 
 class Create_Data():
     def __init__(self, name, directory, model, anim_data = dict(), descriptor = None, **commands):
@@ -51,13 +68,17 @@ class Create_Data():
         self.fix_names()
 
         # assign each of the input streams to a variable
+        self.mesh_metadata = dict()
         self.index_stream = []
+        self.mesh_indexes = []
         self.vertex_stream = []
         self.uv_stream = []
         self.n_stream = []
         self.t_stream = []
         self.chvertex_stream = []
+        self.mesh_bounds = dict()           # a disctionary of the bounds of just mesh objects. This will be used for the scene files
         self.materials = set()      # this will hopefully mean that there will be at most one copy of each unique TkMaterialData struct in the set
+        self.hashes = dict()
 
         #self.Entities = []          # a list of any extra properties to go in each entity
 
@@ -70,20 +91,21 @@ class Create_Data():
             self.n_stream.append(mesh.Normals)
             self.t_stream.append(mesh.Tangents)
             self.chvertex_stream.append(mesh.CHVerts)
+            self.mesh_metadata[mesh.Name] = {'hash': nmsHash(mesh.Vertices)}
             # also add in the material data to the list
             if mesh.Material is not None:
                 self.materials.add(mesh.Material)
             mesh.ID = index             # assign the index location of the data to the Object so that it knows where its data is
             index += 1
+
         #for obj in self.Model.ListOfEntities:
         #    self.Entities.append(obj.EntityData)
 
         self.num_mesh_objs = index      # this is the total number of objects that have mesh data
 
-        self.mesh_data = [dict()]*self.num_mesh_objs    # an empty list of dicts that will ber populated then each entry will
-                                                        # be given back to the correct Mesh or Collision object
-
-        self.preprocess_streams()
+        # an empty list of dicts that will ber populated then each entry will
+        # be given back to the correct Mesh or Collision object
+        self.mesh_data = [dict()]*self.num_mesh_objs
 
         # generate some variables relating to the paths
         self.path = os.path.join(BASEPATH, self.directory, self.name)         # the path location including the file name.
@@ -95,6 +117,13 @@ class Create_Data():
 
         # This dictionary contains all the information for the geometry file 
         self.GeometryData = dict()
+
+        self.geometry_stream = StreamData('{}.GEOMETRY.DATA.MBIN.PC'.format(self.path))
+
+        # generate the geometry stream data now
+        self.serialise_data()
+
+        self.preprocess_streams()
 
         # This will just be some default entity with physics data
         self.TkAttachmentData = TkAttachmentData()      # this is created with the Physics Component Data by default
@@ -165,6 +194,9 @@ class Create_Data():
         self.stream_list = list(SEMANTICS[x] for x in streams.difference({'Indexes'}))
         self.stream_list.sort()
 
+        self.element_count = len(self.stream_list)
+        self.stride = 6*self.element_count        # this is 6* if normals and tangents are INT_2_10_10_10_REV, and 5* if just normals
+
         # secondly this will generate two lists containing the individual lengths of each stream
 
         self.i_stream_lens = list()
@@ -193,6 +225,46 @@ class Create_Data():
         # just make sure that the name and path is all in uppercase
         self.name = self.name.upper()
         self.directory = self.directory.upper()
+    
+    def serialise_data(self):
+        """
+        convert all the provided vertex and index data to bytes to be passed
+        directly to the gstream and geometry file constructors
+        """
+        vertex_data = []
+        index_data = []
+        metadata = dict()
+        for i, mesh_id in enumerate(self.mesh_metadata):
+            vertex_data.append(TkVertexStream(verts = self.vertex_stream[i],
+                                              uvs = self.uv_stream[i],
+                                              normals = self.n_stream[i],
+                                              tangents = self.t_stream[i]))
+            new_indexes = []
+            for tri in self.index_stream[i]:
+                new_indexes.extend(tri)
+            if max(new_indexes) > 2**16:
+                indexes = array('I', new_indexes)
+            else:
+                indexes = array('H', new_indexes)
+            index_data.append(TkIndexStream(indexes))
+            metadata[mesh_id] = self.mesh_metadata[mesh_id]
+        self.geometry_stream.create(metadata, vertex_data, index_data)
+        self.geometry_stream.save()     # offset data populated here
+
+        # while we are here we will generate the mesh metadata for the geometry
+        # file.
+        metadata_list = List()
+        for i, m in enumerate(self.geometry_stream.metadata):
+            metadata = {
+                'ID': m.ID, 'hash': m.hash, 'vert_size': m.vertex_size,
+                'vert_offset': self.geometry_stream.data_offsets[2*i],
+                'index_size': m.index_size,
+                'index_offset': self.geometry_stream.data_offsets[2*i + 1]}
+            self.hashes[m.raw_ID] = m.hash
+            geom_metadata = TkMeshMetaData()
+            geom_metadata.create(**metadata)
+            metadata_list.append(geom_metadata)
+        self.GeometryData['StreamMetaDataArray'] = metadata_list
 
     def process_data(self):
         # This will do the main processing of the different streams.
@@ -222,6 +294,7 @@ class Create_Data():
                     ColIndexCount += index_counts[i]
 
         # we need to fix up the index stream as the numbering needs to be continuous across all the streams
+        """ no longer true for the geometry stream in 1.5 """
         k = 0       # additive constant
         for i in range(self.num_mesh_objs):
             # first add k to every element in every tuple
@@ -271,6 +344,7 @@ class Create_Data():
             if obj.IsMesh:
                 i = obj.ID      # this is the index associated with the Mesh-type object earlier to avoid having to iterate through everything twice effectively
                 mesh_obj = self.Model.ListOfMeshes[i]
+                name = mesh_obj.Name
 
                 data = dict()
 
@@ -281,6 +355,14 @@ class Create_Data():
                 data['BOUNDHULLST'] = self.hull_bounds[i][0]
                 data['BOUNDHULLED'] = self.hull_bounds[i][1]
                 if mesh_obj._Type == 'MESH':
+                    # add the AABBMIN/MAX(XYZ) values:
+                    data['AABBMINX'] = self.mesh_bounds[name]['x'][0]
+                    data['AABBMINY'] = self.mesh_bounds[name]['y'][0]
+                    data['AABBMINZ'] = self.mesh_bounds[name]['z'][0]
+                    data['AABBMAXX'] = self.mesh_bounds[name]['x'][1]
+                    data['AABBMAXY'] = self.mesh_bounds[name]['y'][1]
+                    data['AABBMAXZ'] = self.mesh_bounds[name]['z'][1]
+                    data['HASH'] = self.hashes[name]
                     # we only care about entity and material data for Mesh Objects
                     if type(mesh_obj.Material) != str:
                         if mesh_obj.Material is not None:
@@ -303,6 +385,16 @@ class Create_Data():
                             AttachmentData.tree.write("{}.ENTITY.exml".format(ent_path))
                         else:
                             data['ATTACHMENT'] = obj.EntityPath
+                    # enerate the mesh metadata for the geometry file:
+                    self.mesh_metadata[obj.Name]['Hash'] = data['HASH']
+                    self.mesh_metadata[obj.Name]['VertexDataSize'] = self.stride*(data['VERTREND'] - data['VERTRSTART'] + 1)
+                    if self.GeometryData['Indices16Bit'] == 0:
+                        m = 4
+                    else:
+                        m = 2
+                    self.mesh_metadata[obj.Name]['IndexDataSize'] = m*data['BATCHCOUNT']
+                    # also assign the 
+
             else:
                 if obj._Type == 'LOCATOR':
                     if obj.HasAttachment:
@@ -339,7 +431,6 @@ class Create_Data():
         # sort out what streams are given and create appropriate vertex layouts
         VertexElements = List()
         SmallVertexElements = List()
-        ElementCount = len(self.stream_list)
         for sID in self.stream_list:
             # sID is the SemanticID
             if sID in [0,1]:
@@ -373,8 +464,9 @@ class Create_Data():
                                                   PlatformData = ""))
         # fow now just make the small vert and vert layouts the same
         """ Vertex layout needs to be changed for the new normals/tangent format"""
-        self.GeometryData['VertexLayout'] = TkVertexLayout(ElementCount = ElementCount,
-                                                           Stride = 6*ElementCount,     # this is 6* if normals and tangents are INT_2_10_10_10_REV, and 5* if just normals
+        
+        self.GeometryData['VertexLayout'] = TkVertexLayout(ElementCount = self.element_count,
+                                                           Stride = self.stride,
                                                            PlatformData = "",
                                                            VertexElements = VertexElements)
         self.GeometryData['SmallVertexLayout'] = TkVertexLayout(ElementCount = 2,
@@ -429,6 +521,9 @@ class Create_Data():
 
             self.GeometryData['MeshAABBMin'].append(Vector4f(x=x_bounds[0], y=y_bounds[0], z=z_bounds[0], t=1))
             self.GeometryData['MeshAABBMax'].append(Vector4f(x=x_bounds[1], y=y_bounds[1], z=z_bounds[1], t=1))
+            if obj._Type == "MESH":
+                # only add the meshes to the self.mesh_bounds dict:
+                self.mesh_bounds[obj.Name] = {'x': x_bounds, 'y': y_bounds, 'z': z_bounds}
 
     def process_materials(self):
         # process the material data and gives the textures the correct paths
@@ -489,31 +584,31 @@ class Create_Data():
         
 if __name__ == '__main__':
 
-    main_obj = Model(Name = 'Square')
+    main_obj = Model(name = 'Square')
 
-    def_mat = TkMaterialData(Name = 'Square1mat')
+    def_mat = TkMaterialData(name = 'Square1mat')
 
-    Obj1 = Mesh(Name = 'Square1',
+    Obj1 = Mesh(name = 'Square1',
                   Vertices = [(-1,1,0,1), (1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
                   Indexes = [(0,1,2), (2,3,0)],
                   UVs = [(0.3,0,0,1), (0,0.2,0,1), (0,0.1,0,1), (0.1,0.2,0,1)],
                 Material = def_mat)
     main_obj.add_child(Obj1)
-    Obj1_col = Collision(Name = 'Square1_col', CollisionType = 'Mesh', Vertices = [(-4,4,0,1),(4,4,0,1), (4,-4,0,1), (-4,-4,0,1)],
+    Obj1_col = Collision(name = 'Square1_col', CollisionType = 'Mesh', Vertices = [(-4,4,0,1),(4,4,0,1), (4,-4,0,1), (-4,-4,0,1)],
                       Indexes = [(0,1,2), (2,3,0)])
     Obj1.add_child(Obj1_col)
-    Obj2 = Mesh(Name = 'Square2',
+    Obj2 = Mesh(name = 'Square2',
                   Vertices = [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)],
                   Indexes = [(0,1,2), (2,3,0)],
                   UVs = [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)])
     Obj1.add_child(Obj2)
-    loc = Locator(Name = 'testloc')
+    loc = Locator(name = 'testloc')
     Obj2.add_child(loc)
-    ref = Reference(Name = 'testref')
+    ref = Reference(name = 'testref')
     loc.add_child(ref)
-    ref2 = Reference(Name = 'testref2')
+    ref2 = Reference(name = 'testref2')
     loc.add_child(ref2)
-    light = Light(Name = 'ls', Intensity = 200000, Colour = (0.4, 0.6, 0.2))
+    light = Light(name = 'ls', Intensity = 200000, Colour = (0.4, 0.6, 0.2))
     Obj1.add_child(light)
 
     main = Create_Data('SQUARE', 'TEST', main_obj)
@@ -528,5 +623,5 @@ if __name__ == '__main__':
         document.write(xmlFilePathToPrettyPrint, xml_declaration='<?xml version="1.0" encoding="utf-8"?>', pretty_print=True, encoding='utf-8')
 
     #prettyPrintXml('TEST\SQUARE.GEOMETRY.exml')
-    #prettyPrintXml('TEST\SQUARE.SCENE.exml')
+    prettyPrintXml('TEST\SQUARE.SCENE.exml')
     #prettyPrintXml('TEST\SQUARE\SQUARE_SQUARE.MATERIAL.exml')

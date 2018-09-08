@@ -133,8 +133,11 @@ def test_all_bits(N=16):
         assert got == binary or got == EXAMPLE_NAN
 
 if __name__ == '__main__':
+    print(_float_from_unsigned16(0xf785))
+    """
     test_wp_half_precision_examples()
     test_float64_outside_16bit_range()
     import doctest
     doctest.testmod()
     test_all_bits()
+    """

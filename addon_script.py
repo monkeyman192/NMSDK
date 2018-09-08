@@ -7,6 +7,8 @@ from math import radians, degrees
 from mathutils import Matrix,Vector
 from BlenderExtensions import *
 
+from array import array
+
 BASEPATH = 'CUSTOMMODELS'
 
 customNodes = NMSNodes()
@@ -110,9 +112,9 @@ def calc_tangents(faces, verts, norms, uvs):
         vert_3 = tri[2]
         
         #Get Point Positions
-        P0 = Vector((verts[vert_1]));
-        P1 = Vector((verts[vert_2])) - P0;
-        P2 = Vector((verts[vert_3])) - P0;
+        P0 = Vector((verts[vert_1]))
+        P1 = Vector((verts[vert_2])) - P0
+        P2 = Vector((verts[vert_3])) - P0
         
         #print('Poss: ', P1, P2)
         
@@ -134,7 +136,7 @@ def calc_tangents(faces, verts, norms, uvs):
         tang = D * (P2_uv[1] * P1 - P1_uv[1] * P2)
         
         #Orthogonalize Gram-Shmidt
-        n = Vector(norms[vert_1]);
+        n = Vector(norms[vert_1])
         tang = tang - n * tang.dot(n)
         # tang.normalize()
         
@@ -528,7 +530,7 @@ class Exporter():
 
     def anim_generator(self):
         """
-        TO DO:
+        TODO:
         num_nodes will be dependent on the action. use self.anim_node_data to produce the correct data (don't forget how to do it while you sleep!!)
         """
         # process the anim data into a TkAnimMetadata structure
@@ -662,7 +664,7 @@ class Exporter():
         norms = []
         tangents = []
         luvs = []
-        faces = []
+        indexes = []
         chverts = []        # convex hull vert data
         # Matrices
         #object_matrix_wrld = ob.matrix_world
@@ -691,11 +693,11 @@ class Exporter():
         for f in data.tessfaces:  # indices
             #polygon = data.polygons[f.index] #Load Polygon
             if len(f.vertices) == 4:
-                faces.append((id, id + 1, id + 2))
-                faces.append((id, id + 2, id + 3))
+                indexes.append((id, id + 1, id + 2))
+                indexes.append((id, id + 2, id + 3))
                 id += 4
             else:
-                faces.append((id, id + 1, id + 2))
+                indexes.append((id, id + 1, id + 2))
                 id += 3
 
             for vert in range(len(f.vertices)):
@@ -725,7 +727,7 @@ class Exporter():
         #At this point mesh is triangulated
         #I can get the triangulated input and calculate the tangents
         if (self.NMSScene.NMSScene_props.create_tangents):
-            tangents = calc_tangents(faces, verts, norms, luvs)
+            tangents = calc_tangents(indexes, verts, norms, luvs)
         else:
             tangents = []
 
@@ -744,11 +746,18 @@ class Exporter():
 
         #ob.matrix_world = rot_x_mat.inverted()*ob.matrix_world
         
-        
         #Apply rotation and normal matrices on vertices and normal vectors
         apply_local_transforms(rot_x_mat, verts, norms, tangents, chverts)
+
+        """
+        # convert indexes to an array now
+        if max(indexes) > 2**16:
+            indexes = array('I', indexes)
+        else:
+            indexes = array('H', indexes)
+        """
         
-        return verts, norms, tangents, luvs, faces, chverts
+        return verts, norms, tangents, luvs, indexes, chverts
 
     def recurce_entity(self, parent, obj, list_element = None, index = 0):
         # this will return the class object of the property recursively
@@ -881,26 +890,30 @@ class Exporter():
             optdict['CollisionType'] = colType
             
             if (colType == "Mesh"):
-                c_verts, c_norms, c_tangs, c_uvs, c_faces, c_chverts = self.mesh_parser(ob)
+                c_verts, c_norms, c_tangs, c_uvs, c_indexes, c_chverts = self.mesh_parser(ob)
                 
                 #Reset Transforms on meshes
                 
                 optdict['Vertices'] = c_verts
-                optdict['Indexes'] = c_faces
+                optdict['Indexes'] = c_indexes
                 optdict['UVs'] = c_uvs
                 optdict['Normals'] = c_norms
                 optdict['Tangents'] = c_tangs
                 optdict['CHVerts'] = c_chverts
-                self.CollisionIndexCount += len(c_faces)        # I think?
+                self.CollisionIndexCount += len(c_indexes)        # I think?
             #HANDLE Primitives
             elif (colType == "Box"):
                 optdict['Width']  = dims[0]/factor[0]
                 optdict['Depth']  = dims[2]/factor[2]
                 optdict['Height'] = dims[1]/factor[1]
             elif (colType == "Sphere"):
-                optdict['Radius'] = min([0.5*dims[0]/factor[0], 0.5*dims[1]/factor[1], 0.5*dims[2]/factor[2]])            # take the minimum value to find the 'base' size (effectively)
+                # take the minimum value to find the 'base' size (effectively)
+                optdict['Radius'] = min([0.5*dims[0]/factor[0],
+                                         0.5*dims[1]/factor[1],
+                                         0.5*dims[2]/factor[2]])
             elif (colType == "Cylinder"):
-                optdict['Radius'] = min([0.5*dims[0]/factor[0], 0.5*dims[2]/factor[2]])
+                optdict['Radius'] = min([0.5*dims[0]/factor[0],
+                                         0.5*dims[2]/factor[2]])
                 optdict['Height'] = dims[1]/factor[1]
             else:
                 raise Exception("Unsupported Collision")
@@ -910,9 +923,11 @@ class Exporter():
             # ACTUAL MESH
             #Parse object Geometry
             print('Exporting: ', ob.name)
-            verts, norms, tangs, luvs, faces, chverts = self.mesh_parser(ob)
-            print("Object Count: ", len(verts), len(luvs), len(norms), len(faces), len(chverts))
-            print("Object Rotation: ", degrees(rot[0]), degrees(rot[1]), degrees(rot[2]))
+            verts, norms, tangs, luvs, indexes, chverts = self.mesh_parser(ob)
+            print("Object Count: ", len(verts), len(luvs), len(norms),
+                  len(indexes), len(chverts))
+            print("Object Rotation: ", degrees(rot[0]), degrees(rot[1]),
+                  degrees(rot[2]))
 
             # check whether the mesh has any child nodes we care about (such as a rotation vector)
             """ This will need to be re-done!!! """
@@ -922,7 +937,9 @@ class Exporter():
                     axis = child.rotation_quaternion*Vector((0,0,1))
                     #axis = Matrix.Rotation(radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
                     print(axis)
-                    rotation_data = TkRotationComponentData(Speed = child.NMSRotation_props.speed, Axis = Vector4f(x=axis[0],y=axis[1],z=axis[2],t=0))
+                    rotation_data = TkRotationComponentData(
+                        Speed = child.NMSRotation_props.speed,
+                        Axis = Vector4f(x=axis[0],y=axis[1],z=axis[2],t=0))
                     entitydata.append(rotation_data)
             
             #Create Mesh Object
@@ -936,7 +953,7 @@ class Exporter():
                          UVs=luvs,
                          Normals=norms,
                          Tangents=tangs,
-                         Indexes=faces,
+                         Indexes=indexes,
                          CHVerts = chverts,
                          ExtraEntityData = entitydata,
                          HasAttachment = ob.NMSMesh_props.has_entity)

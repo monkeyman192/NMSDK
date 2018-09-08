@@ -28,8 +28,10 @@ def twos_complement(input_value, num_bits):
         
 
 def write(verts):
-    # writes the verts to a INT_2_10_10_10_REV
-    # verts will come in as the format [x,y,z,w], so need to swap to [z,y,x,w]
+    """
+    writes the verts to a INT_2_10_10_10_REV
+    verts will come in as the format [x,y,z,w], so need to swap to [z,y,x,w]
+    """
     out = 0
     newverts = [0,0,0,1]
     for i in range(3):
@@ -48,6 +50,6 @@ def write(verts):
     
 
 if __name__ == "__main__":
-    data = read(0x5EF00382)
+    data = read(0x764361b3)
     print(data)
     print(write(data))

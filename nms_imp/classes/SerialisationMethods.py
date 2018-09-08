@@ -30,7 +30,7 @@ def serialise(x):
 def pad(input_data, length):
     data = bytearray()
     if isinstance(input_data, str):
-        data.extend(pack('{}s'.format(length), string))
+        data.extend(pack('{}s'.format(length), input_data))
     elif isinstance(input_data, bytes):
         data.extend(input_data)
         data.extend(pack('{}s'.format(length - len(input_data)), b''))
@@ -41,10 +41,8 @@ def list_header(offset, size, end):
     # returns the pointer information for the list
     # 0x10 bytes long
     data = bytearray()
-    pointer_location = pad(serialise(offset), 0x8)
-    data.extend(pointer_location)
-    pointer_size = pack('<i', size)
-    data.extend(pointer_size)
+    data.extend(pack('<Q', offset))
+    data.extend(pack('<I', size))
     data.extend(end)        # assume this is already a bytes object
     return data
 

@@ -8,7 +8,6 @@ from .TkTransformData import TkTransformData
 from .TkMaterialData import TkMaterialData
 from .TkPhysicsComponentData import TkPhysicsComponentData
 from .List import List
-from .Errors import *
 from numbers import Number
 
 TYPES = ['MESH', 'LOCATOR', 'COLLISION', 'MODEL', 'REFERENCE']
@@ -24,7 +23,7 @@ class Object():
     end
     """
     
-    def __init__(self, **kwargs):
+    def __init__(self, Name, **kwargs):
         self.Transform = kwargs.get('Transform', TkTransformData())     # This will be given as a TkTransformData object.
                                                                         # If this isn't specified the default value will be used.
 
@@ -36,6 +35,9 @@ class Object():
         self.IsMesh = False         # whether or not something is a mesh. This will be modified when the object is created if required.
 
         self.NodeData = None
+
+        self.Name = Name.upper()
+        self._Type = ""
 
         self.ID = None              # this is a unique number that is used to effectively flatten the mesh data so that it
                                     # can be related to the index in the main function.
@@ -65,19 +67,10 @@ class Object():
         self.Parent = parent
 
     def populate_meshlist(self, obj):
-        # take the obj and pass it all the way up to the Model object and add the object to it's list of meshes
-        if self.Parent is not None:
-            # in this case we are a child of something, so pass the object up an order...
-            self.Parent.populate_meshlist(obj)
-        else:
-            #... until we hit the Model object who is the only object that has no parent.
-            self.ListOfMeshes.append(obj)
+        pass
 
     def populate_entitylist(self, obj):
-        if self.Parent is not None:
-            self.Parent.populate_entitylist(obj)
-        else:
-            self.ListOfEntities.append(obj)
+        pass
             
     def add_child(self, child):
         self.Children.append(child)
@@ -131,8 +124,7 @@ class Object():
 
 class Locator(Object):
     def __init__(self, Name, **kwargs):
-        super(Locator, self).__init__(**kwargs)
-        self.Name = Name.upper()
+        super(Locator, self).__init__(Name, **kwargs)
         self._Type = "LOCATOR"
         self.HasAttachment = kwargs.get('HasAttachment', False)
 
@@ -143,8 +135,7 @@ class Locator(Object):
 
 class Light(Object):
     def __init__(self, Name, **kwargs):
-        super(Light, self).__init__(**kwargs)
-        self.Name = Name.upper()
+        super(Light, self).__init__(Name, **kwargs)
         self._Type = "LIGHT"
 
         self.Intensity = kwargs.get('Intensity', 40000)
@@ -169,8 +160,7 @@ class Light(Object):
 
 class Joint(Object):
     def __init__(self, Name, **kwargs):
-        super(Joint, self).__init__(**kwargs)
-        self.Name = Name.upper()
+        super(Joint, self).__init__(Name, **kwargs)
         self._Type = "JOINT"
         self.JointIndex = kwargs.get("JointIndex", 1)
 
@@ -180,8 +170,7 @@ class Joint(Object):
 
 class Emitter(Object):
     def __init__(self, Name, **kwargs):
-        super(Locator, self).__init__(**kwargs)
-        self.Name = Name.upper()
+        super(Emitter, self).__init__(Name, **kwargs)
         self._Type = "EMITTER"
 
     def create_attributes(self, data):
@@ -193,8 +182,7 @@ class Emitter(Object):
 
 class Mesh(Object):
     def __init__(self, Name, **kwargs):
-        super(Mesh, self).__init__(**kwargs)
-        self.Name = Name.upper()
+        super(Mesh, self).__init__(Name, **kwargs)
         self._Type = "MESH"
         self.Vertices = kwargs.get('Vertices', None)
         self.Indexes = kwargs.get('Indexes', None)
@@ -213,14 +201,20 @@ class Mesh(Object):
 
     def create_attributes(self, data):
         # data will be just the information required for the Attributes
-        self.Attributes = List(TkSceneNodeAttributeData(Name = 'BATCHSTART',
+        self.Attributes = List(TkSceneNodeAttributeData(Name = 'BATCHSTARTPHYSI',
                                                         Value = data['BATCHSTART']),
+                               TkSceneNodeAttributeData(Name = 'VERTRSTARTPHYSI',
+                                                        Value = data['VERTRSTART']),
+                               TkSceneNodeAttributeData(Name = 'VERTRENDPHYSICS',
+                                                        Value = data['VERTREND']),
+                               TkSceneNodeAttributeData(Name = 'BATCHSTARTGRAPH',
+                                                        Value = 0),
                                TkSceneNodeAttributeData(Name = 'BATCHCOUNT',
                                                         Value = data['BATCHCOUNT']),
-                               TkSceneNodeAttributeData(Name = 'VERTRSTART',
-                                                        Value = data['VERTRSTART']),
-                               TkSceneNodeAttributeData(Name = 'VERTREND',
-                                                        Value = data['VERTREND']),
+                               TkSceneNodeAttributeData(Name = 'VERTRSTARTGRAPH',
+                                                        Value = 0),
+                               TkSceneNodeAttributeData(Name = 'VERTRENDGRAPHIC',
+                                                        Value = data['VERTREND'] - data['VERTRSTART']),
                                TkSceneNodeAttributeData(Name = 'FIRSTSKINMAT',
                                                         Value = 0),
                                TkSceneNodeAttributeData(Name = 'LASTSKINMAT',
@@ -231,6 +225,20 @@ class Mesh(Object):
                                                         Value = data.get('BOUNDHULLST', 0)),
                                TkSceneNodeAttributeData(Name = 'BOUNDHULLED',
                                                         Value = data.get('BOUNDHULLED', 0)),
+                               TkSceneNodeAttributeData(Name = 'AABBMINX',
+                                                        Value = data.get('AABBMINX', 0)),
+                               TkSceneNodeAttributeData(Name = 'AABBMINY',
+                                                        Value = data.get('AABBMINY', 0)),
+                               TkSceneNodeAttributeData(Name = 'AABBMINZ',
+                                                        Value = data.get('AABBMINZ', 0)),
+                               TkSceneNodeAttributeData(Name = 'AABBMAXX',
+                                                        Value = data.get('AABBMAXX', 0)),
+                               TkSceneNodeAttributeData(Name = 'AABBMAXY',
+                                                        Value = data.get('AABBMAXY', 0)),
+                               TkSceneNodeAttributeData(Name = 'AABBMAXZ',
+                                                        Value = data.get('AABBMAXZ', 0)),
+                               TkSceneNodeAttributeData(Name = 'HASH',
+                                                        Value = data.get('HASH', 0)),
                                TkSceneNodeAttributeData(Name = 'MATERIAL',
                                                         Value = data['MATERIAL']),
                                TkSceneNodeAttributeData(Name = 'MESHLINK',
@@ -242,8 +250,7 @@ class Mesh(Object):
 
 class Collision(Object):
     def __init__(self, Name, **kwargs):
-        super(Collision, self).__init__(**kwargs)
-        self.Name = Name.upper()
+        super(Collision, self).__init__(Name, **kwargs)
         self._Type = "COLLISION"
         self.CType = kwargs.get("CollisionType", "Mesh")
         if self.CType == "Mesh":
@@ -303,8 +310,7 @@ class Collision(Object):
 
 class Model(Object):
     def __init__(self, Name, **kwargs):
-        super(Model, self).__init__(**kwargs)
-        self.Name = Name.upper()
+        super(Model, self).__init__(Name, **kwargs)
         self._Type = "MODEL"
 
         self.ListOfMeshes = []      # this is a list of all the MESH objects or collisions of type MESH so that we can easily access it.
@@ -317,14 +323,28 @@ class Model(Object):
                                                         Value = data['GEOMETRY']),
                                TkSceneNodeAttributeData(Name = 'NUMLODS',
                                                         Value = data.get('NUMLODS', 1)))
-        
+
+    def populate_meshlist(self, obj):
+        # take the obj and pass it all the way up to the Model object and add the object to it's list of meshes
+        if self.Parent is not None:
+            # in this case we are a child of something, so pass the object up an order...
+            self.Parent.populate_meshlist(obj)
+        else:
+            #... until we hit the Model object who is the only object that has no parent.
+            self.ListOfMeshes.append(obj)
+
+    def populate_entitylist(self, obj):
+        if self.Parent is not None:
+            self.Parent.populate_entitylist(obj)
+        else:
+            self.ListOfEntities.append(obj)
+
 
 class Reference(Object):
     def __init__(self, Name, **kwargs):
         # this will need to recieve SCENEGRAPH as an argument to be used.
         # Hopefully this casn be given by blender? Maybe have the user enter it in or select the path from a popup??
-        super(Reference, self).__init__(**kwargs)
-        self.Name = Name.upper()
+        super(Reference, self).__init__(Name, **kwargs)
         self._Type = "REFERENCE"
 
         self.Scenegraph = kwargs.get("Scenegraph", "Enter in the path of the SCENE.MBIN you want to reference here.")
