@@ -26,6 +26,17 @@ class NMSSocket(NodeSocket):
     def draw_color(self, context, node):
         return (1.0, 0.0, 1.0, 0.75)
 
+class NMSJoinSocket(NodeSocket):
+    '''NMS inter-Action Trigger Socket. Gets and sends no data, is simply used as a label'''
+    bl_idnname = 'NMSJoinSocket'
+    bl_label = 'NMS Joiner Socket'
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (0.0, 1.0, 0.0, 0.75)
+
 # base class for all the custom NMS Nodes
 class NMSATNode:
     @classmethod
@@ -112,6 +123,7 @@ class NMS_GoToStateAction(Node, NMSATNode):
 
     def init(self, context):
         self.inputs.new('NMSSocket', "Trigger")
+        self.outputs.new('NMSJoinSocket', "To Node")
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "State")
@@ -182,11 +194,15 @@ class NMS_NodeActivationAction(Node, NMSATNode):
                                            ("Toggle", "Toggle", "Toggle a scene node")])
     Name = StringProperty(name = 'Node name',
                            description = 'Name of scene node you wish to affect.')
+    SceneToAdd = StringProperty(name = 'Scene to add',
+                           description = 'Name of scene node you wish to add.')
     IncludePhysics = BoolProperty(name = 'Include physics',
                                     description = 'Unclear effects.')
     NotifyNPC = BoolProperty(name = 'Notify NPC',
                                     description = 'Unclear effects.')
     UseMasterModel = BoolProperty(name = 'Use master model',
+                                    description = 'Unclear effects.')
+    RestartEmitters = BoolProperty(name = 'Restart emitters',
                                     description = 'Unclear effects.')
 
     def init(self, context):
@@ -195,9 +211,11 @@ class NMS_NodeActivationAction(Node, NMSATNode):
     def draw_buttons(self, context, layout):
         layout.prop(self, "NodeActiveState")
         layout.prop(self, "Name")
+        layout.prop(self, "SceneToAdd")
         layout.prop(self, "IncludePhysics")
         layout.prop(self, "NotifyNPC")
         layout.prop(self, "UseMasterModel")
+        layout.prop(self, "RestartEmitters")
 
     def draw_label(self):
         return "Node Activation Action"
@@ -350,6 +368,7 @@ class NMS_PlayerNearbyEvent(Node, NMSATNode):
 
 
     def init(self, context):
+        self.inputs.new('NMSJoinSocket', "From Node")
         self.outputs.new('NMSSocket', "Action")
 
     def draw_buttons(self, context, layout):
@@ -382,6 +401,7 @@ class NMS_BeenShotEvent(Node, NMSATNode):
                                     description = "Health value at which action will be triggered (?)")
 
     def init(self, context):
+        self.inputs.new('NMSJoinSocket', "From Node")
         self.outputs.new('NMSSocket', "Action")
 
     def draw_buttons(self, context, layout):
@@ -402,6 +422,7 @@ class NMS_StateTimeEvent(Node, NMSATNode):
                              description = "Seconds to wait for setting off trigger")
     
     def init(self, context):
+        self.inputs.new('NMSJoinSocket', "From Node")
         self.outputs.new('NMSSocket', "Action")
 
     def draw_buttons(self, context, layout):
@@ -425,6 +446,7 @@ class NMS_AnimFrameEvent(Node, NMSATNode):
                                 description = 'Whether or not to count frames from end of anim[?]')
     
     def init(self, context):
+        self.inputs.new('NMSJoinSocket', "From Node")
         self.outputs.new('NMSSocket', "Action")
 
     def draw_buttons(self, context, layout):
@@ -458,12 +480,14 @@ class NMSNodes():
                                 NMSNodeCategory("TriggerNodes", "Trigger Nodes", items = [NodeItem('NMS_PlayerNearbyEvent'),
                                                                                           NodeItem('NMS_BeenShotEvent'),
                                                                                           NodeItem('NMS_StateTimeEvent'),
-                                                                                          NodeItem('NMS_AnimFrameEvent')])]
+                                                                                          NodeItem('NMS_AnimFrameEvent')]),
+                                NMSNodeCategory("OtherNodes", "Other Nodes", items = [NodeItem('NodeFrame')])]
 
     def register(self):
         # register base classes
         bpy.utils.register_class(NMSATTree)
         bpy.utils.register_class(NMSSocket)
+        bpy.utils.register_class(NMSJoinSocket)
         # register Actions
         bpy.utils.register_class(NMS_WarpAction)
         bpy.utils.register_class(NMS_PlayAudioAction)
@@ -509,3 +533,4 @@ class NMSNodes():
         # unregister base classes
         bpy.utils.unregister_class(NMSATTree)
         bpy.utils.unregister_class(NMSSocket)
+        bpy.utils.unregister_class(NMSJoinSocket)

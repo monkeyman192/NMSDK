@@ -23,7 +23,7 @@ class GcDestructableComponentData(Struct):
         self.data['LootRewardAmountMin'] = kwargs.get('LootRewardAmountMin', 0)
         self.data['LootRewardAmountMax'] = kwargs.get('LootRewardAmountMax', 0)
         self.data['GivesSubstances'] = kwargs.get('GivesSubstances', List())
-        self.data['StatsToTrack'] = kwargs.get('StatsToTrack', GcStatTrackType())
+        self.data['StatsToTrack'] = kwargs.get('StatsToTrack', GcStatsEnum())
         self.data['GivesReward'] = kwargs.get('GivesReward', "")
         self.data['HardModeSubstanceMultiplier'] = kwargs.get('HardModeSubstanceMultiplier', 1)
         self.data['RemoveModel'] = kwargs.get('RemoveModel', True)

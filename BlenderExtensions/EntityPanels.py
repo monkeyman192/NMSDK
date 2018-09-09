@@ -99,7 +99,8 @@ class NMS_GcProjectileImpactType_Properties(bpy.types.PropertyGroup):
                                   ("Cargo", "Cargo", "Cargo"),
                                   ("Ship", "Ship", "Ship"),
                                   ("Plant", "Plant", "Plant")])
-    
+
+
 class NMS_GcShootableComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for GcShootableComponentData """
     Health = IntProperty(name = "Health", default = 200, min = 0)
@@ -110,16 +111,23 @@ class NMS_GcShootableComponentData_Properties(bpy.types.PropertyGroup):
     ForceImpactType = PointerProperty(type = NMS_GcProjectileImpactType_Properties)
     IncreaseWanted = IntProperty(name = "Increase Wanted", default = 0, min = 0, max = 5)
     IncreaseWantedThresholdTime = FloatProperty(name = "Increase Wanted Threshold Time", default = 0.5)
-    UseMiningDamage = BoolProperty(name = "Use Mining Damage", default = False)
+    IncreaseFiendWanted = BoolProperty(name = "Increase Fiend Wanted", default = False)
+    RepairTime = FloatProperty(name = "Repair Time", default = 0.5)
     MinDamage = IntProperty(name = "Min Damage", default = 0)
     StaticUntilShot = BoolProperty(name = "Static Until Shot", default = False)
-    RequiredTech = StringProperty(name = "Required Tech", maxlen = 0x20)
+    HitEffectEnabled = BoolProperty(name = "Hit Effect Enabled", default = False)
+    HitEffectEntireModel = BoolProperty(name = "Hit Effect Entire Model", default = False)
+    NameOverride = StringProperty(name = "Name Override", maxlen = 0x20)
+    RequiredTech = StringProperty(name = "Required Tech", maxlen = 0x10)
+    DamageMultiplier = StringProperty(name = "Damage Multiplier", maxlen = 0x10)
+
 
 # GcDestructableComponentData related properties
 class NMS_TkTextureResource_Properties(bpy.types.PropertyGroup):
     """ Properties for TkTextureResource """
     Filename = StringProperty(name = "Filename", maxlen = 0x80)
-	
+
+
 class NMS_GcStatTrackType_Properties(bpy.types.PropertyGroup):
     """ Properties for GcStatTrackType """
     StatTrackType = EnumProperty(name = "StatTrackType",
@@ -137,7 +145,8 @@ class NMS_GcRarity_Properties(bpy.types.PropertyGroup):
                                   ("Rare", "Rare", "Rare"),
                                   ("Extraordinary", "Extraordinary", "Extraordinary"),
                                   ("None", "None", "None")])
-	
+
+
 class NMS_GcRealitySubstanceCategory_Properties(bpy.types.PropertyGroup):
     """ Properties for GcRealitySubstanceCategory """
     SubstanceCategory = EnumProperty(name = "SubstanceCategory",
@@ -147,14 +156,30 @@ class NMS_GcRealitySubstanceCategory_Properties(bpy.types.PropertyGroup):
                                   ("Tradeable", "Tradeable", "Tradeable"),
                                   ("Special", "Special", "Special"),
                                   ("BuildingPart", "BuildingPart", "BuildingPart")])
-								  
+
+
 class NMS_GcSubstanceAmount_Properties(bpy.types.PropertyGroup):
     """ Properties for GcSubstanceAmount """
     AmountMin = IntProperty(name = "AmountMin", default = 0)
     AmountMax = IntProperty(name = "AmountMax", default = 0)
     Specific = StringProperty(name = "Specific", maxlen = 0x10)
+    SpecificSecondary = StringProperty(name = "SpecificSecondary", maxlen = 0x10)
     SubstanceCategory = PointerProperty(type = NMS_GcRealitySubstanceCategory_Properties)
     Rarity = PointerProperty(type = NMS_GcRarity_Properties)
+
+
+class NMS_GcStatsEnum_Properties(bpy.types.PropertyGroup):
+    """ Properties for GcStatsEnum """
+    Stat = EnumProperty(name = "Stat",
+                        items = [("None", "None", "None"),
+                                 ("DEPOTS_BROKEN", "DEPOTS_BROKEN", "DEPOTS_BROKEN"),
+                                 ("FPODS_BROKEN", "FPODS_BROKEN", "FPODS_BROKEN"),
+                                 ("PLANTS_PLANTED", "PLANTS_PLANTED", "PLANTS_PLANTED"),
+                                 ("SALVAGE_LOOTED", "SALVAGE_LOOTED", "SALVAGE_LOOTED"),
+                                 ("TREASURE_FOUND", "TREASURE_FOUND", "TREASURE_FOUND"),
+                                 ("QUADS_KILLED", "QUADS_KILLED", "QUADS_KILLED"),
+                                 ("WALKERS_KILLED", "WALKERS_KILLED", "WALKERS_KILLED")])
+
 
 class NMS_GcDestructableComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for GcDestructableComponentData """
@@ -168,7 +193,7 @@ class NMS_GcDestructableComponentData_Properties(bpy.types.PropertyGroup):
     LootRewardAmountMin = IntProperty(name = "LootRewardAmountMin", default = 0)
     LootRewardAmountMax = IntProperty(name = "LootRewardAmountMax", default = 0)
     GivesSubstances = CollectionProperty(type = NMS_GcSubstanceAmount_Properties)
-    StatsToTrack = PointerProperty(type = NMS_GcStatTrackType_Properties)
+    StatsToTrack = PointerProperty(type = NMS_GcStatsEnum_Properties)
     GivesReward = StringProperty(name = "GivesReward", maxlen = 0x10)
     HardModeSubstanceMultiplier = FloatProperty(name = "HardModeSubstanceMultiplier")
     RemoveModel = BoolProperty(name = "RemoveModel", default = True)
@@ -202,11 +227,6 @@ class NMS_GcInteractionActivationCost_Properties(bpy.types.PropertyGroup):
     Cost = IntProperty(name = "Cost")
     Repeat = BoolProperty(name = "Repeat")
     RequiredTech = StringProperty(name = "RequiredTech")
-
-class NMS_GcStatsEnum_Properties(bpy.types.PropertyGroup):
-    """ Properties for GcStatsEnum """
-    Stat = EnumProperty(name = "Stat",
-                        items = [("None", "None", "None")])     # gonna need to check this...
 
 class NMS_GcDiscoveryTypes_Properties(bpy.types.PropertyGroup):
     """ Properties for GcDiscoveryTypes """
@@ -346,15 +366,8 @@ class NMS_GcEncyclopediaComponentData_Properties(bpy.types.PropertyGroup):
 class NMS_GcEncounterComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for GcEncounterComponentData """
     EncounterType = EnumProperty(name = "EncounterType",
-                                 items = [("Guards", "Guards", "Guards"),
-                                          ("Patrol", "Patrol", "Patrol"),
-                                          ("Ambush", "Ambush", "Ambush")])
-    EncounterRobot = EnumProperty(name = "EncounterRobot",
-                                  items = [("Drones", "Drones", "Drones"),
-                                           ("Quads", "Quads", "Quads"),
-                                           ("Walker", "Walker", "Walker")])
-    CountMin = IntProperty(name = "CountMin", min = 0)
-    CountMax = IntProperty(name = "CountMax", min = 0)
+                                 items = [("FactoryGuards", "FactoryGuards", "FactoryGuards"),
+                                          ("HarvesterGuards", "HarvesterGuards", "HarvesterGuards")])
 
 # GcSpaceshipComponentData related properties
 class NMS_GcSpaceshipComponentData_Properties(bpy.types.PropertyGroup):
@@ -676,10 +689,15 @@ class DATA_PT_entities(bpy.types.Panel):
         b.row("Impact")
         r.row("IncreaseWanted")
         r.row("IncreaseWantedThresholdTime")
-        r.row("UseMiningDamage")
+        r.row("IncreaseFiendWanted")
+        r.row("RepairTime")
         r.row("MinDamage")
         r.row("StaticUntilShot")
+        r.row("HitEffectEnabled")
+        r.row("HitEffectEntireModel")
+        r.row("NameOverride")
         r.row("RequiredTech")
+        r.row("DamageMultiplier")
 
     # GcDestructableComponentData related layouts
     def GcDestructableComponentData(self, layout, obj):
@@ -695,7 +713,7 @@ class DATA_PT_entities(bpy.types.Panel):
         r.row("LootRewardAmountMax")
         r.listbox(self, obj, "NMS_GcDestructableComponentData_props", "GivesSubstances", "GcSubstanceAmount")
         b = r.box("StatsToTrack")
-        b.row("StatTrackType")
+        b.row("Stat")
         r.row("GivesReward")
         r.row("HardModeSubstanceMultiplier")
         r.row("RemoveModel")
@@ -716,6 +734,7 @@ class DATA_PT_entities(bpy.types.Panel):
         r.row("AmountMin")
         r.row("AmountMax")
         r.row("Specific")
+        r.row("SpecificSecondary")
         b = r.box("SubstanceCategory")
         b.row("SubstanceCategory")
         b = r.box("Rarity")
@@ -809,9 +828,6 @@ class DATA_PT_entities(bpy.types.Panel):
     def GcEncounterComponentData(self, layout, obj):
         r = RowGen(obj.NMS_GcEncounterComponentData_props, layout)
         r.row("EncounterType")
-        r.row("EncounterRobot")
-        r.row("CountMin")
-        r.row("CountMax")
 
     # GcSpaceshipComponentData related layouts
     def GcSpaceshipComponentData(self, layout, obj):
@@ -1091,9 +1107,9 @@ class NMSEntities():
         bpy.utils.register_class(NMS_GcRarity_Properties)
         bpy.utils.register_class(NMS_GcRealitySubstanceCategory_Properties)
         bpy.utils.register_class(NMS_GcSubstanceAmount_Properties)
+        bpy.utils.register_class(NMS_GcStatsEnum_Properties)
         bpy.utils.register_class(NMS_GcDestructableComponentData_Properties)
         bpy.utils.register_class(NMS_NMSString0x10_Properties)
-        bpy.utils.register_class(NMS_GcStatsEnum_Properties)
         bpy.utils.register_class(NMS_GcSizeIndicator_Properties)
         bpy.utils.register_class(NMS_GcBaseBuildingTriggerAction_Properties)
         bpy.utils.register_class(NMS_GcInteractionActivationCost_Properties)
