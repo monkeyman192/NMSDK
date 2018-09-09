@@ -64,6 +64,7 @@ class TkGeometryData(Struct):
 
         list_data = OrderedDict()
         
+        # TODO: fix this up to be better...
         if self.data['IndexCount'] %2 != 0 or self.data['IndexCount'] > 32767:
             # in this case we have an odd number of verts. set the Indices16Bit value to be 0
             # or we have too many verts to pack it using a half...
@@ -120,8 +121,8 @@ class TkGeometryData(Struct):
                 list_data[pname] = self.serialise_list(pname)
             elif pname in ['VertexLayout', 'SmallVertexLayout']:
                 # just pull the data directly
-                output.write(pack('<i', self.data[pname].data['ElementCount']))
-                output.write(pack('<i', self.data[pname].data['Stride']))
+                output.write(pack('<I', self.data[pname].data['ElementCount']))
+                output.write(pack('<I', self.data[pname].data['Stride']))
                 output.write(bytes(self.data[pname].data['PlatformData']))
                 curr_offset -= 0x10
                 length = len(self.data[pname].data['VertexElements'])
@@ -140,10 +141,10 @@ class TkGeometryData(Struct):
                 data = bytearray()
                 if Indices16Bit == 0:
                     for val in self.data['IndexBuffer']:
-                        data.extend(pack('<i', val))
+                        data.extend(pack('<I', val))
                 else:
                     for val in self.data['IndexBuffer']:
-                        data.extend(pack('<h', val))
+                        data.extend(pack('<H', val))
                 list_data['IndexBuffer'] = data
                 #list_data.append(data)
             elif pname in ['VertexStream', 'SmallVertexStream']:

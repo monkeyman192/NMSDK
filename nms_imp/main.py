@@ -79,6 +79,7 @@ class Create_Data():
         self.mesh_bounds = dict()           # a disctionary of the bounds of just mesh objects. This will be used for the scene files
         self.materials = set()      # this will hopefully mean that there will be at most one copy of each unique TkMaterialData struct in the set
         self.hashes = dict()
+        self.name_to_id = dict()
 
         #self.Entities = []          # a list of any extra properties to go in each entity
 
@@ -203,6 +204,7 @@ class Create_Data():
         self.v_stream_lens = list()
         self.ch_stream_lens = list()
 
+        """
         # to fix 1.3x mesh collisions, we need to make all the mesh collisions have their indexes first
         # we require a mapping to know which is which though
         self.index_mapping = list(range(len(self.Model.ListOfMeshes)))        # the unchanged mapping
@@ -214,6 +216,7 @@ class Create_Data():
                     self.index_mapping = movetoindex(self.index_mapping, i, insert_point)         # move the index it is now located at 'insert_point' so we can construct it correctly in the scene
                     insert_point += 1
         print(self.index_mapping, 'index_mapping')
+        """
 
         # populate the lists containing the lengths of each individual stream
         for index in range(self.num_mesh_objs):
@@ -270,17 +273,21 @@ class Create_Data():
         # This will do the main processing of the different streams.
         # indexes
         index_counts = list(3*x for x in self.i_stream_lens)    # the total number of index points in each object
-        print(index_counts, 'index counts')
         # now, re-order the indexes:
-        new_index_counts = list(index_counts[self.index_mapping[i]] for i in range(len(index_counts)))
-        print(new_index_counts, 'new_index_counts')
+        #new_index_counts = list(index_counts[self.index_mapping[i]] for i in range(len(index_counts)))
         # and sort out the batches
-        self.batches = list((sum(new_index_counts[:i]), new_index_counts[i]) for i in range(self.num_mesh_objs))
+        #self.batches = list((sum(new_index_counts[:i]), new_index_counts[i]) for i in range(self.num_mesh_objs))
+        self.batches = list((sum(index_counts[:i]), index_counts[i])
+                            for i in range(self.num_mesh_objs))
         print(self.batches, 'batches')
         # vertices
-        self.vert_bounds = list((sum(self.v_stream_lens[:i]), sum(self.v_stream_lens[:i+1])-1) for i in range(self.num_mesh_objs))
+        self.vert_bounds = list((sum(self.v_stream_lens[:i]),
+                                 sum(self.v_stream_lens[:i+1])-1)
+                                for i in range(self.num_mesh_objs))
         # bounded hull data
-        self.hull_bounds = list((sum(self.ch_stream_lens[:i]), sum(self.ch_stream_lens[:i+1])) for i in range(self.num_mesh_objs))
+        self.hull_bounds = list((sum(self.ch_stream_lens[:i]),
+                                 sum(self.ch_stream_lens[:i+1]))
+                                for i in range(self.num_mesh_objs))
         print(self.hull_bounds, 'bound hulls')
 
         # CollisionIndexCount
@@ -307,14 +314,16 @@ class Create_Data():
             # now we set k to be the current max and this is added on to the next set.
             k = curr_max + 1
 
+        """
         #print(self.index_stream)
-        print('reshuffling indexes')
+        #print('reshuffling indexes')
         # now we need to re-shuffle the index data
         new_index_data = list(range(self.num_mesh_objs))        # just fill with numbers for now, they will be overridden
         for i in range(self.num_mesh_objs):
             new_index_data[self.index_mapping.index(i)] = self.index_stream[i]
         self.index_stream = new_index_data
         #print(self.index_stream)
+        """
 
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = 3*sum(self.i_stream_lens)
@@ -348,8 +357,10 @@ class Create_Data():
 
                 data = dict()
 
-                data['BATCHSTART'] = self.batches[self.index_mapping.index(i)][0]
-                data['BATCHCOUNT'] = self.batches[self.index_mapping.index(i)][1]
+                #data['BATCHSTART'] = self.batches[self.index_mapping.index(i)][0]
+                #data['BATCHCOUNT'] = self.batches[self.index_mapping.index(i)][1]
+                data['BATCHSTART'] = self.batches[i][0]
+                data['BATCHCOUNT'] = self.batches[i][1]
                 data['VERTRSTART'] = self.vert_bounds[i][0]
                 data['VERTREND'] = self.vert_bounds[i][1]
                 data['BOUNDHULLST'] = self.hull_bounds[i][0]
@@ -502,6 +513,11 @@ class Create_Data():
         for obj in self.index_stream:
             for tri in obj:
                 IndexBuffer.extend(tri)
+        """
+        # let's convert to the correct type of array data type here
+        if not max(IndexBuffer) > 2**16:
+            IndexBuffer = array('H', IndexBuffer)
+        """
         self.GeometryData['IndexBuffer'] = IndexBuffer
 
     def get_bounds(self):
