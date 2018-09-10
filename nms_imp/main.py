@@ -559,6 +559,8 @@ class Create_Data():
                             # in this case the path is probably broken, just set as empty if it wasn't before
                             new_path = ""
                         f_name, ext = os.path.splitext(new_path)
+                        sample['Map'] = f_name + ext.upper()
+                        """
                         if ext != '.DDS' and ext != '':
                             # TODO: add code here to convert the image to dds format
                             # in this case the file is not in the correct format. Put the correct file extension in the material file
@@ -567,6 +569,7 @@ class Create_Data():
                         else:
                             # all good in this case
                             sample['Map'] = new_path
+                        """
                 
     def write(self):
         # write each of the exml files.

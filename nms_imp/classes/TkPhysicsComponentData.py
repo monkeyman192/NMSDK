@@ -23,7 +23,8 @@ class TkPhysicsComponentData(Struct):
         self.data['Climbable'] = kwargs.get('Climbable', False)
         self.data['IgnoreModelOwner'] = kwargs.get('IgnoreModelOwner', False)
         self.data['NoVehicleCollision'] = kwargs.get('NoVehicleCollision', False)
-        self.data['EndPadding'] = Empty(0x4)
+        self.data['CameraInvisible'] = kwargs.get('CameraInvisible', False)
+        self.data['EndPadding'] = Empty(0x3)
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something
