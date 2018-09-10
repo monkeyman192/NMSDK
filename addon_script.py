@@ -1112,7 +1112,7 @@ class Exporter():
 
 
 class NMS_Export_Operator(Operator, ExportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
+    """Export scene to NMS compatible files"""
     bl_idname = "export_mesh.nms"  # important since its how bpy.ops.import_test.some_data is constructed
     bl_label = "Export to NMS XML Format"
 
