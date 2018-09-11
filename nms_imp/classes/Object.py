@@ -36,6 +36,13 @@ class Object():
 
         self.NodeData = None
 
+        # even though these are defined for all Object's, they will only be
+        # populated for the Model
+        # TODO: make this wayyyy nicer
+        self.ListOfMeshes = []      # this is a list of all the MESH objects or collisions of type MESH so that we can easily access it.
+                                    # The list will be automatically populated when a child is added to any children of this object.
+        self.ListOfEntities = []    # this works similarly to the above...
+
         self.Name = Name.upper()
         self._Type = ""
 
@@ -67,15 +74,25 @@ class Object():
         self.Parent = parent
 
     def populate_meshlist(self, obj):
-        pass
+        # take the obj and pass it all the way up to the Model object and add the object to it's list of meshes
+        if self.Parent is not None:
+            # in this case we are a child of something, so pass the object up an order...
+            self.Parent.populate_meshlist(obj)
+        else:
+            #... until we hit the Model object who is the only object that has no parent.
+            self.ListOfMeshes.append(obj)
 
     def populate_entitylist(self, obj):
-        pass
+        if self.Parent is not None:
+            self.Parent.populate_entitylist(obj)
+        else:
+            self.ListOfEntities.append(obj)
             
     def add_child(self, child):
         self.Children.append(child)
         child.give_parent(self)     # give the child it's parent
         if child.IsMesh:
+            print('{0} is a mesh'.format(self.Name))
             # if the child has mesh data, we want to pass the reference of the object up to the Model object
             self.populate_meshlist(child)
         if child._Type == 'LOCATOR' or child._Type == 'MESH':
@@ -313,31 +330,12 @@ class Model(Object):
         super(Model, self).__init__(Name, **kwargs)
         self._Type = "MODEL"
 
-        self.ListOfMeshes = []      # this is a list of all the MESH objects or collisions of type MESH so that we can easily access it.
-                                    # The list will be automatically populated when a child is added to any children of this object.
-        self.ListOfEntities = []    # this works similarly to the above...
-
     def create_attributes(self, data):
         # data will be just the information required for the Attributes
         self.Attributes = List(TkSceneNodeAttributeData(Name = 'GEOMETRY',
                                                         Value = data['GEOMETRY']),
                                TkSceneNodeAttributeData(Name = 'NUMLODS',
                                                         Value = data.get('NUMLODS', 1)))
-
-    def populate_meshlist(self, obj):
-        # take the obj and pass it all the way up to the Model object and add the object to it's list of meshes
-        if self.Parent is not None:
-            # in this case we are a child of something, so pass the object up an order...
-            self.Parent.populate_meshlist(obj)
-        else:
-            #... until we hit the Model object who is the only object that has no parent.
-            self.ListOfMeshes.append(obj)
-
-    def populate_entitylist(self, obj):
-        if self.Parent is not None:
-            self.Parent.populate_entitylist(obj)
-        else:
-            self.ListOfEntities.append(obj)
 
 
 class Reference(Object):
