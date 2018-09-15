@@ -19,6 +19,7 @@ from StreamCompiler import StreamData, TkMeshMetaData
 from DataSerialise import TkVertexStream, TkIndexStream
 from struct import pack
 from hashlib import sha256
+from collections import OrderedDict as odict
 
 BASEPATH = 'CUSTOMMODELS'
 
@@ -68,58 +69,55 @@ class Create_Data():
         self.fix_names()
 
         # assign each of the input streams to a variable
-        self.mesh_metadata = dict()
-        self.index_stream = []
-        self.mesh_indexes = []
-        self.vertex_stream = []
-        self.uv_stream = []
-        self.n_stream = []
-        self.t_stream = []
-        self.chvertex_stream = []
+        self.mesh_metadata = odict()
+        self.index_stream = dict()
+        self.mesh_indexes = dict()
+        self.vertex_stream = dict()
+        self.uv_stream = dict()
+        self.n_stream = dict()
+        self.t_stream = dict()
+        self.chvertex_stream = dict()
         self.mesh_bounds = dict()           # a disctionary of the bounds of just mesh objects. This will be used for the scene files
         self.materials = set()      # this will hopefully mean that there will be at most one copy of each unique TkMaterialData struct in the set
         self.hashes = dict()
-        self.name_to_id = dict()
+        self.mesh_names = list()
 
         #self.Entities = []          # a list of any extra properties to go in each entity
 
         # extract the streams from the mesh objects.
-        index = 0
-        for mesh in self.Model.ListOfMeshes:
-            self.index_stream.append(mesh.Indexes)
-            self.vertex_stream.append(mesh.Vertices)
-            self.uv_stream.append(mesh.UVs)
-            self.n_stream.append(mesh.Normals)
-            self.t_stream.append(mesh.Tangents)
-            self.chvertex_stream.append(mesh.CHVerts)
+        for mesh in self.Model.Meshes.values():
+            self.mesh_names.append(mesh.Name)
+            self.index_stream[mesh.Name] = mesh.Indexes
+            self.vertex_stream[mesh.Name] = mesh.Vertices
+            self.uv_stream[mesh.Name] = mesh.UVs
+            self.n_stream[mesh.Name] = mesh.Normals
+            self.t_stream[mesh.Name] = mesh.Tangents
+            self.chvertex_stream[mesh.Name] = mesh.CHVerts
             self.mesh_metadata[mesh.Name] = {'hash': nmsHash(mesh.Vertices)}
             # also add in the material data to the list
             if mesh.Material is not None:
                 self.materials.add(mesh.Material)
-            mesh.ID = index             # assign the index location of the data to the Object so that it knows where its data is
-            index += 1
 
         #for obj in self.Model.ListOfEntities:
         #    self.Entities.append(obj.EntityData)
 
-        self.num_mesh_objs = index      # this is the total number of objects that have mesh data
-
-        # an empty list of dicts that will ber populated then each entry will
-        # be given back to the correct Mesh or Collision object
-        self.mesh_data = [dict()]*self.num_mesh_objs
+        self.num_mesh_objs = len(self.Model.Meshes)
 
         # generate some variables relating to the paths
-        self.path = os.path.join(BASEPATH, self.directory, self.name)         # the path location including the file name.
+        self.path = os.path.join(BASEPATH, self.directory, self.name)
         self.texture_path = os.path.join(self.path, 'TEXTURES')
         self.anims_path = os.path.join(BASEPATH, self.directory, 'ANIMS')
-        self.ent_path = os.path.join(self.path, 'ENTITIES')         # path location of the entity folder. Calling makedirs of this will ensure all the folders are made in one go
+        # path location of the entity folder. Calling makedirs of this will
+        # ensure all the folders are made in one go
+        self.ent_path = os.path.join(self.path, 'ENTITIES')
 
         self.create_paths()
 
         # This dictionary contains all the information for the geometry file 
         self.GeometryData = dict()
 
-        self.geometry_stream = StreamData('{}.GEOMETRY.DATA.MBIN.PC'.format(self.path))
+        self.geometry_stream = StreamData(
+            '{}.GEOMETRY.DATA.MBIN.PC'.format(self.path))
 
         # generate the geometry stream data now
         self.serialise_data()
@@ -127,28 +125,34 @@ class Create_Data():
         self.preprocess_streams()
 
         # This will just be some default entity with physics data
-        self.TkAttachmentData = TkAttachmentData()      # this is created with the Physics Component Data by default
+        # This is created with the Physics Component Data by default
+        self.TkAttachmentData = TkAttachmentData()
         self.TkAttachmentData.make_elements(main=True)
 
         self.process_data()
 
         self.get_bounds()
 
-        self.create_vertex_layouts()        # this creates the VertexLayout and SmallVertexLayout properties
+        # this creates the VertexLayout and SmallVertexLayout properties
+        self.create_vertex_layouts()
 
         # Material defaults
         self.process_materials()
 
         self.process_nodes()
+        # make this last to make sure flattening each stream doesn't affect
+        # other data.
+        self.mix_streams()      
 
-        self.mix_streams()      # make this last to make sure flattening each stream doesn't affect other data.
-
-        # Assign each of the class objects that contain all of the data their data
+        # Assign each of the class objects that contain all of the data their
+        # data
         self.TkGeometryData = TkGeometryData(**self.GeometryData)
         self.TkGeometryData.make_elements(main=True)
         self.Model.construct_data()
         self.TkSceneNodeData = self.Model.get_data()
-        self.TkSceneNodeData.make_elements(main=True)         # get the model to create all the required data and this will continue on down the tree
+        # get the model to create all the required data and this will continue
+        # on down the tree
+        self.TkSceneNodeData.make_elements(main=True)
         if len(self.descriptor) != 0:
             self.descriptor = self.descriptor.to_exml()
             self.descriptor.make_elements(main = True)
@@ -181,10 +185,10 @@ class Create_Data():
     def preprocess_streams(self):
         # this will iterate through the Mesh objects and check that each of them has the same number of input streams. Any that don't will be flagged and a message will be raised
         streams = set()
-        for mesh in self.Model.ListOfMeshes:
+        for mesh in self.Model.Meshes.values():
             # first find all the streams over all the meshes that have been provided
             streams = streams.union(mesh.provided_streams)
-        for mesh in self.Model.ListOfMeshes:
+        for mesh in self.Model.Meshes.values():
             # next go back over the list and compare. If an entry isn't in the list of provided streams print a messge (maybe make a new error for this to be raised?)
             diff = streams.difference(mesh.provided_streams)
             if diff != set():
@@ -196,13 +200,15 @@ class Create_Data():
         self.stream_list.sort()
 
         self.element_count = len(self.stream_list)
-        self.stride = 6*self.element_count        # this is 6* if normals and tangents are INT_2_10_10_10_REV, and 5* if just normals
+        # this is 6* if normals and tangents are INT_2_10_10_10_REV, and
+        # 5* if just normals
+        self.stride = 6*self.element_count
 
-        # secondly this will generate two lists containing the individual lengths of each stream
-
-        self.i_stream_lens = list()
-        self.v_stream_lens = list()
-        self.ch_stream_lens = list()
+        # secondly this will generate two lists containing the individual
+        # lengths of each stream
+        self.i_stream_lens = odict()
+        self.v_stream_lens = odict()
+        self.ch_stream_lens = odict()
 
         """
         # to fix 1.3x mesh collisions, we need to make all the mesh collisions have their indexes first
@@ -219,10 +225,10 @@ class Create_Data():
         """
 
         # populate the lists containing the lengths of each individual stream
-        for index in range(self.num_mesh_objs):
-            self.i_stream_lens.append(len(self.index_stream[index]))
-            self.v_stream_lens.append(len(self.vertex_stream[index]))
-            self.ch_stream_lens.append(len(self.chvertex_stream[index]))
+        for name in self.mesh_names:
+            self.i_stream_lens[name] = len(self.index_stream[name])
+            self.v_stream_lens[name] = len(self.vertex_stream[name])
+            self.ch_stream_lens[name] = len(self.chvertex_stream[name])
 
     def fix_names(self):
         # just make sure that the name and path is all in uppercase
@@ -237,20 +243,20 @@ class Create_Data():
         vertex_data = []
         index_data = []
         metadata = dict()
-        for i, mesh_id in enumerate(self.mesh_metadata):
-            vertex_data.append(TkVertexStream(verts = self.vertex_stream[i],
-                                              uvs = self.uv_stream[i],
-                                              normals = self.n_stream[i],
-                                              tangents = self.t_stream[i]))
+        for name in self.mesh_names:
+            vertex_data.append(TkVertexStream(verts = self.vertex_stream[name],
+                                              uvs = self.uv_stream[name],
+                                              normals = self.n_stream[name],
+                                              tangents = self.t_stream[name]))
             new_indexes = []
-            for tri in self.index_stream[i]:
+            for tri in self.index_stream[name]:
                 new_indexes.extend(tri)
             if max(new_indexes) > 2**16:
                 indexes = array('I', new_indexes)
             else:
                 indexes = array('H', new_indexes)
             index_data.append(TkIndexStream(indexes))
-            metadata[mesh_id] = self.mesh_metadata[mesh_id]
+            metadata[name] = self.mesh_metadata[name]
         self.geometry_stream.create(metadata, vertex_data, index_data)
         self.geometry_stream.save()     # offset data populated here
 
@@ -272,43 +278,52 @@ class Create_Data():
     def process_data(self):
         # This will do the main processing of the different streams.
         # indexes
-        index_counts = list(3*x for x in self.i_stream_lens)    # the total number of index points in each object
+        # the total number of index points in each object
+        index_counts = list(3*x for x in self.i_stream_lens.values())
         # now, re-order the indexes:
         #new_index_counts = list(index_counts[self.index_mapping[i]] for i in range(len(index_counts)))
         # and sort out the batches
         #self.batches = list((sum(new_index_counts[:i]), new_index_counts[i]) for i in range(self.num_mesh_objs))
-        self.batches = list((sum(index_counts[:i]), index_counts[i])
-                            for i in range(self.num_mesh_objs))
+        self.batches = odict(zip(self.mesh_names,
+                                 [(sum(index_counts[:i]), index_counts[i])
+                                  for i in range(self.num_mesh_objs)]))
         print(self.batches, 'batches')
         # vertices
-        self.vert_bounds = list((sum(self.v_stream_lens[:i]),
-                                 sum(self.v_stream_lens[:i+1])-1)
-                                for i in range(self.num_mesh_objs))
+        v_stream_lens = list(self.v_stream_lens.values())
+        self.vert_bounds = odict(zip(self.mesh_names,
+                                     [(sum(v_stream_lens[:i]),
+                                       sum(v_stream_lens[:i+1])-1)
+                                      for i in range(self.num_mesh_objs)]))
         # bounded hull data
-        self.hull_bounds = list((sum(self.ch_stream_lens[:i]),
-                                 sum(self.ch_stream_lens[:i+1]))
-                                for i in range(self.num_mesh_objs))
+        ch_stream_lens = list(self.v_stream_lens.values())
+        self.hull_bounds = odict(zip(self.mesh_names,
+                                     [(sum(ch_stream_lens[:i]),
+                                       sum(ch_stream_lens[:i+1]))
+                                      for i in range(self.num_mesh_objs)]))
         print(self.hull_bounds, 'bound hulls')
 
         # CollisionIndexCount
-        # go over all the meshes and add all the batches. Not sure if this can be optimised to be obtained earier... Probably...
+        # go over all the meshes and add all the batches.
+        # Not sure if this can be optimised to be obtained earier... Probably
+        #!OBSOLETE  well... technically not, but not used right now...
         ColIndexCount = 0
-        for i in range(len(self.Model.ListOfMeshes)):
-            mesh = self.Model.ListOfMeshes[i]
+        """
+        for mesh in range(len(self.Model.Meshes.values())):
             if mesh._Type == 'COLLISION':
                 if mesh.CType == 'Mesh':
-                    #print(index_counts, sum(index_counts[:i]), index_counts[i])
                     ColIndexCount += index_counts[i]
+        """
 
-        # we need to fix up the index stream as the numbering needs to be continuous across all the streams
-        """ no longer true for the geometry stream in 1.5 """
+        # we need to fix up the index stream as the numbering needs to be
+        # continuous across all the streams
         k = 0       # additive constant
-        for i in range(self.num_mesh_objs):
+        for name in self.mesh_names:
             # first add k to every element in every tuple
             curr_max = 0
-            for j in range(self.i_stream_lens[i]):
-                self.index_stream[i][j] = tuple(k + index for index in self.index_stream[i][j])
-                local_max = max(self.index_stream[i][j])
+            for j in range(self.i_stream_lens[name]):
+                self.index_stream[name][j] = tuple(k + index for index in
+                                                   self.index_stream[name][j])
+                local_max = max(self.index_stream[name][j])
                 if local_max > curr_max:
                     curr_max = local_max
             # now we set k to be the current max and this is added on to the next set.
@@ -326,45 +341,53 @@ class Create_Data():
         """
 
         # First we need to find the length of each stream.
-        self.GeometryData['IndexCount'] = 3*sum(self.i_stream_lens)
-        self.GeometryData['VertexCount'] = sum(self.v_stream_lens)
+        self.GeometryData['IndexCount'] = 3*sum(list(self.i_stream_lens.values()))
+        self.GeometryData['VertexCount'] = sum(list(self.v_stream_lens.values()))
         self.GeometryData['CollisionIndexCount'] = ColIndexCount
-        self.GeometryData['MeshVertRStart'] = list(self.vert_bounds[i][0] for i in range(len(self.vert_bounds)))
-        self.GeometryData['MeshVertREnd'] = list(self.vert_bounds[i][1] for i in range(len(self.vert_bounds)))
-        self.GeometryData['BoundHullVertSt'] = list(self.hull_bounds[i][0] for i in range(len(self.hull_bounds)))
-        self.GeometryData['BoundHullVertEd'] = list(self.hull_bounds[i][1] for i in range(len(self.hull_bounds)))
+        self.GeometryData['MeshVertRStart'] = list(
+            self.vert_bounds[name][0] for name in self.mesh_names)
+        self.GeometryData['MeshVertREnd'] = list(
+            self.vert_bounds[name][1] for name in self.mesh_names)
+        self.GeometryData['BoundHullVertSt'] = list(
+            self.hull_bounds[name][0] for name in self.mesh_names)
+        self.GeometryData['BoundHullVertEd'] = list(
+            self.hull_bounds[name][1] for name in self.mesh_names)
+        # TODO: fix this!! (should be if max > 2**16, not count)
         if self.GeometryData['IndexCount'] > 2**16:
             self.GeometryData['Indices16Bit'] = 0
         else:
             self.GeometryData['Indices16Bit'] = 1
 
-        # might as well also populate the hull data since we only need to union it all:
+        # might as well also populate the hull data since we only need to union
+        # it all:
         hull_data = []
-        for vert_list in self.chvertex_stream:
-            hull_data += vert_list
+        for name in self.mesh_names:
+            hull_data += self.chvertex_stream[name]
         self.GeometryData['BoundHullVerts'] = hull_data
 
     def process_nodes(self):
-        # this will iterate first over the list of mesh data and apply all the required information to the Mesh and Mesh-type Collisions objects.
-        # We will then iterate over the entire tree of children to the Model and give them any required information
+        # this will iterate first over the list of mesh data and apply all the
+        # required information to the Mesh and Mesh-type Collisions objects.
+        # We will then iterate over the entire tree of children to the Model
+        # and give them any required information
 
         # Go through every node
         for obj in traverse(self.Model):
             if obj.IsMesh:
-                i = obj.ID      # this is the index associated with the Mesh-type object earlier to avoid having to iterate through everything twice effectively
-                mesh_obj = self.Model.ListOfMeshes[i]
+                name = obj.Name
+                mesh_obj = self.Model.Meshes[name]
                 name = mesh_obj.Name
 
                 data = dict()
 
                 #data['BATCHSTART'] = self.batches[self.index_mapping.index(i)][0]
                 #data['BATCHCOUNT'] = self.batches[self.index_mapping.index(i)][1]
-                data['BATCHSTART'] = self.batches[i][0]
-                data['BATCHCOUNT'] = self.batches[i][1]
-                data['VERTRSTART'] = self.vert_bounds[i][0]
-                data['VERTREND'] = self.vert_bounds[i][1]
-                data['BOUNDHULLST'] = self.hull_bounds[i][0]
-                data['BOUNDHULLED'] = self.hull_bounds[i][1]
+                data['BATCHSTART'] = self.batches[name][0]
+                data['BATCHCOUNT'] = self.batches[name][1]
+                data['VERTRSTART'] = self.vert_bounds[name][0]
+                data['VERTREND'] = self.vert_bounds[name][1]
+                data['BOUNDHULLST'] = self.hull_bounds[name][0]
+                data['BOUNDHULLED'] = self.hull_bounds[name][1]
                 if mesh_obj._Type == 'MESH':
                     # add the AABBMIN/MAX(XYZ) values:
                     data['AABBMINX'] = self.mesh_bounds[name]['x'][0]
@@ -374,56 +397,68 @@ class Create_Data():
                     data['AABBMAXY'] = self.mesh_bounds[name]['y'][1]
                     data['AABBMAXZ'] = self.mesh_bounds[name]['z'][1]
                     data['HASH'] = self.hashes[name]
-                    # we only care about entity and material data for Mesh Objects
+                    # we only care about entity and material data for Mesh
+                    # Objects
                     if type(mesh_obj.Material) != str:
                         if mesh_obj.Material is not None:
                             mat_name = str(mesh_obj.Material['Name'])
                             print('material name: {}'.format(mat_name))
                             
-                            data['MATERIAL'] = os.path.join(self.path, mat_name.upper()) + '.MATERIAL.MBIN'
+                            data['MATERIAL'] = os.path.join(
+                                self.path, mat_name.upper()) + '.MATERIAL.MBIN'
                         else:
                             data['MATERIAL'] = ''
                     else:
                         data['MATERIAL'] = mesh_obj.Material
                     if obj.HasAttachment:
                         if obj.EntityData is not None:
-                            ent_path = os.path.join(self.ent_path, str(obj.EntityPath).upper())
+                            ent_path = os.path.join(
+                                self.ent_path, str(obj.EntityPath).upper())
                             data['ATTACHMENT'] = '{}.ENTITY.MBIN'.format(ent_path)
                             # also need to generate the entity data
-                            AttachmentData = TkAttachmentData(Components = list(obj.EntityData.values())[0])        # this is the actual entity data
+                            AttachmentData = TkAttachmentData(
+                                Components = list(obj.EntityData.values())[0])
                             AttachmentData.make_elements(main=True)
-                            # also write the entity file now too as we don't need to do anything else to it
-                            AttachmentData.tree.write("{}.ENTITY.exml".format(ent_path))
+                            # also write the entity file now too as we don't
+                            # need to do anything else to it
+                            AttachmentData.tree.write(
+                                "{}.ENTITY.exml".format(ent_path))
                         else:
                             data['ATTACHMENT'] = obj.EntityPath
                     # enerate the mesh metadata for the geometry file:
-                    self.mesh_metadata[obj.Name]['Hash'] = data['HASH']
-                    self.mesh_metadata[obj.Name]['VertexDataSize'] = self.stride*(data['VERTREND'] - data['VERTRSTART'] + 1)
+                    self.mesh_metadata[name]['Hash'] = data['HASH']
+                    self.mesh_metadata[name]['VertexDataSize'] = self.stride*(data['VERTREND'] - data['VERTRSTART'] + 1)
                     if self.GeometryData['Indices16Bit'] == 0:
                         m = 4
                     else:
                         m = 2
-                    self.mesh_metadata[obj.Name]['IndexDataSize'] = m*data['BATCHCOUNT']
+                    self.mesh_metadata[name]['IndexDataSize'] = m*data['BATCHCOUNT']
                     # also assign the 
 
             else:
                 if obj._Type == 'LOCATOR':
                     if obj.HasAttachment:
                         if obj.EntityData is not None:
-                            ent_path = os.path.join(self.ent_path, str(obj.EntityPath).upper())
-                            data = {'ATTACHMENT': '{}.ENTITY.MBIN'.format(ent_path)}
+                            ent_path = os.path.join(
+                                self.ent_path, str(obj.EntityPath).upper())
+                            data = {'ATTACHMENT':
+                                    '{}.ENTITY.MBIN'.format(ent_path)}
                             # also need to generate the entity data
-                            AttachmentData = TkAttachmentData(Components = list(obj.EntityData.values())[0])        # this is the actual entity data
+                            AttachmentData = TkAttachmentData(
+                                Components = list(obj.EntityData.values())[0])
                             AttachmentData.make_elements(main=True)
-                            # also write the entity file now too as we don't need to do anything else to it
-                            AttachmentData.tree.write("{}.ENTITY.exml".format(ent_path))
+                            # also write the entity file now too as we don't
+                            # need to do anything else to it
+                            AttachmentData.tree.write(
+                                "{}.ENTITY.exml".format(ent_path))
                         else:
                             data = {'ATTACHMENT': obj.EntityPath}
                     else:
                         data = None
                 elif obj._Type == 'COLLISION':
                     if obj.CType == 'Box':
-                        data = {'WIDTH': obj.Width, 'HEIGHT': obj.Height, 'DEPTH': obj.Depth}
+                        data = {'WIDTH': obj.Width, 'HEIGHT': obj.Height,
+                                'DEPTH': obj.Depth}
                     elif obj.CType == 'Sphere':
                         data = {'RADIUS': obj.Radius}
                     elif obj.CType == 'Capsule' or obj.CType == 'Cylinder':
@@ -476,33 +511,41 @@ class Create_Data():
         # fow now just make the small vert and vert layouts the same
         """ Vertex layout needs to be changed for the new normals/tangent format"""
         
-        self.GeometryData['VertexLayout'] = TkVertexLayout(ElementCount = self.element_count,
-                                                           Stride = self.stride,
-                                                           PlatformData = "",
-                                                           VertexElements = VertexElements)
-        self.GeometryData['SmallVertexLayout'] = TkVertexLayout(ElementCount = 2,
-                                                                Stride = 16,
-                                                                PlatformData = "",
-                                                                VertexElements = SmallVertexElements)
+        self.GeometryData['VertexLayout'] = TkVertexLayout(
+            ElementCount = self.element_count,
+            Stride = self.stride,
+            PlatformData = "",
+            VertexElements = VertexElements)
+        self.GeometryData['SmallVertexLayout'] = TkVertexLayout(
+            ElementCount = 2,
+            Stride = 16,
+            PlatformData = "",
+            VertexElements = SmallVertexElements)
         
     def mix_streams(self):
-        # this combines all the input streams into one single stream with the correct offset etc as specified by the VertexLayout
-        # This also flattens each stream
-        # Again, for now just make the SmallVertexStream the same. Later, change this.
+        # this combines all the input streams into one single stream with the
+        # correct offset etc as specified by the VertexLayout
+        # This also flattens each stream so it needs to be called pretty much
+        # last
         
         VertexStream = array('f')
         SmallVertexStream = array('f')
-        for i in range(self.num_mesh_objs):
-            for j in range(self.v_stream_lens[i]):
+        for name, mesh_obj in self.Model.Meshes.items():
+            for j in range(self.v_stream_lens[name]):
                 for sID in self.stream_list:
-                    # get the j^th 4Vector element of i^th object of the corresponding stream as specified by the stream list.
-                    # As self.stream_list is ordered this will be mixed in the correct way wrt. the VertexLayouts
+                    # get the j^th 4Vector element of i^th object of the
+                    # corresponding stream as specified by the stream list.
+                    # As self.stream_list is ordered this will be mixed in the
+                    # correct way wrt. the VertexLayouts
                     try:    
-                        VertexStream.extend(self.Model.ListOfMeshes[i].__dict__[REV_SEMANTICS[sID]][j])
+                        VertexStream.extend(
+                            mesh_obj.__dict__[REV_SEMANTICS[sID]][j])
                         if sID in [0,1]:
-                            SmallVertexStream.extend(self.Model.ListOfMeshes[i].__dict__[REV_SEMANTICS[sID]][j])
+                            SmallVertexStream.extend(
+                                mesh_obj.__dict__[REV_SEMANTICS[sID]][j])
                     except:
-                        # in the case this fails there is an index error caused by collisions. In this case just add a default value
+                        # in the case this fails there is an index error caused
+                        # by collisions. In this case just add a default value
                         VertexStream.extend((0,0,0,1))
         
         self.GeometryData['VertexStream'] = VertexStream
@@ -510,9 +553,11 @@ class Create_Data():
 
         # finally we can also flatten the index stream:
         IndexBuffer = array('I')
-        for obj in self.index_stream:
+        for name in self.mesh_names:
+            obj = self.index_stream[name]
             for tri in obj:
                 IndexBuffer.extend(tri)
+        # TODO: make this better (determine format correctly)
         """
         # let's convert to the correct type of array data type here
         if not max(IndexBuffer) > 2**16:
@@ -521,12 +566,13 @@ class Create_Data():
         self.GeometryData['IndexBuffer'] = IndexBuffer
 
     def get_bounds(self):
-        # this analyses the vertex stream and finds the smallest bounding box corners.
+        # this analyses the vertex stream and finds the smallest bounding box
+        # corners.
 
         self.GeometryData['MeshAABBMin'] = List()
         self.GeometryData['MeshAABBMax'] = List()
         
-        for obj in self.Model.ListOfMeshes:
+        for obj in self.Model.Meshes.values():
             v_stream = obj.Vertices
             x_verts = [i[0] for i in v_stream]
             y_verts = [i[1] for i in v_stream]
@@ -535,41 +581,38 @@ class Create_Data():
             y_bounds = (min(y_verts), max(y_verts))
             z_bounds = (min(z_verts), max(z_verts))
 
-            self.GeometryData['MeshAABBMin'].append(Vector4f(x=x_bounds[0], y=y_bounds[0], z=z_bounds[0], t=1))
-            self.GeometryData['MeshAABBMax'].append(Vector4f(x=x_bounds[1], y=y_bounds[1], z=z_bounds[1], t=1))
+            self.GeometryData['MeshAABBMin'].append(
+                Vector4f(x=x_bounds[0], y=y_bounds[0], z=z_bounds[0], t=1))
+            self.GeometryData['MeshAABBMax'].append(
+                Vector4f(x=x_bounds[1], y=y_bounds[1], z=z_bounds[1], t=1))
             if obj._Type == "MESH":
                 # only add the meshes to the self.mesh_bounds dict:
-                self.mesh_bounds[obj.Name] = {'x': x_bounds, 'y': y_bounds, 'z': z_bounds}
+                self.mesh_bounds[obj.Name] = {'x': x_bounds, 'y': y_bounds,
+                                              'z': z_bounds}
 
     def process_materials(self):
         # process the material data and gives the textures the correct paths
         for material in self.materials:
             if type(material) != str:
-                # in this case we are given actual material data, not just a string path location
+                # in this case we are given actual material data, not just a
+                # string path location
                 samplers = material['Samplers']
                 # this will have the order Diffuse, Masks, Normal and be a List
                 if samplers is not None:
                     for sample in samplers.subElements:
                         # this will be a TkMaterialSampler object
                         t_path = str(sample['Map'])  # this should be the current absolute path to the image, we want to move it to the correct relative path
-                        new_path = os.path.join(self.texture_path, os.path.basename(t_path).upper())
+                        new_path = os.path.join(
+                            self.texture_path,
+                            os.path.basename(t_path).upper())
                         try:
                             copy2(t_path, new_path)
                         except FileNotFoundError:
-                            # in this case the path is probably broken, just set as empty if it wasn't before
+                            # in this case the path is probably broken, just
+                            # set as empty if it wasn't before
                             new_path = ""
                         f_name, ext = os.path.splitext(new_path)
                         sample['Map'] = f_name + ext.upper()
-                        """
-                        if ext != '.DDS' and ext != '':
-                            # TODO: add code here to convert the image to dds format
-                            # in this case the file is not in the correct format. Put the correct file extension in the material file
-                            print('The file {} needs to be converted to .DDS format (file extention to be capitalised also!)'.format(new_path))
-                            sample['Map'] = f_name + '.DDS'
-                        else:
-                            # all good in this case
-                            sample['Map'] = new_path
-                        """
                 
     def write(self):
         # write each of the exml files.
@@ -592,7 +635,7 @@ class Create_Data():
     def convert_to_mbin(self):
         # passes all the files produced by
         print('Converting all .exml files to .mbin. Please wait while this finishes.')
-        for directory, folders, files in os.walk(os.path.join(BASEPATH, self.directory)):
+        for directory, _, files in os.walk(os.path.join(BASEPATH, self.directory)):
             for file in files:
                 location = os.path.join(directory, file)
                 if os.path.splitext(location)[1] == '.exml':

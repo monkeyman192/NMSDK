@@ -9,6 +9,7 @@ from .TkMaterialData import TkMaterialData
 from .TkPhysicsComponentData import TkPhysicsComponentData
 from .List import List
 from numbers import Number
+from collections import OrderedDict as odict
 
 TYPES = ['MESH', 'LOCATOR', 'COLLISION', 'MODEL', 'REFERENCE']
 
@@ -39,15 +40,12 @@ class Object():
         # even though these are defined for all Object's, they will only be
         # populated for the Model
         # TODO: make this wayyyy nicer
-        self.ListOfMeshes = []      # this is a list of all the MESH objects or collisions of type MESH so that we can easily access it.
+        self.Meshes = odict()      # this is a list of all the MESH objects or collisions of type MESH so that we can easily access it.
                                     # The list will be automatically populated when a child is added to any children of this object.
         self.ListOfEntities = []    # this works similarly to the above...
 
         self.Name = Name.upper()
         self._Type = ""
-
-        self.ID = None              # this is a unique number that is used to effectively flatten the mesh data so that it
-                                    # can be related to the index in the main function.
 
         self.ExtraEntityData = kwargs.get('ExtraEntityData', dict())
 
@@ -80,7 +78,7 @@ class Object():
             self.Parent.populate_meshlist(obj)
         else:
             #... until we hit the Model object who is the only object that has no parent.
-            self.ListOfMeshes.append(obj)
+            self.Meshes[obj.Name] = obj
 
     def populate_entitylist(self, obj):
         if self.Parent is not None:
@@ -110,14 +108,16 @@ class Object():
         return self.NodeData
 
     def construct_data(self):
-        # iterate through all the children and create a TkSceneNode for every child with the appropriate properties.
+        # iterate through all the children and create a TkSceneNode for every
+        # child with the appropriate properties.
         
         # call each child's process function
         if len(self.Children) != 0:
             self.Child_Nodes = List()
             for child in self.Children:
                 child.construct_data()
-                self.Child_Nodes.append(child.get_data())      # this will return the self.NodeData object in the child Object
+                # this will return the self.NodeData object in the child Object
+                self.Child_Nodes.append(child.get_data())
         else:
             self.Child_Nodes = None
 
@@ -128,7 +128,8 @@ class Object():
                             Children = self.Child_Nodes)
 
     def rebuild_entity(self):
-        # this is used to rebuild the entity data in case something else is added after the object is created
+        # this is used to rebuild the entity data in case something else is
+        # added after the object is created
         if type(self.ExtraEntityData) == str:
             self.EntityData = self.ExtraEntityData
         else:
@@ -160,20 +161,21 @@ class Light(Object):
         self.FOV = kwargs.get('FOV', 360.0)
 
     def create_attributes(self, data):
-        self.Attributes = List(TkSceneNodeAttributeData(Name = 'FOV',
-                                                       Value = self.FOV),
-                               TkSceneNodeAttributeData(Name = 'FALLOFF',
-                                                       Value = 'quadratic'),
-                               TkSceneNodeAttributeData(Name = 'INTENSITY',
-                                                       Value = self.Intensity),
-                               TkSceneNodeAttributeData(Name = 'COL_R',
-                                                       Value = self.Colour[0]),
-                               TkSceneNodeAttributeData(Name = 'COL_G',
-                                                       Value = self.Colour[1]),
-                               TkSceneNodeAttributeData(Name = 'COL_B',
-                                                       Value = self.Colour[2]),
-                               TkSceneNodeAttributeData(Name = 'MATERIAL',
-                                                       Value = 'MATERIALS/LIGHT.MATERIAL.MBIN'))
+        self.Attributes = List(
+            TkSceneNodeAttributeData(Name = 'FOV',
+                                     Value = self.FOV),
+            TkSceneNodeAttributeData(Name = 'FALLOFF',
+                                     Value = 'quadratic'),
+            TkSceneNodeAttributeData(Name = 'INTENSITY',
+                                     Value = self.Intensity),
+            TkSceneNodeAttributeData(Name = 'COL_R',
+                                     Value = self.Colour[0]),
+            TkSceneNodeAttributeData(Name = 'COL_G',
+                                     Value = self.Colour[1]),
+            TkSceneNodeAttributeData(Name = 'COL_B',
+                                     Value = self.Colour[2]),
+            TkSceneNodeAttributeData(Name = 'MATERIAL',
+                                     Value = 'MATERIALS/LIGHT.MATERIAL.MBIN'))
 
 class Joint(Object):
     def __init__(self, Name, **kwargs):
