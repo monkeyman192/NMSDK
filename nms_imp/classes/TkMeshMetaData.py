@@ -7,7 +7,7 @@ STRUCTNAME = 'TkMeshMetaData'
 
 class TkMeshMetaData(Struct):
     def __init__(self, **kwargs):
-        super(TkMaterialData, self).__init__()
+        super(TkMeshMetaData, self).__init__()
 
         """ Contents of the struct """
         self.data['Name'] = String(kwargs.get('Name', ""), 0x80)

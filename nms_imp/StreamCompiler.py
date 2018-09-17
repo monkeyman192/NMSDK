@@ -255,7 +255,7 @@ def read_list_data(data, element_size):
 def padstring(string):
     """ Take a string and right pad with \xFE bytes up to 0x80 chars """
     str_len = len(string)
-    return bytes(string, 'utf-8') + b'\x00' + b'\xFE'*(0x7F - str_len)
+    return bytes(string, 'utf-8') + b'\x00' + b'\xFE'*(0x7E - str_len) + b'\x00'
 
 if __name__ == "__main__":
     c = StreamData('EGGRESOURCE.GEOMETRY.DATA.MBIN.PC')
