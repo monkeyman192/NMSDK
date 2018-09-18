@@ -51,7 +51,7 @@ def nmsHash(data):
     return int(sha256(d).hexdigest()[-16:], 16)
 
 class Create_Data():
-    def __init__(self, name, directory, model, anim_data = dict(), descriptor = None, **commands):
+    def __init__(self, name, directory, model, anim_data = odict(), descriptor = None, **commands):
 
         """
         name - the name of the file we want to create. Most entities  within will have a name derived from this.
@@ -70,16 +70,16 @@ class Create_Data():
 
         # assign each of the input streams to a variable
         self.mesh_metadata = odict()
-        self.index_stream = dict()
-        self.mesh_indexes = dict()
-        self.vertex_stream = dict()
-        self.uv_stream = dict()
-        self.n_stream = dict()
-        self.t_stream = dict()
-        self.chvertex_stream = dict()
-        self.mesh_bounds = dict()           # a disctionary of the bounds of just mesh objects. This will be used for the scene files
+        self.index_stream = odict()
+        self.mesh_indexes = odict()
+        self.vertex_stream = odict()
+        self.uv_stream = odict()
+        self.n_stream = odict()
+        self.t_stream = odict()
+        self.chvertex_stream = odict()
+        self.mesh_bounds = odict()           # a disctionary of the bounds of just mesh objects. This will be used for the scene files
         self.materials = set()      # this will hopefully mean that there will be at most one copy of each unique TkMaterialData struct in the set
-        self.hashes = dict()
+        self.hashes = odict()
         self.mesh_names = list()
 
         #self.Entities = []          # a list of any extra properties to go in each entity
@@ -114,7 +114,7 @@ class Create_Data():
         self.create_paths()
 
         # This dictionary contains all the information for the geometry file 
-        self.GeometryData = dict()
+        self.GeometryData = odict()
 
         self.geometry_stream = StreamData(
             '{}.GEOMETRY.DATA.MBIN.PC'.format(self.path))
@@ -242,7 +242,7 @@ class Create_Data():
         """
         vertex_data = []
         index_data = []
-        metadata = dict()
+        metadata = odict()
         for name in self.mesh_names:
             vertex_data.append(TkVertexStream(verts = self.vertex_stream[name],
                                               uvs = self.uv_stream[name],
@@ -378,7 +378,7 @@ class Create_Data():
                 mesh_obj = self.Model.Meshes[name]
                 name = mesh_obj.Name
 
-                data = dict()
+                data = odict()
 
                 #data['BATCHSTART'] = self.batches[self.index_mapping.index(i)][0]
                 #data['BATCHCOUNT'] = self.batches[self.index_mapping.index(i)][1]
