@@ -10,7 +10,9 @@ NMSDK is a blender plugin designed to allow the models to be added to No Man's S
  - [MBINCompiler](https://github.com/monkeyman192/MBINCompiler) which is used to convert the *exml* files produced into *mbin* files the game can read.
 
 ### Installation:
-The best way to install NMSDK is to clone the github repo using your favorite git client directly into the Blender folder (generally located at `C:\Program Files\Blender Foundation\Blender`).
+The best way to install NMSDK is to clone the github repo using your favorite git client directly into the Blender addon cache, (generally) located at `C:\Users\<user name>\AppData\Roaming\Blender Foundation\Blender\2.78\scripts\addons`.
+By cloning the repo into this folder any time there is an update you can simply pull the most recent branch and the plugin will automatically be updated in blender (you will need to close to have changes applied).
+You also shouldn't need to actually install the plugin, it shoudl be visible in the list once the source code has been copied to the directory above.
 
  - First, ensure you also have a recent copy of [MBINCompiler](https://github.com/monkeyman192/MBINCompiler/releases) placed in the `nms_imp` folder.
  - Open Blender, then navigate to the Add-on settings (File > User Preferences). Select the option to "Install from File", and select the `NMSDK.py` file in the root blender directory.
