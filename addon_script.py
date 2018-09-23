@@ -732,15 +732,19 @@ class Exporter():
             tangents = []
 
         # finally, let's find the convex hull data of the mesh:
-        """ This may need to be modified a bit so that the hull is added as a sibling to the collision object? """
         bpy.ops.object.mode_set(mode = 'EDIT')
         bm = bmesh.from_edit_mesh(data)
-        ch = bmesh.ops.convex_hull(bm, input = bm.verts)['geom']        #convex hull data. Includes face and edges and stuff...
+        # create a copy so that the origial doesn't get messed up by the hull
+        bm_copy = bm.copy()
+        #convex hull data. Includes face and edges and stuff...
+        ch = bmesh.ops.convex_hull(bm_copy, input = bm_copy.verts)['geom']
         for i in ch:
             if type(i) == bmesh.types.BMVert:
                 chverts.append((i.co[0], i.co[1], i.co[2], 1.0))
-                #chverts.append(Vector4f(x = i.co[0], y = i.co[1], z = i.co[2], t = 1.0))
+                #chverts.append(Vector4f(x = i.co[0], y = i.co[1], z = i.co[2],
+                #t = 1.0))
         del ch
+        del bm_copy
         del bm
         bpy.ops.object.mode_set(mode = 'OBJECT')
 
