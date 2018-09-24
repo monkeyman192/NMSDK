@@ -38,26 +38,30 @@ class GUI(Frame):
         self.proc_name = StringVar()
         self.proc_name.set("PROCMODEL")
 
-        self.selected_dirs = set()      # this will contain the indexes of the selected files
+        # this will contain the indexes of the selected files
+        self.selected_dirs = set()
 
         self.createWidgets()
 
     def createWidgets(self):
         # frame with buttons
         name_frame = Frame(self.master)
-        name_label = Label(name_frame, text = "Name: ")
+        name_label = Label(name_frame, text="Name: ")
         name_label.pack(side=LEFT)
-        name_entry = Entry(name_frame, textvariable = self.proc_name)
+        name_entry = Entry(name_frame, textvariable=self.proc_name)
         name_entry.pack(side = LEFT)
         name_frame.pack()
         list_frame = Frame(self.master)
-        self.data_view = ttk.Treeview(list_frame, columns = ['Object Name', 'Path'], displaycolumns = '#all', selectmode='extended')
+        self.data_view = ttk.Treeview(
+            list_frame, columns=['Object Name', 'Path'], displaycolumns='#all',
+            selectmode='extended')
         self.data_view.heading("Object Name", text="Object Name")
         self.data_view.heading("Path", text="Path")
         self.data_view.column("Object Name", stretch=True)
         self.data_view.column("Path", stretch=True)
         self.data_view["show"] = 'headings'
-        ysb = ttk.Scrollbar(list_frame, orient=VERTICAL, command=self.data_view.yview)
+        ysb = ttk.Scrollbar(list_frame, orient=VERTICAL,
+                            command=self.data_view.yview)
         ysb.pack(side=RIGHT, fill=Y)
         self.data_view.configure(yscroll=ysb.set)
         self.data_view.pack(fill=BOTH, expand=1)
@@ -66,16 +70,19 @@ class GUI(Frame):
         add_button = Button(button_frame, text="ADD", command=self.add)
         add_button.pack(side=LEFT)
         tt.register(add_button, "Opens a dialog to select a folder containing all the model folders")
-        remove_button = Button(button_frame, text="REMOVE", command=self.remove)
+        remove_button = Button(button_frame, text="REMOVE",
+                               command=self.remove)
         remove_button.pack(side=LEFT)
         tt.register(remove_button, "Removes selected models from list")
-        mult_button = Button(button_frame, text="MULTIPLY", command=self.multiply)
+        mult_button = Button(button_frame, text="MULTIPLY",
+                             command=self.multiply)
         mult_button.pack(side=LEFT)
         tt.register(mult_button, "Makes copies of all selected entries in the list")
         run_button = Button(button_frame, text="RUN", command=self.run)
         run_button.pack(side=LEFT)
         tt.register(run_button, "Creates the proc-gen spawner for the selected models")
-        runall_button = Button(button_frame, text="RUN ALL", command=lambda:self.run(_all=True))
+        runall_button = Button(button_frame, text="RUN ALL",
+                               command=lambda:self.run(_all=True))
         runall_button.pack(side=LEFT)
         tt.register(runall_button, "Creates the proc-gen spawner for all the models above")
         quit_button = Button(button_frame, text="QUIT", command=self.quit)
@@ -87,7 +94,8 @@ class GUI(Frame):
         self.dir_list = os.listdir(self.path_name)
         # now add stuff to it
         # let's do a bit of precessing. We will have two options:
-        # 1. The directory chosen contains a list of folders, each of which contains a scene file
+        # 1. The directory chosen contains a list of folders, each of which
+        # contains a scene file
         # 2. The directory just contains a scene file
         # either way we want to make sure that the folders contain a scene file
         contains_scene = False
@@ -103,11 +111,13 @@ class GUI(Frame):
             for folder in self.dir_list:
                 # in this case we have option 1
                 subfolders = os.listdir(os.path.join(self.path_name, folder))
-                # if we make it to this line option 1. is what has happened. Search through
+                # if we make it to this line option 1. is what has happened.
+                # Search through
                 for file in subfolders:
                     if "SCENE" in file and "EXML" not in file.upper():
                         contains_scene = True
-                        path = self.get_scene_path(os.path.join(self.path_name, folder, file))
+                        path = self.get_scene_path(os.path.join(self.path_name,
+                                                                folder, file))
                         scene_names.append((file, path))
         for scene in scene_names:
             self.data_view.insert("", 'end', values=scene)
@@ -129,20 +139,28 @@ class GUI(Frame):
 
     def run(self, _all=False):
         if _all == False:
-            self.selected_iids = self.data_view.selection()     # list of iids of selected elements
+            # list of iids of selected elements
+            self.selected_iids = self.data_view.selection()
         else:
             # in this case we just want everything in the list
             self.selected_iids = self.data_view.get_children()
-        self.selected_objects = list(self.data_view.item(iid)['values'][1] for iid in self.selected_iids)
+        self.selected_objects = list(self.data_view.item(iid)['values'][1] for 
+                                     iid in self.selected_iids)
         if self.check_name(len(self.selected_objects)) == True:
             DataGenerator(self.proc_name.get().upper(), self.selected_objects)
 
     def check_name(self, length):
         # this will check whether or not the entered name is valid
         number_len = len(str(length))
-        if len(self.proc_name.get()) + number_len + 1 > 16:     # add 1 for the underscore
+        # add 1 for the underscore
+        if len(self.proc_name.get()) + number_len + 1 > 16:
             short_name = self.proc_name.get().upper()[:16-number_len-1]
-            if messagebox.askyesno("Name Error", "The name you have entered, '{0}', is too long.\n You can continue with a default shortened name ({1}) by pressing 'Yes',\n or press 'No' to go back and change the name".format(self.proc_name.get().upper(), short_name)):
+            if messagebox.askyesno(
+                "Name Error", ("The name you have entered, '{0}', is too long."
+                               "\n You can continue with a default shortened "
+                               "name ({1}) by pressing 'Yes',\n or press 'No' "
+                               "to go back and change the name").format(
+                                   self.proc_name.get().upper(), short_name)):
                 return True
             else:
                 return False
@@ -150,15 +168,18 @@ class GUI(Frame):
             return True
 
     def add(self):
-        self.path_name = filedialog.askdirectory(title="Specify path containing custom models")
+        self.path_name = filedialog.askdirectory(
+            title="Specify path containing custom models")
         self.create_list()
 
     def multiply(self):
-        # this creates n copies of all the selected entries in the list and adds them to the list
-        number = simpledialog.askinteger(prompt = "Enter a number: ", title = "Multiply!", minvalue=1)
+        # this creates n copies of all the selected entries in the list and
+        # adds them to the list
+        number = simpledialog.askinteger(prompt="Enter a number: ",
+                                         title="Multiply!", minvalue=1)
         selected = self.data_view.selection()
         for iid in selected:
-            for i in range(number):
+            for _ in range(number):
                 self.data_view.insert("", 'end', values = self.data_view.item(iid)['values'])
 
     def quit(self):

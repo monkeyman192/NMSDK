@@ -21,8 +21,6 @@ from struct import pack
 from hashlib import sha256
 from collections import OrderedDict as odict
 
-BASEPATH = 'CUSTOMMODELS'
-
 def traverse(obj):
     # a custom generator to iterate over the tree of all the children on the scene (including the Model object)
     # this returns objects from the branches inwards (which *shouldn't* be a problem...)
@@ -51,7 +49,8 @@ def nmsHash(data):
     return int(sha256(d).hexdigest()[-16:], 16)
 
 class Create_Data():
-    def __init__(self, name, directory, model, anim_data = odict(), descriptor = None, **commands):
+    def __init__(self, name, directory, basepath, model, anim_data = odict(),
+                 descriptor = None, **commands):
 
         """
         name - the name of the file we want to create. Most entities  within will have a name derived from this.
@@ -62,6 +61,7 @@ class Create_Data():
 
         self.name = name        # this is the name of the file
         self.directory = directory        # the path that the file is supposed to be located at
+        self.basepath = basepath
         self.Model = model                  # this is the main model file for the entire scene.
         self.anim_data = anim_data          # animation data (defaults to None)
         self.descriptor = descriptor
@@ -104,9 +104,9 @@ class Create_Data():
         self.num_mesh_objs = len(self.Model.Meshes)
 
         # generate some variables relating to the paths
-        self.path = os.path.join(BASEPATH, self.directory, self.name)
+        self.path = os.path.join(self.basepath, self.directory, self.name)
         self.texture_path = os.path.join(self.path, 'TEXTURES')
-        self.anims_path = os.path.join(BASEPATH, self.directory, 'ANIMS')
+        self.anims_path = os.path.join(self.basepath, self.directory, 'ANIMS')
         # path location of the entity folder. Calling makedirs of this will
         # ensure all the folders are made in one go
         self.ent_path = os.path.join(self.path, 'ENTITIES')
@@ -635,7 +635,8 @@ class Create_Data():
     def convert_to_mbin(self):
         # passes all the files produced by
         print('Converting all .exml files to .mbin. Please wait while this finishes.')
-        for directory, _, files in os.walk(os.path.join(BASEPATH, self.directory)):
+        for directory, _, files in os.walk(os.path.join(self.basepath,
+                                                        self.directory)):
             for file in files:
                 location = os.path.join(directory, file)
                 if os.path.splitext(location)[1] == '.exml':

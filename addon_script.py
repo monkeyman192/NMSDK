@@ -275,6 +275,11 @@ class Exporter():
             entity.tree.write("{}.ENTITY.exml".format(self.mname))
         else:
             # run the program normally
+            # get the base path as specified
+            if self.NMSScene.NMSScene_props.export_directory != "":
+                self.basepath = self.NMSScene.NMSScene_props.export_directory
+            else:
+                self.basepath = 'CUSTOMMODELS'
             # if there is a name for the group, use it.
             if self.NMSScene.NMSScene_props.group_name != "":
                 self.group_name = self.NMSScene.NMSScene_props.group_name
@@ -319,16 +324,17 @@ class Exporter():
                     # we will need to create an individual scene object for each mesh
                     if ob.NMSNode_props.node_types == "Mesh" or ob.NMSNode_props.node_types == "Locator":
                         name = ob.name[len("NMS_"):].upper()
-                        self.scene_directory = os.path.join(BASEPATH, self.group_name, name)
+                        self.scene_directory = os.path.join(self.basepath, self.group_name, name)
                         print("Processing object {}".format(name))
                         scene = Model(Name = name)
-                        self.parse_object(ob, scene)#, scn, process_anim = animate is not None, anim_frame_data = anim_frame_data, extra_data = extra_data)
+                        self.parse_object(ob, scene)
                         anim = self.anim_generator()
                         directory = os.path.dirname(exportpath)
                         mpath = os.path.dirname(os.path.abspath(exportpath))
                         os.chdir(mpath)
                         Create_Data(name,
                                     self.group_name,
+                                    self.basepath,
                                     scene,
                                     anim,
                                     self.descriptor,
@@ -336,8 +342,9 @@ class Exporter():
                             
                 else:
                     # parse the entire scene all in one go.
-                    self.scene_directory = os.path.join(BASEPATH, self.group_name, self.mname)      # set this here because... why not
-                    self.parse_object(ob, scene)#, scn, process_anim = animate is not None, anim_frame_data = anim_frame_data, extra_data = extra_data)
+                    self.scene_directory = os.path.join(
+                        self.basepath, self.group_name, self.mname)
+                    self.parse_object(ob, scene)
 
             self.process_anims()
 
@@ -353,6 +360,7 @@ class Exporter():
                 anim = self.anim_generator()
                 Create_Data(self.mname,
                             self.group_name,
+                            self.basepath,
                             scene,
                             anim,
                             self.descriptor,
@@ -866,6 +874,9 @@ class Exporter():
             colType = ob.NMSCollision_props.collision_types
             
             optdict = {}
+            # TODO: replace this with something determine locally?
+            # (saves having to define self.scene_directory ages ago for this
+            # single use...)
             optdict['Name'] = self.scene_directory
             # do a slightly modified transform data as we want the scale to always be (1,1,1)
 
@@ -1094,14 +1105,15 @@ class Exporter():
         # now semi-process the animation data to generate data for the animation controller entity file
         if len(self.anim_frame_data) == 1:
             # in this case we only have the idle animation.
-            path = os.path.join(BASEPATH, self.group_name.upper(), self.mname.upper())
+            path = os.path.join(self.basepath, self.group_name.upper(),
+                                self.mname.upper())
             anim_entity = TkAnimationComponentData(Idle = TkAnimationData(AnimType = list(anim_loops.values())[0]))
             self.anim_controller_obj[1].ExtraEntityData[self.anim_controller_obj[0]].append(anim_entity)      # update the entity data directly
             self.anim_controller_obj[1].rebuild_entity()
         elif len(self.anim_frame_data) > 1:
             # in this case all the anims are not idle ones, and we need some kind of real data
             Anims = List()
-            path = os.path.join(BASEPATH, self.group_name.upper(), 'ANIMS')
+            path = os.path.join(self.basepath, self.group_name.upper(), 'ANIMS')
             for action in self.anim_frame_data:
                 name = action
                 AnimationData = TkAnimationData(Anim = name,
