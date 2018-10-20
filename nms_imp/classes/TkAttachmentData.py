@@ -2,17 +2,18 @@
 
 from .Struct import Struct
 from .List import List
-from .TkPhysicsComponentData import TkPhysicsComponentData
 
 STRUCTNAME = 'TkAttachmentData'
+
 
 class TkAttachmentData(Struct):
     def __init__(self, **kwargs):
         super(TkAttachmentData, self).__init__()
 
         """ Contents of the struct """
-        self.data['Components'] = kwargs.get('Components', List(TkPhysicsComponentData()))
-        self.data['LodDistances'] = kwargs.get('LodDistances', [0, 50, 80, 150, 500])
+        self.data['Components'] = kwargs.get('Components', List())
+        self.data['LodDistances'] = kwargs.get('LodDistances',
+                                               [0, 50, 80, 150, 500])
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something

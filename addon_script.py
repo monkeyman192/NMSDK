@@ -4,16 +4,41 @@ import os
 import sys
 from idprop.types import IDPropertyGroup
 from math import radians, degrees
-from mathutils import Matrix,Vector
-from BlenderExtensions import *
+from mathutils import Matrix, Vector
+from BlenderExtensions import NMSNodes, CompareMatrices, ContinuousCompare
 
-from array import array
+# import main
+# print(main.__file__)
+from nms_imp.main import Create_Data
+# will need to clean up if more functions are added...
+from nms_imp.Descriptor import Descriptor
+from nms_imp.classes import (TkMaterialData, TkMaterialFlags,
+                             TkMaterialUniform, TkMaterialSampler,
+                             TkTransformData, TkRotationComponentData,
+                             TkPhysicsComponentData, TkVolumeTriggerType)
+# imports relating to animations
+from nms_imp.classes import TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData
+# entity animation classes
+from nms_imp.classes import TkAnimationComponentData, TkAnimationData
+from nms_imp.classes import List, Vector4f
+from nms_imp.classes import TkAttachmentData
+# Import Object Classes
+from nms_imp.classes.Object import (Model, Mesh, Locator, Reference, Collision,
+                                    Light, Joint)
+from nms_imp.LOOKUPS import MATERIALFLAGS
+from nms_imp.ActionTriggerParser import ParseNodes
 
+# ExportHelper is a helper class, defines filename and
+# invoke() function which calls the file selector.
+from bpy_extras.io_utils import ExportHelper
+from bpy.types import Operator
+
+# !OBSOLETE
 BASEPATH = 'CUSTOMMODELS'
 
 customNodes = NMSNodes()
 
-#Attempt to find 'blender.exe path'
+# Attempt to find 'blender.exe path'
 
 for path in sys.path:
     if os.path.isdir(path):
@@ -24,7 +49,7 @@ for path in sys.path:
 
 
 # Add script path to sys.path
-scriptpath = os.path.join(os.getcwd(),'nms_imp')
+scriptpath = os.path.join(os.getcwd(), 'nms_imp')
 #scriptpath = bpy.context.space_data.text.filepath
 #scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 #proj_path = os.path.dirname(scriptpath)
@@ -32,33 +57,9 @@ scriptpath = os.path.join(os.getcwd(),'nms_imp')
 
 print(scriptpath)
 
-if not scriptpath in sys.path:
+if scriptpath not in sys.path:
     sys.path.append(scriptpath)
-    #print(sys.path)
-    
-    
-from main import Create_Data
-from helper_funcs import get_children       # will need to clean up if more functions are added...
-from classes import *
-from Descriptor import Node_List, Node_Data, Descriptor
-#from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData, TkRotationComponentData
-#from classes import TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData             # imports relating to animations
-#from classes import TkAnimationComponentData, TkAnimationData                       # entity animation classes
-#from classes import List, Vector4f
-#from classes import TkAttachmentData
-#Import Object Classes
-from classes.Object import Model, Mesh, Locator, Reference, Collision, Light, Joint
-from LOOKUPS import MATERIALFLAGS
-from ActionTriggerParser import ParseNodes
-
-import main
-print(main.__file__)
-
-# ExportHelper is a helper class, defines filename and
-# invoke() function which calls the file selector.
-from bpy_extras.io_utils import ExportHelper
-from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty, FloatProperty
-from bpy.types import Operator, NodeTree, Node, NodeSocket
+    # print(sys.path)
 
 
 def write_some_data(context, filepath, use_some_setting):
@@ -68,6 +69,7 @@ def write_some_data(context, filepath, use_some_setting):
     f.close()
 
     return {'FINISHED'}
+
 
 def object_is_animated(ob):
     # this will check a blender object to see if it's parent has any anim data (and it's parent recursively)
@@ -80,19 +82,22 @@ def object_is_animated(ob):
         else:
             return False
 
+
 def get_all_actions(obj):
     """Retrieve all actions given a blender object. Includes NLA-actions
        Full credit to this code goes to misnomer on blender.stackexchange
-       (cf. https://blender.stackexchange.com/questions/14204/how-to-tell-which-object-uses-which-animation-action)"""
+       (cf. https://blender.stackexchange.com/questions/14204/how-to-tell-which-object-uses-which-animation-action)"""  # noqa
     # slightly modified to return the name of the object, and the action
     if obj.animation_data:
         if obj.animation_data.action:
-            yield obj.name, obj.NMSAnimation_props.anim_name, obj.animation_data.action
+            yield (obj.name, obj.NMSAnimation_props.anim_name,
+                   obj.animation_data.action)
         for track in obj.animation_data.nla_tracks:
             for strip in track.strips:
                 yield obj.name, obj.NMSAnimation_props.anim_name, strip.action
 
 """ Misc. functions for transforming data """
+
 
 #Tangent Calculator
 def calc_tangents(faces, verts, norms, uvs):
@@ -102,7 +107,7 @@ def calc_tangents(faces, verts, norms, uvs):
         tangents.append(Vector((0,0,0,0)))
     #We assume that verts length will be a multiple of 3 since
     #the mesh has been triangulated
-    
+
     trisNum = len(faces)
     #Iterate in triangles
     for i in range(trisNum):
@@ -110,24 +115,24 @@ def calc_tangents(faces, verts, norms, uvs):
         vert_1 = tri[0]
         vert_2 = tri[1]
         vert_3 = tri[2]
-        
+
         #Get Point Positions
         P0 = Vector((verts[vert_1]))
         P1 = Vector((verts[vert_2])) - P0
         P2 = Vector((verts[vert_3])) - P0
-        
+
         #print('Poss: ', P1, P2)
-        
+
         P0_uv = Vector((uvs[vert_1]))
         P1_uv = Vector((uvs[vert_2])) - P0_uv
         P2_uv = Vector((uvs[vert_3])) - P0_uv
         #Keep only the 1st uvmap
         P1_uv = P1_uv.xy
         P2_uv = P2_uv.xy
-        
-        
+
+
         #print('Uvs', P1_uv, P2_uv)
-        
+
         #Matrix determinant
         D = P1_uv[0] * P2_uv[1] - P2_uv[0] * P1_uv[1]
         D = 1.0 / max(D, 0.0001) #Store the inverse right away
@@ -154,14 +159,15 @@ def calc_tangents(faces, verts, norms, uvs):
     for i in range(len(verts)):
         tang = tangents[i]
         tang.normalize()
-        tangents[i] = (tangents[i].x, tangents[i].y, tangents[i].z, 1.0)       # (tangents[i].x, tangents[i].z, -tangents[i].y, 1.0)
-    
+        # (tangents[i].x, tangents[i].z, -tangents[i].y, 1.0)
+        tangents[i] = (tangents[i].x, tangents[i].y, tangents[i].z, 1.0)
 
     return tangents
 
+
 def apply_local_transforms(rotmat, verts, norms, tangents, chverts):
     norm_mat = rotmat.inverted().transposed()
-    
+
     print(len(verts), len(norms), len(tangents), len(chverts))
     for i in range(len(verts)):
         #Load Vertex
@@ -184,8 +190,9 @@ def apply_local_transforms(rotmat, verts, norms, tangents, chverts):
         chverts[i] = Vector4f(x = chvert[0], y = chvert[1], z = chvert[2], t = 1.0)
 
 def transform_to_NMS_coords(ob):
-    # this will return the local transform, rotation and scale of the object in the NMS coordinate system
-    
+    # this will return the local transform, rotation and scale of the object in
+    # the NMS coordinate system
+
     M = Matrix()
     M[0] = Vector((1.0, 0.0, 0.0, 0.0))
     M[1] = Vector((0.0, 0.0, 1.0, 0.0))
@@ -200,17 +207,21 @@ def transform_to_NMS_coords(ob):
 
     return (M*ob.matrix_local*Minv).decompose()
 
+
 """ Main exporter class with all the other functions contained in one place """
+
 
 class Exporter():
     # class to contain all the exporting functions
 
     def __init__(self, exportpath):
         self.global_scene = bpy.context.scene
-        self.global_scene.frame_set(0)      # set the frame to be the first one, just in case an export has already been run
+        # set the frame to be the first one, just in case an export has already
+        # been run
+        self.global_scene.frame_set(0)
         self.mname = os.path.basename(exportpath)
 
-        #self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
+        # self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
         """self.blend_to_NMS_mat = Matrix()
         self.blend_to_NMS_mat[0] = Vector((1.0, 0.0, 0.0, 0.0))
         self.blend_to_NMS_mat[1] = Vector((0.0, 0.0, 1.0, 0.0))
@@ -218,7 +229,7 @@ class Exporter():
         self.blend_to_NMS_mat[3] = Vector((0.0, 0.0, 0.0, 1.0))"""
 
         self.state = None
-        
+
         icounter = 0
         vcounter = 0
         vertices = []
@@ -232,16 +243,25 @@ class Exporter():
         collisions = []
         self.material_dict = {}
         self.material_ids = []
-        
-        self.anim_frame_data = dict()               # big master list of all the animation data for everything (might need to be optimised at some point...)
-        self.anim_node_data = dict()                # contains the structure (sort of) of all the nodes in the animation. Key is the name of the action, value is a dictionary containing names of nodes and the animation types they have
+        # big master list of all the animation data for everything (might need
+        # to be optimised at some point...)
+        self.anim_frame_data = dict()
+        # contains the structure (sort of) of all the nodes in the animation.
+        # Key is the name of the action, value is a dictionary containing names
+        # of nodes and the animation types they have.
+        self.anim_node_data = dict()
         self.nodes_in_all_anims = list()
 
-        self.CollisionIndexCount = 0        # this is the total number of collision indexes. The geometry file as of 1.3 requires it.
+        # this is the total number of collision indexes. The geometry file as
+        # of 1.3 requires it.
+        self.CollisionIndexCount = 0
 
-        self.joints = 0     # current number of joints. This is incremented as required.
+        # current number of joints. This is incremented as required.
+        self.joints = 0
 
-        self.global_entitydata = dict()        # disctionary containing the info for each object about the entity info it contains
+        # dictionary containing the info for each object about the entity info
+        # it contains
+        self.global_entitydata = dict()
         
         #Try to fetch NMS_SCENE node
         try:
@@ -249,8 +269,9 @@ class Exporter():
         except:
             raise Exception("Missing NMS_SCENE Node, Create it!")
 
-        # to ensure the rotation is applied correctly, first delect any selected objects in the scene,
-        # then select and activate the NMS_SCENE object
+        # to ensure the rotation is applied correctly, first delect any
+        # selected objects in the scene, then select and activate the NMS_SCENE
+        # object
         #self.select_only(self.NMSScene)
 
         """# apply rotation to entire model
@@ -266,7 +287,8 @@ class Exporter():
             batch_export = False
 
         if self.NMSScene.NMSScene_props.AT_only:
-            # in this case we want to export just the entity with action trigger data, nothing else
+            # in this case we want to export just the entity with action
+            # trigger data, nothing else
             entitydata = ParseNodes()
             entity = TkAttachmentData(Components = List(entitydata))
             entity.make_elements(main = True)
@@ -779,7 +801,6 @@ class Exporter():
         try:
             if list_element is None:
                 cls = eval(getattr(parent, obj).__class__.__name__.split('_')[1])     # ewwwwww. If there is a better way to do this I'd LOVE to know!
-                #cls = eval(getattr(parent, parent[obj].name).__class__.__name__.split('_')[1])     # ewwwwww. If there is a better way to do this I'd LOVE to know!
             else:
                 cls = eval(getattr(parent, obj)[index].__class__.__name__.split('_')[1])     # ewwwwww. If there is a better way to do this I'd LOVE to know!
         except TypeError:
@@ -804,11 +825,10 @@ class Exporter():
                 # otherwise call this function on the property
                 print('recursing ', prop)
                 properties[prop] = self.recurce_entity(prop_group, prop)
-                #properties[prop] = self.recurce_entity(prop_group, prop_group[prop])
         return cls(**properties)
         
 
-    def parse_object(self, ob, parent):#, global_scene, process_anim = False, anim_frame_data = dict(), extra_data = dict()):
+    def parse_object(self, ob, parent):
         newob = None
         #Apply location/rotation/scale
         #bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
@@ -838,34 +858,52 @@ class Exporter():
             print('this has an entity:', ob)
             # we need to pull information from two places:
             # ob.NMSEntity_props
-            # check to see if the mesh's entity will get the action trigger data
-            if '/' in ob.NMSEntity_props.name_or_path or '\\' in ob.NMSEntity_props.name_or_path:
+            # check to see if the mesh's entity will get the action trigger
+            # data
+            # TODO: use os.path.isfile? or something
+            if ('/' in ob.NMSEntity_props.name_or_path or
+                    '\\' in ob.NMSEntity_props.name_or_path):
                 # in this case just set the data to be a string with a path
                 entitydata = ob.NMSEntity_props.name_or_path
             else:
                 entitydata[ob.NMSEntity_props.name_or_path] = list()
                 if ob.NMSEntity_props.has_action_triggers:
                     entitydata[ob.NMSEntity_props.name_or_path].append(ParseNodes())
-            # and ob.EntityStructs
-            # this could potentially be it's own class?
-            for struct in ob.EntityStructs:
-                # this is the name of the struct
-                cls = eval(struct.name)         # create an instance of the struct
-                properties = dict()
-                sub_props = getattr(ob, 'NMS_{0}_props'.format(struct.name))        # this is the list of all the properties in the struct
-                # iterate over each of the sub-properties
-                for prop in sub_props.keys():
-                    if isinstance(sub_props[prop], IDPropertyGroup):
-                        properties[prop] = self.recurce_entity(sub_props, prop)
-                    elif isinstance(sub_props[prop], list):
-                        properties[prop] = List()
-                        counter = 0
-                        for le in sub_props[prop]:      # le = list_element
-                            properties[prop].append(self.recurce_entity(sub_props, prop, list_element = le, index = counter))
-                            counter += 1
-                    else:
-                        properties[prop] = getattr(sub_props, prop)
-                entitydata[ob.NMSEntity_props.name_or_path].append(cls(**properties))
+                # and ob.EntityStructs
+                # this could potentially be it's own class?
+                for struct in ob.EntityStructs:
+                    # create an instance of the struct
+                    _cls = eval(struct.name)
+                    properties = dict()
+                    # this is the list of all the properties in the struct
+                    sub_props = getattr(ob,
+                                        'NMS_{0}_props'.format(struct.name))
+                    # iterate over each of the sub-properties
+                    for prop in sub_props.keys():
+                        if isinstance(sub_props[prop], IDPropertyGroup):
+                            properties[prop] = self.recurce_entity(sub_props,
+                                                                   prop)
+                        elif isinstance(sub_props[prop], list):
+                            properties[prop] = List()
+                            counter = 0
+                            for le in sub_props[prop]:
+                                properties[prop].append(
+                                    self.recurce_entity(sub_props, prop,
+                                                        list_element = le,
+                                                        index = counter))
+                                counter += 1
+                        else:
+                            properties[prop] = getattr(sub_props, prop)
+                    # add the struct to the entity data with all the supplied
+                    # values
+                    entitydata[ob.NMSEntity_props.name_or_path].append(
+                        _cls(**properties))
+                # do a check for whether there is physics data required
+                if ob.NMSEntity_props.custom_physics:
+                    entitydata[ob.NMSEntity_props.name_or_path].append(
+                        TkPhysicsComponentData(
+                            VolumeTriggerType=TkVolumeTriggerType(
+                                VolumeTriggerType=ob.NMSPhysics_props.VolumeTriggerType)))  # noqa
         
         # Main switch to identify meshes or locators/references
         if ob.NMSNode_props.node_types == 'Collision':

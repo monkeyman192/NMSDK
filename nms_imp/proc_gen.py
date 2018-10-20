@@ -12,23 +12,28 @@ explicitly into the leveloneobjects file.
 __author__ = "monkeyman192"
 __version__ = "0.5"
 
-from tkinter import *
+# needed for misc functions
+import os
+import subprocess
+
+from tkinter import (Tk, StringVar, Frame, Label, Entry, LEFT, VERTICAL, RIGHT,
+                     BOTH, Y, Button)
 from tkinter import filedialog
 from tkinter import simpledialog
 from tkinter import ttk
 from tkinter import messagebox
 
 # local imports
-from classes import *
+from classes import (List, NMSString0x80, TkResourceDescriptorData,
+                     TkResourceDescriptorList, TkGeometryData, Model,
+                     Reference, TkModelDescriptorList)
 from wckToolTips import ToolTipManager
 tt = ToolTipManager()
 
-# needed for misc functions
-import os
-import subprocess
-#import xml.etree.ElementTree as ET
+# import xml.etree.ElementTree as ET
 
 root = Tk()
+
 
 class GUI(Frame):
     def __init__(self, master):
@@ -49,7 +54,7 @@ class GUI(Frame):
         name_label = Label(name_frame, text="Name: ")
         name_label.pack(side=LEFT)
         name_entry = Entry(name_frame, textvariable=self.proc_name)
-        name_entry.pack(side = LEFT)
+        name_entry.pack(side=LEFT)
         name_frame.pack()
         list_frame = Frame(self.master)
         self.data_view = ttk.Treeview(
@@ -69,7 +74,8 @@ class GUI(Frame):
         button_frame = Frame(self.master)
         add_button = Button(button_frame, text="ADD", command=self.add)
         add_button.pack(side=LEFT)
-        tt.register(add_button, "Opens a dialog to select a folder containing all the model folders")
+        tt.register(add_button, "Opens a dialog to select a folder containing "
+                    "all the model folders")
         remove_button = Button(button_frame, text="REMOVE",
                                command=self.remove)
         remove_button.pack(side=LEFT)
@@ -77,14 +83,17 @@ class GUI(Frame):
         mult_button = Button(button_frame, text="MULTIPLY",
                              command=self.multiply)
         mult_button.pack(side=LEFT)
-        tt.register(mult_button, "Makes copies of all selected entries in the list")
+        tt.register(mult_button,
+                    "Makes copies of all selected entries in the list")
         run_button = Button(button_frame, text="RUN", command=self.run)
         run_button.pack(side=LEFT)
-        tt.register(run_button, "Creates the proc-gen spawner for the selected models")
+        tt.register(run_button,
+                    "Creates the proc-gen spawner for the selected models")
         runall_button = Button(button_frame, text="RUN ALL",
-                               command=lambda:self.run(_all=True))
+                               command=lambda: self.run(_all=True))
         runall_button.pack(side=LEFT)
-        tt.register(runall_button, "Creates the proc-gen spawner for all the models above")
+        tt.register(runall_button,
+                    "Creates the proc-gen spawner for all the models above")
         quit_button = Button(button_frame, text="QUIT", command=self.quit)
         quit_button.pack(side=LEFT)
         tt.register(quit_button, "Exits the program")
@@ -107,7 +116,7 @@ class GUI(Frame):
                 contains_scene = True
                 path = self.get_scene_path(os.path.join(self.path_name, file))
                 scene_names.append((file, path))
-        if contains_scene == False:
+        if contains_scene is False:
             for folder in self.dir_list:
                 # in this case we have option 1
                 subfolders = os.listdir(os.path.join(self.path_name, folder))
@@ -125,7 +134,7 @@ class GUI(Frame):
     def get_scene_path(self, file_path):
         # this will open the scene file and read the path name
         try:
-            fd = os.open(file_path, os.O_RDONLY|os.O_BINARY)
+            fd = os.open(file_path, os.O_RDONLY | os.O_BINARY)
             os.lseek(fd, 0x60, os.SEEK_SET)
             bin_data = os.read(fd, 0x80)
             data = bin_data.decode()
@@ -138,15 +147,15 @@ class GUI(Frame):
         self.data_view.delete(*self.data_view.selection())
 
     def run(self, _all=False):
-        if _all == False:
+        if _all is False:
             # list of iids of selected elements
             self.selected_iids = self.data_view.selection()
         else:
             # in this case we just want everything in the list
             self.selected_iids = self.data_view.get_children()
-        self.selected_objects = list(self.data_view.item(iid)['values'][1] for 
+        self.selected_objects = list(self.data_view.item(iid)['values'][1] for
                                      iid in self.selected_iids)
-        if self.check_name(len(self.selected_objects)) == True:
+        if self.check_name(len(self.selected_objects)) is True:
             DataGenerator(self.proc_name.get().upper(), self.selected_objects)
 
     def check_name(self, length):
@@ -180,10 +189,12 @@ class GUI(Frame):
         selected = self.data_view.selection()
         for iid in selected:
             for _ in range(number):
-                self.data_view.insert("", 'end', values = self.data_view.item(iid)['values'])
+                self.data_view.insert(
+                    "", 'end', values=self.data_view.item(iid)['values'])
 
     def quit(self):
         self.master.destroy()
+
 
 class DataGenerator():
     def __init__(self, name, objects):
@@ -206,26 +217,34 @@ class DataGenerator():
             data = dict()
             data['Id'] = "_{0}_{1}".format(self.name.upper(), i)
             data['Name'] = "_{0}_{1}".format(self.name.upper(), i)
-            data['ReferencePaths'] = List(NMSString0x80(Value = '{}.SCENE.MBIN'.format(self.objects[i])))
+            data['ReferencePaths'] = List(
+                NMSString0x80(Value='{}.SCENE.MBIN'.format(self.objects[i])))
             data['Chance'] = 0
             data_list.append(TkResourceDescriptorData(**data))
-        main_data = TkResourceDescriptorList(TypeId = "_{}_".format(self.name.upper()),
-                                             Descriptors = data_list)
-        self.TkModelDescriptorList = TkModelDescriptorList(List = List(main_data))
+        main_data = TkResourceDescriptorList(
+            TypeId="_{}_".format(self.name.upper()),
+            Descriptors=data_list)
+        self.TkModelDescriptorList = TkModelDescriptorList(
+            List=List(main_data))
         self.TkModelDescriptorList.make_elements(main=True)
 
     def generate_scene(self):
         # first generate the data
         self.SceneData = Model(os.path.join(self.path, self.name.upper()))
-        self.SceneData.create_attributes({'GEOMETRY': os.path.join(self.path, '{}.GEOMETRY.MBIN'.format(self.name.upper())),
-                                          'NUMLODS': 1})
+        self.SceneData.create_attributes(
+            {'GEOMETRY': os.path.join(
+                self.path, '{}.GEOMETRY.MBIN'.format(self.name.upper())),
+             'NUMLODS': 1})
         for i in range(len(self.objects)):
-            ref = Reference("_{0}_{1}".format(self.name.upper(), i), Scenegraph = '{}.SCENE.MBIN'.format(self.objects[i]))
-            ref.create_attributes(None) # just pass None because it doesn't matter with how Reference is set up currently !!! THIS MIGHT CHANGE !!!
+            ref = Reference("_{0}_{1}".format(self.name.upper(), i),
+                            Scenegraph='{}.SCENE.MBIN'.format(self.objects[i]))
+            # just pass None because it doesn't matter with how Reference is
+            # set up currently !!! THIS MIGHT CHANGE !!!
+            ref.create_attributes(None)
             self.SceneData.add_child(ref)
-            
+
         self.SceneData.construct_data()
-        
+
         self.TkSceneNodeData = self.SceneData.get_data()
         self.TkSceneNodeData.make_elements(main=True)
 
@@ -235,22 +254,30 @@ class DataGenerator():
         self.TkGeometryData.make_elements(main=True)
 
     def write(self):
-        #make sure the directory exists:
+        # make sure the directory exists:
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-        self.TkModelDescriptorList.tree.write("{}.DESCRIPTOR.exml".format(os.path.join(self.path, self.name.upper())))
-        self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(os.path.join(self.path, self.name.upper())))
-        self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(os.path.join(self.path, self.name.upper())))
+        self.TkModelDescriptorList.tree.write(
+            "{}.DESCRIPTOR.exml".format(
+                os.path.join(self.path, self.name.upper())))
+        self.TkGeometryData.tree.write(
+            "{}.GEOMETRY.exml".format(
+                os.path.join(self.path, self.name.upper())))
+        self.TkSceneNodeData.tree.write(
+            "{}.SCENE.exml".format(
+                os.path.join(self.path, self.name.upper())))
 
     def convert_to_mbin(self):
         # passes all the files produced by
-        print('Converting all .exml files to .mbin. Please wait while this finishes.')
-        for directory, folders, files in os.walk(self.path):
+        print('Converting all .exml files to .mbin. Please wait while this '
+              'finishes.')
+        for directory, _, files in os.walk(self.path):
             for file in files:
                 location = os.path.join(directory, file)
                 if os.path.splitext(location)[1] == '.exml':
                     subprocess.call(["MBINCompiler.exe", location])
                     os.remove(location)
+
 
 app = GUI(master=root)
 app.mainloop()

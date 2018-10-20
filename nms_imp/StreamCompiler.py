@@ -1,7 +1,7 @@
 # geometry stream decompiler
 
 from struct import pack, unpack
-from io import BytesIO
+
 
 class TkMeshMetaData():
     def __init__(self, data=None):
@@ -45,7 +45,7 @@ class TkMeshMetaData():
 class TkMeshData():
     def __init__(self, data=None):
         self.raw_ID = ""
-        if data is not None:    
+        if data is not None:
             self.read(data)
 
     def create(self, ID, hash, vert_size, index_size):
@@ -61,8 +61,8 @@ class TkMeshData():
         self.hash, self.vertex_size, self.index_size = unpack(
             '<QII', data.read(0x10))
         self.list_data = data.read(0x10)
-        #self.offset, self.count = read_list_header(data)
-        #data.seek(0x10, 1)
+        # self.offset, self.count = read_list_header(data)
+        # data.seek(0x10, 1)
 
     def __bytes__(self):
         b = self.ID
@@ -171,7 +171,6 @@ class StreamData():
                 f.seek(overwrite_locs[i], 0)
                 f.write(pack('<Q', offset_locs[i] - overwrite_locs[i]))
 
-
     def __add__(self, other):
         # for now will just append
         new = StreamData('COMBINED.GEOMETRY.DATA.MBIN')
@@ -233,6 +232,7 @@ class GeometryData():
             self.MeshAABBMax = read_list_data(f, 0x10)
             self.BoundHullVerts = read_list_data(f, 0x10)
 
+
 def read_list_header(data):
     """
     Takes the 0x10 byte header and returns the relative offset and
@@ -241,6 +241,7 @@ def read_list_header(data):
     offset, count = unpack('<QI', data.read(12))
     data.seek(-12, 1)
     return offset, count
+
 
 def read_list_data(data, element_size):
     return_data = []
@@ -252,17 +253,21 @@ def read_list_data(data, element_size):
     data.seek(init_loc, 0)
     return return_data
 
+
 def padstring(string):
     """ Take a string and right pad with \xFE bytes up to 0x80 chars """
     str_len = len(string)
-    return bytes(string, 'utf-8') + b'\x00' + b'\xFE'*(0x7E - str_len) + b'\x00'
+    return (bytes(string, 'utf-8') + b'\x00' + b'\xFE'*(0x7E - str_len) +
+            b'\x00')
+
 
 if __name__ == "__main__":
+    # TODO: do as tests
     c = StreamData('EGGRESOURCE.GEOMETRY.DATA.MBIN.PC')
     c.read()
 
     d = StreamData('test.mbin')
-    d.create({'TEST1':123456789},
+    d.create({'TEST1': 123456789},
              [b'THIS IS A BUNCH OF TEST DATA'],
              [b'\x01\x02\x03\x04\x01\x01\x01\x06'])
     d.save()

@@ -1,5 +1,6 @@
-from half import binary16
-from INT_2_10_10_10_REV import write
+from nms_imp.formats.half import binary16
+from nms_imp.formats.INT_2_10_10_10_REV import write
+
 
 def TkVertexStream(**kwargs):
     """
@@ -29,16 +30,18 @@ def TkVertexStream(**kwargs):
         # return empty data
         return b''
 
+
 def TkIndexStream(indexes):
     """
     Return a serialised version of the index data
     """
     return indexes.tobytes()
 
+
 if __name__ == "__main__":
     from array import array
     d = array('I')
-    d.extend([1,2,3,4,5,735536])
+    d.extend([1, 2, 3, 4, 5, 735536])
     print(d.tobytes())
     a = TkIndexStream(d)
     print(a)

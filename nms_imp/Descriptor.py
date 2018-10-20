@@ -1,16 +1,17 @@
 # descriptor creater
 
+# TODO: add docstrings
+
 __author__ = "monkeyman192"
 
-from classes import *
-from collections import OrderedDict as odict
-from helper_funcs import get_children
+from nms_imp.classes import (List, TkModelDescriptorList,
+                             TkResourceDescriptorList,
+                             NMSString0x80, TkResourceDescriptorData)
+from nms_imp.helper_funcs import get_children
 
-# might need these? although if this is called to create descriptors, probably not
-import os
-import subprocess
 
-# main external container. This is only slightly different to the Node_Data type, but we will keep it separate.
+# main external container. This is only slightly different to the Node_Data
+# type, but we will keep it separate.
 # this corresponds to the outmost TkModelDescriptorList object
 class Descriptor():
     def __init__(self):
@@ -38,7 +39,8 @@ class Descriptor():
         main_data = List()
         for child in self.children:
             main_data.append(child.to_exml())
-        return TkModelDescriptorList(List = main_data)
+        return TkModelDescriptorList(List=main_data)
+
 
 # this corresponds to the TkResourceDescriptorList object
 class Node_List():
@@ -62,10 +64,9 @@ class Node_List():
         descriptors = List()
         for child in self.children:
             descriptors.append(child.to_exml())
-        return TkResourceDescriptorList(TypeId = self.TypeId,
-                                        Descriptors = descriptors)
-                                       
-        
+        return TkResourceDescriptorList(TypeId=self.TypeId,
+                                        Descriptors=descriptors)
+
 
 # this corresponds to the TkResourceDescriptorData object
 class Node_Data():
@@ -76,7 +77,7 @@ class Node_Data():
     def add_child(self, TypeId):
         self.children.append(Node_List(TypeId))
         return self.children[-1]
-        
+
     def get_child(self, TypeId):
         for child in self.children:
             if child.TypeId == TypeId:
@@ -84,8 +85,9 @@ class Node_Data():
 
     def __str__(self):
         try:
-            out = "Node_Data " + self.obj.name + '\n'       # this will only work if called on a blender object
-        except:
+            # this will only work if called on a blender object
+            out = "Node_Data " + self.obj.name + '\n'
+        except:     # TODO: what is the exact error?
             out = "Node_Data" + "\n"
         for child in self.children:
             out += str(child)
@@ -93,17 +95,19 @@ class Node_Data():
 
     def to_exml(self):
         # first, we need to do some processing on the name.
-        # if the name starts with the prefix, then we need to sort it out so that it is correct
+        # if the name starts with the prefix, then we need to sort it out so
+        # that it is correct
 
         def not_proc(ob):
             # returns true if the object is not proc
-            # nest the if statements this way as subsequent of statements require the previous ones to be true
+            # nest the if statements this way as subsequent of statements
+            # require the previous ones to be true
             if ob.NMSDescriptor_props.proc_prefix == "":        # ie. not proc
                 if ob.NMSNode_props.node_types == "Reference":
                     if ob.NMSReference_props.reference_path != "":
                         return True
             return False
-        
+
         prefix = self.obj.NMSDescriptor_props.proc_prefix.strip("_")
         stripped_name = self.obj.name[len("NMS_"):].upper()
         if stripped_name.strip('_').upper().startswith(prefix):
@@ -112,7 +116,8 @@ class Node_Data():
             # hopefully the user hasn't messed anything up...
             name = "_{0}_{1}".format(prefix, stripped_name.strip('_').upper())
 
-        # get the list off all children of self.obj that are ref nodes and aren't proc
+        # get the list off all children of self.obj that are ref nodes and
+        # aren't proc
         non_proc_refs = get_children(self.obj, [], "Reference", not_proc)
         additional_ref_paths = set()
         for child in non_proc_refs:
@@ -120,26 +125,28 @@ class Node_Data():
 
         additional_refs = List()
         for path in additional_ref_paths:
-            additional_refs.append(NMSString0x80(Value = path))
-        
+            additional_refs.append(NMSString0x80(Value=path))
+
         if self.obj.NMSNode_props.node_types == 'Reference':
-            refs = List(NMSString0x80(Value = self.obj.NMSReference_props.reference_path))
+            refs = List(NMSString0x80(
+                Value=self.obj.NMSReference_props.reference_path))
         else:
             refs = List()
         children = List()
         for child in self.children:
             children.append(child.to_exml())
-        # check how many children there are so we aren't making empty TkModelDescriptorList's for nothing
+        # check how many children there are so we aren't making empty
+        # TkModelDescriptorList's for nothing
         if len(children) == 0:
             _children = List()
         else:
-            _children = List(TkModelDescriptorList(List = children))
-        return TkResourceDescriptorData(Id = name,
-                                        Name = name,
-                                        ReferencePaths = refs + additional_refs,
-                                        Chance = 0,
-                                        Children = _children)
-            
+            _children = List(TkModelDescriptorList(List=children))
+        return TkResourceDescriptorData(Id=name,
+                                        Name=name,
+                                        ReferencePaths=refs + additional_refs,
+                                        Chance=0,
+                                        Children=_children)
+
 
 if __name__ == "__main__":
 

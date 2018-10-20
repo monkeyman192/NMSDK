@@ -1,7 +1,7 @@
 # All the custom panels and properties for all the different object types
 
 import bpy
-from bpy.props import (StringProperty, BoolProperty, EnumProperty, IntProperty,
+from bpy.props import (StringProperty, BoolProperty, EnumProperty,
                        FloatProperty, IntVectorProperty)
 
 """ Various properties for each of the different node types """
@@ -438,7 +438,7 @@ class NMSDescriptorPropertyPanel(bpy.types.Panel):
                 and (context.object.NMSNode_props.node_types == 'Mesh' or
                      context.object.NMSNode_props.node_types == "Locator" or
                      context.object.NMSNode_props.node_types == "Reference")
-                and bpy.context.scene.objects['NMS_SCENE'].NMSScene_props.is_proc == True  # noqa
+                and bpy.context.scene.objects['NMS_SCENE'].NMSScene_props.is_proc is True  # noqa
                 and not context.object == bpy.context.scene.objects['NMS_SCENE']):  # noqa
                 return True
             else:

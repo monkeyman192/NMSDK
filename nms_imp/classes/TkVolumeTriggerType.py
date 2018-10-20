@@ -4,6 +4,7 @@ from .Struct import Struct
 
 STRUCTNAME = 'TkVolumeTriggerType'
 
+
 class TkVolumeTriggerType(Struct):
     def __init__(self, **kwargs):
         self.size = 0x4
@@ -14,7 +15,8 @@ class TkVolumeTriggerType(Struct):
             "Open", "GenericInterior", "GenericGlassInterior", "Corridor",
             "SmallRoom", "LargeRoom", "OpenCovered", "HazardProtection",
             "FieldBoundary", "Custom_Biodome", "Portal", "VehicleBoost"]
-        self.data['VolumeTriggerType'] = kwargs.get('VolumeTriggerType', "Open")
+        self.data['VolumeTriggerType'] = kwargs.get('VolumeTriggerType',
+                                                    'Open')
         """ End of the struct contents"""
 
         # Parent needed so that it can be a SubElement of something

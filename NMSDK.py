@@ -7,7 +7,7 @@ customNodes = NMSNodes()
 bl_info = {
     "name": "No Man's Sky Development Kit",
     "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 2),
+    "version": (0, 9, 3),
     "blender": (2, 77, 0),
     "location": "File > Export",
     "description": "Create NMS scene structures and export to NMS File format",
@@ -15,6 +15,7 @@ bl_info = {
     "wiki_url": "https://github.com/monkeyman192/NMSDK/wiki",
     "tracker_url": "https://github.com/monkeyman192/NMSDK/issues",
     "category": "Export"}
+
 
 # Only needed if you want to add into a dynamic menu
 def menu_func_export(self, context):

@@ -1,5 +1,6 @@
 # generator to yield the iterable passed to it in a patterned way
 
+
 def patterned(lst, **kwargs):
     # this will return the values in the list in a patterned order
     # the generator will yield the pattern name, and the entry in the list

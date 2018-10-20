@@ -1,39 +1,48 @@
 #!/usr/bin/env python
 """Process the 3d model data and create required files for NMS.
 
-This function will take all the data provided by the blender script and create a number of
-.exml files that contain all the data required by the game to view the 3d model created.
+This function will take all the data provided by the blender script and create
+a number of .exml files that contain all the data required by the game to view
+the 3d model created.
 """
 
 __author__ = "monkeyman192"
 __credits__ = ["monkeyman192", "gregkwaste"]
 
-from classes import *
 import os
 import subprocess
-from LOOKUPS import *
+
+# TODO: remove wildcard import
+from nms_imp.classes import (TkAttachmentData, TkGeometryData, List,
+                             TkVertexElement, TkVertexLayout, Vector4f)
+from nms_imp.LOOKUPS import SEMANTICS, REV_SEMANTICS
 from shutil import copy2
 from array import array
-from mbincompiler import mbinCompiler
-from StreamCompiler import StreamData, TkMeshMetaData
-from DataSerialise import TkVertexStream, TkIndexStream
-from struct import pack
+from nms_imp.mbincompiler import mbinCompiler
+from nms_imp.StreamCompiler import StreamData, TkMeshMetaData
+from nms_imp.DataSerialise import TkVertexStream, TkIndexStream
 from hashlib import sha256
 from collections import OrderedDict as odict
 
+
 def traverse(obj):
-    # a custom generator to iterate over the tree of all the children on the scene (including the Model object)
-    # this returns objects from the branches inwards (which *shouldn't* be a problem...)
+    # a custom generator to iterate over the tree of all the children on the
+    # scene (including the Model object)
+    # this returns objects from the branches inwards (which *shouldn't* be a
+    # problem...)
     for child in obj.Children:
         for subvalue in traverse(child):
             yield subvalue
     else:
         yield obj
 
-# simple function to take a list and move the entry at the ith index to the the index 'index' (in the new list with the value pop'd)
+
+# simple function to take a list and move the entry at the ith index to the the
+# index 'index' (in the new list with the value pop'd)
 def movetoindex(lst, i, index):
     k = lst.pop(i)          # this will break if i > len(lst)...
     return lst[:index] + [k] + lst[index:]
+
 
 def nmsHash(data):
     """
@@ -48,22 +57,30 @@ def nmsHash(data):
         d = data
     return int(sha256(d).hexdigest()[-16:], 16)
 
+
 class Create_Data():
-    def __init__(self, name, directory, basepath, model, anim_data = odict(),
-                 descriptor = None, **commands):
+    def __init__(self, name, directory, basepath, model, anim_data=odict(),
+                 descriptor=None, **commands):
+        """
+        # TODO: make this good. A good API docstring would be nice...
+        name - the name of the file we want to create. Most entities within
+        will have a name derived from this.
+        directory - the full relative location of where the scene file will be
+        located.
+        model - The Model object that contains all the child nodes (of a number
+        of different types)
 
         """
-        name - the name of the file we want to create. Most entities  within will have a name derived from this.
-        directory - the full relative location of where the scene file will be located.
-        model - The Model object that contains all the child nodes (of a number of different types)
 
-        """
-
-        self.name = name        # this is the name of the file
-        self.directory = directory        # the path that the file is supposed to be located at
+        # this is the name of the file
+        self.name = name
+        # the path that the file is supposed to be located at
+        self.directory = directory
         self.basepath = basepath
-        self.Model = model                  # this is the main model file for the entire scene.
-        self.anim_data = anim_data          # animation data (defaults to None)
+        # this is the main model file for the entire scene.
+        self.Model = model
+        # animation data (defaults to None)
+        self.anim_data = anim_data
         self.descriptor = descriptor
 
         self.fix_names()
@@ -155,7 +172,7 @@ class Create_Data():
         self.TkSceneNodeData.make_elements(main=True)
         if len(self.descriptor) != 0:
             self.descriptor = self.descriptor.to_exml()
-            self.descriptor.make_elements(main = True)
+            self.descriptor.make_elements(main=True)
         else:
             self.descriptor = None
         for material in self.materials:
@@ -181,22 +198,29 @@ class Create_Data():
         if not os.path.exists(self.anims_path):
             os.makedirs(self.anims_path)
 
-
     def preprocess_streams(self):
-        # this will iterate through the Mesh objects and check that each of them has the same number of input streams. Any that don't will be flagged and a message will be raised
+        # this will iterate through the Mesh objects and check that each of
+        # them has the same number of input streams. Any that don't will be
+        # flagged and a message will be raised
         streams = set()
         for mesh in self.Model.Meshes.values():
-            # first find all the streams over all the meshes that have been provided
+            # first find all the streams over all the meshes that have been
+            # provided
             streams = streams.union(mesh.provided_streams)
         for mesh in self.Model.Meshes.values():
-            # next go back over the list and compare. If an entry isn't in the list of provided streams print a messge (maybe make a new error for this to be raised?)
+            # next go back over the list and compare. If an entry isn't in the
+            # list of provided streams print a messge (maybe make a new error
+            # for this to be raised?)
             diff = streams.difference(mesh.provided_streams)
             if diff != set():
-                print('ERROR! Object {0} is missing the streams: {1}'.format(mesh.Name, diff))
+                print('ERROR! Object {0} is missing the streams: {1}'.format(
+                    mesh.Name, diff))
                 if 'Vertices' in diff or 'Indexes' in diff:
-                    print('CRITICAL ERROR! No vertex and/or index data provided for {} Object'.format(mesh.Name))
+                    print('CRITICAL ERROR! No vertex and/or index data '
+                          'provided for {} Object'.format(mesh.Name))
 
-        self.stream_list = list(SEMANTICS[x] for x in streams.difference({'Indexes'}))
+        self.stream_list = list(
+            SEMANTICS[x] for x in streams.difference({'Indexes'}))
         self.stream_list.sort()
 
         self.element_count = len(self.stream_list)
@@ -244,10 +268,10 @@ class Create_Data():
         index_data = []
         metadata = odict()
         for name in self.mesh_names:
-            vertex_data.append(TkVertexStream(verts = self.vertex_stream[name],
-                                              uvs = self.uv_stream[name],
-                                              normals = self.n_stream[name],
-                                              tangents = self.t_stream[name]))
+            vertex_data.append(TkVertexStream(verts=self.vertex_stream[name],
+                                              uvs=self.uv_stream[name],
+                                              normals=self.n_stream[name],
+                                              tangents=self.t_stream[name]))
             new_indexes = []
             for tri in self.index_stream[name]:
                 new_indexes.extend(tri)
@@ -305,7 +329,7 @@ class Create_Data():
         # CollisionIndexCount
         # go over all the meshes and add all the batches.
         # Not sure if this can be optimised to be obtained earier... Probably
-        #!OBSOLETE  well... technically not, but not used right now...
+        # !OBSOLETE  well... technically not, but not used right now...
         ColIndexCount = 0
         """
         for mesh in range(len(self.Model.Meshes.values())):
@@ -417,7 +441,7 @@ class Create_Data():
                             data['ATTACHMENT'] = '{}.ENTITY.MBIN'.format(ent_path)
                             # also need to generate the entity data
                             AttachmentData = TkAttachmentData(
-                                Components = list(obj.EntityData.values())[0])
+                                Components=list(obj.EntityData.values())[0])
                             AttachmentData.make_elements(main=True)
                             # also write the entity file now too as we don't
                             # need to do anything else to it
@@ -445,7 +469,7 @@ class Create_Data():
                                     '{}.ENTITY.MBIN'.format(ent_path)}
                             # also need to generate the entity data
                             AttachmentData = TkAttachmentData(
-                                Components = list(obj.EntityData.values())[0])
+                                Components=list(obj.EntityData.values())[0])
                             AttachmentData.make_elements(main=True)
                             # also write the entity file now too as we don't
                             # need to do anything else to it
@@ -471,7 +495,6 @@ class Create_Data():
                 elif obj._Type == 'LIGHT':
                     data = None
             obj.create_attributes(data)
-            
 
     def create_vertex_layouts(self):
         # sort out what streams are given and create appropriate vertex layouts
@@ -479,49 +502,49 @@ class Create_Data():
         SmallVertexElements = List()
         for sID in self.stream_list:
             # sID is the SemanticID
-            if sID in [0,1]:
+            if sID in [0, 1]:
                 Offset = 8*self.stream_list.index(sID)
-                VertexElements.append(TkVertexElement(SemanticID = sID,
-                                                      Size = 4,
-                                                      Type = 5131,
-                                                      Offset = Offset,
-                                                      Normalise = 0,
-                                                      Instancing = "PerVertex",
-                                                      PlatformData = ""))
-            #for the INT_2_10_10_10_REV stuff
-            elif sID in [2,3]:
+                VertexElements.append(TkVertexElement(SemanticID=sID,
+                                                      Size=4,
+                                                      Type=5131,
+                                                      Offset=Offset,
+                                                      Normalise=0,
+                                                      Instancing="PerVertex",
+                                                      PlatformData=""))
+            # for the INT_2_10_10_10_REV stuff
+            elif sID in [2, 3]:
                 Offset = 16 + (sID - 2)*4
-                VertexElements.append(TkVertexElement(SemanticID = sID,
-                                                      Size = 4,
-                                                      Type = 36255,
-                                                      Offset = Offset,
-                                                      Normalise = 0,
-                                                      Instancing = "PerVertex",
-                                                      PlatformData = ""))
-            
-        for sID in [0,1]:
+                VertexElements.append(TkVertexElement(SemanticID=sID,
+                                                      Size=4,
+                                                      Type=36255,
+                                                      Offset=Offset,
+                                                      Normalise=0,
+                                                      Instancing="PerVertex",
+                                                      PlatformData=""))
+
+        for sID in [0, 1]:
             Offset = 8*sID
-            SmallVertexElements.append(TkVertexElement(SemanticID = sID,
-                                                  Size = 4,
-                                                  Type = 5131,
-                                                  Offset = Offset,
-                                                  Normalise = 0,
-                                                  Instancing = "PerVertex",
-                                                  PlatformData = ""))
+            SmallVertexElements.append(TkVertexElement(SemanticID=sID,
+                                                       Size=4,
+                                                       Type=5131,
+                                                       Offset=Offset,
+                                                       Normalise=0,
+                                                       Instancing="PerVertex",
+                                                       PlatformData=""))
         # fow now just make the small vert and vert layouts the same
         """ Vertex layout needs to be changed for the new normals/tangent format"""
-        
+
         self.GeometryData['VertexLayout'] = TkVertexLayout(
-            ElementCount = self.element_count,
-            Stride = self.stride,
-            PlatformData = "",
-            VertexElements = VertexElements)
+            ElementCount=self.element_count,
+            Stride=self.stride,
+            PlatformData="",
+            VertexElements=VertexElements)
         self.GeometryData['SmallVertexLayout'] = TkVertexLayout(
-            ElementCount = 2,
-            Stride = 16,
-            PlatformData = "",
-            VertexElements = SmallVertexElements)
-        
+            ElementCount=2,
+            Stride=16,
+            PlatformData="",
+            VertexElements=SmallVertexElements)
+
     def mix_streams(self):
         # this combines all the input streams into one single stream with the
         # correct offset etc as specified by the VertexLayout
@@ -540,14 +563,14 @@ class Create_Data():
                     try:    
                         VertexStream.extend(
                             mesh_obj.__dict__[REV_SEMANTICS[sID]][j])
-                        if sID in [0,1]:
+                        if sID in [0, 1]:
                             SmallVertexStream.extend(
                                 mesh_obj.__dict__[REV_SEMANTICS[sID]][j])
                     except:
                         # in the case this fails there is an index error caused
                         # by collisions. In this case just add a default value
-                        VertexStream.extend((0,0,0,1))
-        
+                        VertexStream.extend((0, 0, 0, 1))
+
         self.GeometryData['VertexStream'] = VertexStream
         self.GeometryData['SmallVertexStream'] = SmallVertexStream
 
@@ -571,7 +594,7 @@ class Create_Data():
 
         self.GeometryData['MeshAABBMin'] = List()
         self.GeometryData['MeshAABBMax'] = List()
-        
+
         for obj in self.Model.Meshes.values():
             v_stream = obj.Vertices
             x_verts = [i[0] for i in v_stream]
@@ -601,7 +624,10 @@ class Create_Data():
                 if samplers is not None:
                     for sample in samplers.subElements:
                         # this will be a TkMaterialSampler object
-                        t_path = str(sample['Map'])  # this should be the current absolute path to the image, we want to move it to the correct relative path
+                        # this should be the current absolute path to the
+                        # image, we want to move it to the correct relative
+                        # path
+                        t_path = str(sample['Map'])
                         new_path = os.path.join(
                             self.texture_path,
                             os.path.basename(t_path).upper())
@@ -613,10 +639,10 @@ class Create_Data():
                             new_path = ""
                         f_name, ext = os.path.splitext(new_path)
                         sample['Map'] = f_name + ext.upper()
-                
+
     def write(self):
         # write each of the exml files.
-        #self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
+        # self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
         mbinc = mbinCompiler(self.TkGeometryData, "{}.GEOMETRY.MBIN.PC".format(self.path))
         mbinc.serialise()
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
@@ -644,7 +670,8 @@ class Create_Data():
                     if retcode == 0:
                         os.remove(location)
 
-        
+"""
+# TODO: this will all become a test
 if __name__ == '__main__':
 
     main_obj = Model(name = 'Square')
@@ -688,3 +715,4 @@ if __name__ == '__main__':
     #prettyPrintXml('TEST\SQUARE.GEOMETRY.exml')
     prettyPrintXml('TEST\SQUARE.SCENE.exml')
     #prettyPrintXml('TEST\SQUARE\SQUARE_SQUARE.MATERIAL.exml')
+"""

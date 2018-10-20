@@ -1,17 +1,17 @@
 # Primary Object class.
-# Each object in blender will be passed into this class. Any children are added as child objects.
+# Each object in blender will be passed into this class. Any children are added
+# as child objects.
 
-from xml.etree.ElementTree import SubElement, Element, ElementTree
 from .TkSceneNodeData import TkSceneNodeData
 from .TkSceneNodeAttributeData import TkSceneNodeAttributeData
 from .TkTransformData import TkTransformData
 from .TkMaterialData import TkMaterialData
 from .TkPhysicsComponentData import TkPhysicsComponentData
 from .List import List
-from numbers import Number
 from collections import OrderedDict as odict
 
 TYPES = ['MESH', 'LOCATOR', 'COLLISION', 'MODEL', 'REFERENCE']
+
 
 class Object():
     """ Structure:
@@ -23,7 +23,7 @@ class Object():
         Children (List of TkSceneNodeData)
     end
     """
-    
+
     def __init__(self, Name, **kwargs):
         self.Transform = kwargs.get('Transform', TkTransformData())     # This will be given as a TkTransformData object.
                                                                         # If this isn't specified the default value will be used.
@@ -57,7 +57,7 @@ class Object():
                 self.EntityData = dict()
                 entityname = list(self.ExtraEntityData.keys())[0]   # there should be only one key...
                 self.EntityPath = entityname
-                self.EntityData[entityname] = List(TkPhysicsComponentData())    # this can be populated with any extra stuff that needs to go into the entity.
+                self.EntityData[entityname] = List()    # this can be populated with any extra stuff that needs to go into the entity.
                 for entity in self.ExtraEntityData[entityname]:
                     self.EntityData[entityname].append(entity)
             except IndexError:
