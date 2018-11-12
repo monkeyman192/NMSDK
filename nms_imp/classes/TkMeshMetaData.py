@@ -5,6 +5,7 @@ from .String import String
 
 STRUCTNAME = 'TkMeshMetaData'
 
+
 class TkMeshMetaData(Struct):
     def __init__(self, **kwargs):
         super(TkMeshMetaData, self).__init__()

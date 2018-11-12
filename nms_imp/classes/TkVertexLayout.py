@@ -6,6 +6,7 @@ from .List import List
 
 STRUCTNAME = 'TkVertexLayout'
 
+
 class TkVertexLayout(Struct):
     def __init__(self, **kwargs):
         super(TkVertexLayout, self).__init__()
