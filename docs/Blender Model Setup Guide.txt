@@ -13,7 +13,7 @@ nms compatible files. So lets get to the tasks.
 #TASK 0 --- "Installation"
 	
 	After unpacking the archive, you have 2 things to do:
-	1. Copy the "nms_imp" folder and the supplied version of MBINCompiler in Blender installation folder (it should be in the same 
+	1. Copy the "ModelExporter" folder and the supplied version of MBINCompiler in Blender installation folder (it should be in the same 
 	directory with the blender.exe)
 	2. Open Blender, go to User Preferences->Addons, and install the supplied addon. Make sure to enable it as well (tick the checkbox)
 

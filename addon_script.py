@@ -1,37 +1,35 @@
-import bpy
-import bmesh
+# stdlib imports
 import os
 import sys
+# blender imports
+import bpy
+import bmesh
 from idprop.types import IDPropertyGroup
 from math import radians, degrees
 from mathutils import Matrix, Vector
-from BlenderExtensions import NMSNodes, CompareMatrices, ContinuousCompare
-
-# import main
-# print(main.__file__)
-from nms_imp.main import Create_Data
-# will need to clean up if more functions are added...
-from nms_imp.Descriptor import Descriptor
-from nms_imp.classes import (TkMaterialData, TkMaterialFlags,
-                             TkMaterialUniform, TkMaterialSampler,
-                             TkTransformData, TkRotationComponentData,
-                             TkPhysicsComponentData, TkVolumeTriggerType)
-# imports relating to animations
-from nms_imp.classes import TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData
-# entity animation classes
-from nms_imp.classes import TkAnimationComponentData, TkAnimationData
-from nms_imp.classes import List, Vector4f
-from nms_imp.classes import TkAttachmentData
-# Import Object Classes
-from nms_imp.classes.Object import (Model, Mesh, Locator, Reference, Collision,
-                                    Light, Joint)
-from nms_imp.LOOKUPS import MATERIALFLAGS
-from nms_imp.ActionTriggerParser import ParseNodes
-
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
 from bpy_extras.io_utils import ExportHelper
 from bpy.types import Operator
+# Internal imports
+from BlenderExtensions import NMSNodes, CompareMatrices, ContinuousCompare
+from ModelExporter.utils import (get_all_actions, apply_local_transforms,
+                                 calc_tangents, transform_to_NMS_coords)
+from ModelExporter import Export
+from ModelExporter.Descriptor import Descriptor
+from NMS.classes import (TkMaterialData, TkMaterialFlags, TkVolumeTriggerType,
+                         TkMaterialSampler, TkTransformData, TkMaterialUniform,
+                         TkRotationComponentData, TkPhysicsComponentData)
+# Animation objects
+from NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
+from NMS.classes import TkAnimationComponentData, TkAnimationData
+from NMS.classes import List, Vector4f
+from NMS.classes import TkAttachmentData
+# Object Classes
+from NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
+                         Joint)
+from ModelExporter.LOOKUPS import MATERIALFLAGS
+from ModelExporter.ActionTriggerParser import ParseNodes
 
 
 customNodes = NMSNodes()
@@ -40,14 +38,14 @@ customNodes = NMSNodes()
 
 for path in sys.path:
     if os.path.isdir(path):
-        if 'nms_imp' in os.listdir(path):
-            print("Found nms_imp at: ", path)
+        if 'ModelExporter' in os.listdir(path):
+            print("Found ModelExporter at: ", path)
             os.chdir(path)
             break
 
 
 # Add script path to sys.path
-scriptpath = os.path.join(os.getcwd(), 'nms_imp')
+scriptpath = os.path.join(os.getcwd(), 'ModelExporter')
 #scriptpath = bpy.context.space_data.text.filepath
 #scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
 #proj_path = os.path.dirname(scriptpath)
@@ -58,151 +56,6 @@ print(scriptpath)
 if scriptpath not in sys.path:
     sys.path.append(scriptpath)
     # print(sys.path)
-
-
-def write_some_data(context, filepath, use_some_setting):
-    print("running write_some_data...")
-    f = open(filepath, 'w', encoding='utf-8')
-    f.write("Hello World %s" % use_some_setting)
-    f.close()
-
-    return {'FINISHED'}
-
-
-def object_is_animated(ob):
-    # this will check a blender object to see if it's parent has any anim data
-    # (and it's parent recursively)
-    if ob.animation_data is not None:
-        # in this case just return true that the object has animation data
-        return True
-    else:
-        if ob.parent is not None:
-            return object_is_animated(ob.parent)
-        else:
-            return False
-
-
-def get_all_actions(obj):
-    """Retrieve all actions given a blender object. Includes NLA-actions
-       Full credit to this code goes to misnomer on blender.stackexchange
-       (cf. https://blender.stackexchange.com/questions/14204/how-to-tell-which-object-uses-which-animation-action)
-    """
-    # slightly modified to return the name of the object, and the action
-    if obj.animation_data:
-        if obj.animation_data.action:
-            yield (obj.name, obj.NMSAnimation_props.anim_name,
-                   obj.animation_data.action)
-        for track in obj.animation_data.nla_tracks:
-            for strip in track.strips:
-                yield obj.name, obj.NMSAnimation_props.anim_name, strip.action
-
-
-""" Misc. functions for transforming data """
-
-
-#Tangent Calculator
-def calc_tangents(faces, verts, norms, uvs):
-    tangents = []
-    # Init tangents
-    for i in range(len(verts)):
-        tangents.append(Vector((0,0,0,0)))
-    # We assume that verts length will be a multiple of 3 since
-    # the mesh has been triangulated
-
-    trisNum = len(faces)
-    # Iterate in triangles
-    for i in range(trisNum):
-        tri = faces[i]
-        vert_1 = tri[0]
-        vert_2 = tri[1]
-        vert_3 = tri[2]
-
-        # Get Point Positions
-        P0 = Vector((verts[vert_1]))
-        P1 = Vector((verts[vert_2])) - P0
-        P2 = Vector((verts[vert_3])) - P0
-
-        P0_uv = Vector((uvs[vert_1]))
-        P1_uv = Vector((uvs[vert_2])) - P0_uv
-        P2_uv = Vector((uvs[vert_3])) - P0_uv
-        # Keep only the 1st uvmap
-        P1_uv = P1_uv.xy
-        P2_uv = P2_uv.xy
-
-        # Matrix determinant
-        D = P1_uv[0] * P2_uv[1] - P2_uv[0] * P1_uv[1]
-        D = 1.0 / max(D, 0.0001)  # Store the inverse right away
-        
-        # Apply equation
-        tang = D * (P2_uv[1] * P1 - P1_uv[1] * P2)
-        
-        # Orthogonalize Gram-Shmidt
-        n = Vector(norms[vert_1])
-        tang = tang - n * tang.dot(n)
-        # tang.normalize()
-        
-        # Add to existing
-        # Vert_1
-        tangents[vert_1] += tang
-        # Vert_2
-        tangents[vert_2] += tang
-        # Vert_3
-        # tang3 = Vector(tangents[vert_3]) + tang;
-        # tang3.normalize()
-        tangents[vert_3] += tang
-
-    # Fix tangents
-    for i in range(len(verts)):
-        tang = tangents[i]
-        tang.normalize()
-        # (tangents[i].x, tangents[i].z, -tangents[i].y, 1.0)
-        tangents[i] = (tangents[i].x, tangents[i].y, tangents[i].z, 1.0)
-
-    return tangents
-
-
-def apply_local_transforms(rotmat, verts, norms, tangents, chverts):
-    norm_mat = rotmat.inverted().transposed()
-
-    print(len(verts), len(norms), len(tangents), len(chverts))
-    for i in range(len(verts)):
-        # Load Vertex
-        vert = rotmat * Vector((verts[i]))
-        # Store Transformed
-        verts[i] = (vert[0], vert[1], vert[2], 1.0)
-        # Load Normal
-        norm = norm_mat * Vector((norms[i]))
-        norm.normalize()
-        # Store Transformed normal
-        norms[i] = (norm[0], norm[1], norm[2], 1.0)
-        # Load Tangent
-        tang = norm_mat * Vector((tangents[i]))
-        tang.normalize()
-        # Store Transformed tangent
-        tangents[i] = (tang[0], tang[1], tang[2], 1.0)
-    for i in range(len(chverts)):
-        chvert = rotmat * Vector((chverts[i]))
-        # chvert = chverts[i]
-        chverts[i] = Vector4f(x=chvert[0], y=chvert[1], z=chvert[2], t=1.0)
-
-
-def transform_to_NMS_coords(ob):
-    # this will return the local transform, rotation and scale of the object in
-    # the NMS coordinate system
-
-    M = Matrix()
-    M[0] = Vector((1.0, 0.0, 0.0, 0.0))
-    M[1] = Vector((0.0, 0.0, 1.0, 0.0))
-    M[2] = Vector((0.0, -1.0, 0.0, 0.0))
-    M[3] = Vector((0.0, 0.0, 0.0, 1.0))
-
-    Minv = Matrix()
-    Minv[0] = Vector((1.0, 0.0, 0.0, 0.0))
-    Minv[1] = Vector((0.0, 0.0, -1.0, 0.0))
-    Minv[2] = Vector((0.0, 1.0, 0.0, 0.0))
-    Minv[3] = Vector((0.0, 0.0, 0.0, 1.0))
-
-    return (M*ob.matrix_local*Minv).decompose()
 
 
 """ Main exporter class with all the other functions contained in one place """
@@ -367,13 +220,13 @@ class Exporter():
                         anim = self.anim_generator()
                         mpath = os.path.dirname(os.path.abspath(exportpath))
                         os.chdir(mpath)
-                        Create_Data(name,
-                                    self.group_name,
-                                    self.basepath,
-                                    scene,
-                                    anim,
-                                    self.descriptor,
-                                    **commands)
+                        Export(name,
+                               self.group_name,
+                               self.basepath,
+                               scene,
+                               anim,
+                               self.descriptor,
+                               **commands)
                 else:
                     # parse the entire scene all in one go.
                     self.scene_directory = os.path.join(
@@ -391,13 +244,13 @@ class Exporter():
                 # create the animation stuff if necissary:
                 print('bloop')
                 anim = self.anim_generator()
-                Create_Data(self.mname,
-                            self.group_name,
-                            self.basepath,
-                            scene,
-                            anim,
-                            self.descriptor,
-                            **commands)
+                Export(self.mname,
+                       self.group_name,
+                       self.basepath,
+                       scene,
+                       anim,
+                       self.descriptor,
+                       **commands)
 
         """# undo rotation
         self.select_only(self.NMSScene)
@@ -1133,7 +986,7 @@ class Exporter():
                 actualname = ob.name[len("NMS_"):].upper()
             try:
                 scenegraph = ob.NMSReference_props.reference_path
-            except:
+            except AttributeError:
                 raise Exception("Missing REF Property, Set it")
 
             newob = Reference(Name=actualname,
@@ -1196,11 +1049,9 @@ class Exporter():
         # Parse children
         for child in ob.children:
             if (not (child.name.startswith('NMS') or
-                    child.name.startswith('COLLISION'))):
+                     child.name.startswith('COLLISION'))):
                 continue
-            child_ob = self.parse_object(child, newob)
-
-        return newob
+            self.parse_object(child, newob)
 
     def process_anims(self):
         # get all the data. We will then consider number of actions globally
