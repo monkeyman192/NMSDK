@@ -78,13 +78,19 @@ def FillStruct(node):
 
 # now we need to create the actual component for the entity file
 
-"""        Old code relating to figuring out what eack link joins (maybe needed in the future??)
-# we now need to parse all the sub nodes. We will assume that there is only one action trigger per node tree
-node_structure = list()     # this will be a list of dictionaries. The dictionary will contain the name of the node, the name of the input node, and the names of the output nodes
+"""
+Old code relating to figuring out what eack link joins
+(maybe needed in the future??)
+# we now need to parse all the sub nodes. We will assume that there is only
+# one action trigger per node tree
+# this will be a list of dictionaries.
+# The dictionary will contain the name of the node, the name of the input node,
+# and the names of the output nodes.
+node_structure = list()
 for node in ActionTrigger.nodes:
-    input_node = node.inputs[0].links[0].from_node.name         # ewww... not sure if there is a better way to do this though
+    # ewww... not sure if there is a better way to do this though
+    input_node = node.inputs[0].links[0].from_node.name
     output_nodes = list()
-    for 
     node_structure.append({'name': node.name})
 """
 

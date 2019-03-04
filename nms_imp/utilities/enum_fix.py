@@ -1,4 +1,5 @@
-# simple script to convert enum values to a list as is required for the EnumProperty in blender
+# simple script to convert enum values to a list as is required for the
+# EnumProperty in blender
 
 # copy and paste the string here:
 # this should look like (for example):

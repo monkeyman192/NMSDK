@@ -87,7 +87,7 @@ class Node_Data():
         try:
             # this will only work if called on a blender object
             out = "Node_Data " + self.obj.name + '\n'
-        except:     # TODO: what is the exact error?
+        except AttributeError:
             out = "Node_Data" + "\n"
         for child in self.children:
             out += str(child)

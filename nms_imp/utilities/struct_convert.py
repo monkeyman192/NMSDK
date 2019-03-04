@@ -13,17 +13,20 @@ OUTPUT = "custom_panels_out.py"
 NAMEMAP = {'int': 'IntProperty', 'float': 'FloatProperty', 'bool': 'BoolProperty', 'string': 'StringProperty', 'enum': 'EnumProperty'}
 DEFAULTS = {'int': 0, 'float': 0, 'bool': 'False', 'string':"''", 'enum':'NEED DEFAULT VALUE!!!', 'list':'List()'}
 
+
 class data():
     def __init__(self, line):
         self.type_ = line[0]
         self.name = line[1].replace(';', '').replace('\n', '')
-        #self.name = self.name.rst
+        # self.name = self.name.rst
 
     def __str__(self):
         return '{0}, {1}'.format(self.type_, self.name)
 
+
 def struct_init(name):
     pass
+
 
 class struct_data():
     def __init__(self, name):
@@ -225,6 +228,7 @@ class struct_data():
         if not found:
             with open(join(BASEPATH, '__init__.py'), 'a') as file:
                 file.writelines(['from .{0} import {0}\n'.format(self.name)])
+
 
 if __name__ == "__main__":
 

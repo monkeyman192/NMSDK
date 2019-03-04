@@ -112,30 +112,3 @@ def register(widget, text):
 
 def unregister(widget):
     _manager.unregister(widget)
-
-if __name__ == "__main__":
-
-    root = Tk()
-
-    root.title("ToolTips")
-
-    b1 = Button(root, bg="red", text="red")
-    b1.pack()
-
-    register(b1, "A red button")
-
-    b2 = Button(root, bg="green", text="green")
-    b2.pack()
-
-    register(b2, "A green button")
-
-    b3 = Button(root, fg="blue", text="blue")
-    b3.pack()
-
-    def cb(*args):
-        return "A blue text"
-
-    register(b3, cb)
-    # unregister(b3)
-
-    mainloop()

@@ -48,8 +48,3 @@ def quat_to_hex(q):
     # TODO: change to just return the list
     hex_out = [hex(i) for i in q]
     return hex_out
-
-
-q = [0, 0, -0.10186, 0.9947987]
-
-print(quat_to_hex(q))

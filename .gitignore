@@ -56,3 +56,6 @@ nms_imp/test.py
 
 # blender file backups
 *.blend1
+
+# vscode files
+.vscode/

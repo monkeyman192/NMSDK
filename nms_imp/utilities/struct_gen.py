@@ -5,6 +5,7 @@ from os.path import join
 name = input('Please enter the (case sensitive!) name of the struct: ')
 datacount = int(input('Enter how many lines of data you want: '))
 
+
 def gen(name):
     s = '    '
     with open(join('../classes', '{0}.py'.format(name)), 'w') as f:
@@ -20,4 +21,7 @@ def gen(name):
                       2*s + '# Parent needed so that it can be a SubElement of something\n',
                       2*s + 'self.parent = None\n',
                       2*s + 'self.STRUCTNAME = STRUCTNAME\n'])
-gen(name)
+
+
+if __name__ == '__main__':
+    gen(name)

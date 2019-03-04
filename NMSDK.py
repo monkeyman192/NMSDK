@@ -37,11 +37,3 @@ def unregister():
     NMSPanels.unregister()
     customNodes.unregister()
     NMSEntities.unregister()
-
-
-# TODO: remove
-if __name__ == "__main__":
-    register()
-
-    # test call
-    bpy.ops.export_mesh.nms(filepath="J:\\Installs\\Steam\\steamapps\\common\\No Man's Sky\\GAMEDATA\\PCBANKS\\CUBE_ODD")  # noqa

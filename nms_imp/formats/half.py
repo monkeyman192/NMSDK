@@ -132,6 +132,7 @@ def test_all_bits(N=16):
         got = binary16(f)
         assert got == binary or got == EXAMPLE_NAN
 
+
 if __name__ == '__main__':
     print(_float_from_unsigned16(0xf785))
     """

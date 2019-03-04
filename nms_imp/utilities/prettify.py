@@ -1,11 +1,11 @@
 from lxml import etree
 
-from tkinter import *
+from tkinter import Frame, Button, LEFT, Tk
 from tkinter import filedialog
 
-from os import path
 
 root = Tk()
+
 
 class GUI(Frame):
     def __init__(self, master):
@@ -30,11 +30,16 @@ class GUI(Frame):
     def quit(self):
         self.master.destroy()
 
+
 def prettyPrintXml(xmlFilePathToPrettyPrint):
     assert xmlFilePathToPrettyPrint is not None
     parser = etree.XMLParser(resolve_entities=False, strip_cdata=False)
     document = etree.parse(xmlFilePathToPrettyPrint, parser)
-    document.write(xmlFilePathToPrettyPrint, xml_declaration='<?xml version="1.0" encoding="utf-8"?>', pretty_print=True, encoding='utf-8')
+    document.write(xmlFilePathToPrettyPrint,
+                   xml_declaration='<?xml version="1.0" encoding="utf-8"?>',
+                   pretty_print=True,
+                   encoding='utf-8')
 
-app = GUI(master=root)
-app.mainloop()
+if __name__ == '__main__':
+    app = GUI(master=root)
+    app.mainloop()

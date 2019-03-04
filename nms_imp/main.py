@@ -94,12 +94,17 @@ class Create_Data():
         self.n_stream = odict()
         self.t_stream = odict()
         self.chvertex_stream = odict()
-        self.mesh_bounds = odict()           # a disctionary of the bounds of just mesh objects. This will be used for the scene files
-        self.materials = set()      # this will hopefully mean that there will be at most one copy of each unique TkMaterialData struct in the set
+        # a disctionary of the bounds of just mesh objects. This will be used
+        # for the scene files
+        self.mesh_bounds = odict()
+        # this will hopefully mean that there will be at most one copy of each
+        # unique TkMaterialData struct in the set
+        self.materials = set()
         self.hashes = odict()
         self.mesh_names = list()
 
-        #self.Entities = []          # a list of any extra properties to go in each entity
+        # a list of any extra properties to go in each entity
+        # self.Entities = []
 
         # extract the streams from the mesh objects.
         for mesh in self.Model.Meshes.values():
@@ -115,7 +120,7 @@ class Create_Data():
             if mesh.Material is not None:
                 self.materials.add(mesh.Material)
 
-        #for obj in self.Model.ListOfEntities:
+        # for obj in self.Model.ListOfEntities:
         #    self.Entities.append(obj.EntityData)
 
         self.num_mesh_objs = len(self.Model.Meshes)
@@ -130,7 +135,7 @@ class Create_Data():
 
         self.create_paths()
 
-        # This dictionary contains all the information for the geometry file 
+        # This dictionary contains all the information for the geometry file
         self.GeometryData = odict()
 
         self.geometry_stream = StreamData(
@@ -159,7 +164,7 @@ class Create_Data():
         self.process_nodes()
         # make this last to make sure flattening each stream doesn't affect
         # other data.
-        self.mix_streams()      
+        self.mix_streams()
 
         # Assign each of the class objects that contain all of the data their
         # data
@@ -235,15 +240,22 @@ class Create_Data():
         self.ch_stream_lens = odict()
 
         """
-        # to fix 1.3x mesh collisions, we need to make all the mesh collisions have their indexes first
+        # to fix 1.3x mesh collisions, we need to make all the mesh collisions
+        # have their indexes first
         # we require a mapping to know which is which though
-        self.index_mapping = list(range(len(self.Model.ListOfMeshes)))        # the unchanged mapping
-        insert_point = 0                                                        # an int to keep track of where to place the value (incremented by loop)
+        # the unchanged mapping
+        self.index_mapping = list(range(len(self.Model.ListOfMeshes)))
+        # an int to keep track of where to place the value
+        # (incremented by loop)
+        insert_point = 0
         for i in range(len(self.Model.ListOfMeshes)):
             mesh = self.Model.ListOfMeshes[i]
             if mesh._Type == 'COLLISION':
                 if mesh.CType == 'Mesh':
-                    self.index_mapping = movetoindex(self.index_mapping, i, insert_point)         # move the index it is now located at 'insert_point' so we can construct it correctly in the scene
+                    # move the index it is now located at 'insert_point' so we
+                    # can construct it correctly in the scene
+                    self.index_mapping = movetoindex(self.index_mapping, i,
+                                                     insert_point)
                     insert_point += 1
         print(self.index_mapping, 'index_mapping')
         """
@@ -258,7 +270,7 @@ class Create_Data():
         # just make sure that the name and path is all in uppercase
         self.name = self.name.upper()
         self.directory = self.directory.upper()
-    
+
     def serialise_data(self):
         """
         convert all the provided vertex and index data to bytes to be passed
@@ -305,9 +317,11 @@ class Create_Data():
         # the total number of index points in each object
         index_counts = list(3*x for x in self.i_stream_lens.values())
         # now, re-order the indexes:
-        #new_index_counts = list(index_counts[self.index_mapping[i]] for i in range(len(index_counts)))
+        # new_index_counts = list(index_counts[self.index_mapping[i]] for i in
+        # range(len(index_counts)))
         # and sort out the batches
-        #self.batches = list((sum(new_index_counts[:i]), new_index_counts[i]) for i in range(self.num_mesh_objs))
+        # self.batches = list((sum(new_index_counts[:i]), new_index_counts[i])
+        # for i in range(self.num_mesh_objs))
         self.batches = odict(zip(self.mesh_names,
                                  [(sum(index_counts[:i]), index_counts[i])
                                   for i in range(self.num_mesh_objs)]))
@@ -350,14 +364,16 @@ class Create_Data():
                 local_max = max(self.index_stream[name][j])
                 if local_max > curr_max:
                     curr_max = local_max
-            # now we set k to be the current max and this is added on to the next set.
+            # now we set k to be the current max and this is added on to the\
+            # next set.
             k = curr_max + 1
 
         """
         #print(self.index_stream)
         #print('reshuffling indexes')
         # now we need to re-shuffle the index data
-        new_index_data = list(range(self.num_mesh_objs))        # just fill with numbers for now, they will be overridden
+        # just fill with numbers for now, they will be overridden
+        new_index_data = list(range(self.num_mesh_objs))
         for i in range(self.num_mesh_objs):
             new_index_data[self.index_mapping.index(i)] = self.index_stream[i]
         self.index_stream = new_index_data
@@ -365,8 +381,10 @@ class Create_Data():
         """
 
         # First we need to find the length of each stream.
-        self.GeometryData['IndexCount'] = 3*sum(list(self.i_stream_lens.values()))
-        self.GeometryData['VertexCount'] = sum(list(self.v_stream_lens.values()))
+        self.GeometryData['IndexCount'] = 3 * sum(
+            list(self.i_stream_lens.values()))
+        self.GeometryData['VertexCount'] = sum(
+            list(self.v_stream_lens.values()))
         self.GeometryData['CollisionIndexCount'] = ColIndexCount
         self.GeometryData['MeshVertRStart'] = list(
             self.vert_bounds[name][0] for name in self.mesh_names)
@@ -404,8 +422,6 @@ class Create_Data():
 
                 data = odict()
 
-                #data['BATCHSTART'] = self.batches[self.index_mapping.index(i)][0]
-                #data['BATCHCOUNT'] = self.batches[self.index_mapping.index(i)][1]
                 data['BATCHSTART'] = self.batches[name][0]
                 data['BATCHCOUNT'] = self.batches[name][1]
                 data['VERTRSTART'] = self.vert_bounds[name][0]
@@ -427,7 +443,7 @@ class Create_Data():
                         if mesh_obj.Material is not None:
                             mat_name = str(mesh_obj.Material['Name'])
                             print('material name: {}'.format(mat_name))
-                            
+
                             data['MATERIAL'] = os.path.join(
                                 self.path, mat_name.upper()) + '.MATERIAL.MBIN'
                         else:
@@ -438,7 +454,8 @@ class Create_Data():
                         if obj.EntityData is not None:
                             ent_path = os.path.join(
                                 self.ent_path, str(obj.EntityPath).upper())
-                            data['ATTACHMENT'] = '{}.ENTITY.MBIN'.format(ent_path)
+                            data['ATTACHMENT'] = '{}.ENTITY.MBIN'.format(
+                                ent_path)
                             # also need to generate the entity data
                             AttachmentData = TkAttachmentData(
                                 Components=list(obj.EntityData.values())[0])
@@ -451,13 +468,15 @@ class Create_Data():
                             data['ATTACHMENT'] = obj.EntityPath
                     # enerate the mesh metadata for the geometry file:
                     self.mesh_metadata[name]['Hash'] = data['HASH']
-                    self.mesh_metadata[name]['VertexDataSize'] = self.stride*(data['VERTREND'] - data['VERTRSTART'] + 1)
+                    self.mesh_metadata[name]['VertexDataSize'] = (
+                        self.stride * (
+                            data['VERTREND'] - data['VERTRSTART'] + 1))
                     if self.GeometryData['Indices16Bit'] == 0:
                         m = 4
                     else:
                         m = 2
-                    self.mesh_metadata[name]['IndexDataSize'] = m*data['BATCHCOUNT']
-                    # also assign the 
+                    self.mesh_metadata[name]['IndexDataSize'] = m * data[
+                        'BATCHCOUNT']
 
             else:
                 if obj._Type == 'LOCATOR':
@@ -532,7 +551,8 @@ class Create_Data():
                                                        Instancing="PerVertex",
                                                        PlatformData=""))
         # fow now just make the small vert and vert layouts the same
-        """ Vertex layout needs to be changed for the new normals/tangent format"""
+
+        # Vertex layout needs to be changed for the new normals/tangent format
 
         self.GeometryData['VertexLayout'] = TkVertexLayout(
             ElementCount=self.element_count,
@@ -550,7 +570,7 @@ class Create_Data():
         # correct offset etc as specified by the VertexLayout
         # This also flattens each stream so it needs to be called pretty much
         # last
-        
+
         VertexStream = array('f')
         SmallVertexStream = array('f')
         for name, mesh_obj in self.Model.Meshes.items():
@@ -560,13 +580,13 @@ class Create_Data():
                     # corresponding stream as specified by the stream list.
                     # As self.stream_list is ordered this will be mixed in the
                     # correct way wrt. the VertexLayouts
-                    try:    
+                    try:
                         VertexStream.extend(
                             mesh_obj.__dict__[REV_SEMANTICS[sID]][j])
                         if sID in [0, 1]:
                             SmallVertexStream.extend(
                                 mesh_obj.__dict__[REV_SEMANTICS[sID]][j])
-                    except:
+                    except IndexError:
                         # in the case this fails there is an index error caused
                         # by collisions. In this case just add a default value
                         VertexStream.extend((0, 0, 0, 1))
@@ -643,24 +663,31 @@ class Create_Data():
     def write(self):
         # write each of the exml files.
         # self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
-        mbinc = mbinCompiler(self.TkGeometryData, "{}.GEOMETRY.MBIN.PC".format(self.path))
+        mbinc = mbinCompiler(self.TkGeometryData,
+                             "{}.GEOMETRY.MBIN.PC".format(self.path))
         mbinc.serialise()
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         if self.descriptor is not None:
             self.descriptor.tree.write("{}.DESCRIPTOR.exml".format(self.path))
         for material in self.materials:
             if type(material) != str:
-                material.tree.write("{0}.MATERIAL.exml".format(os.path.join(self.path, str(material['Name']).upper())))
+                material.tree.write(
+                    "{0}.MATERIAL.exml".format(os.path.join(self.path,
+                                               str(material['Name']).upper())))
         if len(self.anim_data) != 0:
             if len(self.anim_data) == 1:
-                list(self.anim_data.values())[0].tree.write("{}.ANIM.exml".format(self.path))       # get the value and output it
+                # get the value and output it
+                list(self.anim_data.values())[0].tree.write(
+                    "{}.ANIM.exml".format(self.path))
             else:
                 for name in list(self.anim_data.keys()):
-                    self.anim_data[name].tree.write(os.path.join(self.anims_path, "{}.ANIM.exml".format(name.upper())))
+                    self.anim_data[name].tree.write(
+                        os.path.join(self.anims_path,
+                                     "{}.ANIM.exml".format(name.upper())))
 
     def convert_to_mbin(self):
         # passes all the files produced by
-        print('Converting all .exml files to .mbin. Please wait while this finishes.')
+        print('Converting .exml files to .mbin. Please wait.')
         for directory, _, files in os.walk(os.path.join(self.basepath,
                                                         self.directory)):
             for file in files:
@@ -669,50 +696,3 @@ class Create_Data():
                     retcode = subprocess.call(["MBINCompiler.exe", location])
                     if retcode == 0:
                         os.remove(location)
-
-"""
-# TODO: this will all become a test
-if __name__ == '__main__':
-
-    main_obj = Model(name = 'Square')
-
-    def_mat = TkMaterialData(name = 'Square1mat')
-
-    Obj1 = Mesh(name = 'Square1',
-                  Vertices = [(-1,1,0,1), (1,1,0,1), (1,-1,0,1), (-1,-1,0,1)],
-                  Indexes = [(0,1,2), (2,3,0)],
-                  UVs = [(0.3,0,0,1), (0,0.2,0,1), (0,0.1,0,1), (0.1,0.2,0,1)],
-                Material = def_mat)
-    main_obj.add_child(Obj1)
-    Obj1_col = Collision(name = 'Square1_col', CollisionType = 'Mesh', Vertices = [(-4,4,0,1),(4,4,0,1), (4,-4,0,1), (-4,-4,0,1)],
-                      Indexes = [(0,1,2), (2,3,0)])
-    Obj1.add_child(Obj1_col)
-    Obj2 = Mesh(name = 'Square2',
-                  Vertices = [(2,1,0,1), (4,1,0,1), (4,-1,0,1), (2,-1,0,1)],
-                  Indexes = [(0,1,2), (2,3,0)],
-                  UVs = [(0.5,0,0,1), (0.2,0.2,0,1), (0,0.5,0,1), (0.1,0.2,0,1)])
-    Obj1.add_child(Obj2)
-    loc = Locator(name = 'testloc')
-    Obj2.add_child(loc)
-    ref = Reference(name = 'testref')
-    loc.add_child(ref)
-    ref2 = Reference(name = 'testref2')
-    loc.add_child(ref2)
-    light = Light(name = 'ls', Intensity = 200000, Colour = (0.4, 0.6, 0.2))
-    Obj1.add_child(light)
-
-    main = Create_Data('SQUARE', 'TEST', main_obj)
-
-
-    from lxml import etree
-
-    def prettyPrintXml(xmlFilePathToPrettyPrint):
-        assert xmlFilePathToPrettyPrint is not None
-        parser = etree.XMLParser(resolve_entities=False, strip_cdata=False)
-        document = etree.parse(xmlFilePathToPrettyPrint, parser)
-        document.write(xmlFilePathToPrettyPrint, xml_declaration='<?xml version="1.0" encoding="utf-8"?>', pretty_print=True, encoding='utf-8')
-
-    #prettyPrintXml('TEST\SQUARE.GEOMETRY.exml')
-    prettyPrintXml('TEST\SQUARE.SCENE.exml')
-    #prettyPrintXml('TEST\SQUARE\SQUARE_SQUARE.MATERIAL.exml')
-"""
