@@ -22,7 +22,8 @@ class TkAnimationData(Struct):
         self.data['ControlDelay'] = kwargs.get('ControlDelay', 0)
         self.data['ControlSpeed'] = kwargs.get('ControlSpeed', 1)
         self.data['ControlActionFrame'] = kwargs.get('ControlActionFrame', -1)
-        self.data['ControlCreatureSize'] = kwargs.get('ControlCreatureSize', 'AllSizes')
+        self.data['ControlCreatureSize'] = kwargs.get('ControlCreatureSize',
+                                                      'AllSizes')
         self.data['FlagsAdditive'] = kwargs.get('FlagsAdditive', 'False')
         self.data['FlagsMirrored'] = kwargs.get('FlagsMirrored', 'False')
         self.data['FlagsActive'] = kwargs.get('FlagsActive', 'True')

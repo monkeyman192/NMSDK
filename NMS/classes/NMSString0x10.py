@@ -8,5 +8,5 @@ class NMSString0x10(Struct):
         super(NMSString0x10, self).__init__()
 
         """ Contents of the struct """
-        self.data['Value'] = kwargs.get('Value', '')
+        self.data['Value'] = String(kwargs.get('Value', ""), 0x10)
         """ End of the struct contents"""

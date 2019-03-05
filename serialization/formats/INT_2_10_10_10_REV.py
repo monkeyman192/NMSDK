@@ -3,7 +3,7 @@
 import struct
 
 
-def read(verts):
+def read_int_2_10_10_10_rev(verts):
     # this is returns a list of the form [x, y, z, w]
     sel = 0b1111111111
     output = []
@@ -35,7 +35,7 @@ def twos_complement(input_value, num_bits):
     if sgn == 1:"""
 
 
-def write(verts):
+def write_int_2_10_10_10_rev(verts):
     """
     writes the verts to a INT_2_10_10_10_REV
     verts will come in as the format [x,y,z,w], so need to swap to [z,y,x,w]
@@ -60,6 +60,6 @@ def write(verts):
 
 if __name__ == "__main__":
     # TODO: make test
-    data = read(0x764361b3)
+    data = read_int_2_10_10_10_rev(0x764361b3)
     print(data)
-    print(write(data))
+    print(write_int_2_10_10_10_rev(data))

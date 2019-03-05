@@ -15,9 +15,13 @@ class TkMaterialSampler(Struct):
         self.data['IsCube'] = kwargs.get('IsCube', False)
         self.data['UseCompression'] = kwargs.get('UseCompression', True)
         self.data['UseMipMaps'] = kwargs.get('UseMipMaps', True)
-        self.data['IsSRGB'] = kwargs.get('IsSRGB', True)        # True image, False for MASKS and NORMAL
-        self.data['MaterialAlternativeId'] = String(kwargs.get('MaterialAlternativeId', ""), 0x10)
-        self.data['TextureAddressMode'] = kwargs.get('TextureAddressMode', "Wrap")
-        self.data['TextureFilterMode'] = kwargs.get('TextureFilterMode', "Trilinear")
+        # True image, False for MASKS and NORMAL
+        self.data['IsSRGB'] = kwargs.get('IsSRGB', True)
+        self.data['MaterialAlternativeId'] = String(kwargs.get(
+            'MaterialAlternativeId', ""), 0x10)
+        self.data['TextureAddressMode'] = kwargs.get(
+            'TextureAddressMode', "Wrap")
+        self.data['TextureFilterMode'] = kwargs.get(
+            'TextureFilterMode', "Trilinear")
         self.data['Anisotropy'] = kwargs.get('Anisotropy', 0)
         """ End of the struct contents"""

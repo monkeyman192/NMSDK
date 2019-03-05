@@ -9,5 +9,6 @@ class TkMaterialFlags(Struct):
         super(TkMaterialFlags, self).__init__()
 
         """ Contents of the struct """
-        self.data['MaterialFlag'] = kwargs.get('MaterialFlag', "_F01_DIFFUSEMAP")
+        self.data['MaterialFlag'] = kwargs.get('MaterialFlag',
+                                               "_F01_DIFFUSEMAP")
         """ End of the struct contents"""

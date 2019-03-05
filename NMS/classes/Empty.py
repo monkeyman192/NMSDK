@@ -7,7 +7,7 @@ class Empty():
     def __init__(self, length):
         self.size = length
 
-    def serialise(self, output):
+    def serialize(self, output):
         output.write(pack('{}s'.format(self.size), b''))
 
     def __str__(self):

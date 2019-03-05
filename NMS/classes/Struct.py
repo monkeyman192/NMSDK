@@ -9,7 +9,7 @@ import struct
 from binascii import hexlify
 # internal imports
 from .String import String
-from .SerialisationMethods import to_chr
+from serialization.utils import to_chr
 from .Empty import Empty
 from .List import List
 
@@ -21,7 +21,7 @@ class Struct():
         self.data = OrderedDict()
         self.parent = None
 
-#region public methods
+# region public methods
 
     def make_elements(self, name=None, main=False):
         # creates a sub element tree that is to be returned or read by the
@@ -94,75 +94,62 @@ class Struct():
                 data.give_parent(self.element)
                 data.make_elements(pname)
 
-    def serialise(self, output, list_worker, return_data=False):
-        # serialise all the data...
-        serialised_data = ""
+    def give_parent(self, parent):
+        self.parent = parent
+
+    def serialize(self, output, list_worker, return_data=False):
+        # serialize all the data...
+        serialized_data = ""
         for key in self.data:
             data = self.data[key]
             if isinstance(data, array) or isinstance(data, list):
                 data = List(*list(data))
-            # check whether the object has a serialise function
-            if hasattr(data, 'serialise'):
-                data.serialise(output, list_worker, return_data)
+            # check whether the object has a serialize function
+            if hasattr(data, 'serialize'):
+                data.serialize(output, list_worker, return_data)
             else:
                 if type(data) == int:
-                    #print(data, 'data')
-                    serialised_data = to_chr(hexlify(struct.pack('<i', data)))
+                    serialized_data = to_chr(hexlify(struct.pack('<i', data)))
                     list_worker['curr'] += 0x4
                 elif type(data) == float:
-                    serialised_data = to_chr(hexlify(struct.pack('<f', data)))
+                    serialized_data = to_chr(hexlify(struct.pack('<f', data)))
                     list_worker['curr'] += 0x4
                 elif type(data) == bool:
-                    serialised_data = chr(data)
+                    serialized_data = chr(data)
                     list_worker['curr'] += 0x1
                 elif type(data) == str:
                     try:
                         # in this case we actually want the index
                         val = self.__dict__[key].index(data)
-                        serialised_data = to_chr(hexlify(struct.pack(
+                        serialized_data = to_chr(hexlify(struct.pack(
                             '<i', val)))
                         list_worker['curr'] += 0x4
-                    except:
-                        serialised_data = to_chr('FFFFFFFF')
+                    except IndexError:
+                        serialized_data = to_chr('FFFFFFFF')
                         list_worker['curr'] += 0x4
                 if return_data is False:
-                    output.write(serialised_data)
-                    msg = ('serialised {0}, with value {1}, ending at {2:#x}. '
+                    output.write(serialized_data)
+                    msg = ('serialized {0}, with value {1}, ending at {2:#x}. '
                            ' File end = {3:#x}')
                     print(msg.format(key, data, list_worker['curr'],
                                      list_worker['end']))
         if return_data is True:
-            return serialised_data
+            return serialized_data
 
-
-#region private methdos
-
-    """ THIS IS TO BE MADE REDUNDANT """
-    def _create_dict(self):
-        # every object that is self.~ is copied into a different dictionary,
-        # self.data_dict
-        data_dict = OrderedDict()
-        for i in self.__dict__:
-            data_dict[i] = self.__dict__[i]
-        self.data_dict = data_dict
-
-    def give_parent(self, parent):
-        self.parent = parent
-
-#region properties
+# region properties
 
     @property
     def name(self):
         return self.__class__.__name__
 
-#region class methods
+# region class methods
 
     def __getitem__(self, key):
-        # returns the object in self.data_dict with key
+        # returns the object in self.data with key
         return self.data[key]
 
     def __setitem__(self, key, value):
-        # assigns the value 'value' to self.data_dict[key]
+        # assigns the value 'value' to self.data[key]
         # currently no checking so be careful! Incorrect use could lead to
         # incorrect exml files!!!
         self.data[key] = value
@@ -187,6 +174,6 @@ class Struct():
                 try:
                     length += val.size
                 # otherwise just try call this function recursively
-                except:
+                except AttributeError:
                     length += len(val)
         return length

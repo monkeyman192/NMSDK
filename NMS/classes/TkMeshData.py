@@ -9,7 +9,8 @@ class TkMeshData(Struct):
         super(TkMeshData, self).__init__()
 
         """ Contents of the struct """
-        self.data['IdString'] = String(kwargs.get('IdString', ""), 0x80, endpadding=b'\xFE')
+        self.data['IdString'] = String(kwargs.get('IdString', ""), 0x80,
+                                       endpadding=b'\xFE')
         self.data['Hash'] = kwargs.get('Hash', 0)
         self.data['VertexDataSize'] = kwargs.get('VertexDataSize', 0)
         self.data['IndexDataSize'] = kwargs.get('IndexDataSize', 0)

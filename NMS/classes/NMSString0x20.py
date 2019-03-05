@@ -12,4 +12,3 @@ class NMSString0x20(Struct):
         """ Contents of the struct """
         self.data['Value'] = String(kwargs.get('Value', ""), 0x20)
         """ End of the struct contents"""
-

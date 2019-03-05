@@ -3,9 +3,8 @@
 from .Struct import Struct
 from .List import List
 from .TkVertexLayout import TkVertexLayout
-from .SerialisationMethods import serialise, list_header
-from NMS.formats.half import binary16
-from NMS.formats.INT_2_10_10_10_REV import write
+from serialization.utils import serialize, list_header
+from serialization.formats import write_half, write_int_2_10_10_10_rev
 from collections import OrderedDict
 
 from struct import pack
@@ -42,15 +41,15 @@ class TkGeometryData(Struct):
                                                       List())
         """ End of the struct contents"""
 
-    def serialise_list(self, data_name):
-        # iterate over a list and serialise each value (assuming it is of a
+    def serialize_list(self, data_name):
+        # iterate over a list and serialize each value (assuming it is of a
         # normal type...)
         data = bytearray()
         for val in self.data[data_name]:
-            data.extend(serialise(val))
+            data.extend(serialize(val))
         return data
 
-    def serialise(self, output):
+    def serialize(self, output):
         # list header ending
         lst_end = b'\x01\x00\x00\x00'
 
@@ -59,7 +58,6 @@ class TkGeometryData(Struct):
 
         list_data = OrderedDict()
 
-        # TODO: fix this up to be better...
         if self.data['IndexCount'] % 2 != 0 or self.data['IndexCount'] > 32767:
             # in this case we have an odd number of verts. set the Indices16Bit
             # value to be 0.
@@ -81,25 +79,25 @@ class TkGeometryData(Struct):
                 length = len(self.data[pname])
                 output.write(list_header(curr_offset + bytes_in_list, length,
                                          lst_end))
-                bytes_in_list += 4*length
+                bytes_in_list += 4 * length
                 curr_offset -= 0x10
-                list_data[pname] = self.serialise_list(pname)
+                list_data[pname] = self.serialize_list(pname)
             elif pname in ['BoundHullVertSt', 'BoundHullVertEd']:
                 # we need to handle this separately so that it goes right
                 # before the BoundHullVerts data
                 length = len(self.data[pname])
                 # *0x10 for each of the 4 byte values, and *2 as there will be
                 # equal amounts
-                extra_offset = 0x20*len(self.data['MeshAABBMin'])
+                extra_offset = 0x20 * len(self.data['MeshAABBMin'])
                 output.write(
                     list_header(curr_offset + bytes_in_list + extra_offset,
                                 length, lst_end))
-                bytes_in_list += 4*length
+                bytes_in_list += 4 * length
                 curr_offset -= 0x10
                 # just leave as none for now. Will be overridden later when we
                 # look at the MeshAABBMin/Max...
                 list_data[pname] = None
-                # list_data[pname] = self.serialise_list(pname)
+                # list_data[pname] = self.serialize_list(pname)
             elif pname == 'MeshBaseSkinMat':
                 output.write(list_header(0, 0, lst_end))
                 curr_offset -= 0x10
@@ -110,28 +108,28 @@ class TkGeometryData(Struct):
                 output.write(
                     list_header(curr_offset + bytes_in_list - extra_offset,
                                 length, lst_end))
-                bytes_in_list += 0x10*length
+                bytes_in_list += 0x10 * length
                 curr_offset -= 0x10
                 # need to do a bit of a hack here to have the data appear in
                 # the mbin in order...
                 if pname == 'MeshAABBMin':
-                    list_data['BoundHullVertSt'] = self.serialise_list(
+                    list_data['BoundHullVertSt'] = self.serialize_list(
                         'MeshAABBMin')
-                    list_data['MeshAABBMin'] = self.serialise_list(
+                    list_data['MeshAABBMin'] = self.serialize_list(
                         'BoundHullVertSt')
                 elif pname == 'MeshAABBMax':
-                    list_data['BoundHullVertEd'] = self.serialise_list(
+                    list_data['BoundHullVertEd'] = self.serialize_list(
                         'MeshAABBMax')
-                    list_data['MeshAABBMax'] = self.serialise_list(
+                    list_data['MeshAABBMax'] = self.serialize_list(
                         'BoundHullVertEd')
             elif pname == 'BoundHullVerts':
                 length = len(self.data[pname])
                 print(len)
                 output.write(list_header(curr_offset + bytes_in_list, length,
                                          lst_end))
-                bytes_in_list += 0x10*length
+                bytes_in_list += 0x10 * length
                 curr_offset -= 0x10
-                list_data[pname] = self.serialise_list(pname)
+                list_data[pname] = self.serialize_list(pname)
             elif pname in ['VertexLayout', 'SmallVertexLayout']:
                 # just pull the data directly
                 output.write(pack('<I', self.data[pname].data['ElementCount']))
@@ -141,7 +139,7 @@ class TkGeometryData(Struct):
                 length = len(self.data[pname].data['VertexElements'])
                 output.write(list_header(curr_offset + bytes_in_list, length,
                                          lst_end))
-                bytes_in_list += 0x20*length
+                bytes_in_list += 0x20 * length
                 curr_offset -= 0x10
                 list_data[pname] = bytes(
                     self.data[pname].data['VertexElements'])
@@ -151,11 +149,11 @@ class TkGeometryData(Struct):
                 else:
                     # this should be an int anyway, but cast to an int so that
                     # we can pack it correctly
-                    length = int(len(self.data[pname])/2)
+                    length = int(len(self.data[pname]) / 2)
                 output.write(list_header(curr_offset + bytes_in_list, length,
                                          lst_end))
                 curr_offset -= 0x10
-                bytes_in_list += 0x4*length
+                bytes_in_list += 0x4 * length
                 data = bytearray()
                 if Indices16Bit == 0:
                     for val in self.data['IndexBuffer']:
@@ -168,7 +166,7 @@ class TkGeometryData(Struct):
             elif pname in ['VertexStream', 'SmallVertexStream']:
                 # total length. With INT_2_10_10_10_REV format normals and
                 # verts they are half the size, so this will be int(1.5*~)
-                length = int(1.5*len(self.data[pname]))
+                length = int(1.5 * len(self.data[pname]))
                 output.write(list_header(curr_offset + bytes_in_list, length,
                                          lst_end))
                 curr_offset -= 0x10
@@ -184,10 +182,10 @@ class TkGeometryData(Struct):
                     if spec in [0, 1]:
                         for val in d:
                             # write the half-float representation
-                            data.extend(binary16(val))
+                            data.extend(write_half(val))
                     elif spec in [2, 3]:
                         # write the INT_2_10_10_10_REV representation
-                        data.extend(write(d))
+                        data.extend(write_int_2_10_10_10_rev(d))
                     if pname == 'VertexStream':
                         spec = (spec + 1) % 4
                     elif pname == 'SmallVertexStream':
@@ -202,9 +200,9 @@ class TkGeometryData(Struct):
                 output.write(list_header(curr_offset + bytes_in_list, length,
                                          lst_end))
                 curr_offset -= 0x10
-                bytes_in_list += 0x98*length
+                bytes_in_list += 0x98 * length
                 list_data[pname] = bytes(self.data[pname])
             elif 'Padding' in pname:
-                self.data[pname].serialise(output)
+                self.data[pname].serialize(output)
         for data in list_data.keys():
             output.write(list_data[data])

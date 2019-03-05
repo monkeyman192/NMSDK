@@ -9,5 +9,6 @@ class GcInventoryTechProbability(Struct):
 
         """ Contents of the struct """
         self.data['Tech'] = kwargs.get('Tech', '')
-        self.data['DesiredTechProbability'] = kwargs.get('DesiredTechProbability', 'Never')
+        self.data['DesiredTechProbability'] = kwargs.get(
+            'DesiredTechProbability', 'Never')
         """ End of the struct contents"""

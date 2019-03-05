@@ -2,10 +2,13 @@
 
 from struct import pack, unpack
 
+from serialization.utils import pad, read_list_header, read_list_data
+
 
 class TkMeshMetaData():
     def __init__(self, data=None):
         self.raw_ID = ""
+        self._ID = ""
         if data is not None:
             self.read(data)
 
@@ -36,7 +39,7 @@ class TkMeshMetaData():
     @ID.setter
     def ID(self, other):
         if isinstance(other, str):
-            self._ID = padstring(other)
+            self._ID = pad(other, 0x80, b'\xFE', True)
             self.raw_ID = other
         else:
             self._ID = other
@@ -45,6 +48,7 @@ class TkMeshMetaData():
 class TkMeshData():
     def __init__(self, data=None):
         self.raw_ID = ""
+        self._ID = ""
         if data is not None:
             self.read(data)
 
@@ -78,7 +82,7 @@ class TkMeshData():
     @ID.setter
     def ID(self, other):
         if isinstance(other, str):
-            self._ID = padstring(other)
+            self._ID = pad(other, 0x80, b'\xFE', True)
             self.raw_ID = other
         else:
             self._ID = other
@@ -231,34 +235,6 @@ class GeometryData():
             self.MeshAABBMin = read_list_data(f, 0x10)
             self.MeshAABBMax = read_list_data(f, 0x10)
             self.BoundHullVerts = read_list_data(f, 0x10)
-
-
-def read_list_header(data):
-    """
-    Takes the 0x10 byte header and returns the relative offset and
-    number of entries
-    """
-    offset, count = unpack('<QI', data.read(12))
-    data.seek(-12, 1)
-    return offset, count
-
-
-def read_list_data(data, element_size):
-    return_data = []
-    offset, count = read_list_header(data)
-    init_loc = data.tell()
-    data.seek(offset, 1)
-    for _ in range(count):
-        return_data.append(data.read(element_size))
-    data.seek(init_loc, 0)
-    return return_data
-
-
-def padstring(string):
-    """ Take a string and right pad with \xFE bytes up to 0x80 chars """
-    str_len = len(string)
-    return (bytes(string, 'utf-8') + b'\x00' + b'\xFE'*(0x7E - str_len) +
-            b'\x00')
 
 
 if __name__ == "__main__":

@@ -4,12 +4,13 @@ from struct import pack
 
 null = chr(0)
 
+
 class String():
     def __init__(self, string, length, endpadding=b''):
         self.size = length
         self.string = string
         self.endpadding = endpadding
-        
+
     def __str__(self):
         return self.string
 
@@ -21,13 +22,16 @@ class String():
             return pack('{}s'.format(self.size), self.string.encode('utf-8'))
         else:
             # assume it will be <string> b'' <endpadding> (up to size)
-            s = pack('{}s'.format(len(self.string) + 1), self.string.encode('utf-8'))
+            s = pack('{}s'.format(len(self.string) + 1),
+                     self.string.encode('utf-8'))
             pad_amount = self.size - len(self.string) - 1
             s.extend(pad_amount*self.endpadding)
             return s
 
-    def serialise(self, output, list_worker, move_end = False, return_data = False):
-        # if this procedure is being called to retrive a serialised version of the data, simply return it
+    def serialize(self, output, list_worker, move_end=False,
+                  return_data=False):
+        # if this procedure is being called to retrive a serialized version of
+        # the data, simply return it
         if return_data:
             return self.string.ljust(self.size, null)
         else:

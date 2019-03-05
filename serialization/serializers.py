@@ -1,10 +1,9 @@
-from NMS.formats.half import binary16
-from NMS.formats.INT_2_10_10_10_REV import write
+from serialization.formats import write_half, write_int_2_10_10_10_rev
 
 
-def TkVertexStream(**kwargs):
+def serialize_vertex_stream(**kwargs):
     """
-    Return a serialised version of the vertex data
+    Return a serialized version of the vertex data
     """
     # determine what data we have been given:
     data_streams = ['verts', 'uvs', 'normals', 'tangents']
@@ -22,18 +21,18 @@ def TkVertexStream(**kwargs):
             for d in data_streams:
                 if fmt_map[d] == 0:
                     for val in kwargs[d][i]:        # probably slow!!
-                        data.extend(binary16(val))
+                        data.extend(write_half(val))
                 elif fmt_map[d] == 1:
-                    data.extend(write(kwargs[d][i]))
+                    data.extend(write_int_2_10_10_10_rev(kwargs[d][i]))
         return data
     else:
         # return empty data
         return b''
 
 
-def TkIndexStream(indexes):
+def serialize_index_stream(indexes):
     """
-    Return a serialised version of the index data
+    Return a serialized version of the index data
     """
     return indexes.tobytes()
 
@@ -44,5 +43,5 @@ if __name__ == "__main__":
     d = array('I')
     d.extend([1, 2, 3, 4, 5, 735536])
     print(d.tobytes())
-    a = TkIndexStream(d)
+    a = serialize_index_stream(d)
     print(a)

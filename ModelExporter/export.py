@@ -19,26 +19,33 @@ from array import array
 from NMS.classes import (TkAttachmentData, TkGeometryData, List,
                          TkVertexElement, TkVertexLayout, Vector4f)
 from .LOOKUPS import SEMANTICS, REV_SEMANTICS
-from .mbincompiler import mbinCompiler
-from .StreamCompiler import StreamData, TkMeshMetaData
-from .DataSerialise import TkVertexStream, TkIndexStream
+from serialization.mbincompiler import mbinCompiler
+from serialization.StreamCompiler import StreamData, TkMeshMetaData
+from serialization.serializers import (serialize_index_stream,
+                                       serialize_vertex_stream)
 from .utils import nmsHash, traverse
 
 
 class Export():
+    """ Export the data provided by blender to .mbin files.
+
+    Parameters
+    ----------
+    name : str
+        Base filename.
+    directory : str
+        Location to generate the data.
+    basepath : str
+        Location to generate the data.(?)
+    model : Instance of Model
+        Model containing all the scene information.
+    anim_data : collections.OrderedDict (Optional)
+        Animation data.
+    descriptior: ? (Optional)
+        Descriptor information
+    """
     def __init__(self, name, directory, basepath, model, anim_data=odict(),
                  descriptor=None, **commands):
-        """
-        # TODO: make this good. A good API docstring would be nice...
-        name - the name of the file we want to create. Most entities within
-        will have a name derived from this.
-        directory - the full relative location of where the scene file will be
-        located.
-        model - The Model object that contains all the child nodes (of a number
-        of different types)
-
-        """
-
         # this is the name of the file
         self.name = name
         # the path that the file is supposed to be located at
@@ -109,7 +116,7 @@ class Export():
             '{}.GEOMETRY.DATA.MBIN.PC'.format(self.path))
 
         # generate the geometry stream data now
-        self.serialise_data()
+        self.serialize_data()
 
         self.preprocess_streams()
 
@@ -198,7 +205,7 @@ class Export():
         self.element_count = len(self.stream_list)
         # this is 6* if normals and tangents are INT_2_10_10_10_REV, and
         # 5* if just normals
-        self.stride = 6*self.element_count
+        self.stride = 6 * self.element_count
 
         # secondly this will generate two lists containing the individual
         # lengths of each stream
@@ -238,7 +245,7 @@ class Export():
         self.name = self.name.upper()
         self.directory = self.directory.upper()
 
-    def serialise_data(self):
+    def serialize_data(self):
         """
         convert all the provided vertex and index data to bytes to be passed
         directly to the gstream and geometry file constructors
@@ -247,18 +254,19 @@ class Export():
         index_data = []
         metadata = odict()
         for name in self.mesh_names:
-            vertex_data.append(TkVertexStream(verts=self.vertex_stream[name],
-                                              uvs=self.uv_stream[name],
-                                              normals=self.n_stream[name],
-                                              tangents=self.t_stream[name]))
+            vertex_data.append(serialize_vertex_stream(
+                verts=self.vertex_stream[name],
+                uvs=self.uv_stream[name],
+                normals=self.n_stream[name],
+                tangents=self.t_stream[name]))
             new_indexes = []
             for tri in self.index_stream[name]:
                 new_indexes.extend(tri)
-            if max(new_indexes) > 2**16:
+            if max(new_indexes) > 2 ** 16:
                 indexes = array('I', new_indexes)
             else:
                 indexes = array('H', new_indexes)
-            index_data.append(TkIndexStream(indexes))
+            index_data.append(serialize_index_stream(indexes))
             metadata[name] = self.mesh_metadata[name]
         self.geometry_stream.create(metadata, vertex_data, index_data)
         self.geometry_stream.save()     # offset data populated here
@@ -269,9 +277,9 @@ class Export():
         for i, m in enumerate(self.geometry_stream.metadata):
             metadata = {
                 'ID': m.ID, 'hash': m.hash, 'vert_size': m.vertex_size,
-                'vert_offset': self.geometry_stream.data_offsets[2*i],
+                'vert_offset': self.geometry_stream.data_offsets[2 * i],
                 'index_size': m.index_size,
-                'index_offset': self.geometry_stream.data_offsets[2*i + 1]}
+                'index_offset': self.geometry_stream.data_offsets[2 * i + 1]}
             self.hashes[m.raw_ID] = m.hash
             geom_metadata = TkMeshMetaData()
             geom_metadata.create(**metadata)
@@ -282,7 +290,7 @@ class Export():
         # This will do the main processing of the different streams.
         # indexes
         # the total number of index points in each object
-        index_counts = list(3*x for x in self.i_stream_lens.values())
+        index_counts = list(3 * x for x in self.i_stream_lens.values())
         # now, re-order the indexes:
         # new_index_counts = list(index_counts[self.index_mapping[i]] for i in
         # range(len(index_counts)))
@@ -303,7 +311,7 @@ class Export():
         ch_stream_lens = list(self.v_stream_lens.values())
         self.hull_bounds = odict(zip(self.mesh_names,
                                      [(sum(ch_stream_lens[:i]),
-                                       sum(ch_stream_lens[:i+1]))
+                                       sum(ch_stream_lens[:i + 1]))
                                       for i in range(self.num_mesh_objs)]))
         print(self.hull_bounds, 'bound hulls')
 
@@ -632,7 +640,7 @@ class Export():
         # self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
         mbinc = mbinCompiler(self.TkGeometryData,
                              "{}.GEOMETRY.MBIN.PC".format(self.path))
-        mbinc.serialise()
+        mbinc.serialize()
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
         if self.descriptor is not None:
             self.descriptor.tree.write("{}.DESCRIPTOR.exml".format(self.path))

@@ -15,7 +15,7 @@ class TkAnimNodeFrameData(Struct):
         """ End of the struct contents"""
 
     """
-    def serialise(self, output):
+    def serialize(self, output):
         # TODO: write
         pass
     """

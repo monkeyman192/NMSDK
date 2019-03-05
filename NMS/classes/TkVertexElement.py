@@ -25,7 +25,8 @@ class TkVertexElement(Struct):
         for key in self.data:
             if key != 'PlatformData':
                 if key == 'Instancing':
-                    data.extend(pack('<i', self.InstancingDict[self.data[key]]))
+                    data.extend(pack('<i',
+                                     self.InstancingDict[self.data[key]]))
                 else:
                     data.extend(pack('<i', self.data[key]))
             else:

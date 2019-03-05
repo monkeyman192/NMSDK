@@ -7,6 +7,7 @@ from .Empty import Empty  # noqa
 from .Object import (Locator, Light, Mesh, Joint, Emitter, Collision, Model,  # noqa
                      Reference)
 from .Vector4f import Vector4f  # noqa
+from .NMSString0x10 import NMSString0x10  # noqa
 from .NMSString0x20 import NMSString0x20  # noqa
 from .NMSString0x80 import NMSString0x80  # noqa
 from .TkAttachmentData import TkAttachmentData  # noqa
@@ -27,7 +28,6 @@ from .TkModelDescriptorList import TkModelDescriptorList  # noqa
 from .TkResourceDescriptorData import TkResourceDescriptorData  # noqa
 from .TkResourceDescriptorList import TkResourceDescriptorList  # noqa
 from .TkRotationComponentData import TkRotationComponentData  # noqa
-from .SerialisationMethods import *  # noqa
 
 # animation things
 from .TkAnimMetadata import TkAnimMetadata  # noqa
@@ -104,4 +104,3 @@ from .TkAudioComponentData import TkAudioComponentData  # noqa
 from .GcEncyclopediaComponentData import GcEncyclopediaComponentData  # noqa
 from .GcEncounterComponentData import GcEncounterComponentData  # noqa
 from .GcSpaceshipComponentData import GcSpaceshipComponentData  # noqa
-from .NMSString0x10 import NMSString0x10  # noqa
