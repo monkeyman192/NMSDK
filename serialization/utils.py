@@ -31,7 +31,7 @@ def list_header(offset, size, end):
     return data
 
 
-def pad(input_data, length, pad_char=b'', null_terminated=False):
+def pad(input_data, length, pad_char=b'\x00', null_terminated=False):
     """ Pads a string to the required length with the null character.
 
     Parameters

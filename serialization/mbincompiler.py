@@ -17,6 +17,7 @@ class mbinCompiler():
         # return the header bytes (0x60 long)
         data.extend(b'\xDD\xDD\xDD\xDD')        # magic
         data.extend(serialize(2500))               # version
+        # TODO: change this to the correct GUID?
         data.extend(pad(b'CUSTOMGEOMETRY', 0x10))      # custom name thing
         template_name = 'c' + '{}'.format(self.struct.name)
         data.extend(pad(template_name.encode('utf-8'), 0x40))     # struct name
