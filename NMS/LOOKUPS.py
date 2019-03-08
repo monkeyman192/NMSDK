@@ -26,12 +26,17 @@ MATERIALFLAGS = ['_F01_DIFFUSEMAP', '_F02_SKINNED', '_F03_NORMALMAP',
                  '_F61_CLAMP_AMBIENT', '_F62_DETAIL_ALPHACUTOUT',
                  '_F63_DISSOLVE', '_F64_']
 
-SEMANTICS = {'Vertices': 0,
-             'UVs': 1,
-             'Normals': 2,
-             'Tangents': 3}
+VERTS = 0
+UVS = 1
+NORMS = 2
+TANGS = 3
 
-REV_SEMANTICS = {0: 'Vertices',
-                 1: 'UVs',
-                 2: 'Normals',
-                 3: 'Tangents'}
+SEMANTICS = {'Vertices': VERTS,
+             'UVs': UVS,
+             'Normals': NORMS,
+             'Tangents': TANGS}
+
+REV_SEMANTICS = {VERTS: 'Vertices',
+                 UVS: 'UVs',
+                 NORMS: 'Normals',
+                 TANGS: 'Tangents'}

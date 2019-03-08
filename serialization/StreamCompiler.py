@@ -136,18 +136,17 @@ class StreamData():
             # store header
             self.header = f.read(0x60)
             # read TkMeshData list header
-            offset, count = read_list_header(f)
+            offset, self.count = read_list_header(f)
             # jump to start of TkMeshData
             f.seek(offset, 1)
             # read in all the metadata
-            for _ in range(count):
+            for _ in range(self.count):
                 self.metadata.append(TkMeshData(f))
             # read in all the vertex and index data as bytes.
             # we will do no processing
             for m in self.metadata:
                 self.vertex_data.append(f.read(m.vertex_size))
                 self.index_data.append(f.read(m.index_size))
-                self.count += 1
 
     def save(self):
         with open(self.fname, 'wb') as f:

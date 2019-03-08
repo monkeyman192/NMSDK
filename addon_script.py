@@ -9,7 +9,7 @@ from math import radians, degrees
 from mathutils import Matrix, Vector
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
-from bpy_extras.io_utils import ExportHelper
+from bpy_extras.io_utils import ExportHelper, ImportHelper
 from bpy.types import Operator
 # Internal imports
 from BlenderExtensions import NMSNodes, CompareMatrices, ContinuousCompare
@@ -28,8 +28,9 @@ from NMS.classes import TkAttachmentData
 # Object Classes
 from NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
                          Joint)
-from ModelExporter.LOOKUPS import MATERIALFLAGS
+from NMS.LOOKUPS import MATERIALFLAGS
 from ModelExporter.ActionTriggerParser import ParseNodes
+from ModelImporter.import_scene import ImportScene
 
 
 customNodes = NMSNodes()
@@ -46,10 +47,6 @@ for path in sys.path:
 
 # Add script path to sys.path
 scriptpath = os.path.join(os.getcwd(), 'ModelExporter')
-#scriptpath = bpy.context.space_data.text.filepath
-#scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
-#proj_path = os.path.dirname(scriptpath)
-#proj_path is set in the parse_material function
 
 print(scriptpath)
 
@@ -80,17 +77,6 @@ class Exporter():
 
         self.state = None
 
-        icounter = 0
-        vcounter = 0
-        vertices = []
-        normals  = [] 
-        indices  = []
-        uvs      = []
-        tangents = []
-        chverts = []
-
-        materials = []
-        collisions = []
         self.material_dict = {}
         self.material_ids = []
         # big master list of all the animation data for everything (might need
@@ -242,7 +228,6 @@ class Exporter():
                 mpath = os.path.dirname(os.path.abspath(exportpath))
                 os.chdir(mpath)
                 # create the animation stuff if necissary:
-                print('bloop')
                 anim = self.anim_generator()
                 Export(self.mname,
                        self.group_name,
@@ -359,12 +344,12 @@ class Exporter():
                 add_matflags.add(0)
                 # matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
                 # Create gDiffuseMap Sampler
-                
+
                 tex = tslots[0].texture
                 # Check if there is no texture loaded
-                if not tex.type =='IMAGE':
+                if not tex.type == 'IMAGE':
                     raise Exception("Missing Image in Texture: " + tex.name)
-                
+
                 texpath = os.path.join(proj_path, tex.image.filepath[2:])
             print(texpath)
             sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath,
@@ -374,19 +359,16 @@ class Exporter():
             # Check shadeless status
             if (mat.use_shadeless):
                 # Set _F07_UNLIT
-                add_matflags.add(6)
-                # matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[6]))    
+                add_matflags.add(6)   
 
             # Fetch Mask
             texpath = ""
             if tslots[1]:
-                # Set _F24_AOMAP
-                # matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[23]))
                 # Create gMaskMap Sampler
 
                 tex = tslots[1].texture
                 # Check if there is no texture loaded
-                if not tex.type =='IMAGE':
+                if not tex.type == 'IMAGE':
                     raise Exception("Missing Image in Texture: " + tex.name)
 
                 texpath = os.path.join(proj_path, tex.image.filepath[2:])
@@ -400,12 +382,11 @@ class Exporter():
             if tslots[2]:
                 # Set _F03_NORMALMAP
                 add_matflags.add(2)
-                # matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[2]))
                 # Create gNormalMap Sampler
 
                 tex = tslots[2].texture
                 # Check if there is no texture loaded
-                if not tex.type =='IMAGE':
+                if not tex.type == 'IMAGE':
                     raise Exception("Missing Image in Texture: " + tex.name)
 
                 texpath = os.path.join(proj_path, tex.image.filepath[2:])
@@ -729,9 +710,12 @@ class Exporter():
         print('obj: ', obj)
         try:
             if list_element is None:
-                cls = eval(getattr(parent, obj).__class__.__name__.split('_')[1])
+                cls = eval(
+                    getattr(parent, obj).__class__.__name__.split('_')[1])
             else:
-                cls = eval(getattr(parent, obj)[index].__class__.__name__.split('_')[1])
+                cls = eval(
+                    getattr(
+                        parent, obj)[index].__class__.__name__.split('_')[1])
         except TypeError:
             print(obj)
 
@@ -759,7 +743,8 @@ class Exporter():
     def parse_object(self, ob, parent):
         newob = None
         # Apply location/rotation/scale
-        # bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        # bpy.ops.object.transform_apply(location=False, rotation=True,
+        #                                scale=True)
 
         # get the objects' location and convert to NMS coordinates
         print(ob.matrix_local.decompose())
@@ -922,7 +907,8 @@ class Exporter():
             """ This will need to be re-done!!! """
             for child in ob.children:
                 if child.name.upper() == 'ROTATION':
-                    # take the properties of the rotation vector and give it to the mesh as part of it's entity data
+                    # take the properties of the rotation vector and give it
+                    # to the mesh as part of it's entity data
                     axis = child.rotation_quaternion*Vector((0, 0, 1))
                     # axis = Matrix.Rotation(radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
                     print(axis)
@@ -1164,6 +1150,27 @@ class NMS_Export_Operator(Operator, ExportHelper):
         main_exporter = Exporter(self.filepath)
         status = main_exporter.state
         self.report({'INFO'}, "Models Exported Successfully")
+        if status:
+            return {'FINISHED'}
+        else:
+            return {'CANCELLED'}
+
+
+class NMS_Import_Operator(Operator, ImportHelper):
+    """Import NMS Scene files."""
+    # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "import_mesh.nms"
+    bl_label = "Import from SCENE.EXML"
+
+    # ExportHelper mixin class uses this
+    filename_ext = ".EXML"
+
+    def execute(self, context):
+        fdir = self.properties.filepath
+        print(fdir)
+        main_exporter = ImportScene(fdir)
+        status = main_exporter.state
+        self.report({'INFO'}, "Models Imported Successfully")
         if status:
             return {'FINISHED'}
         else:

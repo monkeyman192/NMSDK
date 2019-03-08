@@ -18,7 +18,7 @@ from array import array
 # Internal imports
 from NMS.classes import (TkAttachmentData, TkGeometryData, List,
                          TkVertexElement, TkVertexLayout, Vector4f)
-from .LOOKUPS import SEMANTICS, REV_SEMANTICS
+from NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS
 from serialization.mbincompiler import mbinCompiler
 from serialization.StreamCompiler import StreamData, TkMeshMetaData
 from serialization.serializers import (serialize_index_stream,

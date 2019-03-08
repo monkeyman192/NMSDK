@@ -3,12 +3,15 @@
 import struct
 
 
+def bytes_to_int_2_10_10_10_rev(bytes_):
+    return read_int_2_10_10_10_rev(struct.unpack('<I', bytes_)[0])
+
+
 def read_int_2_10_10_10_rev(verts):
     # this is returns a list of the form [x, y, z, w]
     sel = 0b1111111111
     output = []
     for i in range(3):
-        print((verts & (sel << i*10)) >> i*10, 10)
         # read the x, y, z components
         output.append(twos_complement((verts & (sel << i*10)) >> i*10, 10))
     # read the w component seperately (don't need sign)

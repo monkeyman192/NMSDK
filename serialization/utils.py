@@ -121,8 +121,8 @@ def read_list_header(data):
     Takes the 0x10 byte header and returns the relative offset and
     number of entries
     """
-    offset, count = unpack('<QI', data.read(12))
-    data.seek(-12, 1)
+    offset, count = unpack('<QI', data.read(0xC))
+    data.seek(-0xC, 1)
     return offset, count
 
 
