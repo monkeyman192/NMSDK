@@ -26,10 +26,16 @@ MATERIALFLAGS = ['_F01_DIFFUSEMAP', '_F02_SKINNED', '_F03_NORMALMAP',
                  '_F61_CLAMP_AMBIENT', '_F62_DETAIL_ALPHACUTOUT',
                  '_F63_DISSOLVE', '_F64_']
 
+# Mesh vertex types
 VERTS = 0
 UVS = 1
 NORMS = 2
 TANGS = 3
+
+# Material types
+DIFFUSE = 0
+MASKS = 1
+NORMAL = 2
 
 SEMANTICS = {'Vertices': VERTS,
              'UVs': UVS,
