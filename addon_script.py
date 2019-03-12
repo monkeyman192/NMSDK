@@ -683,6 +683,7 @@ class Exporter():
                 chverts.append((i.co[0], i.co[1], i.co[2], 1.0))
                 #chverts.append(Vector4f(x = i.co[0], y = i.co[1], z = i.co[2],
                 #t = 1.0))
+        bm.free()
         del ch
         del bm_copy
         del bm

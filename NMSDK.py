@@ -14,7 +14,7 @@ bl_info = {
     "warning": "",
     "wiki_url": "https://github.com/monkeyman192/NMSDK/wiki",
     "tracker_url": "https://github.com/monkeyman192/NMSDK/issues",
-    "category": "Export"}
+    "category": "Import-Export"}
 
 
 # Only needed if you want to add into a dynamic menu

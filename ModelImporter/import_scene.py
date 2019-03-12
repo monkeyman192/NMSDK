@@ -11,14 +11,13 @@ import shutil
 
 # Blender imports
 import bpy  # pylint: disable=import-error
-import bmesh  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
 
 # Internal imports
 from serialization.formats import (bytes_to_half, bytes_to_int_2_10_10_10_rev,
                                    bytes_to_ubyte)
 from serialization.utils import read_list_header
-from NMS.LOOKUPS import VERTS, NORMS
+from NMS.LOOKUPS import VERTS, NORMS, UVS
 from ModelImporter.readers import read_material, read_metadata, read_gstream
 from ModelImporter.utils import element_to_dict
 from ModelImporter.SceneNodeData import SceneNodeData
@@ -120,11 +119,7 @@ class ImportScene():
     def _add_mesh_to_view(self, scene_node):
         name = scene_node.Name
         mat_path = self._get_material_path(scene_node)
-        #try:
         material = self._create_material(mat_path)
-        #except:
-        #    material = None
-        # create main mesh object
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(scene_node.verts[VERTS],
                          scene_node.edges,
@@ -132,9 +127,9 @@ class ImportScene():
         # add normals
         for i, vert in enumerate(mesh.vertices):
             vert.normal = scene_node.verts[NORMS][i]
-        bm = bmesh.new()
-        bm.from_mesh(mesh)
+
         mesh_obj = bpy.data.objects.new(name, mesh)
+
         if scene_node.parent.Name is not None:
             mesh_obj.parent = self.scn.objects[scene_node.parent.Name]
         # get transform and apply
@@ -150,6 +145,24 @@ class ImportScene():
         # can be applied before we do the NMS -> blender scene rotation
         self.scn.objects.link(mesh_obj)
         self.scn.update()
+
+        # ensure the newly created object is the active one in the scene
+        self.scn.objects.active = mesh_obj
+        mesh = mesh_obj.data
+        # Add UV's
+        bpy.ops.object.mode_set(mode='EDIT')
+        if not mesh.uv_textures:
+            mesh.uv_textures.new()
+        # un-unwrap to generate a default mapping to overwrite
+        bpy.ops.uv.unwrap()
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        uvs = scene_node.verts[UVS]
+        uv_layers = mesh.uv_layers.active.data
+        for idx, loop in enumerate(mesh.loops):
+            uv = uvs[loop.vertex_index]
+            uv_layers[idx].uv = (uv[0], 1 - uv[1])
+
         if scene_node.parent.Name is None:
             mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
         if material is not None:
@@ -159,8 +172,6 @@ class ImportScene():
         name = 'BH' + name
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(scene_node.bounded_hull, [], [])
-        bm = bmesh.new()
-        bm.from_mesh(mesh)
         bh_obj = bpy.data.objects.new(name, mesh)
         bh_obj.parent = mesh_obj
         self.scn.objects.link(bh_obj)
@@ -185,14 +196,17 @@ class ImportScene():
         mat_name = mat_data.pop('Name')
         mat = bpy.data.materials.new(name=mat_name)
         # for each texture make a new texture
+        count = len(mat_data) - 1
         for tex_type, tex_path in mat_data.items():
             tex = bpy.data.textures.new('{0}_{1}'.format(mat_name, tex_type),
                                         'IMAGE')
             print(self._get_path(tex_path))
             img = bpy.data.images.load(self._get_path(tex_path))
             tex.image = img
-            tex_slot = mat.texture_slots.create(tex_type)
+            # place the materials in in reversed order
+            tex_slot = mat.texture_slots.create(count - tex_type)
             tex_slot.texture = tex
+        mat.use_shadeless = True
         self.materials[mat_path] = mat
         return mat
 
