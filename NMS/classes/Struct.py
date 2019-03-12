@@ -9,7 +9,7 @@ import struct
 from binascii import hexlify
 # internal imports
 from .String import String
-from serialization.utils import to_chr
+from ...serialization.utils import to_chr
 from .Empty import Empty
 from .List import List
 

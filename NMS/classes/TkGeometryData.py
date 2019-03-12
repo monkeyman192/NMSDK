@@ -1,13 +1,12 @@
 # TkGeometryData struct
 
+from collections import OrderedDict
+from struct import pack
 from .Struct import Struct
 from .List import List
 from .TkVertexLayout import TkVertexLayout
-from serialization.utils import serialize, list_header
-from serialization.formats import write_half, write_int_2_10_10_10_rev
-from collections import OrderedDict
-
-from struct import pack
+from ...serialization.utils import serialize, list_header
+from ...serialization.formats import write_half, write_int_2_10_10_10_rev
 
 
 class TkGeometryData(Struct):

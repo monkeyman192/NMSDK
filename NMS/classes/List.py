@@ -2,7 +2,7 @@
 # of a single structs
 
 from xml.etree.ElementTree import SubElement
-from serialization.utils import list_header, serialize
+from ...serialization.utils import list_header, serialize
 
 
 class List():

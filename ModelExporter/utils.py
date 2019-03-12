@@ -6,7 +6,7 @@ from hashlib import sha256
 # blender imports
 from mathutils import Matrix, Vector
 # Internal imports
-from NMS.classes import Vector4f
+from ..NMS.classes import Vector4f
 
 
 #region Misc

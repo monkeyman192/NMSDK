@@ -1,6 +1,6 @@
 import bpy
-from BlenderExtensions import NMSNodes, NMSEntities, NMSPanels
-from addon_script import NMS_Export_Operator, NMS_Import_Operator
+from .BlenderExtensions import NMSNodes, NMSEntities, NMSPanels
+from .addon_script import NMS_Export_Operator, NMS_Import_Operator
 
 customNodes = NMSNodes()
 

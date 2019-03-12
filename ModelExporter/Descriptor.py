@@ -4,8 +4,8 @@
 
 __author__ = "monkeyman192"
 
-from NMS.classes import (List, TkModelDescriptorList, TkResourceDescriptorList,
-                         NMSString0x80, TkResourceDescriptorData)
+from ..NMS.classes import (List, TkModelDescriptorList, NMSString0x80,
+                           TkResourceDescriptorList, TkResourceDescriptorData)
 from .utils import get_children
 
 

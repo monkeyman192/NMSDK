@@ -14,13 +14,13 @@ import bpy  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
 
 # Internal imports
-from serialization.formats import (bytes_to_half, bytes_to_int_2_10_10_10_rev,
-                                   bytes_to_ubyte)
-from serialization.utils import read_list_header
-from NMS.LOOKUPS import VERTS, NORMS, UVS
-from ModelImporter.readers import read_material, read_metadata, read_gstream
-from ModelImporter.utils import element_to_dict
-from ModelImporter.SceneNodeData import SceneNodeData
+from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,
+                                     bytes_to_int_2_10_10_10_rev)
+from ..serialization.utils import read_list_header
+from ..NMS.LOOKUPS import VERTS, NORMS, UVS
+from .readers import read_material, read_metadata, read_gstream
+from .utils import element_to_dict
+from .SceneNodeData import SceneNodeData
 
 VERT_TYPE_MAP = {5121: {'size': 1, 'func': bytes_to_ubyte},
                  5131: {'size': 2, 'func': bytes_to_half},
@@ -38,7 +38,8 @@ class ImportScene():
     """
     def __init__(self, fpath):
         self.local_directory = op.dirname(fpath)
-        with open(op.join(os.getcwd(), 'config.json'), 'r') as config:
+        cfg_dir = op.dirname(op.dirname(__file__))
+        with open(op.join(cfg_dir, 'config.json'), 'r') as config:
             self.mbincompiler_path = json.load(config)['mbincompiler_path']
         ext = op.splitext(fpath)[1]
 

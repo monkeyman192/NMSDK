@@ -1,4 +1,4 @@
-from serialization.formats import write_half, write_int_2_10_10_10_rev
+from .formats import write_half, write_int_2_10_10_10_rev
 
 
 def serialize_vertex_stream(**kwargs):

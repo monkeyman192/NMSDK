@@ -1,36 +1,37 @@
 # stdlib imports
 import os
 import sys
+from math import radians, degrees
 # blender imports
 import bpy
-import bmesh
-from idprop.types import IDPropertyGroup
-from math import radians, degrees
-from mathutils import Matrix, Vector
+import bmesh  # pylint: disable=import-error
+from idprop.types import IDPropertyGroup  # pylint: disable=import-error
+from mathutils import Matrix, Vector  # pylint: disable=import-error
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
-from bpy_extras.io_utils import ExportHelper, ImportHelper
-from bpy.types import Operator
+from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
+from bpy.types import Operator  # pylint: disable=import-error
 # Internal imports
-from BlenderExtensions import NMSNodes, CompareMatrices, ContinuousCompare
-from ModelExporter.utils import (get_all_actions, apply_local_transforms,
-                                 calc_tangents, transform_to_NMS_coords)
-from ModelExporter import Export
-from ModelExporter.Descriptor import Descriptor
-from NMS.classes import (TkMaterialData, TkMaterialFlags, TkVolumeTriggerType,
-                         TkMaterialSampler, TkTransformData, TkMaterialUniform,
-                         TkRotationComponentData, TkPhysicsComponentData)
+from .BlenderExtensions import NMSNodes, CompareMatrices, ContinuousCompare
+from .ModelExporter.utils import (get_all_actions, apply_local_transforms,
+                                  calc_tangents, transform_to_NMS_coords)
+from .ModelExporter import Export
+from .ModelExporter.Descriptor import Descriptor
+from .NMS.classes import (TkMaterialData, TkMaterialFlags, TkVolumeTriggerType,
+                          TkMaterialSampler, TkTransformData,
+                          TkMaterialUniform, TkRotationComponentData,
+                          TkPhysicsComponentData)
 # Animation objects
-from NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
-from NMS.classes import TkAnimationComponentData, TkAnimationData
-from NMS.classes import List, Vector4f
-from NMS.classes import TkAttachmentData
+from .NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
+from .NMS.classes import TkAnimationComponentData, TkAnimationData
+from .NMS.classes import List, Vector4f
+from .NMS.classes import TkAttachmentData
 # Object Classes
-from NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
-                         Joint)
-from NMS.LOOKUPS import MATERIALFLAGS
-from ModelExporter.ActionTriggerParser import ParseNodes
-from ModelImporter.import_scene import ImportScene
+from .NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
+                          Joint)
+from .NMS.LOOKUPS import MATERIALFLAGS
+from .ModelExporter.ActionTriggerParser import ParseNodes
+from .ModelImporter.import_scene import ImportScene
 
 
 customNodes = NMSNodes()

@@ -2,9 +2,9 @@ import struct
 import xml.etree.ElementTree as ET
 from collections import namedtuple
 
-from serialization.utils import read_list_header
-from ModelImporter.utils import element_to_dict
-from NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL
+from ..serialization.utils import read_list_header
+from .utils import element_to_dict
+from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL
 
 
 MATERIAL_TYPE_MAP = {'gDiffuseMap': DIFFUSE,
