@@ -1,3 +1,5 @@
+import math
+
 class SceneNodeData():
     def __init__(self, info, parent=None):
         self.info = info
@@ -58,9 +60,9 @@ class SceneNodeData():
         trans = (float(self.info['Transform']['TransX']),
                  float(self.info['Transform']['TransY']),
                  float(self.info['Transform']['TransZ']))
-        rot = (float(self.info['Transform']['RotX']),
-               float(self.info['Transform']['RotY']),
-               float(self.info['Transform']['RotZ']))
+        rot = (math.radians(float(self.info['Transform']['RotX'])),
+               math.radians(float(self.info['Transform']['RotY'])),
+               math.radians(float(self.info['Transform']['RotZ'])))
         scale = (float(self.info['Transform']['ScaleX']),
                  float(self.info['Transform']['ScaleY']),
                  float(self.info['Transform']['ScaleZ']))

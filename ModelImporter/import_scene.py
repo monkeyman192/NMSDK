@@ -48,11 +48,14 @@ class ImportScene():
         self.materials = dict()
         self.scn = bpy.context.scene
 
+        # change to render with cycles
+        self.scn.render.engine = 'CYCLES'
+
         if ext.lower() == '.mbin':
             with TemporaryDirectory() as temp_dir:
                 fpath_dst = op.join(temp_dir, op.basename(fpath))
                 shutil.copy(fpath, fpath_dst)
-                subprocess.call([self.mbincompiler_path, fpath_dst])
+                subprocess.call([self.mbincompiler_path, '-q', fpath_dst])
                 fpath = fpath_dst.replace('.MBIN', '.EXML')
                 self._load_scene(fpath)
         elif ext.lower() != '.exml':
@@ -116,7 +119,34 @@ class ImportScene():
 
 # region private methods
 
-    def _add_mesh_to_view(self, scene_node):
+    def _add_empty_to_scene(self, scene_node):
+        name = scene_node.Name
+
+        # create a new empty instance
+        empty_mesh = bpy.data.meshes.new(name)
+        empty_obj = bpy.data.objects.new(name, empty_mesh)
+
+        if scene_node.parent.Name is not None:
+            empty_obj.parent = self.scn.objects[scene_node.parent.Name]
+
+        # get transform and apply
+        transform = scene_node.Transform['Trans']
+        empty_obj.location = Vector(transform)
+        # get rotation and apply
+        rotation = scene_node.Transform['Rot']
+        empty_obj.rotation_euler = rotation
+        # get scale and apply
+        scale = scene_node.Transform['Scale']
+        empty_obj.scale = Vector(scale)
+        # link the object then update the scene so that the above transforms
+        # can be applied before we do the NMS -> blender scene rotation
+        self.scn.objects.link(empty_obj)
+        self.scn.update()
+
+        if scene_node.parent.Name is None:
+            empty_obj.matrix_world = ROT_MATRIX * empty_obj.matrix_world
+
+    def _add_mesh_to_scene(self, scene_node):
         name = scene_node.Name
         mat_path = self._get_material_path(scene_node)
         material = self._create_material(mat_path)
@@ -130,6 +160,7 @@ class ImportScene():
 
         mesh_obj = bpy.data.objects.new(name, mesh)
 
+        # give object correct parent
         if scene_node.parent.Name is not None:
             mesh_obj.parent = self.scn.objects[scene_node.parent.Name]
         # get transform and apply
@@ -173,6 +204,8 @@ class ImportScene():
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(scene_node.bounded_hull, [], [])
         bh_obj = bpy.data.objects.new(name, mesh)
+        # Don't show the bounded hull
+        bh_obj.hide = True
         bh_obj.parent = mesh_obj
         self.scn.objects.link(bh_obj)
 
@@ -186,7 +219,7 @@ class ImportScene():
         with TemporaryDirectory() as temp_dir:
             mat_path_dst = op.join(temp_dir, op.basename(mat_path))
             shutil.copy(mat_path, mat_path_dst)
-            subprocess.call([self.mbincompiler_path, mat_path_dst])
+            subprocess.call([self.mbincompiler_path, '-q', mat_path_dst])
             mat_path = mat_path_dst.replace('.MBIN', '.EXML')
             mat_data = read_material(mat_path)
         if mat_data is None or mat_data == dict():
@@ -295,4 +328,6 @@ class ImportScene():
             if obj.Type == 'MESH':
                 obj.metadata = self.mesh_metadata.get(obj.Name.upper())
                 self.load_mesh(obj)
-                self._add_mesh_to_view(obj)
+                self._add_mesh_to_scene(obj)
+            elif obj.Type == 'LOCATOR' or obj.Type == 'JOINT':
+                self._add_empty_to_scene(obj)
