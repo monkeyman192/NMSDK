@@ -31,6 +31,7 @@ VERTS = 0
 UVS = 1
 NORMS = 2
 TANGS = 3
+COLOUR = 4
 
 # Material types
 DIFFUSE = 0
@@ -40,9 +41,11 @@ NORMAL = 2
 SEMANTICS = {'Vertices': VERTS,
              'UVs': UVS,
              'Normals': NORMS,
-             'Tangents': TANGS}
+             'Tangents': TANGS,
+             'Colour': COLOUR}
 
 REV_SEMANTICS = {VERTS: 'Vertices',
                  UVS: 'UVs',
                  NORMS: 'Normals',
-                 TANGS: 'Tangents'}
+                 TANGS: 'Tangents',
+                 COLOUR: 'Colour'}
