@@ -3,6 +3,7 @@
 import bpy
 from bpy.props import (StringProperty, BoolProperty, EnumProperty,
                        FloatProperty, IntVectorProperty)
+from .MiscFunctions import has_parent
 
 """ Various properties for each of the different node types """
 
@@ -18,13 +19,15 @@ class NMSNodeProperties(bpy.types.PropertyGroup):
                 "Locator object, used for interaction locations etc."),
                ("Reference", "Reference",
                 "Node used to allow other scenes to be placed at this point "
-                "in space"),
+                "in space."),
                # TODO: remove this description if not true?
                ("Joint", "Joint",
                 "Node used primarily for animations. All meshes that are to "
-                "be animated MUST be a direct child of a joint object"),
+                "be animated MUST be a direct child of a joint object."),
                ("Light", "Light",
-                "Light that will emit light of a certain colour")])
+                "Light that will emit light of a certain colour."),
+               ("None", "None",
+                "Object that will not be exported.")])
     override_name = StringProperty(
         name="Override name",
         description=("A name to be used to override the name given from "
@@ -177,7 +180,7 @@ class NMSNodePropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (context.object.name.startswith("NMS") and not
+        if (has_parent(context.object, 'NMS_SCENE') and not
                 context.object.name.startswith("NMS_SCENE")):
             return True
         else:

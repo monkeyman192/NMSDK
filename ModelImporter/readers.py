@@ -41,11 +41,9 @@ def read_material(fname):
         f.seek(0x218)
         list_offset, list_count = read_list_header(f)
         f.seek(list_offset, 1)
-        print(list_count)
         for i in range(list_count):
             name = struct.unpack('32s', f.read(0x20))[0].split(b'\x00')[0]
             name = name.decode()
-            print(name)
             value = struct.unpack('<ffff', f.read(0x10))
             data['Uniforms'][name] = value
             f.seek(0x10, 1)

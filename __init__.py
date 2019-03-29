@@ -1,5 +1,5 @@
 import bpy
-from .BlenderExtensions import NMSNodes, NMSEntities, NMSPanels
+from .BlenderExtensions import NMSNodes, NMSEntities, NMSPanels, NMSShaderNode
 from .addon_script import NMS_Export_Operator, NMS_Import_Operator
 
 customNodes = NMSNodes()
@@ -34,6 +34,7 @@ def register():
     bpy.types.INFO_MT_file_export.append(menu_func_export)
     bpy.types.INFO_MT_file_import.append(menu_func_import)
     NMSPanels.register()
+    NMSShaderNode.register()
     customNodes.register()
     NMSEntities.register()
 
@@ -44,5 +45,6 @@ def unregister():
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
     bpy.types.INFO_MT_file_import.remove(menu_func_import)
     NMSPanels.unregister()
+    NMSShaderNode.unregister()
     customNodes.unregister()
     NMSEntities.unregister()

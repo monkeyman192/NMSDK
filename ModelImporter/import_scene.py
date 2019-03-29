@@ -26,6 +26,9 @@ VERT_TYPE_MAP = {5121: {'size': 1, 'func': bytes_to_ubyte},
                  36255: {'size': 1, 'func': bytes_to_int_2_10_10_10_rev}}
 ROT_MATRIX = Matrix.Rotation(radians(90), 4, 'X')
 
+TYPE_MAP = {'MESH': 'Mesh', 'LOCATOR': 'Locator', 'REFERENCE': 'Reference',
+            'JOINT': 'Joint'}
+
 
 class ImportScene():
     """ Load a scene into blender.
@@ -120,14 +123,27 @@ class ImportScene():
 # region private methods
 
     def _add_empty_to_scene(self, scene_node):
+        if scene_node == 'NMS_SCENE':
+            # If the scene_node is simply 'NMS_SCENE' just add an empty and
+            # return
+            empty_mesh = bpy.data.meshes.new('NMS_SCENE')
+            empty_obj = bpy.data.objects.new('NMS_SCENE', empty_mesh)
+            self.scn.objects.link(empty_obj)
+            self.scn.update()
+            return
+
+        # Otherwise just assign everything as usual...
         name = scene_node.Name
 
         # create a new empty instance
         empty_mesh = bpy.data.meshes.new(name)
         empty_obj = bpy.data.objects.new(name, empty_mesh)
+        empty_obj.NMSNode_props.node_types = TYPE_MAP[scene_node.Type]
 
         if scene_node.parent.Name is not None:
             empty_obj.parent = self.scn.objects[scene_node.parent.Name]
+        else:
+            empty_obj.parent = self.scn.objects['NMS_SCENE']
 
         # get transform and apply
         transform = scene_node.Transform['Trans']
@@ -145,6 +161,9 @@ class ImportScene():
 
         if scene_node.parent.Name is None:
             empty_obj.matrix_world = ROT_MATRIX * empty_obj.matrix_world
+            bpy.ops.object.transform_apply(location=False,
+                                           rotation=True,
+                                           scale=False)
 
     def _add_mesh_to_scene(self, scene_node):
         name = scene_node.Name
@@ -157,10 +176,13 @@ class ImportScene():
             vert.normal = scene_node.verts[NORMS][i]
 
         mesh_obj = bpy.data.objects.new(name, mesh)
+        mesh_obj.NMSNode_props.node_types = 'Mesh'
 
         # give object correct parent
         if scene_node.parent.Name is not None:
             mesh_obj.parent = self.scn.objects[scene_node.parent.Name]
+        else:
+            mesh_obj.parent = self.scn.objects['NMS_SCENE']
         # get transform and apply
         transform = scene_node.Transform['Trans']
         mesh_obj.location = Vector(transform)
@@ -198,7 +220,6 @@ class ImportScene():
             if not mesh.vertex_colors:
                 mesh.vertex_colors.new()
             colour_loops = mesh.vertex_colors.active.data
-            print(colour_loops)
             for idx, loop in enumerate(mesh.loops):
                 colour = colours[loop.vertex_index]
                 colour_loops[idx].color = (colour[0]/255,
@@ -207,6 +228,9 @@ class ImportScene():
 
         if scene_node.parent.Name is None:
             mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
+            bpy.ops.object.transform_apply(location=False,
+                                           rotation=True,
+                                           scale=False)
 
         # sort out materials
         mat_path = self._get_material_path(scene_node)
@@ -271,7 +295,7 @@ class ImportScene():
                     # #ifdef _F21_VERTEXCOLOUR
                     # lColourVec4 *= IN( mColourVec4 );
                     col_attribute = nodes.new(type='ShaderNodeAttribute')
-                    col_attribute.name = 'Col'
+                    col_attribute.attribute_name = 'Col'
                     mix_colour = nodes.new(type='ShaderNodeMixRGB')
                     links.new(mix_colour.inputs['Color1'],
                               diffuse_texture.outputs['Color'])
@@ -359,7 +383,6 @@ class ImportScene():
                           normal_map.outputs['Normal'])
 
                 if 42 in mat_data['Flags']:
-                    print(uniforms)
                     # lTexCoordsVec4.xy *= lUniforms.mpCustomPerMesh->gCustomParams01Vec4.z;  # noqa
                     normal_scale = nodes.new(type='ShaderNodeMapping')
                     normal_scale.location = (-1000, -300)
@@ -461,6 +484,9 @@ class ImportScene():
 
     def _render_scene(self):
         """ Render the mesh in the blender view. """
+        # First, add the empty NMS_SCENE object that everything will be a
+        # child of
+        self._add_empty_to_scene('NMS_SCENE')
         for obj in self.scene_node_data.iter():
             if obj.Type == 'MESH':
                 obj.metadata = self.mesh_metadata.get(obj.Name.upper())

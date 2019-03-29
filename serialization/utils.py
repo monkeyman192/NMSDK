@@ -78,8 +78,6 @@ def quat_drop_component(arr):
             doubled_elements.add(i)
         condensed_arr.add(i)
 
-    print(condensed_arr)
-
     if len(condensed_arr) == 4:
         max_loc = arr.index(max(condensed_arr))
     else:
