@@ -1,0 +1,7 @@
+theme:
+  name: readthedocs
+site_name: NMSDK
+site_dir: html_docs/site/
+nav:
+    - Home: index.md
+    - Setup: setup.md
