@@ -4,7 +4,6 @@ import xml.etree.ElementTree as ET
 import struct
 from math import radians
 from tempfile import TemporaryDirectory
-import json
 import subprocess
 import shutil
 
@@ -40,9 +39,6 @@ class ImportScene():
     """
     def __init__(self, fpath):
         self.local_directory = op.dirname(fpath)
-        cfg_dir = op.dirname(op.dirname(__file__))
-        with open(op.join(cfg_dir, 'config.json'), 'r') as config:
-            self.mbincompiler_path = json.load(config)['mbincompiler_path']
         ext = op.splitext(fpath)[1]
 
         self.data = None
@@ -58,7 +54,11 @@ class ImportScene():
             with TemporaryDirectory() as temp_dir:
                 fpath_dst = op.join(temp_dir, op.basename(fpath))
                 shutil.copy(fpath, fpath_dst)
-                subprocess.call([self.mbincompiler_path, '-q', fpath_dst])
+                retcode = subprocess.call(["MBINCompiler", '-q', fpath_dst],
+                                          shell=True)
+                if retcode != 0:
+                    print('MBINCompiler failed to run. Please ensure it is '
+                          'registered on the path.')
                 fpath = fpath_dst.replace('.MBIN', '.EXML')
                 self._load_scene(fpath)
         elif ext.lower() != '.exml':

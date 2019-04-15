@@ -668,6 +668,10 @@ class Export():
             for file in files:
                 location = os.path.join(directory, file)
                 if os.path.splitext(location)[1] == '.exml':
-                    retcode = subprocess.call(["MBINCompiler.exe", location])
+                    retcode = subprocess.call(["MBINCompiler", location],
+                                              shell=True)
                     if retcode == 0:
                         os.remove(location)
+                    else:
+                        print('MBINCompiler failed to run. Please ensure it '
+                              'is registered on the path.')

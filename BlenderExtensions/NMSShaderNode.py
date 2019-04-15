@@ -141,11 +141,9 @@ class NMSShader(bpy.types.NodeCustomGroup):
 
 def register():
     bpy.utils.register_class(NMSShader)
-    print('jo')
     newcatlist = [ShaderNewNodeCategory("SH_NEW_CUSTOM", "NMS Shader",
                                         items=[NodeItem("NMSShader")])]
     register_node_categories("NMS_SHADER", newcatlist)
-    print('hahaa')
 
 
 def unregister():
