@@ -1,5 +1,7 @@
 # Code inspired by https://blender.stackexchange.com/a/99003
 
+# Heavy WIP!!!
+
 import bpy
 from bpy.props import BoolProperty
 from nodeitems_utils import (NodeItem, register_node_categories,
@@ -9,91 +11,91 @@ from nodeitems_builtins import ShaderNewNodeCategory
 
 FLAGS = [('_F01_DIFFUSEMAP', 'Diffuse Map', 'Diffuse Map'),
          ('_F03_NORMALMAP', 'Normal Map', 'Normal Map'),
+         ('_F21_VERTEXCOLOUR', 'Vertex Colour', 'Vertex Colour'),
          ('_F25_ROUGHNESS_MASK', 'Roughness Mask', 'Roughness Mask')]
 
 
 class NMSShader(bpy.types.NodeCustomGroup):
 
-    bl_idname = 'NMSShader'
+    bl_name = 'NMSShader'
     bl_label = "No Man's Sky Uber Shader"
 
+    # TODO: Not needed?
     # Return the list of valid operators
     def operators(self, context):
         _ = context.space_data.edit_tree
         list = [('_F01_DIFFUSEMAP', 'Diffuse Map', 'Diffuse Map'),
                 ('_F03_NORMALMAP', 'Normal Map', 'Normal Map'),
+                ('_F21_VERTEXCOLOUR', 'Vertex Colour', 'Vertex Colour'),
                 ('_F25_ROUGHNESS_MASK', 'Roughness Mask', 'Roughness Mask')]
         return list
-
-    # Manage the node's sockets, adding additional ones when needed and
-    # removing those no longer required
-    def __nodeinterface_setup__(self):
-
-        # No operators --> no inpout or output sockets
-        if self.inputSockets < 1:
-            self.node_tree.inputs.clear()
-            self.node_tree.outputs.clear()
-
-            return
-
-        # Look for input sockets that are no longer required and remove them
-        for i in range(len(self.node_tree.inputs), 0, -1):
-            if i > self.inputSockets:
-                self.node_tree.inputs.remove(self.node_tree.inputs[-1])
-
-        # Add any additional input sockets that are now required
-        for i in range(0, self.inputSockets):
-            if i > len(self.node_tree.inputs):
-                self.node_tree.inputs.new("NodeSocketFloat", "Value")
-
-        # Add the output socket
-        if len(self.node_tree.outputs) < 1:
-            self.node_tree.outputs.new("NodeSocketFloat", "Value")
 
     # Manage the internal nodes to perform the chained operation - clear all
     # the nodes and build from scratch each time.
     def __nodetree_setup__(self):
+        principled_BSDF = self.node_tree.nodes['Principled BSDF']
 
-        # Remove all links and all nodes that aren't "Group Input" or
-        # "Group Output"
-        self.node_tree.links.clear()
-        for node in self.node_tree.nodes:
-            if node.name not in ['Group Input', 'Group Output']:
-                self.node_tree.nodes.remove(node)
-
-        # Start from Group Input and add nodes as required, chaining each new
-        # one to the previous level and the next input
-        groupinput = self.node_tree.nodes['Group Input']
-        previousnode = groupinput
-        if self.inputSockets <= 1:
-            # Special case <= 1 input --> link input directly to output
-            self.node_tree.links.new(
-                previousnode.outputs[0],
-                self.node_tree.nodes['Group Output'].inputs[0])
+        if self.F01_DIFFUSEMAP_choice:
+            diffuse_texture = self._add_diffuse_texture_choice()
+            if self.F21_VERTEXCOLOUR_choice:
+                self._add_vertex_colour_nodes()
+            else:
+                self._remove_vertex_colour_nodes()
+                # Relink the texture input and BSDF shader
+                self.node_tree.links.new(
+                    principled_BSDF.inputs['Base Color'],
+                    diffuse_texture.outputs['Color'])
         else:
-            # Create one node for each input socket > 1
-            for i in range(1, self.inputSockets):
-                newnode = self.node_tree.nodes.new('ShaderNodeMath')
-                newnode.operation = self.selectOperator
-                self.node_tree.links.new(previousnode.outputs[0],
-                                         newnode.inputs[0])
-                self.node_tree.links.new(groupinput.outputs[i],
-                                         newnode.inputs[1])
-                previousnode = newnode
+            self._remove_diffuse_texture_choice()
 
-            # Connect the last one to the output
-            self.node_tree.links.new(
-                previousnode.outputs[0],
-                self.node_tree.nodes['Group Output'].inputs[0])
+    def _add_diffuse_texture_choice(self):
+        # If the node already exists simply return it
+        diffuse_texture = self.node_tree.nodes.get('Texture Image - Diffuse')
+        if diffuse_texture:
+            return diffuse_texture
+        # Otherwise add it
+        diffuse_texture = self.node_tree.nodes.new(type='ShaderNodeTexImage')
+        diffuse_texture.name = diffuse_texture.label = 'Texture Image - Diffuse'  # noqa
+        diffuse_texture.location = (-200, 300)
+        return diffuse_texture
 
-    # Chosen operator has changed - update the nodes and links
-    def update_operator(self, context):
-        self.__nodeinterface_setup__()
-        self.__nodetree_setup__()
+    def _remove_diffuse_texture_choice(self):
+        # If the node doesn't exist don't do anything
+        diffuse_texture = self.node_tree.nodes.get('Texture Image - Diffuse')
+        if not diffuse_texture:
+            return
+        # Otherwise remove it
+        for output in diffuse_texture.outputs:
+            for link in output.links:
+                self.node_tree.links.remove(link)
+        self.node_tree.nodes.remove(diffuse_texture)
 
-    # Number of inputs has changed - update the nodes and links
-    def update_inpSockets(self, context):
-        self.__nodeinterface_setup__()
+    def _add_vertex_colour_nodes(self):
+        diffuse_texture = self.node_tree.nodes['Texture Image - Diffuse']
+        principled_BSDF = self.node_tree.nodes['Principled BSDF']
+
+        col_attribute = self.node_tree.nodes.new(type='ShaderNodeAttribute')
+        col_attribute.attribute_name = 'Col'
+        col_attribute.name = 'VertexColourAttribute'
+        mix_colour = self.node_tree.nodes.new(type='ShaderNodeMixRGB')
+        mix_colour.name = 'VertexColourMixer'
+        self.node_tree.links.new(mix_colour.inputs['Color1'],
+                                 diffuse_texture.outputs['Color'])
+        self.node_tree.links.new(mix_colour.inputs['Color2'],
+                                 col_attribute.outputs['Color'])
+        self.node_tree.links.new(
+            principled_BSDF.inputs['Base Color'],
+            mix_colour.outputs['Color'])
+
+    def _remove_vertex_colour_nodes(self):
+        col_attribute = self.node_tree.nodes.get('VertexColourAttribute')
+        mix_colour = self.node_tree.nodes.get('VertexColourMixer')
+        if col_attribute or mix_colour:
+            self.node_tree.nodes.remove(col_attribute)
+            self.node_tree.nodes.remove(mix_colour)
+
+    # A choice has changed
+    def update_nodes(self, context):
         self.__nodetree_setup__()
 
     # The node properties - Operator (Add, Subtract, etc.) and number of input
@@ -101,15 +103,23 @@ class NMSShader(bpy.types.NodeCustomGroup):
     F01_DIFFUSEMAP_choice = BoolProperty(
         name='Has diffuse map',
         description='Whether material has a diffuse map.',
-        default=True)
+        default=False,
+        update=update_nodes)
     F03_NORMALMAP_choice = BoolProperty(
         name='Has normal map',
         description='Whether material has a normal map.',
-        default=True)
+        default=False,
+        update=update_nodes)
+    F21_VERTEXCOLOUR_choice = BoolProperty(
+        name='Has vertex colour data',
+        description='Whether the material has vertex colour data.',
+        default=False,
+        update=update_nodes)
     F25_ROUGHNESS_MASK_choice = BoolProperty(
         name='Has roughness mask',
         description='Whether material has a roughness mask.',
-        default=False)
+        default=False,
+        update=update_nodes)
 
     # Setup the node - setup the node tree and add the group Input and Output
     # nodes
@@ -118,17 +128,30 @@ class NMSShader(bpy.types.NodeCustomGroup):
                                                   'ShaderNodeTree')
         if hasattr(self.node_tree, 'is_hidden'):
             self.node_tree.is_hidden = True
-        self.node_tree.nodes.new('NodeGroupInput')
+
         self.node_tree.nodes.new('NodeGroupOutput')
+
+        principled_BSDF = self.node_tree.nodes.new(
+            type='ShaderNodeBsdfPrincipled')
+        principled_BSDF.location = (200, 150)
+        principled_BSDF.inputs['Roughness'].default_value = 1.0
+
+        self.node_tree.outputs.new("NodeSocketShader", "Value")
+
+        self.node_tree.links.new(
+            self.node_tree.nodes['Group Output'].inputs[0],
+            principled_BSDF.outputs['BSDF'])
 
     # Draw the node components
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.prop(self, 'F01_DIFFUSEMAP_choice', text='')
+        row.prop(self, 'F01_DIFFUSEMAP_choice', text='Diffuse Map')
         row = layout.row()
-        row.prop(self, 'F03_NORMALMAP_choice', text='')
+        row.prop(self, 'F03_NORMALMAP_choice', text='Normal Map')
         row = layout.row()
-        row.prop(self, 'F25_ROUGHNESS_MASK_choice', text='')
+        row.prop(self, 'F21_VERTEXCOLOUR_choice', text='Vertex Colour')
+        row = layout.row()
+        row.prop(self, 'F25_ROUGHNESS_MASK_choice', text='Roughness Mask')
 
     # Copy
     def copy(self, node):
