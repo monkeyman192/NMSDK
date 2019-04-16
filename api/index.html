@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  <link rel="shortcut icon" href="../img/favicon.ico">
+  <title>API guide - NMSDK</title>
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="../css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "API guide";
+    var mkdocs_page_input_path = "api.md";
+    var mkdocs_page_url = null;
+  </script>
+  
+  <script src="../js/jquery-2.1.1.min.js" defer></script>
+  <script src="../js/modernizr-2.8.3.min.js" defer></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href=".." class="icon icon-home"> NMSDK</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+	<ul class="current">
+	  
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="..">Home</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../setup/">Setup</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <span class="caption-text">Importing a Scene</span>
+    <ul class="subnav">
+                <li class="">
+                    
+    <a class="" href="../importing/importing/">Importing</a>
+                </li>
+    </ul>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <span class="caption-text">Exporting a Scene</span>
+    <ul class="subnav">
+                <li class="">
+                    
+    <a class="" href="../exporting/exporting/">Setting up</a>
+                </li>
+                <li class="">
+                    
+    <a class="" href="../exporting/entities/">Adding Entities</a>
+                </li>
+                <li class="">
+                    
+    <a class="" href="../exporting/proc_gen/">Making a proc-gen scene</a>
+                </li>
+                <li class="">
+                    
+    <a class="" href="../exporting/action_triggers/">Creating Action Triggers</a>
+                </li>
+                <li class="">
+                    
+    <a class="" href="../exporting/shader_nodes/">Shader Setup</a>
+                </li>
+    </ul>
+	    </li>
+          
+            <li class="toctree-l1 current">
+		
+    <a class="current" href="./">API guide</a>
+    <ul class="subnav">
+            
+    <li class="toctree-l2"><a href="#api-guide">API guide</a></li>
+    
+        <ul>
+        
+            <li><a class="toctree-l3" href="#importing-data-into-blender">Importing data into Blender</a></li>
+        
+        </ul>
+    
+
+    </ul>
+	    </li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="..">NMSDK</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="..">Docs</a> &raquo;</li>
+    
+      
+    
+    <li>API guide</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="api-guide">API guide</h1>
+<p>Due to how Blender handles adding and registering functions that can be publically used, all public API functions are located within the <code>bpy.ops</code> namespace.
+All operators <strong>MUST</strong> also be called with keyword arguments (see examples)</p>
+<h2 id="importing-data-into-blender">Importing data into Blender</h2>
+<h4 id="bpyopsnmsdkimport_scenepath">bpy.ops.nmsdk.import_scene(path)</h4>
+<p><strong>Parameters</strong>:<br />
+    path : string<br />
+        - The complete file path to a <code>SCENE.MBIN</code> or <code>SCENE.EXML</code> file to be loaded into blender.</p>
+<p><strong>Notes</strong>:<br />
+    The entire scene will be loaded into the active scene in blender.</p>
+<p><strong>Example</strong>:</p>
+<pre><code class="python">bpy.ops.nmsdk.import_scene(path='C:\\NMS-1.77\\MODELS\\PLANETS\\BIOMES\\COMMON\\CRYSTALS\\LARGE\\CRYSTAL_LARGE.SCENE.MBIN')
+</code></pre>
+
+<h4 id="bpyopsnmsdkimport_meshpath-mesh_id">bpy.ops.nmsdk.import_mesh(path, mesh_id)</h4>
+<p><strong>Parameters</strong>:<br />
+<em>path</em> : string<br />
+        - The complete file path to a <code>SCENE.MBIN</code> or <code>SCENE.EXML</code> file to be loaded into blender.<br />
+<em>mesh_id</em> : string<br />
+        - The <code>Name</code> of the <code>TkSceneNodeData</code> in the Scene being loaded. </p>
+<p><strong>Notes</strong>:<br />
+    Only this object will be loaded. None of the children will be.</p>
+<p><strong>Example</strong>:</p>
+<pre><code class="python">bpy.ops.nmsdk.import_mesh(path='C:\\NMS-1.77\\MODELS\\PLANETS\\BIOMES\\COMMON\\CRYSTALS\\LARGE\\CRYSTAL_LARGE.SCENE.MBIN', mesh_id='_CRYSTAL_A')
+</code></pre>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="../exporting/shader_nodes/" class="btn btn-neutral" title="Shader Setup"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+      
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+        <span><a href="../exporting/shader_nodes/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+    </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+
+</body>
+</html>

@@ -5,25 +5,25 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="None">
   
-  <link rel="shortcut icon" href="img/favicon.ico">
-  <title>Home - NMSDK</title>
+  
+  <link rel="shortcut icon" href="../../img/favicon.ico">
+  <title>Adding Entities - NMSDK</title>
   <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
 
-  <link rel="stylesheet" href="css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="../../css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../css/theme_extra.css" type="text/css" />
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
   
   <script>
     // Current page data
-    var mkdocs_page_name = "Home";
-    var mkdocs_page_input_path = "index.md";
+    var mkdocs_page_name = "Adding Entities";
+    var mkdocs_page_input_path = "exporting/entities.md";
     var mkdocs_page_url = null;
   </script>
   
-  <script src="js/jquery-2.1.1.min.js" defer></script>
-  <script src="js/modernizr-2.8.3.min.js" defer></script>
+  <script src="../../js/jquery-2.1.1.min.js" defer></script>
+  <script src="../../js/modernizr-2.8.3.min.js" defer></script>
   <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
   <script>hljs.initHighlightingOnLoad();</script> 
   
@@ -36,9 +36,9 @@
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
       <div class="wy-side-nav-search">
-        <a href="." class="icon icon-home"> NMSDK</a>
+        <a href="../.." class="icon icon-home"> NMSDK</a>
         <div role="search">
-  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
   </form>
 </div>
@@ -48,20 +48,14 @@
 	<ul class="current">
 	  
           
-            <li class="toctree-l1 current">
+            <li class="toctree-l1">
 		
-    <a class="current" href=".">Home</a>
-    <ul class="subnav">
-            
-    <li class="toctree-l2"><a href="#no-mans-sky-unofficial-development-kit-nmsdk">No Man's Sky (unofficial) Development Kit (NMSDK)</a></li>
-    
-
-    </ul>
+    <a class="" href="../..">Home</a>
 	    </li>
           
             <li class="toctree-l1">
 		
-    <a class="" href="setup/">Setup</a>
+    <a class="" href="../../setup/">Setup</a>
 	    </li>
           
             <li class="toctree-l1">
@@ -70,7 +64,7 @@
     <ul class="subnav">
                 <li class="">
                     
-    <a class="" href="importing/importing/">Importing</a>
+    <a class="" href="../../importing/importing/">Importing</a>
                 </li>
     </ul>
 	    </li>
@@ -81,30 +75,36 @@
     <ul class="subnav">
                 <li class="">
                     
-    <a class="" href="exporting/exporting/">Setting up</a>
+    <a class="" href="../exporting/">Setting up</a>
+                </li>
+                <li class=" current">
+                    
+    <a class="current" href="./">Adding Entities</a>
+    <ul class="subnav">
+            
+    <li class="toctree-l3"><a href="#adding-entities">Adding entities</a></li>
+    
+
+    </ul>
                 </li>
                 <li class="">
                     
-    <a class="" href="exporting/entities/">Adding Entities</a>
+    <a class="" href="../proc_gen/">Making a proc-gen scene</a>
                 </li>
                 <li class="">
                     
-    <a class="" href="exporting/proc_gen/">Making a proc-gen scene</a>
+    <a class="" href="../action_triggers/">Creating Action Triggers</a>
                 </li>
                 <li class="">
                     
-    <a class="" href="exporting/action_triggers/">Creating Action Triggers</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="exporting/shader_nodes/">Shader Setup</a>
+    <a class="" href="../shader_nodes/">Shader Setup</a>
                 </li>
     </ul>
 	    </li>
           
             <li class="toctree-l1">
 		
-    <a class="" href="api/">API guide</a>
+    <a class="" href="../../api/">API guide</a>
 	    </li>
           
         </ul>
@@ -117,7 +117,7 @@
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
         <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href=".">NMSDK</a>
+        <a href="../..">NMSDK</a>
       </nav>
 
       
@@ -125,11 +125,15 @@
         <div class="rst-content">
           <div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
-    <li><a href=".">Docs</a> &raquo;</li>
+    <li><a href="../..">Docs</a> &raquo;</li>
     
       
+        
+          <li>Exporting a Scene &raquo;</li>
+        
+      
     
-    <li>Home</li>
+    <li>Adding Entities</li>
     <li class="wy-breadcrumbs-aside">
       
     </li>
@@ -139,13 +143,8 @@
           <div role="main">
             <div class="section">
               
-                <p><img alt="NMSDK" src="images/nmsdk_splash.png" /></p>
-<h1 id="no-mans-sky-unofficial-development-kit-nmsdk">No Man's Sky (unofficial) Development Kit (NMSDK)</h1>
-<p>NMSDK is a plugin for blender which can be used to convert models to a format
-compatible with No Man's Sky.
-It is also able to generate action trigger sequences for custom interactions
-and events in the game, as well as give the custom models specific properties
-such as being able to be interactable, able to be flown as a ship, etc.</p>
+                <h1 id="adding-entities">Adding entities</h1>
+<p>Coming soon!</p>
               
             </div>
           </div>
@@ -153,8 +152,10 @@ such as being able to be interactable, able to be flown as a ship, etc.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="setup/" class="btn btn-neutral float-right" title="Setup">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../proc_gen/" class="btn btn-neutral float-right" title="Making a proc-gen scene">Next <span class="icon icon-circle-arrow-right"></span></a>
       
+      
+        <a href="../exporting/" class="btn btn-neutral" title="Setting up"><span class="icon icon-circle-arrow-left"></span> Previous</a>
       
     </div>
   
@@ -180,19 +181,16 @@ such as being able to be interactable, able to be flown as a ship, etc.</p>
     <span class="rst-current-version" data-toggle="rst-current-version">
       
       
+        <span><a href="../exporting/" style="color: #fcfcfc;">&laquo; Previous</a></span>
       
-        <span style="margin-left: 15px"><a href="setup/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+        <span style="margin-left: 15px"><a href="../proc_gen/" style="color: #fcfcfc">Next &raquo;</a></span>
       
     </span>
 </div>
-    <script>var base_url = '.';</script>
-    <script src="js/theme.js" defer></script>
-      <script src="search/main.js" defer></script>
+    <script>var base_url = '../..';</script>
+    <script src="../../js/theme.js" defer></script>
+      <script src="../../search/main.js" defer></script>
 
 </body>
 </html>
-
-<!--
-MkDocs version : 1.0.4
-Build Date UTC : 2019-04-16 07:13:15
--->
