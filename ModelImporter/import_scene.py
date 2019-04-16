@@ -19,6 +19,7 @@ from ..NMS.LOOKUPS import VERTS, NORMS, UVS, DIFFUSE, MASKS, NORMAL, COLOUR
 from .readers import read_material, read_metadata, read_gstream
 from .utils import element_to_dict
 from .SceneNodeData import SceneNodeData
+from ..utils.io import get_NMS_dir
 
 VERT_TYPE_MAP = {5121: {'size': 1, 'func': bytes_to_ubyte},
                  5131: {'size': 2, 'func': bytes_to_half},
@@ -35,11 +36,26 @@ class ImportScene():
     Parameters
     ----------
     fpath : string
-        filepath to the scene file to be loaded.
+        Filepath to the scene file to be loaded.
+    parent_obj : obj
+        The parent object. For a first-class scene this will always be none
+        and an empty NMS_SCENE node will be generated for the scene to be
+        placed in.
+        For scenes that are referenced by another scene this will be that
+        reference object.
     """
-    def __init__(self, fpath):
+    def __init__(self, fpath, parent_obj=None):
+        print('loading {0}'.format(fpath))
         self.local_directory = op.dirname(fpath)
+
+        # check to see if there already exists an exml file with the same name
+        if op.exists(fpath.upper().replace('.MBIN', '.EXML')):
+            print('using cached scene file')
+            fpath = fpath.upper().replace('.MBIN', '.EXML')
+
         ext = op.splitext(fpath)[1]
+
+        self.parent_obj = parent_obj
 
         self.data = None
         self.vertex_elements = list()
@@ -51,15 +67,28 @@ class ImportScene():
         self.scn.render.engine = 'CYCLES'
 
         if ext.lower() == '.mbin':
-            with TemporaryDirectory() as temp_dir:
-                fpath_dst = op.join(temp_dir, op.basename(fpath))
-                shutil.copy(fpath, fpath_dst)
-                retcode = subprocess.call(["MBINCompiler", '-q', fpath_dst],
+            # Determine if the current NMSDK setting require the exml to be
+            # cached
+            cache = bpy.context.scene.NMSDK_import_settings.cache_exml
+            if not cache:
+                with TemporaryDirectory() as temp_dir:
+                    fpath_dst = op.join(temp_dir, op.basename(fpath))
+                    shutil.copy(fpath, fpath_dst)
+                    retcode = subprocess.call(
+                        ["MBINCompiler", '-q', fpath_dst],
+                        shell=True)
+                    if retcode != 0:
+                        print('MBINCompiler failed to run. Please ensure it '
+                              'is registered on the path.')
+                    fpath = fpath_dst.replace('.MBIN', '.EXML')
+                    self._load_scene(fpath)
+            else:
+                retcode = subprocess.call(["MBINCompiler", '-q', fpath],
                                           shell=True)
                 if retcode != 0:
                     print('MBINCompiler failed to run. Please ensure it is '
                           'registered on the path.')
-                fpath = fpath_dst.replace('.MBIN', '.EXML')
+                fpath = fpath.replace('.MBIN', '.EXML')
                 self._load_scene(fpath)
         elif ext.lower() != '.exml':
             raise TypeError('Selected file is of the wrong format.')
@@ -130,13 +159,17 @@ class ImportScene():
         """ Render the scene in the blender view. """
         # First, add the empty NMS_SCENE object that everything will be a
         # child of
-        self._add_empty_to_scene('NMS_SCENE')
+        if self.parent_obj is None:
+            # TODO: probably don't need so many checks for this inside
+            # subsequent functions
+            self._add_empty_to_scene('NMS_SCENE')
         for obj in self.scene_node_data.iter():
             if obj.Type == 'MESH':
                 obj.metadata = self.mesh_metadata.get(obj.Name.upper())
                 self.load_mesh(obj)
                 self._add_mesh_to_scene(obj)
-            elif obj.Type == 'LOCATOR' or obj.Type == 'JOINT':
+            elif (obj.Type == 'LOCATOR' or obj.Type == 'JOINT'
+                  or obj.Type == 'REFERENCE'):
                 self._add_empty_to_scene(obj)
         self.state = {'FINISHED'}
 
@@ -152,7 +185,7 @@ class ImportScene():
             of a complete scene. This is used to indicate that a single mesh
             part is being rendered.
         """
-        if scene_node == 'NMS_SCENE':
+        if scene_node == 'NMS_SCENE' and self.parent_obj is None:
             # If the scene_node is simply 'NMS_SCENE' just add an empty and
             # return
             empty_mesh = bpy.data.meshes.new('NMS_SCENE')
@@ -170,7 +203,9 @@ class ImportScene():
         empty_obj.NMSNode_props.node_types = TYPE_MAP[scene_node.Type]
 
         if not standalone:
-            if scene_node.parent.Name is not None:
+            if self.parent_obj is not None and scene_node.parent.Name is None:
+                empty_obj.parent = self.parent_obj
+            elif scene_node.parent.Name is not None:
                 empty_obj.parent = self.scn.objects[scene_node.parent.Name]
             else:
                 empty_obj.parent = self.scn.objects['NMS_SCENE']
@@ -189,11 +224,21 @@ class ImportScene():
         self.scn.objects.link(empty_obj)
         self.scn.update()
 
-        if scene_node.parent.Name is None or standalone is True:
+        if ((scene_node.parent.Name is None and self.parent_obj is None)
+                or standalone is True):
             empty_obj.matrix_world = ROT_MATRIX * empty_obj.matrix_world
             bpy.ops.object.transform_apply(location=False,
                                            rotation=True,
                                            scale=False)
+
+        if scene_node.Type == 'REFERENCE':
+            # TODO: requires optimisation to re-use already loaded mesh data
+            # if a scene is referenced multiple times
+            mod_dir = get_NMS_dir(self.local_directory)
+            ref_scene_path = op.join(mod_dir,
+                                     scene_node.Attribute('SCENEGRAPH'))
+            sub_scene = ImportScene(ref_scene_path, empty_obj)
+            sub_scene.render_scene()
 
     def _add_mesh_to_scene(self, scene_node, standalone=False):
         """ Adds the given scene node data to the Blender scene.
@@ -219,7 +264,9 @@ class ImportScene():
 
         # give object correct parent
         if not standalone:
-            if scene_node.parent.Name is not None:
+            if self.parent_obj is not None and scene_node.parent.Name is None:
+                mesh_obj.parent = self.parent_obj
+            elif scene_node.parent.Name is not None:
                 mesh_obj.parent = self.scn.objects[scene_node.parent.Name]
             else:
                 mesh_obj.parent = self.scn.objects['NMS_SCENE']
@@ -244,8 +291,6 @@ class ImportScene():
         bpy.ops.object.mode_set(mode='EDIT')
         if not mesh.uv_textures:
             mesh.uv_textures.new()
-        # un-unwrap to generate a default mapping to overwrite
-        bpy.ops.uv.unwrap()
         bpy.ops.object.mode_set(mode='OBJECT')
 
         uvs = scene_node.verts[UVS]
@@ -266,7 +311,8 @@ class ImportScene():
                                            colour[1]/255,
                                            colour[2]/255)
 
-        if scene_node.parent.Name is None or standalone is True:
+        if ((scene_node.parent.Name is None and self.parent_obj is None)
+                or standalone is True):
             mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
             bpy.ops.object.transform_apply(location=False,
                                            rotation=True,
@@ -325,7 +371,9 @@ class ImportScene():
 
         # create the diffuse, mask and normal nodes and give them their images
         for tex_type, tex_path in mat_data['Samplers'].items():
-            img = bpy.data.images.load(self._get_path(tex_path))
+            img = None
+            if op.exists(self._get_path(tex_path)):
+                img = bpy.data.images.load(self._get_path(tex_path))
             if tex_type == DIFFUSE:
                 # texture
                 diffuse_texture = nodes.new(type='ShaderNodeTexImage')

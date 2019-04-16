@@ -474,17 +474,28 @@ class NMSPanels():
         bpy.utils.register_class(NMSCollisionProperties)
         bpy.utils.register_class(NMSDescriptorProperties)
         # link the properties with the objects' internal variables
-        bpy.types.Object.NMSNode_props = bpy.props.PointerProperty(type=NMSNodeProperties)  # noqa
-        bpy.types.Object.NMSScene_props = bpy.props.PointerProperty(type=NMSSceneProperties)  # noqa
-        bpy.types.Object.NMSMesh_props = bpy.props.PointerProperty(type=NMSMeshProperties)  # noqa
-        bpy.types.Object.NMSMaterial_props = bpy.props.PointerProperty(type=NMSMaterialProperties)  # noqa
-        bpy.types.Object.NMSReference_props = bpy.props.PointerProperty(type=NMSReferenceProperties)  # noqa
-        bpy.types.Object.NMSLocator_props = bpy.props.PointerProperty(type=NMSLocatorProperties)  # noqa
-        bpy.types.Object.NMSRotation_props = bpy.props.PointerProperty(type=NMSRotationProperties)  # noqa
-        bpy.types.Object.NMSLight_props = bpy.props.PointerProperty(type=NMSLightProperties)  # noqa
-        bpy.types.Object.NMSAnimation_props = bpy.props.PointerProperty(type=NMSAnimationProperties)  # noqa
-        bpy.types.Object.NMSCollision_props = bpy.props.PointerProperty(type=NMSCollisionProperties)  # noqa
-        bpy.types.Object.NMSDescriptor_props = bpy.props.PointerProperty(type=NMSDescriptorProperties)  # noqa
+        bpy.types.Object.NMSNode_props = bpy.props.PointerProperty(
+            type=NMSNodeProperties)
+        bpy.types.Object.NMSScene_props = bpy.props.PointerProperty(
+            type=NMSSceneProperties)
+        bpy.types.Object.NMSMesh_props = bpy.props.PointerProperty(
+            type=NMSMeshProperties)
+        bpy.types.Object.NMSMaterial_props = bpy.props.PointerProperty(
+            type=NMSMaterialProperties)
+        bpy.types.Object.NMSReference_props = bpy.props.PointerProperty(
+            type=NMSReferenceProperties)
+        bpy.types.Object.NMSLocator_props = bpy.props.PointerProperty(
+            type=NMSLocatorProperties)
+        bpy.types.Object.NMSRotation_props = bpy.props.PointerProperty(
+            type=NMSRotationProperties)
+        bpy.types.Object.NMSLight_props = bpy.props.PointerProperty(
+            type=NMSLightProperties)
+        bpy.types.Object.NMSAnimation_props = bpy.props.PointerProperty(
+            type=NMSAnimationProperties)
+        bpy.types.Object.NMSCollision_props = bpy.props.PointerProperty(
+            type=NMSCollisionProperties)
+        bpy.types.Object.NMSDescriptor_props = bpy.props.PointerProperty(
+            type=NMSDescriptorProperties)
         # register the panels
         bpy.utils.register_class(NMSScenePropertyPanel)
         bpy.utils.register_class(NMSNodePropertyPanel)

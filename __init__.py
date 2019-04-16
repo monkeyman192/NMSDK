@@ -1,5 +1,6 @@
 import bpy
-from .BlenderExtensions import NMSNodes, NMSEntities, NMSPanels, NMSShaderNode
+from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
+                                NMSShaderNode, SettingsPanels)
 from .addon_script import NMS_Export_Operator, NMS_Import_Operator
 
 from .NMSDK import ImportSceneOperator, ImportMeshOperator
@@ -39,6 +40,7 @@ def register():
     NMSShaderNode.register()
     customNodes.register()
     NMSEntities.register()
+    SettingsPanels.register()
     bpy.utils.register_class(ImportSceneOperator)
     bpy.utils.register_class(ImportMeshOperator)
 
@@ -52,5 +54,6 @@ def unregister():
     NMSShaderNode.unregister()
     customNodes.unregister()
     NMSEntities.unregister()
+    SettingsPanels.unregister()
     bpy.utils.unregister_class(ImportSceneOperator)
     bpy.utils.unregister_class(ImportMeshOperator)
