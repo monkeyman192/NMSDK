@@ -102,14 +102,9 @@ class ImportScene():
         # load all the mesh metadata
         self.mesh_metadata = read_metadata(self.geometry_file)
 
-        self._render_scene()
-
-        self.state = 'FINISHED'
-
 # region public methods
 
     def load_mesh(self, mesh_node):
-        # TODO: rename?? / make private??
         """ Load the mesh.
         This will load the mesh data into memory then deserialize the actual
         vertex and index data from the gstream mbin.
@@ -120,9 +115,43 @@ class ImportScene():
         mesh_node._generate_geometry()
         mesh_node._generate_bounded_hull(self.bh_data)
 
+    def render_mesh(self, mesh_ID):
+        """Render the specified mesh in the blender view. """
+        obj = self.scene_node_data.get(mesh_ID)
+        if obj.Type == 'MESH':
+            obj.metadata = self.mesh_metadata.get(mesh_ID.upper())
+            self.load_mesh(obj)
+            self._add_mesh_to_scene(obj, standalone=True)
+        elif obj.Type == 'LOCATOR' or obj.Type == 'JOINT':
+            self._add_empty_to_scene(obj, standalone=True)
+        self.state = {'FINISHED'}
+
+    def render_scene(self):
+        """ Render the scene in the blender view. """
+        # First, add the empty NMS_SCENE object that everything will be a
+        # child of
+        self._add_empty_to_scene('NMS_SCENE')
+        for obj in self.scene_node_data.iter():
+            if obj.Type == 'MESH':
+                obj.metadata = self.mesh_metadata.get(obj.Name.upper())
+                self.load_mesh(obj)
+                self._add_mesh_to_scene(obj)
+            elif obj.Type == 'LOCATOR' or obj.Type == 'JOINT':
+                self._add_empty_to_scene(obj)
+        self.state = {'FINISHED'}
+
 # region private methods
 
-    def _add_empty_to_scene(self, scene_node):
+    def _add_empty_to_scene(self, scene_node, standalone=False):
+        """ Adds the given scene node data to the Blender scene.
+
+        Parameters
+        ----------
+        standalone : bool
+            Whether or not the scene_node is provided by itself and not part
+            of a complete scene. This is used to indicate that a single mesh
+            part is being rendered.
+        """
         if scene_node == 'NMS_SCENE':
             # If the scene_node is simply 'NMS_SCENE' just add an empty and
             # return
@@ -140,10 +169,11 @@ class ImportScene():
         empty_obj = bpy.data.objects.new(name, empty_mesh)
         empty_obj.NMSNode_props.node_types = TYPE_MAP[scene_node.Type]
 
-        if scene_node.parent.Name is not None:
-            empty_obj.parent = self.scn.objects[scene_node.parent.Name]
-        else:
-            empty_obj.parent = self.scn.objects['NMS_SCENE']
+        if not standalone:
+            if scene_node.parent.Name is not None:
+                empty_obj.parent = self.scn.objects[scene_node.parent.Name]
+            else:
+                empty_obj.parent = self.scn.objects['NMS_SCENE']
 
         # get transform and apply
         transform = scene_node.Transform['Trans']
@@ -159,13 +189,22 @@ class ImportScene():
         self.scn.objects.link(empty_obj)
         self.scn.update()
 
-        if scene_node.parent.Name is None:
+        if scene_node.parent.Name is None or standalone is True:
             empty_obj.matrix_world = ROT_MATRIX * empty_obj.matrix_world
             bpy.ops.object.transform_apply(location=False,
                                            rotation=True,
                                            scale=False)
 
-    def _add_mesh_to_scene(self, scene_node):
+    def _add_mesh_to_scene(self, scene_node, standalone=False):
+        """ Adds the given scene node data to the Blender scene.
+
+        Parameters
+        ----------
+        standalone : bool
+            Whether or not the scene_node is provided by itself and not part
+            of a complete scene. This is used to indicate that a single mesh
+            part is being rendered.
+        """
         name = scene_node.Name
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(scene_node.verts[VERTS],
@@ -179,10 +218,11 @@ class ImportScene():
         mesh_obj.NMSNode_props.node_types = 'Mesh'
 
         # give object correct parent
-        if scene_node.parent.Name is not None:
-            mesh_obj.parent = self.scn.objects[scene_node.parent.Name]
-        else:
-            mesh_obj.parent = self.scn.objects['NMS_SCENE']
+        if not standalone:
+            if scene_node.parent.Name is not None:
+                mesh_obj.parent = self.scn.objects[scene_node.parent.Name]
+            else:
+                mesh_obj.parent = self.scn.objects['NMS_SCENE']
         # get transform and apply
         transform = scene_node.Transform['Trans']
         mesh_obj.location = Vector(transform)
@@ -226,7 +266,7 @@ class ImportScene():
                                            colour[1]/255,
                                            colour[2]/255)
 
-        if scene_node.parent.Name is None:
+        if scene_node.parent.Name is None or standalone is True:
             mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
             bpy.ops.object.transform_apply(location=False,
                                            rotation=True,
@@ -241,15 +281,16 @@ class ImportScene():
             mesh_obj.data.materials.append(material)
             mesh_obj.active_material = material
 
-        # create child object for bounded hull
-        name = 'BH' + name
-        mesh = bpy.data.meshes.new(name)
-        mesh.from_pydata(scene_node.bounded_hull, [], [])
-        bh_obj = bpy.data.objects.new(name, mesh)
-        # Don't show the bounded hull
-        bh_obj.hide = True
-        bh_obj.parent = mesh_obj
-        self.scn.objects.link(bh_obj)
+        if not standalone:
+            # create child object for bounded hull
+            name = 'BH' + name
+            mesh = bpy.data.meshes.new(name)
+            mesh.from_pydata(scene_node.bounded_hull, [], [])
+            bh_obj = bpy.data.objects.new(name, mesh)
+            # Don't show the bounded hull
+            bh_obj.hide = True
+            bh_obj.parent = mesh_obj
+            self.scn.objects.link(bh_obj)
 
     def _create_material(self, mat_path):
         # retrieve a cached copy if it exists
@@ -481,16 +522,3 @@ class ImportScene():
         tree = ET.parse(fpath)
         root = tree.getroot()
         self.data = element_to_dict(root)
-
-    def _render_scene(self):
-        """ Render the mesh in the blender view. """
-        # First, add the empty NMS_SCENE object that everything will be a
-        # child of
-        self._add_empty_to_scene('NMS_SCENE')
-        for obj in self.scene_node_data.iter():
-            if obj.Type == 'MESH':
-                obj.metadata = self.mesh_metadata.get(obj.Name.upper())
-                self.load_mesh(obj)
-                self._add_mesh_to_scene(obj)
-            elif obj.Type == 'LOCATOR' or obj.Type == 'JOINT':
-                self._add_empty_to_scene(obj)

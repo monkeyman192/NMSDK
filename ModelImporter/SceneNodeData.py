@@ -1,5 +1,6 @@
 import math
 
+
 class SceneNodeData():
     def __init__(self, info, parent=None):
         self.info = info
@@ -28,6 +29,14 @@ class SceneNodeData():
         for child in self.children:
             objs.extend(child.iter())
         return objs
+
+    def get(self, ID):
+        """ Return the SceneNodeData object with the specified ID. """
+        for obj in self.iter():
+            # Sanitize input ID for safety
+            if isinstance(obj.Name, str):
+                if obj.Name.upper() == ID.upper():
+                    return obj
 
 # region private methods
 
