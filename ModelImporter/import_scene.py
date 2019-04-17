@@ -43,8 +43,11 @@ class ImportScene():
         placed in.
         For scenes that are referenced by another scene this will be that
         reference object.
+    ref_scenes : dict
+        A dictionary with the path to another scene as the key, and the blender
+        object that has already been loaded as the value.
     """
-    def __init__(self, fpath, parent_obj=None):
+    def __init__(self, fpath, parent_obj=None, ref_scenes=dict()):
         print('loading {0}'.format(fpath))
         self.local_directory = op.dirname(fpath)
 
@@ -56,6 +59,7 @@ class ImportScene():
         ext = op.splitext(fpath)[1]
 
         self.parent_obj = parent_obj
+        self.ref_scenes = ref_scenes
 
         self.data = None
         self.vertex_elements = list()
@@ -237,7 +241,7 @@ class ImportScene():
             mod_dir = get_NMS_dir(self.local_directory)
             ref_scene_path = op.join(mod_dir,
                                      scene_node.Attribute('SCENEGRAPH'))
-            sub_scene = ImportScene(ref_scene_path, empty_obj)
+            sub_scene = ImportScene(ref_scene_path, empty_obj, self.ref_scenes)
             sub_scene.render_scene()
 
     def _add_mesh_to_scene(self, scene_node, standalone=False):
