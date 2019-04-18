@@ -48,24 +48,39 @@ class ImportScene():
         object that has already been loaded as the value.
     """
     def __init__(self, fpath, parent_obj=None, ref_scenes=dict()):
-        print('loading {0}'.format(fpath))
         self.local_directory = op.dirname(fpath)
-
-        # check to see if there already exists an exml file with the same name
-        if op.exists(fpath.upper().replace('.MBIN', '.EXML')):
-            print('using cached scene file')
-            fpath = fpath.upper().replace('.MBIN', '.EXML')
-
-        ext = op.splitext(fpath)[1]
 
         self.parent_obj = parent_obj
         self.ref_scenes = ref_scenes
+
+        self.requires_render = True
+        self.scn = bpy.context.scene
+
+        # Find the local name of the scene (relative to the NMS PCBANKS dir)
+        with open(fpath, 'rb') as fobj:
+            fobj.seek(0x60)
+            self.scene_name = fobj.read(0x80).decode().replace('\x00', '')
+
+        # To optimise loading of referenced scenes, check to see if the current
+        # scene has already been loaded into blender. If so, simply make a copy
+        # of the mesh object and place it appropriately.
+        if self.scene_name in self.ref_scenes:
+            self._add_existing_to_scene()
+            self.requires_render = False
+            return
+
+        self.ref_scenes[self.scene_name] = list()
+
+        # check to see if there already exists an exml file with the same name
+        if op.exists(fpath.upper().replace('.MBIN', '.EXML')):
+            fpath = fpath.upper().replace('.MBIN', '.EXML')
+
+        ext = op.splitext(fpath)[1]
 
         self.data = None
         self.vertex_elements = list()
         self.bh_data = list()
         self.materials = dict()
-        self.scn = bpy.context.scene
 
         # change to render with cycles
         self.scn.render.engine = 'CYCLES'
@@ -84,6 +99,8 @@ class ImportScene():
                     if retcode != 0:
                         print('MBINCompiler failed to run. Please ensure it '
                               'is registered on the path.')
+                        print('Import failed')
+                        return
                     fpath = fpath_dst.replace('.MBIN', '.EXML')
                     self._load_scene(fpath)
             else:
@@ -92,6 +109,8 @@ class ImportScene():
                 if retcode != 0:
                     print('MBINCompiler failed to run. Please ensure it is '
                           'registered on the path.')
+                    print('Import failed')
+                    return
                 fpath = fpath.replace('.MBIN', '.EXML')
                 self._load_scene(fpath)
         elif ext.lower() != '.exml':
@@ -194,6 +213,10 @@ class ImportScene():
             # return
             empty_mesh = bpy.data.meshes.new('NMS_SCENE')
             empty_obj = bpy.data.objects.new('NMS_SCENE', empty_mesh)
+            # check if the scene is proc-gen
+            descriptor_name = op.basename(self.scene_name) + '.DESCRIPTOR.MBIN'
+            if op.exists(op.join(self.local_directory, descriptor_name)):
+                empty_obj.NMSScene_props.is_proc = True
             self.scn.objects.link(empty_obj)
             self.scn.update()
             return
@@ -208,10 +231,14 @@ class ImportScene():
 
         if not standalone:
             if self.parent_obj is not None and scene_node.parent.Name is None:
+                # Direct child of the reference node
                 empty_obj.parent = self.parent_obj
+                self.ref_scenes[self.scene_name].append(empty_obj)
             elif scene_node.parent.Name is not None:
+                # Other child
                 empty_obj.parent = self.scn.objects[scene_node.parent.Name]
             else:
+                # Direct child of loaded scene
                 empty_obj.parent = self.scn.objects['NMS_SCENE']
 
         # get transform and apply
@@ -239,10 +266,22 @@ class ImportScene():
             # TODO: requires optimisation to re-use already loaded mesh data
             # if a scene is referenced multiple times
             mod_dir = get_NMS_dir(self.local_directory)
+            empty_obj.NMSReference_props.reference_path = scene_node.Attribute(
+                'SCENEGRAPH')
             ref_scene_path = op.join(mod_dir,
                                      scene_node.Attribute('SCENEGRAPH'))
             sub_scene = ImportScene(ref_scene_path, empty_obj, self.ref_scenes)
-            sub_scene.render_scene()
+            if sub_scene.requires_render:
+                sub_scene.render_scene()
+
+    def _add_existing_to_scene(self):
+        # existing is a list of child objects to the reference
+        existing = self.ref_scenes[self.scene_name]
+        # for each object
+        for obj in existing:
+            new_obj = obj.copy()
+            new_obj.parent = self.parent_obj
+            self.scn.objects.link(new_obj)
 
     def _add_mesh_to_scene(self, scene_node, standalone=False):
         """ Adds the given scene node data to the Blender scene.
@@ -269,10 +308,14 @@ class ImportScene():
         # give object correct parent
         if not standalone:
             if self.parent_obj is not None and scene_node.parent.Name is None:
+                # Direct child of reference node
                 mesh_obj.parent = self.parent_obj
+                self.ref_scenes[self.scene_name].append(mesh_obj)
             elif scene_node.parent.Name is not None:
+                # Other child
                 mesh_obj.parent = self.scn.objects[scene_node.parent.Name]
             else:
+                # Direct child of loaded scene
                 mesh_obj.parent = self.scn.objects['NMS_SCENE']
         # get transform and apply
         transform = scene_node.Transform['Trans']
@@ -346,8 +389,7 @@ class ImportScene():
         # retrieve a cached copy if it exists
         if mat_path in self.materials:
             return self.materials[mat_path]
-        # If not, first read the material file by converting the mbin path to
-        # exml
+        # Read the material data directly from the material MBIN
         mat_data = read_material(mat_path)
         if mat_data is None or mat_data == dict():
             # no texture data so just exit this function.

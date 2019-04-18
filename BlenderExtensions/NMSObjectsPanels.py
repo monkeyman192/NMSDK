@@ -205,8 +205,9 @@ class NMSReferencePropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (context.object.name.startswith("NMS") and
-                context.object.NMSNode_props.node_types == 'Reference'):
+        if (has_parent(context.object, 'NMS_SCENE') and
+                context.object.NMSNode_props.node_types == 'Reference' and not
+                context.object.name.startswith("NMS_SCENE")):
             return True
         else:
             return False
@@ -228,7 +229,7 @@ class NMSMaterialPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (context.object.name.startswith("NMS") and
+        if (has_parent(context.object, 'NMS_SCENE') and
                 context.object.NMSNode_props.node_types == 'Mesh' and not
                 context.object.name.startswith("NMS_SCENE")):
             return True
@@ -252,7 +253,7 @@ class NMSMeshPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (context.object.name.startswith("NMS") and
+        if (has_parent(context.object, 'NMS_SCENE') and
                 context.object.NMSNode_props.node_types == 'Mesh' and not
                 context.object.name.startswith("NMS_SCENE")):
             return True
@@ -278,8 +279,9 @@ class NMSAnimationPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (context.object.name.startswith("NMS") and
-                context.object.animation_data):
+        if (has_parent(context.object, 'NMS_SCENE') and
+                context.object.animation_data and not
+                context.object.name.startswith("NMS_SCENE")):
             if context.object.animation_data.action:
                 return True
             else:
@@ -306,8 +308,9 @@ class NMSLocatorPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (context.object.name.startswith("NMS") and
-                context.object.NMSNode_props.node_types == 'Locator'):
+        if (has_parent(context.object, 'NMS_SCENE') and
+                context.object.NMSNode_props.node_types == 'Locator' and not
+                context.object.name.startswith("NMS_SCENE")):
             return True
         else:
             return False
@@ -329,7 +332,9 @@ class NMSRotationPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if context.object.name.upper() == 'ROTATION':
+        if (has_parent(context.object, 'NMS_SCENE') and
+                context.object.name.upper() == 'ROTATION' and not
+                context.object.name.startswith("NMS_SCENE")):
             return True
         else:
             return False
@@ -351,8 +356,9 @@ class NMSLightPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (context.object.name.startswith("NMS") and
-                context.object.NMSNode_props.node_types == 'Light'):
+        if (has_parent(context.object, 'NMS_SCENE') and
+                context.object.NMSNode_props.node_types == 'Light' and not
+                context.object.name.startswith("NMS_SCENE")):
             return True
         else:
             return False
@@ -376,8 +382,9 @@ class NMSCollisionPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (context.object.name.startswith("NMS") and
-                context.object.NMSNode_props.node_types == 'Collision'):
+        if (has_parent(context.object, 'NMS_SCENE') and
+                context.object.NMSNode_props.node_types == 'Collision' and not
+                context.object.name.startswith("NMS_SCENE")):
             return True
         else:
             return False
@@ -437,7 +444,7 @@ class NMSDescriptorPropertyPanel(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         try:
-            if (context.object.name.startswith("NMS")
+            if (has_parent(context.object, 'NMS_SCENE')
                 and (context.object.NMSNode_props.node_types == 'Mesh' or
                      context.object.NMSNode_props.node_types == "Locator" or
                      context.object.NMSNode_props.node_types == "Reference")
