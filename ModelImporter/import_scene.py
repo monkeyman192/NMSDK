@@ -9,7 +9,7 @@ import shutil
 
 # Blender imports
 import bpy  # pylint: disable=import-error
-from mathutils import Matrix, Vector  # pylint: disable=import-error
+from mathutils import Matrix, Vector, Euler  # pylint: disable=import-error
 
 # Internal imports
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,
@@ -183,8 +183,8 @@ class ImportScene():
         # First, add the empty NMS_SCENE object that everything will be a
         # child of
         if self.parent_obj is None:
-            # TODO: probably don't need so many checks for this inside
-            # subsequent functions
+            # First, remove everything else in the scene
+            self._clear_prev_scene()
             self._add_empty_to_scene('NMS_SCENE')
         for obj in self.scene_node_data.iter():
             if obj.Type == 'MESH':
@@ -213,12 +213,14 @@ class ImportScene():
             # return
             empty_mesh = bpy.data.meshes.new('NMS_SCENE')
             empty_obj = bpy.data.objects.new('NMS_SCENE', empty_mesh)
+            empty_obj.matrix_world = ROT_MATRIX
+            self.scn.objects.link(empty_obj)
+            self.scn.objects.active = empty_obj
+            bpy.ops.object.mode_set(mode='OBJECT')
             # check if the scene is proc-gen
             descriptor_name = op.basename(self.scene_name) + '.DESCRIPTOR.MBIN'
             if op.exists(op.join(self.local_directory, descriptor_name)):
                 empty_obj.NMSScene_props.is_proc = True
-            self.scn.objects.link(empty_obj)
-            self.scn.update()
             return
 
         # Otherwise just assign everything as usual...
@@ -228,6 +230,17 @@ class ImportScene():
         empty_mesh = bpy.data.meshes.new(name)
         empty_obj = bpy.data.objects.new(name, empty_mesh)
         empty_obj.NMSNode_props.node_types = TYPE_MAP[scene_node.Type]
+
+        # get transform and apply
+        transform = scene_node.Transform['Trans']
+        empty_obj.location = Vector(transform)
+        # get rotation and apply
+        rotation = scene_node.Transform['Rot']
+        empty_obj.rotation_mode = 'ZXY'
+        empty_obj.rotation_euler = rotation
+        # get scale and apply
+        scale = scene_node.Transform['Scale']
+        empty_obj.scale = Vector(scale)
 
         if not standalone:
             if self.parent_obj is not None and scene_node.parent.Name is None:
@@ -240,27 +253,13 @@ class ImportScene():
             else:
                 # Direct child of loaded scene
                 empty_obj.parent = self.scn.objects['NMS_SCENE']
+        else:
+            empty_obj.matrix_world = ROT_MATRIX * empty_obj.matrix_world
 
-        # get transform and apply
-        transform = scene_node.Transform['Trans']
-        empty_obj.location = Vector(transform)
-        # get rotation and apply
-        rotation = scene_node.Transform['Rot']
-        empty_obj.rotation_euler = rotation
-        # get scale and apply
-        scale = scene_node.Transform['Scale']
-        empty_obj.scale = Vector(scale)
         # link the object then update the scene so that the above transforms
         # can be applied before we do the NMS -> blender scene rotation
         self.scn.objects.link(empty_obj)
         self.scn.update()
-
-        if ((scene_node.parent.Name is None and self.parent_obj is None)
-                or standalone is True):
-            empty_obj.matrix_world = ROT_MATRIX * empty_obj.matrix_world
-            bpy.ops.object.transform_apply(location=False,
-                                           rotation=True,
-                                           scale=False)
 
         if scene_node.Type == 'REFERENCE':
             # TODO: requires optimisation to re-use already loaded mesh data
@@ -305,6 +304,17 @@ class ImportScene():
         mesh_obj = bpy.data.objects.new(name, mesh)
         mesh_obj.NMSNode_props.node_types = 'Mesh'
 
+        # get transform and apply
+        transform = scene_node.Transform['Trans']
+        mesh_obj.location = Vector(transform)
+        # get rotation and apply
+        rotation = scene_node.Transform['Rot']
+        mesh_obj.rotation_mode = 'ZXY'
+        mesh_obj.rotation_euler = rotation
+        # get scale and apply
+        scale = scene_node.Transform['Scale']
+        mesh_obj.scale = Vector(scale)
+
         # give object correct parent
         if not standalone:
             if self.parent_obj is not None and scene_node.parent.Name is None:
@@ -313,19 +323,14 @@ class ImportScene():
                 self.ref_scenes[self.scene_name].append(mesh_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
-                mesh_obj.parent = self.scn.objects[scene_node.parent.Name]
+                parent_obj = self.scn.objects[scene_node.parent.Name]
+                mesh_obj.parent = parent_obj
             else:
                 # Direct child of loaded scene
                 mesh_obj.parent = self.scn.objects['NMS_SCENE']
-        # get transform and apply
-        transform = scene_node.Transform['Trans']
-        mesh_obj.location = Vector(transform)
-        # get rotation and apply
-        rotation = scene_node.Transform['Rot']
-        mesh_obj.rotation_euler = rotation
-        # get scale and apply
-        scale = scene_node.Transform['Scale']
-        mesh_obj.scale = Vector(scale)
+        else:
+            mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
+
         # link the object then update the scene so that the above transforms
         # can be applied before we do the NMS -> blender scene rotation
         self.scn.objects.link(mesh_obj)
@@ -358,13 +363,6 @@ class ImportScene():
                                            colour[1]/255,
                                            colour[2]/255)
 
-        if ((scene_node.parent.Name is None and self.parent_obj is None)
-                or standalone is True):
-            mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
-            bpy.ops.object.transform_apply(location=False,
-                                           rotation=True,
-                                           scale=False)
-
         # sort out materials
         mat_path = self._get_material_path(scene_node)
         material = None
@@ -384,6 +382,15 @@ class ImportScene():
             bh_obj.hide = True
             bh_obj.parent = mesh_obj
             self.scn.objects.link(bh_obj)
+
+    def _clear_prev_scene(self):
+        """ Remove any existing data in the blender scene. """
+        for obj in bpy.data.objects:
+            bpy.data.objects.remove(obj)
+        for mesh in bpy.data.meshes:
+            bpy.data.meshes.remove(mesh)
+        for mat in bpy.data.materials:
+            bpy.data.materials.remove(mat)
 
     def _create_material(self, mat_path):
         # retrieve a cached copy if it exists

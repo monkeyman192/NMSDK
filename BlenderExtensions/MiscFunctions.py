@@ -42,6 +42,8 @@ def ContinuousCompare(lst, tol):
 
 def has_parent(obj, parent_name):
     """ Determine if the object has a parent with the supplied name."""
+    if obj.parent is None:
+        return False
     if obj.parent.name is None:
         return False
     elif obj.parent.name == parent_name:
