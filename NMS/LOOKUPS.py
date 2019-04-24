@@ -34,9 +34,10 @@ TANGS = 3
 COLOUR = 4
 
 # Material types
-DIFFUSE = 0
-MASKS = 1
-NORMAL = 2
+DIFFUSE = 'gDiffuseMap'
+DIFFUSE2 = 'gDiffuse2Map'
+MASKS = 'gMasksMap'
+NORMAL = 'gNormalMap'
 
 SEMANTICS = {'Vertices': VERTS,
              'UVs': UVS,

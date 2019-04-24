@@ -11,6 +11,12 @@ class ImportSettings(bpy.types.PropertyGroup):
                     'If this is checked, viewing models that have previously '
                     'been viewed will be faster.',
         default=True)
+    draw_hulls = BoolProperty(
+        name='Draw bounded hulls',
+        description='Whether or not to draw the points that make up the '
+                    'bounded hulls of the materials. This is only for research'
+                    '/debugging, so can safely be left as False.',
+        default=False)
 
 
 class ImportSettingsPanel(bpy.types.Panel):
@@ -30,6 +36,8 @@ class ImportSettingsPanel(bpy.types.Panel):
         scene = context.scene
         row = layout.row()
         row.prop(scene.NMSDK_import_settings, "cache_exml")
+        row = layout.row()
+        row.prop(scene.NMSDK_import_settings, "draw_hulls")
 
 
 class SettingsPanels():

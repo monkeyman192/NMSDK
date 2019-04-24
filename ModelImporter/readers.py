@@ -7,11 +7,6 @@ from .utils import element_to_dict
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL
 
 
-MATERIAL_TYPE_MAP = {'gDiffuseMap': DIFFUSE,
-                     'gMasksMap': MASKS,
-                     'gNormalMap': NORMAL}
-
-
 def read_material(fname):
     """ Reads the textures and types from a material file.
 
@@ -55,14 +50,9 @@ def read_material(fname):
         for i in range(list_count):
             name = struct.unpack('32s', f.read(0x20))[0].split(b'\x00')[0]
             name = name.decode()
-            if name in MATERIAL_TYPE_MAP:
-                Map = struct.unpack('128s', f.read(0x80))[0].split(b'\x00')[0]
-                Map = Map.decode()
-                data['Samplers'][MATERIAL_TYPE_MAP[name]] = Map
-            else:
-                # skip the data
-                # TODO: Read anyway?
-                f.seek(0x80, 1)
+            Map = struct.unpack('128s', f.read(0x80))[0].split(b'\x00')[0]
+            Map = Map.decode()
+            data['Samplers'][name] = Map
             if i != list_count - 1:
                 f.seek(0x38, 1)
 

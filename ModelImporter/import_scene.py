@@ -15,7 +15,8 @@ from mathutils import Matrix, Vector, Euler  # pylint: disable=import-error
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,
                                      bytes_to_int_2_10_10_10_rev)
 from ..serialization.utils import read_list_header
-from ..NMS.LOOKUPS import VERTS, NORMS, UVS, DIFFUSE, MASKS, NORMAL, COLOUR
+from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOUR
+from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2
 from .readers import read_material, read_metadata, read_gstream
 from .utils import element_to_dict
 from .SceneNodeData import SceneNodeData
@@ -379,11 +380,12 @@ class ImportScene():
         material = None
         if mat_path is not None:
             material = self._create_material(mat_path)
+            mesh_obj.NMSMesh_props.material_path = scene_node.Attribute('MATERIAL')  # noqa
         if material is not None:
             mesh_obj.data.materials.append(material)
             mesh_obj.active_material = material
 
-        if not standalone:
+        if bpy.context.scene.NMSDK_import_settings.draw_hulls:
             # create child object for bounded hull
             name = 'BH' + name
             mesh = bpy.data.meshes.new(name)
@@ -432,35 +434,68 @@ class ImportScene():
         principled_BSDF = nodes.new(type='ShaderNodeBsdfPrincipled')
         principled_BSDF.location = (200, 150)
         principled_BSDF.inputs['Roughness'].default_value = 1.0
-        links.new(output_material.inputs['Surface'],
-                  principled_BSDF.outputs['BSDF'])
+
+        # Set up some constants
+        if 61 in mat_data['Flags']:
+            kfAlphaThreshold = 0.1
+        elif 10 in mat_data['Flags']:
+            kfAlphaThreshold = 0.45
+        else:
+            kfAlphaThreshold = 0.0001
 
         # create the diffuse, mask and normal nodes and give them their images
         for tex_type, tex_path in mat_data['Samplers'].items():
             img = None
-            if op.exists(self._get_path(tex_path)):
-                img = bpy.data.images.load(self._get_path(tex_path))
             if tex_type == DIFFUSE:
                 # texture
+                _path = self._get_path(tex_path)
+                if op.exists(_path):
+                    img = bpy.data.images.load(_path)
                 diffuse_texture = nodes.new(type='ShaderNodeTexImage')
                 diffuse_texture.name = diffuse_texture.label = 'Texture Image - Diffuse'  # noqa
                 diffuse_texture.image = img
-                diffuse_texture.location = (-200, 300)
-                if 20 in mat_data['Flags']:
+                diffuse_texture.location = (-600, 300)
+                lColourVec4 = diffuse_texture.outputs['Color']
+                if 15 in mat_data['Flags']:
+                    # #ifdef _F16_DIFFUSE2MAP
+                    if 16 not in mat_data['Flags']:
+                        # #ifndef _F17_MULTIPLYDIFFUSE2MAP
+                        diffuse2_path = self._get_path(
+                            mat_data['Samplers'][DIFFUSE2])
+                        if op.exists(diffuse2_path):
+                            img = bpy.data.images.load(diffuse2_path)
+                        diffuse2_texture = nodes.new(type='ShaderNodeTexImage')
+                        diffuse2_texture.name = diffuse_texture.label = 'Texture Image - Diffuse2'  # noqa
+                        diffuse2_texture.image = img
+                        diffuse2_texture.location = (-400, 300)
+                        mix_diffuse = nodes.new(type='ShaderNodeMixRGB')
+                        mix_diffuse.location = (-200, 300)
+                        links.new(mix_diffuse.inputs['Color1'],
+                                  lColourVec4)
+                        links.new(mix_diffuse.inputs['Color2'],
+                                  diffuse2_texture.outputs['Color'])
+                        links.new(mix_diffuse.inputs['Fac'],
+                                  diffuse2_texture.outputs['Alpha'])
+                        lColourVec4 = mix_diffuse.outputs['Color']
+                    else:
+                        print('Note: Please post on discord the model you are'
+                              ' importing so I can fix this!!!')
+
+                if 20 in mat_data['Flags'] or 28 in mat_data['Flags']:
                     # #ifdef _F21_VERTEXCOLOUR
                     # lColourVec4 *= IN( mColourVec4 );
                     col_attribute = nodes.new(type='ShaderNodeAttribute')
                     col_attribute.attribute_name = 'Col'
                     mix_colour = nodes.new(type='ShaderNodeMixRGB')
                     links.new(mix_colour.inputs['Color1'],
-                              diffuse_texture.outputs['Color'])
+                              lColourVec4)
                     links.new(mix_colour.inputs['Color2'],
                               col_attribute.outputs['Color'])
                     links.new(principled_BSDF.inputs['Base Color'],
                               mix_colour.outputs['Color'])
                 else:
                     links.new(principled_BSDF.inputs['Base Color'],
-                              diffuse_texture.outputs['Color'])
+                              lColourVec4)
                 # #ifndef _F44_IMPOSTER
                 if 43 not in mat_data['Flags']:
                     # #ifdef _F39_METALLIC_MASK
@@ -471,31 +506,67 @@ class ImportScene():
                         # use the default value from the file
                         if 'gMaterialParamsVec4' in uniforms:
                             principled_BSDF.inputs['Metallic'].default_value = uniforms['gMaterialParamsVec4'][2]  # noqa
+                if (8 in mat_data['Flags'] or 10 in mat_data['Flags'] or
+                        21 in mat_data['Flags']):
+                    # Handle transparency
+                    alpha_mix = nodes.new(type='ShaderNodeMixShader')
+                    alpha_shader = nodes.new(type='ShaderNodeBsdfTransparent')
+                    discard_node = nodes.new(type="ShaderNodeMath")
+                    discard_node.operation = 'LESS_THAN'
+                    discard_node.inputs[1].default_value = kfAlphaThreshold
+                    links.new(discard_node.inputs[0],
+                              diffuse_texture.outputs['Alpha'])
+                    links.new(alpha_mix.inputs['Fac'],
+                              discard_node.outputs['Value'])
+                    links.new(alpha_mix.inputs[1],
+                              principled_BSDF.outputs['BSDF'])
+                    links.new(alpha_mix.inputs[2],
+                              alpha_shader.outputs['BSDF'])
+                    FRAGMENT_COLOUR0 = alpha_mix.outputs['Shader']
+                else:
+                    FRAGMENT_COLOUR0 = principled_BSDF.outputs['BSDF']
             elif tex_type == MASKS:
                 # texture
+                _path = self._get_path(tex_path)
+                if op.exists(_path):
+                    img = bpy.data.images.load(_path)
                 mask_texture = nodes.new(type='ShaderNodeTexImage')
                 mask_texture.name = mask_texture.label = 'Texture Image - Mask'
                 mask_texture.image = img
-                mask_texture.location = (-400, 0)
+                mask_texture.location = (-600, 0)
                 mask_texture.color_space = 'NONE'
-                # RGB separation node
-                separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
-                separate_rgb.location = (-200, 0)
-                # subtract the green channel from 1:
-                sub_1 = nodes.new(type="ShaderNodeMath")
-                sub_1.operation = 'SUBTRACT'
-                sub_1.location = (0, 0)
-                sub_1.inputs[0].default_value = 1.0
-                # link them up
-                links.new(separate_rgb.inputs['Image'],
-                          mask_texture.outputs['Color'])
-                # from shader: #ifdef _F25_ROUGHNESS_MASK
-                # lfRoughness = 1 - lMasks.g
-                if 24 in mat_data['Flags']:
-                    links.new(sub_1.inputs[1], separate_rgb.outputs['G'])
-                    links.new(principled_BSDF.inputs['Roughness'],
-                              sub_1.outputs['Value'])
-                # TODO: add mutlipication node to multiply value by
+                if 43 not in mat_data['Flags']:
+                    # #ifndef _F44_IMPOSTER
+                    if 24 in mat_data['Flags']:
+                        # #ifdef _F25_ROUGHNESS_MASK
+                        # lfRoughness = 1 - lMasks.g
+                        # RGB separation node
+                        separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
+                        separate_rgb.location = (-400, 0)
+                        # subtract the green channel from 1:
+                        sub_1 = nodes.new(type="ShaderNodeMath")
+                        sub_1.operation = 'SUBTRACT'
+                        sub_1.location = (-200, 0)
+                        sub_1.inputs[0].default_value = 1.0
+                        lfRoughness = sub_1.outputs['Value']
+                        # link them up
+                        links.new(separate_rgb.inputs['Image'],
+                                  mask_texture.outputs['Color'])
+                        links.new(sub_1.inputs[1], separate_rgb.outputs['G'])
+                    else:
+                        roughness_value = nodes.new(type='ShaderNodeValue')
+                        roughness_value.outputs[0].default_value = 1.0
+                        lfRoughness = roughness_value.outputs['Value']
+                    # lfRoughness *= lUniforms.mpCustomPerMaterial->gMaterialParamsVec4.x;  # noqa
+                    mult_param_x = nodes.new(type="ShaderNodeMath")
+                    mult_param_x.operation = 'MULTIPLY'
+                    mult_param_x.inputs[1].default_value = uniforms[
+                        'gMaterialParamsVec4'][0]
+                    links.new(mult_param_x.inputs[0], lfRoughness)
+                    lfRoughness = mult_param_x.outputs['Value']
+                links.new(principled_BSDF.inputs['Roughness'],
+                          lfRoughness)
+
                 # gMaterialParamsVec4.x
                 # from shader: #ifdef _F40_SUBSURFACE_MASK
                 if 39 in mat_data['Flags']:
@@ -508,6 +579,9 @@ class ImportScene():
 
             elif tex_type == NORMAL:
                 # texture
+                _path = self._get_path(tex_path)
+                if op.exists(_path):
+                    img = bpy.data.images.load(_path)
                 normal_texture = nodes.new(type='ShaderNodeTexImage')
                 normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
                 normal_texture.image = img
@@ -550,6 +624,25 @@ class ImportScene():
                               tex_coord.outputs['Generated'])
                     links.new(normal_texture.inputs['Vector'],
                               normal_scale.outputs['Vector'])
+
+        # Apply some fnial transforms to the data before connecting it to the
+        # Material output node
+        if 50 in mat_data['Flags']:
+            # #ifdef _F51_DECAL_DIFFUSE
+            # FRAGMENT_COLOUR0 = vec4( lOutColours0Vec4.xyz, lColourVec4.a );
+            alpha_mix_decal = nodes.new(type='ShaderNodeMixShader')
+            alpha_shader = nodes.new(type='ShaderNodeBsdfTransparent')
+            links.new(alpha_mix_decal.inputs['Fac'],
+                      diffuse_texture.outputs['Alpha'])
+            links.new(alpha_mix_decal.inputs[1],
+                      alpha_shader.outputs['BSDF'])
+            links.new(alpha_mix_decal.inputs[2],
+                      FRAGMENT_COLOUR0)
+            FRAGMENT_COLOUR0 = alpha_mix_decal.outputs['Shader']
+
+        # FInally, link the fragment colour to the output material
+        links.new(output_material.inputs['Surface'],
+                  FRAGMENT_COLOUR0)
 
         # link some nodes up according to the uberfragment.bin shader
         if 6 in mat_data['Flags']:
