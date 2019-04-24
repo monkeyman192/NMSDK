@@ -1,7 +1,7 @@
 # All the custom panels and properties for all the different object types
 
 import bpy
-from bpy.props import (StringProperty, BoolProperty, EnumProperty,
+from bpy.props import (StringProperty, BoolProperty, EnumProperty,  # noqa pylint: disable=import-error, no-name-in-module
                        FloatProperty, IntVectorProperty)
 from .MiscFunctions import has_parent
 

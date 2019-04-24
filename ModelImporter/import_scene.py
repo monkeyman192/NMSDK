@@ -9,18 +9,18 @@ import shutil
 
 # Blender imports
 import bpy  # pylint: disable=import-error
-from mathutils import Matrix, Vector, Euler  # pylint: disable=import-error
+from mathutils import Matrix, Vector  # pylint: disable=import-error
 
 # Internal imports
-from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,
+from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
                                      bytes_to_int_2_10_10_10_rev)
-from ..serialization.utils import read_list_header
-from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOUR
-from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2
-from .readers import read_material, read_metadata, read_gstream
-from .utils import element_to_dict
-from .SceneNodeData import SceneNodeData
-from ..utils.io import get_NMS_dir
+from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
+from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOUR  # noqa pylint: disable=relative-beyond-top-level
+from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
+from .readers import read_material, read_metadata, read_gstream  # noqa pylint: disable=relative-beyond-top-level
+from .utils import element_to_dict  # noqa pylint: disable=relative-beyond-top-level
+from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
+from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
 
 VERT_TYPE_MAP = {5121: {'size': 1, 'func': bytes_to_ubyte},
                  5131: {'size': 2, 'func': bytes_to_half},

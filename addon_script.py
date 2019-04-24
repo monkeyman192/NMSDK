@@ -10,7 +10,7 @@ from mathutils import Matrix, Vector  # pylint: disable=import-error
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
 from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
-from bpy.types import Operator  # pylint: disable=import-error
+from bpy.types import Operator  # noqa pylint: disable=import-error, no-name-in-module
 # Internal imports
 from .BlenderExtensions import NMSNodes, CompareMatrices, ContinuousCompare
 from .ModelExporter.utils import (get_all_actions, apply_local_transforms,

@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import (StringProperty, BoolProperty, EnumProperty, IntProperty,
+from bpy.props import (StringProperty, BoolProperty, EnumProperty, IntProperty,  # noqa pylint: disable=import-error, no-name-in-module
                        FloatProperty, PointerProperty, CollectionProperty)
 
 

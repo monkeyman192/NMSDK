@@ -1,10 +1,8 @@
 import struct
-import xml.etree.ElementTree as ET
 from collections import namedtuple
 
-from ..serialization.utils import read_list_header
-from .utils import element_to_dict
-from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL
+from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
+from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL  # noqa pylint: disable=relative-beyond-top-level
 
 
 def read_material(fname):

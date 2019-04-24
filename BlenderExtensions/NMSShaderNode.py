@@ -3,10 +3,10 @@
 # Heavy WIP!!!
 
 import bpy
-from bpy.props import BoolProperty
-from nodeitems_utils import (NodeItem, register_node_categories,
+from bpy.props import BoolProperty  # noqa pylint: disable=import-error, no-name-in-module
+from nodeitems_utils import (NodeItem, register_node_categories,  # noqa pylint: disable=import-error, no-name-in-module
                              unregister_node_categories)
-from nodeitems_builtins import ShaderNewNodeCategory
+from nodeitems_builtins import ShaderNewNodeCategory  # noqa pylint: disable=import-error, no-name-in-module
 
 
 FLAGS = [('_F01_DIFFUSEMAP', 'Diffuse Map', 'Diffuse Map'),

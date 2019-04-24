@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import StringProperty
+from bpy.props import StringProperty  # noqa pylint: disable=import-error, no-name-in-module
 
 from .ModelImporter.import_scene import ImportScene
 
