@@ -52,7 +52,6 @@ classes/__pycache__/*
 classes/*.pyc
 __pycache__/
 textures/*
-nms_imp/test.py
 
 # blender file backups
 *.blend1

@@ -1,39 +1,32 @@
 import bpy
-from BlenderExtensions import NMSNodes, NMSEntities, NMSPanels
-from addon_script import NMS_Export_Operator
+from bpy.props import StringProperty  # noqa pylint: disable=import-error, no-name-in-module
 
-customNodes = NMSNodes()
-
-bl_info = {
-    "name": "No Man's Sky Development Kit",
-    "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 3),
-    "blender": (2, 77, 0),
-    "location": "File > Export",
-    "description": "Create NMS scene structures and export to NMS File format",
-    "warning": "",
-    "wiki_url": "https://github.com/monkeyman192/NMSDK/wiki",
-    "tracker_url": "https://github.com/monkeyman192/NMSDK/issues",
-    "category": "Export"}
+from .ModelImporter.import_scene import ImportScene
 
 
-# Only needed if you want to add into a dynamic menu
-def menu_func_export(self, context):
-    self.layout.operator(NMS_Export_Operator.bl_idname,
-                         text="Export to NMS XML Format ")
+class ImportSceneOperator(bpy.types.Operator):
+    """ Import an entire scene into the current blender context."""
+    bl_idname = "nmsdk.import_scene"
+    bl_label = "Import NMS Scene file"
+
+    path = StringProperty(default="")
+
+    def execute(self, context):
+        importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict())
+        importer.render_scene()
+        return importer.state
 
 
-def register():
-    bpy.utils.register_class(NMS_Export_Operator)
-    bpy.types.INFO_MT_file_export.append(menu_func_export)
-    NMSPanels.register()
-    customNodes.register()
-    NMSEntities.register()
+class ImportMeshOperator(bpy.types.Operator):
+    """ Import one or more individual meshes from a single scene into the
+    current blender context. """
+    bl_idname = "nmsdk.import_mesh"
+    bl_label = "Import NMS meshes"
 
+    path = StringProperty(default="")
+    mesh_id = StringProperty(default="")
 
-def unregister():
-    bpy.utils.unregister_class(NMS_Export_Operator)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export)
-    NMSPanels.unregister()
-    customNodes.unregister()
-    NMSEntities.unregister()
+    def execute(self, context):
+        importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict())
+        importer.render_mesh(str(self.mesh_id))
+        return importer.state

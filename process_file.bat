@@ -1,1 +1,1 @@
-blender --background testcube.blend --python export.py
+blender --background testcube.blend --python /ModelExporter/cmd_export.py

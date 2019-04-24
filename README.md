@@ -14,7 +14,7 @@ The best way to install NMSDK is to clone the github repo using your favorite gi
 By cloning the repo into this folder any time there is an update you can simply pull the most recent branch and the plugin will automatically be updated in blender (you will need to close to have changes applied).
 You also shouldn't need to actually install the plugin, it shoudl be visible in the list once the source code has been copied to the directory above.
 
- - First, ensure you also have a recent copy of [MBINCompiler](https://github.com/monkeyman192/MBINCompiler/releases) placed in the `nms_imp` folder.
+ - First, ensure you also have a recent copy of [MBINCompiler](https://github.com/monkeyman192/MBINCompiler/releases) placed in the `NMSDK` folder.
  - Open Blender, then navigate to the Add-on settings (File > User Preferences). Select the option to "Install from File", and select the `NMSDK.py` file in the root blender directory.
  - You're done and can now start on importing a model into the game!
  
