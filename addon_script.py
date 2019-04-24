@@ -1170,10 +1170,11 @@ class NMS_Import_Operator(Operator, ImportHelper):
     def execute(self, context):
         fdir = self.properties.filepath
         print(fdir)
-        importer = ImportScene(fdir)
+        importer = ImportScene(fdir, parent_obj=None, ref_scenes=dict())
         importer.render_scene()
         status = importer.state
         self.report({'INFO'}, "Models Imported Successfully")
+        print('Scene imported!')
         if status:
             return {'FINISHED'}
         else:

@@ -52,6 +52,11 @@ class ImportScene():
 
         self.parent_obj = parent_obj
         self.ref_scenes = ref_scenes
+        # When scenes contain reference nodes there can be clashes with names.
+        # To ensure correct parenting of objects in blender, we will keep track
+        # of what objects exist within a scene as there will be no name clashes
+        # within each scene.
+        self.local_objects = dict()
 
         self.requires_render = True
         self.scn = bpy.context.scene
@@ -60,6 +65,7 @@ class ImportScene():
         with open(fpath, 'rb') as fobj:
             fobj.seek(0x60)
             self.scene_name = fobj.read(0x80).decode().replace('\x00', '')
+        print('Loading {0}'.format(self.scene_name))
 
         # To optimise loading of referenced scenes, check to see if the current
         # scene has already been loaded into blender. If so, simply make a copy
@@ -221,6 +227,7 @@ class ImportScene():
             descriptor_name = op.basename(self.scene_name) + '.DESCRIPTOR.MBIN'
             if op.exists(op.join(self.local_directory, descriptor_name)):
                 empty_obj.NMSScene_props.is_proc = True
+            self.local_objects['NMS_SCENE'] = empty_obj
             return
 
         # Otherwise just assign everything as usual...
@@ -242,6 +249,8 @@ class ImportScene():
         scale = scene_node.Transform['Scale']
         empty_obj.scale = Vector(scale)
 
+        self.local_objects[name] = empty_obj
+
         if not standalone:
             if self.parent_obj is not None and scene_node.parent.Name is None:
                 # Direct child of the reference node
@@ -249,10 +258,10 @@ class ImportScene():
                 self.ref_scenes[self.scene_name].append(empty_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
-                empty_obj.parent = self.scn.objects[scene_node.parent.Name]
+                empty_obj.parent = self.local_objects[scene_node.parent.Name]
             else:
                 # Direct child of loaded scene
-                empty_obj.parent = self.scn.objects['NMS_SCENE']
+                empty_obj.parent = self.local_objects['NMS_SCENE']
         else:
             empty_obj.matrix_world = ROT_MATRIX * empty_obj.matrix_world
 
@@ -315,6 +324,8 @@ class ImportScene():
         scale = scene_node.Transform['Scale']
         mesh_obj.scale = Vector(scale)
 
+        self.local_objects[name] = mesh_obj
+
         # give object correct parent
         if not standalone:
             if self.parent_obj is not None and scene_node.parent.Name is None:
@@ -323,11 +334,11 @@ class ImportScene():
                 self.ref_scenes[self.scene_name].append(mesh_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
-                parent_obj = self.scn.objects[scene_node.parent.Name]
+                parent_obj = self.local_objects[scene_node.parent.Name]
                 mesh_obj.parent = parent_obj
             else:
                 # Direct child of loaded scene
-                mesh_obj.parent = self.scn.objects['NMS_SCENE']
+                mesh_obj.parent = self.local_objects['NMS_SCENE']
         else:
             mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
 
@@ -391,6 +402,8 @@ class ImportScene():
             bpy.data.meshes.remove(mesh)
         for mat in bpy.data.materials:
             bpy.data.materials.remove(mat)
+        for img in bpy.data.images:
+            bpy.data.images.remove(img)
 
     def _create_material(self, mat_path):
         # retrieve a cached copy if it exists

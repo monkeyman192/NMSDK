@@ -12,7 +12,7 @@ class ImportSceneOperator(bpy.types.Operator):
     path = StringProperty(default="")
 
     def execute(self, context):
-        importer = ImportScene(self.path)
+        importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict())
         importer.render_scene()
         return importer.state
 
@@ -27,6 +27,6 @@ class ImportMeshOperator(bpy.types.Operator):
     mesh_id = StringProperty(default="")
 
     def execute(self, context):
-        importer = ImportScene(self.path)
+        importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict())
         importer.render_mesh(str(self.mesh_id))
         return importer.state
