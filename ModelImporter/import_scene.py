@@ -434,6 +434,7 @@ class ImportScene():
         principled_BSDF = nodes.new(type='ShaderNodeBsdfPrincipled')
         principled_BSDF.location = (200, 150)
         principled_BSDF.inputs['Roughness'].default_value = 1.0
+        FRAGMENT_COLOUR0 = principled_BSDF.outputs['BSDF']
 
         # Set up some constants
         if 61 in mat_data['Flags']:
@@ -442,6 +443,14 @@ class ImportScene():
             kfAlphaThreshold = 0.45
         else:
             kfAlphaThreshold = 0.0001
+
+        if 0 not in mat_data['Flags']:
+            rgb_input = nodes.new(type='ShaderNodeRGB')
+            rgb_input.outputs[0].default_value[0] = uniforms['gMaterialColourVec4'][0]  # noqa
+            rgb_input.outputs[0].default_value[1] = uniforms['gMaterialColourVec4'][1]  # noqa
+            rgb_input.outputs[0].default_value[2] = uniforms['gMaterialColourVec4'][2]  # noqa
+            rgb_input.outputs[0].default_value[3] = uniforms['gMaterialColourVec4'][3]  # noqa
+            lColourVec4 = rgb_input.outputs['Color']
 
         # create the diffuse, mask and normal nodes and give them their images
         for tex_type, tex_path in mat_data['Samplers'].items():
@@ -480,22 +489,6 @@ class ImportScene():
                     else:
                         print('Note: Please post on discord the model you are'
                               ' importing so I can fix this!!!')
-
-                if 20 in mat_data['Flags'] or 28 in mat_data['Flags']:
-                    # #ifdef _F21_VERTEXCOLOUR
-                    # lColourVec4 *= IN( mColourVec4 );
-                    col_attribute = nodes.new(type='ShaderNodeAttribute')
-                    col_attribute.attribute_name = 'Col'
-                    mix_colour = nodes.new(type='ShaderNodeMixRGB')
-                    links.new(mix_colour.inputs['Color1'],
-                              lColourVec4)
-                    links.new(mix_colour.inputs['Color2'],
-                              col_attribute.outputs['Color'])
-                    links.new(principled_BSDF.inputs['Base Color'],
-                              mix_colour.outputs['Color'])
-                else:
-                    links.new(principled_BSDF.inputs['Base Color'],
-                              lColourVec4)
                 # #ifndef _F44_IMPOSTER
                 if 43 not in mat_data['Flags']:
                     # #ifdef _F39_METALLIC_MASK
@@ -506,25 +499,6 @@ class ImportScene():
                         # use the default value from the file
                         if 'gMaterialParamsVec4' in uniforms:
                             principled_BSDF.inputs['Metallic'].default_value = uniforms['gMaterialParamsVec4'][2]  # noqa
-                if (8 in mat_data['Flags'] or 10 in mat_data['Flags'] or
-                        21 in mat_data['Flags']):
-                    # Handle transparency
-                    alpha_mix = nodes.new(type='ShaderNodeMixShader')
-                    alpha_shader = nodes.new(type='ShaderNodeBsdfTransparent')
-                    discard_node = nodes.new(type="ShaderNodeMath")
-                    discard_node.operation = 'LESS_THAN'
-                    discard_node.inputs[1].default_value = kfAlphaThreshold
-                    links.new(discard_node.inputs[0],
-                              diffuse_texture.outputs['Alpha'])
-                    links.new(alpha_mix.inputs['Fac'],
-                              discard_node.outputs['Value'])
-                    links.new(alpha_mix.inputs[1],
-                              principled_BSDF.outputs['BSDF'])
-                    links.new(alpha_mix.inputs[2],
-                              alpha_shader.outputs['BSDF'])
-                    FRAGMENT_COLOUR0 = alpha_mix.outputs['Shader']
-                else:
-                    FRAGMENT_COLOUR0 = principled_BSDF.outputs['BSDF']
             elif tex_type == MASKS:
                 # texture
                 _path = self._get_path(tex_path)
@@ -625,8 +599,52 @@ class ImportScene():
                     links.new(normal_texture.inputs['Vector'],
                               normal_scale.outputs['Vector'])
 
-        # Apply some fnial transforms to the data before connecting it to the
+        # Apply some final transforms to the data before connecting it to the
         # Material output node
+
+        if 20 in mat_data['Flags'] or 28 in mat_data['Flags']:
+            # #ifdef _F21_VERTEXCOLOUR
+            # lColourVec4 *= IN( mColourVec4 );
+            col_attribute = nodes.new(type='ShaderNodeAttribute')
+            col_attribute.attribute_name = 'Col'
+            mix_colour = nodes.new(type='ShaderNodeMixRGB')
+            links.new(mix_colour.inputs['Color1'],
+                      lColourVec4)
+            links.new(mix_colour.inputs['Color2'],
+                      col_attribute.outputs['Color'])
+            links.new(principled_BSDF.inputs['Base Color'],
+                      mix_colour.outputs['Color'])
+            lColourVec4 = mix_colour.outputs['Color']
+
+        if (8 in mat_data['Flags'] or 10 in mat_data['Flags'] or
+                21 in mat_data['Flags']):
+            # Handle transparency
+            alpha_mix = nodes.new(type='ShaderNodeMixShader')
+            alpha_shader = nodes.new(type='ShaderNodeBsdfTransparent')
+            if 0 in mat_data['Flags']:
+                # If there is a diffuse texture we use this to get rid of
+                # transparent pixels
+                discard_node = nodes.new(type="ShaderNodeMath")
+                discard_node.operation = 'LESS_THAN'
+                discard_node.inputs[1].default_value = kfAlphaThreshold
+
+                links.new(discard_node.inputs[0],
+                          diffuse_texture.outputs['Alpha'])
+                links.new(alpha_mix.inputs['Fac'],
+                          discard_node.outputs['Value'])
+            else:
+                # if there isn't we will use the material colour as the base
+                # colour of the transparency shader
+                links.new(alpha_shader.inputs['Color'],
+                          lColourVec4)
+
+            links.new(alpha_mix.inputs[1],
+                      FRAGMENT_COLOUR0)
+            links.new(alpha_mix.inputs[2],
+                      alpha_shader.outputs['BSDF'])
+
+            FRAGMENT_COLOUR0 = alpha_mix.outputs['Shader']
+
         if 50 in mat_data['Flags']:
             # #ifdef _F51_DECAL_DIFFUSE
             # FRAGMENT_COLOUR0 = vec4( lOutColours0Vec4.xyz, lColourVec4.a );
@@ -640,7 +658,12 @@ class ImportScene():
                       FRAGMENT_COLOUR0)
             FRAGMENT_COLOUR0 = alpha_mix_decal.outputs['Shader']
 
-        # FInally, link the fragment colour to the output material
+        # Link up the diffuse colour to the base colour on the prinicipled BSDF
+        # shader.
+        links.new(principled_BSDF.inputs['Base Color'],
+                  lColourVec4)
+
+        # Finally, link the fragment colour to the output material.
         links.new(output_material.inputs['Surface'],
                   FRAGMENT_COLOUR0)
 

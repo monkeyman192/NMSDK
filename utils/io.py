@@ -1,8 +1,4 @@
 from pathlib import Path
-from tempfile import TemporaryDirectory
-import os.path as op
-import shutil
-import subprocess
 
 
 def get_NMS_dir(fpath):
