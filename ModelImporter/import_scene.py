@@ -3,9 +3,7 @@ import os.path as op
 import xml.etree.ElementTree as ET
 import struct
 from math import radians
-from tempfile import TemporaryDirectory
 import subprocess
-import shutil
 
 # Blender imports
 import bpy  # pylint: disable=import-error
@@ -48,11 +46,16 @@ class ImportScene():
         A dictionary with the path to another scene as the key, and the blender
         object that has already been loaded as the value.
     """
-    def __init__(self, fpath, parent_obj=None, ref_scenes=dict()):
-        self.local_directory = op.dirname(fpath)
+    def __init__(self, fpath, parent_obj=None, ref_scenes=dict(),
+                 settings=dict()):
+        self.local_directory, self.scene_basename = op.split(fpath)
+        # scene_basename is the final component of the scene path.
+        # Ie. the file name without the `.SCENE.MBIN`.
+        self.scene_basename = op.splitext(self.scene_basename)[0]
 
         self.parent_obj = parent_obj
         self.ref_scenes = ref_scenes
+        self.settings = settings
         # When scenes contain reference nodes there can be clashes with names.
         # To ensure correct parenting of objects in blender, we will keep track
         # of what objects exist within a scene as there will be no name clashes
@@ -93,33 +96,15 @@ class ImportScene():
         self.scn.render.engine = 'CYCLES'
 
         if ext.lower() == '.mbin':
-            # Determine if the current NMSDK setting require the exml to be
-            # cached
-            cache = bpy.context.scene.NMSDK_import_settings.cache_exml
-            if not cache:
-                with TemporaryDirectory() as temp_dir:
-                    fpath_dst = op.join(temp_dir, op.basename(fpath))
-                    shutil.copy(fpath, fpath_dst)
-                    retcode = subprocess.call(
-                        ["MBINCompiler", '-q', fpath_dst],
-                        shell=True)
-                    if retcode != 0:
-                        print('MBINCompiler failed to run. Please ensure it '
-                              'is registered on the path.')
-                        print('Import failed')
-                        return
-                    fpath = fpath_dst.replace('.MBIN', '.EXML')
-                    self._load_scene(fpath)
-            else:
-                retcode = subprocess.call(["MBINCompiler", '-q', fpath],
-                                          shell=True)
-                if retcode != 0:
-                    print('MBINCompiler failed to run. Please ensure it is '
-                          'registered on the path.')
-                    print('Import failed')
-                    return
-                fpath = fpath.replace('.MBIN', '.EXML')
-                self._load_scene(fpath)
+            retcode = subprocess.call(["MBINCompiler", '-q', fpath],
+                                      shell=True)
+            if retcode != 0:
+                print('MBINCompiler failed to run. Please ensure it is '
+                      'registered on the path.')
+                print('Import failed')
+                return
+            fpath = fpath.replace('.MBIN', '.EXML')
+            self._load_scene(fpath)
         elif ext.lower() != '.exml':
             raise TypeError('Selected file is of the wrong format.')
         else:
@@ -188,10 +173,11 @@ class ImportScene():
     def render_scene(self):
         """ Render the scene in the blender view. """
         # First, add the empty NMS_SCENE object that everything will be a
-        # child of
+        # child of.
         if self.parent_obj is None:
             # First, remove everything else in the scene
-            self._clear_prev_scene()
+            if self.settings['clear_scene']:
+                self._clear_prev_scene()
             self._add_empty_to_scene('NMS_SCENE')
         for obj in self.scene_node_data.iter():
             if obj.Type == 'MESH':
@@ -279,7 +265,8 @@ class ImportScene():
                 'SCENEGRAPH')
             ref_scene_path = op.join(mod_dir,
                                      scene_node.Attribute('SCENEGRAPH'))
-            sub_scene = ImportScene(ref_scene_path, empty_obj, self.ref_scenes)
+            sub_scene = ImportScene(ref_scene_path, empty_obj, self.ref_scenes,
+                                    self.settings)
             if sub_scene.requires_render:
                 sub_scene.render_scene()
 
@@ -385,7 +372,7 @@ class ImportScene():
             mesh_obj.data.materials.append(material)
             mesh_obj.active_material = material
 
-        if bpy.context.scene.NMSDK_import_settings.draw_hulls:
+        if self.settings['draw_hulls']:
             # create child object for bounded hull
             name = 'BH' + name
             mesh = bpy.data.meshes.new(name)

@@ -7,34 +7,27 @@ import bpy
 import bmesh  # pylint: disable=import-error
 from idprop.types import IDPropertyGroup  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
-# ExportHelper is a helper class, defines filename and
-# invoke() function which calls the file selector.
-from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
-from bpy.types import Operator  # noqa pylint: disable=import-error, no-name-in-module
 # Internal imports
-from .BlenderExtensions import NMSNodes, CompareMatrices, ContinuousCompare
-from .ModelExporter.utils import (get_all_actions, apply_local_transforms,
-                                  calc_tangents, transform_to_NMS_coords)
-from .ModelExporter import Export
-from .ModelExporter.Descriptor import Descriptor
-from .NMS.classes import (TkMaterialData, TkMaterialFlags, TkVolumeTriggerType,
-                          TkMaterialSampler, TkTransformData,
-                          TkMaterialUniform, TkRotationComponentData,
-                          TkPhysicsComponentData)
+from ..BlenderExtensions import CompareMatrices, ContinuousCompare
+from .utils import (get_all_actions, apply_local_transforms,
+                    calc_tangents, transform_to_NMS_coords)
+from .export import Export
+from .Descriptor import Descriptor
+from ..NMS.classes import (TkMaterialData, TkMaterialFlags,
+                           TkVolumeTriggerType, TkMaterialSampler,
+                           TkTransformData, TkMaterialUniform,
+                           TkRotationComponentData, TkPhysicsComponentData)
 # Animation objects
-from .NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
-from .NMS.classes import TkAnimationComponentData, TkAnimationData
-from .NMS.classes import List, Vector4f
-from .NMS.classes import TkAttachmentData
+from ..NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
+from ..NMS.classes import TkAnimationComponentData, TkAnimationData
+from ..NMS.classes import List, Vector4f
+from ..NMS.classes import TkAttachmentData
 # Object Classes
-from .NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
-                          Joint)
-from .NMS.LOOKUPS import MATERIALFLAGS
-from .ModelExporter.ActionTriggerParser import ParseNodes
-from .ModelImporter.import_scene import ImportScene
+from ..NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
+                           Joint)
+from ..NMS.LOOKUPS import MATERIALFLAGS
+from .ActionTriggerParser import ParseNodes
 
-
-customNodes = NMSNodes()
 
 # Attempt to find 'blender.exe path'
 
@@ -1137,45 +1130,3 @@ class Exporter():
             self.anim_controller_obj[1].ExtraEntityData[
                 self.anim_controller_obj[0]].append(anim_entity)
             self.anim_controller_obj[1].rebuild_entity()
-
-
-class NMS_Export_Operator(Operator, ExportHelper):
-    """Export scene to NMS compatible files"""
-    # important since its how bpy.ops.import_test.some_data is constructed
-    bl_idname = "export_mesh.nms"
-    bl_label = "Export to NMS XML Format"
-
-    # ExportHelper mixin class uses this
-    filename_ext = ""
-
-    def execute(self, context):
-        main_exporter = Exporter(self.filepath)
-        status = main_exporter.state
-        self.report({'INFO'}, "Models Exported Successfully")
-        if status:
-            return {'FINISHED'}
-        else:
-            return {'CANCELLED'}
-
-
-class NMS_Import_Operator(Operator, ImportHelper):
-    """Import NMS Scene files."""
-    # important since its how bpy.ops.import_test.some_data is constructed
-    bl_idname = "import_mesh.nms"
-    bl_label = "Import from SCENE.EXML"
-
-    # ExportHelper mixin class uses this
-    filename_ext = ".EXML"
-
-    def execute(self, context):
-        fdir = self.properties.filepath
-        print(fdir)
-        importer = ImportScene(fdir, parent_obj=None, ref_scenes=dict())
-        importer.render_scene()
-        status = importer.state
-        self.report({'INFO'}, "Models Imported Successfully")
-        print('Scene imported!')
-        if status:
-            return {'FINISHED'}
-        else:
-            return {'CANCELLED'}
