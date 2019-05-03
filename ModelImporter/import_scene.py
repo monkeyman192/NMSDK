@@ -50,7 +50,7 @@ class ImportScene():
                  settings=dict()):
         self.local_directory, self.scene_basename = op.split(fpath)
         # scene_basename is the final component of the scene path.
-        # Ie. the file name without the `.SCENE.MBIN`.
+        # Ie. the file name without the extension
         self.scene_basename = op.splitext(self.scene_basename)[0]
 
         self.parent_obj = parent_obj
@@ -172,13 +172,13 @@ class ImportScene():
 
     def render_scene(self):
         """ Render the scene in the blender view. """
-        # First, add the empty NMS_SCENE object that everything will be a
+        # First, add the empty root object that everything will be a
         # child of.
         if self.parent_obj is None:
             # First, remove everything else in the scene
             if self.settings['clear_scene']:
                 self._clear_prev_scene()
-            self._add_empty_to_scene('NMS_SCENE')
+            self._add_empty_to_scene(self.scene_basename)
         for obj in self.scene_node_data.iter():
             if obj.Type == 'MESH':
                 obj.metadata = self.mesh_metadata.get(obj.Name.upper())
@@ -201,11 +201,13 @@ class ImportScene():
             of a complete scene. This is used to indicate that a single mesh
             part is being rendered.
         """
-        if scene_node == 'NMS_SCENE' and self.parent_obj is None:
-            # If the scene_node is simply 'NMS_SCENE' just add an empty and
-            # return
-            empty_mesh = bpy.data.meshes.new('NMS_SCENE')
-            empty_obj = bpy.data.objects.new('NMS_SCENE', empty_mesh)
+        if scene_node == self.scene_basename and self.parent_obj is None:
+            # If the scene_node is simply self.scene_basename just add an
+            # empty and return
+            empty_mesh = bpy.data.meshes.new(self.scene_basename)
+            empty_obj = bpy.data.objects.new(self.scene_basename,
+                                             empty_mesh)
+            empty_obj.NMSNode_props.node_types = 'Reference'
             empty_obj.matrix_world = ROT_MATRIX
             self.scn.objects.link(empty_obj)
             self.scn.objects.active = empty_obj
@@ -213,8 +215,8 @@ class ImportScene():
             # check if the scene is proc-gen
             descriptor_name = op.basename(self.scene_name) + '.DESCRIPTOR.MBIN'
             if op.exists(op.join(self.local_directory, descriptor_name)):
-                empty_obj.NMSScene_props.is_proc = True
-            self.local_objects['NMS_SCENE'] = empty_obj
+                empty_obj.NMSReference_props.is_proc = True
+            self.local_objects[empty_obj.name] = empty_obj
             return
 
         # Otherwise just assign everything as usual...
@@ -248,7 +250,7 @@ class ImportScene():
                 empty_obj.parent = self.local_objects[scene_node.parent.Name]
             else:
                 # Direct child of loaded scene
-                empty_obj.parent = self.local_objects['NMS_SCENE']
+                empty_obj.parent = self.local_objects[self.scene_basename]
         else:
             empty_obj.matrix_world = ROT_MATRIX * empty_obj.matrix_world
 
@@ -326,7 +328,7 @@ class ImportScene():
                 mesh_obj.parent = parent_obj
             else:
                 # Direct child of loaded scene
-                mesh_obj.parent = self.local_objects['NMS_SCENE']
+                mesh_obj.parent = self.local_objects[self.scene_basename]
         else:
             mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
 

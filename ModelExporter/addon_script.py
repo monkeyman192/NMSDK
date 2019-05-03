@@ -55,12 +55,13 @@ if scriptpath not in sys.path:
 class Exporter():
     # class to contain all the exporting functions
 
-    def __init__(self, exportpath):
+    def __init__(self, exportpath, settings):
         self.global_scene = bpy.context.scene
         # set the frame to be the first one, just in case an export has already
         # been run
         self.global_scene.frame_set(0)
         self.mname = os.path.basename(exportpath)
+        self.settings = settings
 
         # self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
         """self.blend_to_NMS_mat = Matrix()
@@ -111,12 +112,12 @@ class Exporter():
         self.rotate_all(self.NMSScene)"""
 
         # check whether or not we will be exporting in batch mode
-        if self.NMSScene.NMSScene_props.batch_mode:
+        if self.settings['batch_mode']:
             batch_export = True
         else:
             batch_export = False
 
-        if self.NMSScene.NMSScene_props.AT_only:
+        if self.settings['AT_only']:
             # in this case we want to export just the entity with action
             # trigger data, nothing else
             entitydata = ParseNodes()
@@ -128,13 +129,13 @@ class Exporter():
         else:
             # run the program normally
             # get the base path as specified
-            if self.NMSScene.NMSScene_props.export_directory != "":
-                self.basepath = self.NMSScene.NMSScene_props.export_directory
+            if self.settings['export_directory'] != "":
+                self.basepath = self.settings['export_directory']
             else:
                 self.basepath = 'CUSTOMMODELS'
             # if there is a name for the group, use it.
-            if self.NMSScene.NMSScene_props.group_name != "":
-                self.group_name = self.NMSScene.NMSScene_props.group_name
+            if self.settings['group_name'] != "":
+                self.group_name = self.settings['group_name']
             else:
                 self.group_name = self.mname
 
@@ -177,10 +178,6 @@ class Exporter():
                         self.animation_anim_data[key].append([node, None,
                                                               False])
 
-            # create any commands that need to be sent to the main script:
-            commands = {'dont_compile':
-                        self.NMSScene.NMSScene_props.dont_compile}
-
             # TODO: Check if this works
             for ob in self.NMSScene.children:
                 if not ob.name.startswith('NMS'):
@@ -205,8 +202,7 @@ class Exporter():
                                self.basepath,
                                scene,
                                anim,
-                               self.descriptor,
-                               **commands)
+                               self.descriptor)
                 else:
                     # parse the entire scene all in one go.
                     self.scene_directory = os.path.join(
@@ -228,8 +224,7 @@ class Exporter():
                        self.basepath,
                        scene,
                        anim,
-                       self.descriptor,
-                       **commands)
+                       self.descriptor)
 
         """# undo rotation
         self.select_only(self.NMSScene)
@@ -660,10 +655,7 @@ class Exporter():
 
         # At this point mesh is triangulated
         # I can get the triangulated input and calculate the tangents
-        if (self.NMSScene.NMSScene_props.create_tangents):
-            tangents = calc_tangents(indexes, verts, norms, luvs)
-        else:
-            tangents = []
+        tangents = calc_tangents(indexes, verts, norms, luvs)
 
         # finally, let's find the convex hull data of the mesh:
         bpy.ops.object.mode_set(mode='EDIT')

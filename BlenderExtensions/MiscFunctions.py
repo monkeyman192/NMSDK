@@ -40,13 +40,15 @@ def ContinuousCompare(lst, tol):
     return changing_indices
 
 
-def has_parent(obj, parent_name):
-    """ Determine if the object has a parent with the supplied name."""
+def getParentRefScene(obj):
+    """
+    Returns the parent reference scene for the provided object.
+    This is determined by whether the object has a parent at any point that is
+    a reference node.
+    """
     if obj.parent is None:
-        return False
-    if obj.parent.name is None:
-        return False
-    elif obj.parent.name == parent_name:
-        return True
+        return None
+    if obj.parent.NMSNode_props.node_types == 'Reference':
+        return obj.parent
     else:
-        return has_parent(obj.parent, parent_name)
+        return getParentRefScene(obj.parent)

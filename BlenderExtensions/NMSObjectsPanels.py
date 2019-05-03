@@ -3,7 +3,7 @@
 import bpy
 from bpy.props import (StringProperty, BoolProperty, EnumProperty,  # noqa pylint: disable=import-error, no-name-in-module
                        FloatProperty, IntVectorProperty)
-from .MiscFunctions import has_parent
+from .MiscFunctions import getParentRefScene
 
 """ Various properties for each of the different node types """
 
@@ -95,38 +95,6 @@ class NMSReferenceProperties(bpy.types.PropertyGroup):
     reference_path = StringProperty(
         name="Reference Path",
         description="Path to scene to be referenced at this location.")
-
-
-class NMSSceneProperties(bpy.types.PropertyGroup):
-    export_directory = StringProperty(
-        name="Export Directory",
-        description="The base path under which all models will be exported.",
-        default="CUSTOMMODELS")
-    group_name = StringProperty(
-        name="Group Name",
-        description="Group name so that models that all belong in the same "
-                    "folder are placed there (path becomes group_name/name)")
-    batch_mode = BoolProperty(
-        name="Batch Mode",
-        description="If ticked, each direct child of this node will be "
-                    "exported separately",
-        default=False)
-    create_tangents = BoolProperty(
-        name="Create Tangents",
-        description="Whether or not to generate tangents along with the mesh",
-        default=True)
-    # !REMOVE
-    dont_compile = BoolProperty(
-        name="Don't compile to .mbin",
-        description="Whether or not to recompile exml files to mbin.",
-        default=False)
-    AT_only = BoolProperty(
-        name="ActionTriggers Only",
-        description="If this box is ticked, all the action trigger data will "
-                    "be exported directly to an ENTITY file in the specified "
-                    "location with the project name. Anything else in the "
-                    "project is ignored",
-        default=False)
     is_proc = BoolProperty(
         name="Is a proc-gen scene?",
         description="If checked, then a new panel will appear that can be "
@@ -180,8 +148,7 @@ class NMSNodePropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (has_parent(context.object, 'NMS_SCENE') and not
-                context.object.name.startswith("NMS_SCENE")):
+        if getParentRefScene(context.object) is not None:
             return True
         else:
             return False
@@ -205,9 +172,7 @@ class NMSReferencePropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (has_parent(context.object, 'NMS_SCENE') and
-                context.object.NMSNode_props.node_types == 'Reference' and not
-                context.object.name.startswith("NMS_SCENE")):
+        if context.object.NMSNode_props.node_types == 'Reference':
             return True
         else:
             return False
@@ -217,6 +182,8 @@ class NMSReferencePropertyPanel(bpy.types.Panel):
         obj = context.object
         row = layout.row()
         row.prop(obj.NMSReference_props, "reference_path")
+        row = layout.row()
+        row.prop(obj.NMSReference_props, "is_proc")
 
 
 class NMSMaterialPropertyPanel(bpy.types.Panel):
@@ -229,9 +196,8 @@ class NMSMaterialPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (has_parent(context.object, 'NMS_SCENE') and
-                context.object.NMSNode_props.node_types == 'Mesh' and not
-                context.object.name.startswith("NMS_SCENE")):
+        if (getParentRefScene(context.object) is not None and
+                context.object.NMSNode_props.node_types == 'Mesh'):
             return True
         else:
             return False
@@ -253,9 +219,8 @@ class NMSMeshPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (has_parent(context.object, 'NMS_SCENE') and
-                context.object.NMSNode_props.node_types == 'Mesh' and not
-                context.object.name.startswith("NMS_SCENE")):
+        if (getParentRefScene(context.object) is not None and
+                context.object.NMSNode_props.node_types == 'Mesh'):
             return True
         else:
             return False
@@ -279,9 +244,8 @@ class NMSAnimationPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (has_parent(context.object, 'NMS_SCENE') and
-                context.object.animation_data and not
-                context.object.name.startswith("NMS_SCENE")):
+        if (getParentRefScene(context.object) is not None and
+                context.object.animation_data):
             if context.object.animation_data.action:
                 return True
             else:
@@ -308,9 +272,8 @@ class NMSLocatorPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (has_parent(context.object, 'NMS_SCENE') and
-                context.object.NMSNode_props.node_types == 'Locator' and not
-                context.object.name.startswith("NMS_SCENE")):
+        if (getParentRefScene(context.object) is not None and
+                context.object.NMSNode_props.node_types == 'Locator'):
             return True
         else:
             return False
@@ -332,9 +295,8 @@ class NMSRotationPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (has_parent(context.object, 'NMS_SCENE') and
-                context.object.name.upper() == 'ROTATION' and not
-                context.object.name.startswith("NMS_SCENE")):
+        if (getParentRefScene(context.object) is not None and
+                context.object.name.upper() == 'ROTATION'):
             return True
         else:
             return False
@@ -356,9 +318,8 @@ class NMSLightPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (has_parent(context.object, 'NMS_SCENE') and
-                context.object.NMSNode_props.node_types == 'Light' and not
-                context.object.name.startswith("NMS_SCENE")):
+        if (getParentRefScene(context.object) is not None and
+                context.object.NMSNode_props.node_types == 'Light'):
             return True
         else:
             return False
@@ -382,9 +343,8 @@ class NMSCollisionPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (has_parent(context.object, 'NMS_SCENE') and
-                context.object.NMSNode_props.node_types == 'Collision' and not
-                context.object.name.startswith("NMS_SCENE")):
+        if (getParentRefScene(context.object) is not None and
+                context.object.NMSNode_props.node_types == 'Collision'):
             return True
         else:
             return False
@@ -398,41 +358,6 @@ class NMSCollisionPropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSCollision_props, "transform_type", expand=True)
 
 
-class NMSScenePropertyPanel(bpy.types.Panel):
-    """Creates a Panel in the scene context of the properties editor"""
-    bl_label = "NMS Scene Properties"
-    bl_idname = "OBJECT_PT_scene_properties"
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = "object"
-
-    @classmethod
-    def poll(cls, context):
-        # this should only show for an object that is called NMS_SCENE
-        if context.object.name.startswith("NMS_SCENE"):
-            return True
-        else:
-            return False
-
-    def draw(self, context):
-        layout = self.layout
-        obj = context.object
-        row = layout.row()
-        row.prop(obj.NMSScene_props, "export_directory", expand=True)
-        row = layout.row()
-        row.prop(obj.NMSScene_props, "group_name", expand=True)
-        row = layout.row()
-        row.prop(obj.NMSScene_props, "batch_mode")
-        row = layout.row()
-        row.prop(obj.NMSScene_props, "create_tangents")
-        row = layout.row()
-        row.prop(obj.NMSScene_props, "dont_compile")
-        row = layout.row()
-        row.prop(obj.NMSScene_props, "AT_only")
-        row = layout.row()
-        row.prop(obj.NMSScene_props, "is_proc")
-
-
 class NMSDescriptorPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Descriptor Properties"
@@ -443,17 +368,14 @@ class NMSDescriptorPropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        try:
-            if (has_parent(context.object, 'NMS_SCENE')
+        parentrefscene = getParentRefScene(context.object)
+        if (parentrefscene is not None
                 and (context.object.NMSNode_props.node_types == 'Mesh' or
                      context.object.NMSNode_props.node_types == "Locator" or
                      context.object.NMSNode_props.node_types == "Reference")
-                and bpy.context.scene.objects['NMS_SCENE'].NMSScene_props.is_proc is True  # noqa
-                and not context.object == bpy.context.scene.objects['NMS_SCENE']):  # noqa
-                return True
-            else:
-                return False
-        except:     # TODO: what should this be catching??  # noqa
+                and parentrefscene.NMSReference_props.is_proc is True):
+            return True
+        else:
             return False
 
     def draw(self, context):
@@ -470,7 +392,6 @@ class NMSPanels():
     def register():
         # register the properties
         bpy.utils.register_class(NMSNodeProperties)
-        bpy.utils.register_class(NMSSceneProperties)
         bpy.utils.register_class(NMSMeshProperties)
         bpy.utils.register_class(NMSMaterialProperties)
         bpy.utils.register_class(NMSReferenceProperties)
@@ -483,8 +404,6 @@ class NMSPanels():
         # link the properties with the objects' internal variables
         bpy.types.Object.NMSNode_props = bpy.props.PointerProperty(
             type=NMSNodeProperties)
-        bpy.types.Object.NMSScene_props = bpy.props.PointerProperty(
-            type=NMSSceneProperties)
         bpy.types.Object.NMSMesh_props = bpy.props.PointerProperty(
             type=NMSMeshProperties)
         bpy.types.Object.NMSMaterial_props = bpy.props.PointerProperty(
@@ -504,7 +423,6 @@ class NMSPanels():
         bpy.types.Object.NMSDescriptor_props = bpy.props.PointerProperty(
             type=NMSDescriptorProperties)
         # register the panels
-        bpy.utils.register_class(NMSScenePropertyPanel)
         bpy.utils.register_class(NMSNodePropertyPanel)
         bpy.utils.register_class(NMSMeshPropertyPanel)
         bpy.utils.register_class(NMSMaterialPropertyPanel)
@@ -520,7 +438,6 @@ class NMSPanels():
     def unregister():
         # unregister the property classes
         bpy.utils.unregister_class(NMSNodeProperties)
-        bpy.utils.unregister_class(NMSSceneProperties)
         bpy.utils.unregister_class(NMSMeshProperties)
         bpy.utils.unregister_class(NMSMaterialProperties)
         bpy.utils.unregister_class(NMSRotationProperties)
@@ -532,7 +449,6 @@ class NMSPanels():
         bpy.utils.unregister_class(NMSDescriptorProperties)
         # delete the properties from the objects
         del bpy.types.Object.NMSNode_props
-        del bpy.types.Object.NMSScene_props
         del bpy.types.Object.NMSMesh_props
         del bpy.types.Object.NMSMaterial_props
         del bpy.types.Object.NMSReference_props
@@ -543,7 +459,6 @@ class NMSPanels():
         del bpy.types.Object.NMSCollision_props
         del bpy.types.Object.NMSDescriptor_props
         # unregister the panels
-        bpy.utils.unregister_class(NMSScenePropertyPanel)
         bpy.utils.unregister_class(NMSNodePropertyPanel)
         bpy.utils.unregister_class(NMSMeshPropertyPanel)
         bpy.utils.unregister_class(NMSMaterialPropertyPanel)

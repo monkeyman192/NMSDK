@@ -45,7 +45,7 @@ class Export():
         Descriptor information
     """
     def __init__(self, name, directory, basepath, model, anim_data=odict(),
-                 descriptor=None, **commands):
+                 descriptor=None):
         # this is the name of the file
         self.name = name
         # the path that the file is supposed to be located at
@@ -164,9 +164,7 @@ class Export():
         # write all the files
         self.write()
 
-        # convert all the created exml files to mbin files
-        if not commands.get('dont_compile', False):
-            self.convert_to_mbin()
+        self.convert_to_mbin()
 
     def create_paths(self):
         # check whether the require paths exist and make them

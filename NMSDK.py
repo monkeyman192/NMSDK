@@ -49,11 +49,40 @@ class NMS_Export_Operator(Operator, ExportHelper):
     bl_idname = "export_mesh.nms"
     bl_label = "Export to NMS XML Format"
 
+    export_directory = StringProperty(
+        name="Export Directory",
+        description="The base path under which all models will be exported.",
+        default="CUSTOMMODELS")
+    group_name = StringProperty(
+        name="Group Name",
+        description="Group name so that models that all belong in the same "
+                    "folder are placed there (path becomes group_name/name)")
+    batch_mode = BoolProperty(
+        name="Batch Mode",
+        description="If ticked, each direct child of this node will be "
+                    "exported separately",
+        default=False)
+    AT_only = BoolProperty(
+        name="ActionTriggers Only",
+        description="If this box is ticked, all the action trigger data will "
+                    "be exported directly to an ENTITY file in the specified "
+                    "location with the project name. Anything else in the "
+                    "project is ignored",
+        default=False)
+
     # ExportHelper mixin class uses this
     filename_ext = ""
 
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, 'export_directory')
+        layout.prop(self, 'group_name')
+        layout.prop(self, 'batch_mode')
+        layout.prop(self, 'AT_only')
+
     def execute(self, context):
-        main_exporter = Exporter(self.filepath)
+        keywords = self.as_keywords()
+        main_exporter = Exporter(self.filepath, settings=keywords)
         status = main_exporter.state
         self.report({'INFO'}, "Models Exported Successfully")
         if status:
