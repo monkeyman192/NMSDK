@@ -1,4 +1,4 @@
-# file to contain misc methods required by the addon script
+# TODO: categorise better?
 
 
 def CompareMatrices(mat1, mat2, tol):

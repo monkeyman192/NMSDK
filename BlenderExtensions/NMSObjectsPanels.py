@@ -3,7 +3,7 @@
 import bpy
 from bpy.props import (StringProperty, BoolProperty, EnumProperty,  # noqa pylint: disable=import-error, no-name-in-module
                        FloatProperty, IntVectorProperty)
-from .MiscFunctions import getParentRefScene
+from ..utils.misc import getParentRefScene
 
 """ Various properties for each of the different node types """
 

@@ -40,6 +40,26 @@ class ImportMeshOperator(Operator):
         return importer.state
 
 
+# Private operators for internal use
+
+
+class _FixOldFormat(Operator):
+    """ Change the type of node an object has."""
+    bl_idname = "nmsdk._fix_old_format"
+    bl_label = "Change NMS Node type"
+
+    def execute(self, context):
+        try:
+            context.scene.objects[
+                'NMS_SCENE'].NMSNode_props.node_types = 'Reference'
+            return {'FINISHED'}
+        except KeyError:
+            return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+
 # operators to be added to the blender UI for various tasks
 
 

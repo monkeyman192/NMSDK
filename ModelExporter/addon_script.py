@@ -8,7 +8,7 @@ import bmesh  # pylint: disable=import-error
 from idprop.types import IDPropertyGroup  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
 # Internal imports
-from ..BlenderExtensions import CompareMatrices, ContinuousCompare
+from ..utils.misc import CompareMatrices, ContinuousCompare
 from .utils import (get_all_actions, apply_local_transforms,
                     calc_tangents, transform_to_NMS_coords)
 from .export import Export
@@ -94,6 +94,14 @@ class Exporter():
         # it contains
         self.global_entitydata = dict()
 
+        # Get a list of all reference scenes.
+        # These will each be exported as their own scene.
+        self.export_scenes = list()
+        for obj in self.global_scene.objects:
+            if obj.NMSReference_props.node_types == 'Reference':
+                self.export_scenes.append(obj)
+
+        # !OBSOLETE
         # Check that there is a NMS_SCENE object
         try:
             self.NMSScene = self.global_scene.objects['NMS_SCENE']
@@ -177,6 +185,25 @@ class Exporter():
                                         self.animation_anim_data[key]):
                         self.animation_anim_data[key].append([node, None,
                                                               False])
+
+            # Go over each object in the list of nodes that are to be exported
+            for ob in self.export_scenes:
+                if ob.name.startswith('NMS_'):
+                    name = ob.name[4:].upper()
+                else:
+                    name = ob.name
+                print('Located Object for export', name)
+                scene = Model(Name=name)
+                self.parse_object(ob, scene)
+                anim = self.anim_generator()
+                mpath = os.path.dirname(os.path.abspath(exportpath))
+                os.chdir(mpath)
+                Export(name,
+                       self.group_name,
+                       self.basepath,
+                       scene,
+                       anim,
+                       self.descriptor)
 
             # TODO: Check if this works
             for ob in self.NMSScene.children:
@@ -1021,8 +1048,9 @@ class Exporter():
 
         # Parse children
         for child in ob.children:
-            if (not (child.name.startswith('NMS') or
-                     child.name.startswith('COLLISION'))):
+            # If we parsed a reference node or a collision node, stop.
+            if (child.NMSNode_props.node_types == 'Reference' or
+                    child.NMSNode_props.node_types == 'Collision'):
                 continue
             self.parse_object(child, newob)
 

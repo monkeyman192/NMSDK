@@ -1,16 +1,17 @@
 import bpy
 from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
-                                NMSShaderNode)
+                                NMSShaderNode, SettingsPanels)
 
 from .NMSDK import ImportSceneOperator, ImportMeshOperator
 from .NMSDK import NMS_Export_Operator, NMS_Import_Operator
+from .NMSDK import _FixOldFormat
 
 customNodes = NMSNodes()
 
 bl_info = {
     "name": "No Man's Sky Development Kit",
     "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 6),
+    "version": (0, 9, 7),
     "blender": (2, 79, 0),
     "location": "File > Export",
     "description": "Create NMS scene structures and export to NMS File format",
@@ -40,8 +41,10 @@ def register():
     NMSShaderNode.register()
     customNodes.register()
     NMSEntities.register()
+    SettingsPanels.register()
     bpy.utils.register_class(ImportSceneOperator)
     bpy.utils.register_class(ImportMeshOperator)
+    bpy.utils.register_class(_FixOldFormat)
 
 
 def unregister():
@@ -53,5 +56,7 @@ def unregister():
     NMSShaderNode.unregister()
     customNodes.unregister()
     NMSEntities.unregister()
+    SettingsPanels.unregister()
     bpy.utils.unregister_class(ImportSceneOperator)
     bpy.utils.unregister_class(ImportMeshOperator)
+    bpy.utils.unregister_class(_FixOldFormat)
