@@ -98,8 +98,9 @@ class Exporter():
         # These will each be exported as their own scene.
         self.export_scenes = list()
         for obj in self.global_scene.objects:
-            if obj.NMSReference_props.node_types == 'Reference':
-                self.export_scenes.append(obj)
+            if obj.NMSNode_props.node_types == 'Reference':
+                if obj.NMSReference_props.reference_path == '':
+                    self.export_scenes.append(obj)
 
         # !OBSOLETE
         # Check that there is a NMS_SCENE object
@@ -186,15 +187,28 @@ class Exporter():
                         self.animation_anim_data[key].append([node, None,
                                                               False])
 
+            self.process_anims()
+
             # Go over each object in the list of nodes that are to be exported
-            for ob in self.export_scenes:
-                if ob.name.startswith('NMS_'):
-                    name = ob.name[4:].upper()
+            for obj in self.export_scenes:
+                if obj.name.startswith('NMS_'):
+                    # This is the old format. Use the name of that it is being
+                    # saved as.
+                    name = self.mname
+                if obj.name.endswith('.SCENE'):
+                    # Trim the `.SCENE` part.
+                    name = obj.name[:-6]
                 else:
-                    name = ob.name
+                    # Just use the provided name.
+                    name = obj.name
                 print('Located Object for export', name)
                 scene = Model(Name=name)
-                self.parse_object(ob, scene)
+                self.scene_directory = os.path.join(
+                        self.basepath, self.group_name, self.mname)
+                # We don't want to actually add the main object to the scene,
+                # Just its children.
+                for sub_obj in obj.children:
+                    self.parse_object(sub_obj, scene)
                 anim = self.anim_generator()
                 mpath = os.path.dirname(os.path.abspath(exportpath))
                 os.chdir(mpath)
@@ -205,6 +219,7 @@ class Exporter():
                        anim,
                        self.descriptor)
 
+            """
             # TODO: Check if this works
             for ob in self.NMSScene.children:
                 if not ob.name.startswith('NMS'):
@@ -236,8 +251,6 @@ class Exporter():
                         self.basepath, self.group_name, self.mname)
                     self.parse_object(ob, scene)
 
-            self.process_anims()
-
             print('Creating .exmls')
             # Convert Paths
             if not batch_export:
@@ -252,6 +265,7 @@ class Exporter():
                        scene,
                        anim,
                        self.descriptor)
+            """
 
         """# undo rotation
         self.select_only(self.NMSScene)
@@ -1046,12 +1060,13 @@ class Exporter():
         # add the local entity data to the global dict:
         self.global_entitydata[ob.name] = entitydata
 
+        # If we parsed a reference node or a collision node, stop.
+        if (ob.NMSNode_props.node_types == 'Reference' or
+                ob.NMSNode_props.node_types == 'Collision'):
+            return
+
         # Parse children
         for child in ob.children:
-            # If we parsed a reference node or a collision node, stop.
-            if (child.NMSNode_props.node_types == 'Reference' or
-                    child.NMSNode_props.node_types == 'Collision'):
-                continue
             self.parse_object(child, newob)
 
     def process_anims(self):

@@ -369,10 +369,17 @@ class ImportScene():
         material = None
         if mat_path is not None:
             material = self._create_material(mat_path)
-            mesh_obj.NMSMesh_props.material_path = scene_node.Attribute('MATERIAL')  # noqa
+            mesh_obj.NMSMesh_props.material_path = scene_node.Attribute(
+                'MATERIAL')
         if material is not None:
             mesh_obj.data.materials.append(material)
             mesh_obj.active_material = material
+
+        # Check to see if the mesh has an associated entity
+        entity_path = scene_node.Attribute('ATTACHMENT')
+        if entity_path != '':
+            mesh_obj.NMSMesh_props.has_entity = True
+            mesh_obj.NMSEntity_props.name_or_path = entity_path
 
         if self.settings['draw_hulls']:
             # create child object for bounded hull
