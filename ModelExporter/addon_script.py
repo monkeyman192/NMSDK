@@ -102,30 +102,6 @@ class Exporter():
                 if obj.NMSReference_props.reference_path == '':
                     self.export_scenes.append(obj)
 
-        # !OBSOLETE
-        # Check that there is a NMS_SCENE object
-        try:
-            self.NMSScene = self.global_scene.objects['NMS_SCENE']
-        except KeyError:
-            raise Exception("Missing NMS_SCENE Node, Create it!")
-
-        # to ensure the rotation is applied correctly, first delect any
-        # selected objects in the scene, then select and activate the NMS_SCENE
-        # object
-        # self.select_only(self.NMSScene)
-
-        """# apply rotation to entire model
-        self.global_scene.objects.active = self.NMSScene
-        self.NMSScene.matrix_world = self.blend_to_NMS_mat*self.NMSScene.matrix_world
-        # apply rotation to all child nodes
-        self.rotate_all(self.NMSScene)"""
-
-        # check whether or not we will be exporting in batch mode
-        if self.settings['batch_mode']:
-            batch_export = True
-        else:
-            batch_export = False
-
         if self.settings['AT_only']:
             # in this case we want to export just the entity with action
             # trigger data, nothing else
@@ -148,15 +124,12 @@ class Exporter():
             else:
                 self.group_name = self.mname
 
-            # Iif we aren't doing a batch export, set the scene as a model
-            # object that all will use as a parent
-            if batch_export is False:
-                # Create main scene model
-                scene = Model(Name=self.mname)
-
             # let's sort out the descriptor first as it may re-name some of the
             # objects in the scene:
-            self.descriptor = self.descriptor_generator()
+            # TODO: fix for scenes with nested descriptors
+            self.descriptor = None
+            if self.export_scenes[0].NMSReference_props.is_proc:
+                self.descriptor = self.descriptor_generator()
 
             # pre-process the animation information.
             # set to contain all the actions that are used in the scene
@@ -173,7 +146,8 @@ class Exporter():
             # Get all the animation data first, so we can decide how we deal
             # with anims. This data can be used to determine how many
             # animations we actually have.
-            self.add_to_anim_data(self.NMSScene)
+            for obj in self.export_scenes:
+                self.add_to_anim_data(obj)
             # print(self.nodes_in_all_anims, 'nodes')
             # number of frames        (same... for now)
             self.anim_frames = self.global_scene.frame_end
@@ -191,10 +165,12 @@ class Exporter():
 
             # Go over each object in the list of nodes that are to be exported
             for obj in self.export_scenes:
+                print(obj.name)
                 if obj.name.startswith('NMS_'):
                     # This is the old format. Use the name of that it is being
                     # saved as.
                     name = self.mname
+                    print(name)
                 if obj.name.endswith('.SCENE'):
                     # Trim the `.SCENE` part.
                     name = obj.name[:-6]
@@ -218,61 +194,6 @@ class Exporter():
                        scene,
                        anim,
                        self.descriptor)
-
-            """
-            # TODO: Check if this works
-            for ob in self.NMSScene.children:
-                if not ob.name.startswith('NMS'):
-                    continue
-                print('Located Object for export', ob.name)
-                if batch_export:
-                    # Create an individual scene object for each mesh
-                    if (ob.NMSNode_props.node_types == "Mesh" or
-                            ob.NMSNode_props.node_types == "Locator"):
-                        name = ob.name[len("NMS_"):].upper()
-                        self.scene_directory = os.path.join(self.basepath,
-                                                            self.group_name,
-                                                            name)
-                        print("Processing object {}".format(name))
-                        scene = Model(Name=name)
-                        self.parse_object(ob, scene)
-                        anim = self.anim_generator()
-                        mpath = os.path.dirname(os.path.abspath(exportpath))
-                        os.chdir(mpath)
-                        Export(name,
-                               self.group_name,
-                               self.basepath,
-                               scene,
-                               anim,
-                               self.descriptor)
-                else:
-                    # parse the entire scene all in one go.
-                    self.scene_directory = os.path.join(
-                        self.basepath, self.group_name, self.mname)
-                    self.parse_object(ob, scene)
-
-            print('Creating .exmls')
-            # Convert Paths
-            if not batch_export:
-                # we only want to run this if we aren't doing a batch export
-                mpath = os.path.dirname(os.path.abspath(exportpath))
-                os.chdir(mpath)
-                # create the animation stuff if necissary:
-                anim = self.anim_generator()
-                Export(self.mname,
-                       self.group_name,
-                       self.basepath,
-                       scene,
-                       anim,
-                       self.descriptor)
-            """
-
-        """# undo rotation
-        self.select_only(self.NMSScene)
-        self.global_scene.objects.active = self.NMSScene
-        self.NMSScene.matrix_world = self.blend_to_NMS_mat.inverted()*self.NMSScene.matrix_world
-        # apply rotation to all child nodes
-        self.rotate_all(self.NMSScene)"""
 
         self.global_scene.frame_set(0)
 
@@ -317,6 +238,7 @@ class Exporter():
             self.add_to_anim_data(child)
 
     def parse_material(self, ob):
+        # TODO: This will all become obsolete at some point
         # This function returns a tkmaterialdata object with all necessary
         # material information
 
@@ -334,8 +256,10 @@ class Exporter():
             # find any additional material flags specificed by the user
             add_matflags = set()
             for i in ob.NMSMaterial_props.material_additions:
-                if i != 0:              # 0 is just the empty one we don't care about
-                    s.add(i - 1)        # subtract 1 to account for the index start in the struct...
+                # 0 is just the empty one we don't care about
+                if i != 0:
+                    # subtract 1 to account for the index start in the struct
+                    add_matflags.add(i - 1)
 
             proj_path = bpy.path.abspath('//')
 
@@ -389,7 +313,7 @@ class Exporter():
             # Check shadeless status
             if (mat.use_shadeless):
                 # Set _F07_UNLIT
-                add_matflags.add(6)   
+                add_matflags.add(6)
 
             # Fetch Mask
             texpath = ""
@@ -567,9 +491,12 @@ class Exporter():
         return AnimationFiles
 
     def descriptor_generator(self):
-        # go over the entire scene and create a descriptor.
-        # Note: This will currently not work with scenes exported ia the batch
-        # option.
+        """ Generate a descriptor for the scene.
+
+        Note
+        ----
+        This will not work currently for scenes with nested references
+        """
 
         descriptor_struct = Descriptor()
 
@@ -578,8 +505,6 @@ class Exporter():
             prefixes = set()
             important_children = []
             for child in obj.children:
-                if not child.name.startswith('NMS'):
-                    continue
                 if child.NMSDescriptor_props.proc_prefix != "":
                     p = child.NMSDescriptor_props.proc_prefix
                     # Let's do a bit of processing on the prefix first to make
@@ -607,7 +532,10 @@ class Exporter():
                 # we also need to rename the object so that it is consistent
                 # with the descriptor:
                 prefix = child.NMSDescriptor_props.proc_prefix.strip("_")
-                stripped_name = child.name[len("NMS_"):].upper()
+                if child.name.startswith('NMS_'):
+                    stripped_name = child.name[len("NMS_"):].upper()
+                else:
+                    stripped_name = child.name.upper()
                 if stripped_name.strip('_').upper().startswith(prefix):
                     child.NMSNode_props.override_name = "_{0}".format(
                         stripped_name.strip('_').upper())
@@ -616,7 +544,10 @@ class Exporter():
                     child.NMSNode_props.override_name = "_{0}_{1}".format(
                         prefix, stripped_name.strip('_').upper())
 
-        descriptor_recurse(self.NMSScene, descriptor_struct)
+        if len(self.export_scenes) == 1:
+            descriptor_recurse(self.export_scenes[0], descriptor_struct)
+        else:
+            raise NotImplementedError("This hasn't been implemented yet... :(")
 
         print(descriptor_struct)
 
@@ -652,7 +583,7 @@ class Exporter():
         # except:
         #    raise Exception("Please Triangulate your Mesh")
 
-        colcount = len(data.vertex_colors)
+        # colcount = len(data.vertex_colors)
         id = 0
         for f in data.tessfaces:  # indices
             # polygon = data.polygons[f.index] #Load Polygon
@@ -685,14 +616,16 @@ class Exporter():
                 uv = getattr(data.tessface_uv_textures[0].data[f.index],
                              'uv' + str(vert + 1))
                 luvs.append((uv.x, 1.0 - uv.y, 0.0, 0.0))
-    #            for k in range(colcount):
-    #                r = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
-    #                    f.index) + '].color' + str(vert + 1) + '[0]*1023')
-    #                g = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
-    #                    f.index) + '].color' + str(vert + 1) + '[1]*1023')
-    #                b = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
-    #                    f.index) + '].color' + str(vert + 1) + '[2]*1023')
-    #                eval('col_' + str(k) + '.append((r,g,b))')
+                """
+                for k in range(colcount):
+                    r = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
+                        f.index) + '].color' + str(vert + 1) + '[0]*1023')
+                    g = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
+                        f.index) + '].color' + str(vert + 1) + '[1]*1023')
+                    b = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
+                        f.index) + '].color' + str(vert + 1) + '[2]*1023')
+                    eval('col_' + str(k) + '.append((r,g,b))')
+                """
 
         # At this point mesh is triangulated
         # I can get the triangulated input and calculate the tangents
@@ -708,8 +641,6 @@ class Exporter():
         for i in ch:
             if type(i) == bmesh.types.BMVert:
                 chverts.append((i.co[0], i.co[1], i.co[2], 1.0))
-                #chverts.append(Vector4f(x = i.co[0], y = i.co[1], z = i.co[2],
-                #t = 1.0))
         bm.free()
         del ch
         del bm_copy
@@ -891,7 +822,7 @@ class Exporter():
             optdict['CollisionType'] = colType
 
             if (colType == "Mesh"):
-                c_verts, c_norms, c_tangs, c_uvs, c_indexes, c_chverts = self.mesh_parser(ob)
+                c_verts, c_norms, c_tangs, c_uvs, c_indexes, c_chverts = self.mesh_parser(ob)  # noqa
 
                 # Reset Transforms on meshes
 
@@ -938,7 +869,8 @@ class Exporter():
                     # take the properties of the rotation vector and give it
                     # to the mesh as part of it's entity data
                     axis = child.rotation_quaternion*Vector((0, 0, 1))
-                    # axis = Matrix.Rotation(radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
+                    # axis = Matrix.Rotation(
+                    #    radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
                     print(axis)
                     rotation_data = TkRotationComponentData(
                         Speed=child.NMSRotation_props.speed,
@@ -988,7 +920,8 @@ class Exporter():
                     print(material_ob)
                     # Attach material to Mesh
                     newob.Material = material_ob
-                except:
+                # TODO: Determine if this is the right error
+                except AttributeError:
                     raise Exception("Missing Material")
 
         # Locator and Reference Objects

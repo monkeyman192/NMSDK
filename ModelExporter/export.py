@@ -41,7 +41,7 @@ class Export():
         Model containing all the scene information.
     anim_data : collections.OrderedDict (Optional)
         Animation data.
-    descriptior: ? (Optional)
+    descriptior: Descriptor
         Descriptor information
     """
     def __init__(self, name, directory, basepath, model, anim_data=odict(),
@@ -149,11 +149,9 @@ class Export():
         # get the model to create all the required data and this will continue
         # on down the tree
         self.TkSceneNodeData.make_elements(main=True)
-        if len(self.descriptor) != 0:
+        if self.descriptor is not None:
             self.descriptor = self.descriptor.to_exml()
             self.descriptor.make_elements(main=True)
-        else:
-            self.descriptor = None
         for material in self.materials:
             if type(material) != str:
                 material.make_elements(main=True)
