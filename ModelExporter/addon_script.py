@@ -111,89 +111,88 @@ class Exporter():
             mpath = os.path.dirname(os.path.abspath(exportpath))
             os.chdir(mpath)
             entity.tree.write("{}.ENTITY.exml".format(self.mname))
+            self.state = 'FINISHED'
+            return
+
+        # run the program normally
+        # get the base path as specified
+        if self.settings['export_directory'] != "":
+            self.basepath = self.settings['export_directory']
         else:
-            # run the program normally
-            # get the base path as specified
-            if self.settings['export_directory'] != "":
-                self.basepath = self.settings['export_directory']
+            self.basepath = 'CUSTOMMODELS'
+        # if there is a name for the group, use it.
+        if self.settings['group_name'] != "":
+            self.group_name = self.settings['group_name']
+        else:
+            self.group_name = self.mname
+
+        # let's sort out the descriptor first as it may re-name some of the
+        # objects in the scene:
+        # TODO: fix for scenes with nested descriptors
+        self.descriptor = None
+        if self.export_scenes[0].NMSReference_props.is_proc:
+            self.descriptor = self.descriptor_generator()
+
+        # pre-process the animation information.
+        # set to contain all the actions that are used in the scene
+        self.scene_actions = set()
+        # This will be a dictionary with the key being the joint name, and
+        # the data being the actions associated with it.
+        self.joint_anim_data = dict()
+        # This will be a dictionary with the key being the animation name,
+        # and the data being the actions associated with it.
+        self.animation_anim_data = dict()
+        # Blender object that was specified as controlling the animations.
+        self.anim_controller_obj = None
+
+        # Get all the animation data first, so we can decide how we deal
+        # with anims. This data can be used to determine how many
+        # animations we actually have.
+        for obj in self.export_scenes:
+            self.add_to_anim_data(obj)
+        # print(self.nodes_in_all_anims, 'nodes')
+        # number of frames        (same... for now)
+        self.anim_frames = self.global_scene.frame_end
+        # print(self.scene_actions)
+        # let's merge the self.animation_anim_data and the
+        # self.nodes_in_all_anims data:
+        for key in self.animation_anim_data.keys():
+            for node in self.nodes_in_all_anims:
+                if node not in list(x[0] for x in
+                                    self.animation_anim_data[key]):
+                    self.animation_anim_data[key].append([node, None, False])
+
+        self.process_anims()
+
+        # Go over each object in the list of nodes that are to be exported
+        for obj in self.export_scenes:
+            if obj.name.startswith('NMS_'):
+                # This is the old format. Use the name of that it is being
+                # saved as.
+                name = self.mname
+            elif obj.name.endswith('.SCENE'):
+                # Trim the `.SCENE` part.
+                name = obj.name[:-6]
             else:
-                self.basepath = 'CUSTOMMODELS'
-            # if there is a name for the group, use it.
-            if self.settings['group_name'] != "":
-                self.group_name = self.settings['group_name']
-            else:
-                self.group_name = self.mname
-
-            # let's sort out the descriptor first as it may re-name some of the
-            # objects in the scene:
-            # TODO: fix for scenes with nested descriptors
-            self.descriptor = None
-            if self.export_scenes[0].NMSReference_props.is_proc:
-                self.descriptor = self.descriptor_generator()
-
-            # pre-process the animation information.
-            # set to contain all the actions that are used in the scene
-            self.scene_actions = set()
-            # This will be a dictionary with the key being the joint name, and
-            # the data being the actions associated with it.
-            self.joint_anim_data = dict()
-            # This will be a dictionary with the key being the animation name,
-            # and the data being the actions associated with it.
-            self.animation_anim_data = dict()
-            # Blender object that was specified as controlling the animations.
-            self.anim_controller_obj = None
-
-            # Get all the animation data first, so we can decide how we deal
-            # with anims. This data can be used to determine how many
-            # animations we actually have.
-            for obj in self.export_scenes:
-                self.add_to_anim_data(obj)
-            # print(self.nodes_in_all_anims, 'nodes')
-            # number of frames        (same... for now)
-            self.anim_frames = self.global_scene.frame_end
-            # print(self.scene_actions)
-            # let's merge the self.animation_anim_data and the
-            # self.nodes_in_all_anims data:
-            for key in self.animation_anim_data.keys():
-                for node in self.nodes_in_all_anims:
-                    if node not in list(x[0] for x in
-                                        self.animation_anim_data[key]):
-                        self.animation_anim_data[key].append([node, None,
-                                                              False])
-
-            self.process_anims()
-
-            # Go over each object in the list of nodes that are to be exported
-            for obj in self.export_scenes:
-                print(obj.name)
-                if obj.name.startswith('NMS_'):
-                    # This is the old format. Use the name of that it is being
-                    # saved as.
-                    name = self.mname
-                    print(name)
-                if obj.name.endswith('.SCENE'):
-                    # Trim the `.SCENE` part.
-                    name = obj.name[:-6]
-                else:
-                    # Just use the provided name.
-                    name = obj.name
-                print('Located Object for export', name)
-                scene = Model(Name=name)
-                self.scene_directory = os.path.join(
-                        self.basepath, self.group_name, self.mname)
-                # We don't want to actually add the main object to the scene,
-                # Just its children.
-                for sub_obj in obj.children:
-                    self.parse_object(sub_obj, scene)
-                anim = self.anim_generator()
-                mpath = os.path.dirname(os.path.abspath(exportpath))
-                os.chdir(mpath)
-                Export(name,
-                       self.group_name,
-                       self.basepath,
-                       scene,
-                       anim,
-                       self.descriptor)
+                # Just use the provided name.
+                name = obj.name
+            print('Located Object for export', name)
+            scene = Model(Name=name)
+            self.scene_directory = os.path.join(
+                self.basepath, self.group_name, self.mname)
+            # We don't want to actually add the main object to the scene,
+            # Just its children.
+            for sub_obj in obj.children:
+                self.parse_object(sub_obj, scene)
+            anim = self.anim_generator()
+            mpath = os.path.dirname(os.path.abspath(exportpath))
+            os.chdir(mpath)
+            Export(name,
+                   self.group_name,
+                   self.basepath,
+                   scene,
+                   anim,
+                   self.descriptor)
 
         self.global_scene.frame_set(0)
 
