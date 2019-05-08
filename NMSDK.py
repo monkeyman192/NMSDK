@@ -77,11 +77,6 @@ class NMS_Export_Operator(Operator, ExportHelper):
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)")
-    batch_mode = BoolProperty(
-        name="Batch Mode",
-        description="If ticked, each direct child of this node will be "
-                    "exported separately",
-        default=False)
     AT_only = BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
@@ -97,7 +92,6 @@ class NMS_Export_Operator(Operator, ExportHelper):
         layout = self.layout
         layout.prop(self, 'export_directory')
         layout.prop(self, 'group_name')
-        layout.prop(self, 'batch_mode')
         layout.prop(self, 'AT_only')
 
     def execute(self, context):
