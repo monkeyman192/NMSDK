@@ -95,6 +95,9 @@ class NMSReferenceProperties(bpy.types.PropertyGroup):
     reference_path = StringProperty(
         name="Reference Path",
         description="Path to scene to be referenced at this location.")
+    scene_name = StringProperty(
+        name="Scene name",
+        description="Name of the scene for exporting purposes.")
     is_proc = BoolProperty(
         name="Is a proc-gen scene?",
         description="If checked, then a new panel will appear that can be "
@@ -182,6 +185,8 @@ class NMSReferencePropertyPanel(bpy.types.Panel):
         obj = context.object
         row = layout.row()
         row.prop(obj.NMSReference_props, "reference_path")
+        row = layout.row()
+        row.prop(obj.NMSReference_props, "scene_name")
         row = layout.row()
         row.prop(obj.NMSReference_props, "is_proc")
 

@@ -49,6 +49,35 @@ if scriptpath not in sys.path:
     # print(sys.path)
 
 
+def get_obj_name(obj, export_name):
+    # TODO: make this more general to apply for other object types too.
+    if obj.NMSNode_props.node_types == 'Reference':
+        # Reference types can have their name come from a few different places
+        if obj.NMSReference_props.scene_name != '':
+            name = obj.NMSReference_props.scene_name.upper()
+        elif obj.name.startswith('NMS_'):
+            # This is the old format. Use the name of that it is being
+            # saved as.
+            if obj.name == 'NMS_SCENE':
+                name = export_name
+            else:
+                name = obj.name[4:].upper()
+        elif obj.name.endswith('.SCENE'):
+            # Trim the `.SCENE` part.
+            name = obj.name[:-6]
+        else:
+            # Just use the provided name.
+            name = obj.name.upper()
+    else:
+        # Everything else we will just take the name it is given without the
+        # NMS_ at the front if it has it.
+        name = obj.name
+        if name.startswith('NMS_'):
+            name = name[4:].upper()
+        # TODO: add support for overwrite name?
+    return name
+
+
 """ Main exporter class with all the other functions contained in one place """
 
 
@@ -60,7 +89,7 @@ class Exporter():
         # set the frame to be the first one, just in case an export has already
         # been run
         self.global_scene.frame_set(0)
-        self.mname = os.path.basename(exportpath)
+        self.export_name = os.path.basename(exportpath)
         self.settings = settings
 
         # self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
@@ -110,21 +139,21 @@ class Exporter():
             entity.make_elements(main=True)
             mpath = os.path.dirname(os.path.abspath(exportpath))
             os.chdir(mpath)
-            entity.tree.write("{}.ENTITY.exml".format(self.mname))
+            entity.tree.write('{}.ENTITY.exml'.format(self.export_name))
             self.state = 'FINISHED'
             return
 
         # run the program normally
         # get the base path as specified
-        if self.settings['export_directory'] != "":
+        if self.settings['export_directory'] != '':
             self.basepath = self.settings['export_directory']
         else:
             self.basepath = 'CUSTOMMODELS'
         # if there is a name for the group, use it.
-        if self.settings['group_name'] != "":
+        if self.settings['group_name'] != '':
             self.group_name = self.settings['group_name']
         else:
-            self.group_name = self.mname
+            self.group_name = self.export_name
 
         # let's sort out the descriptor first as it may re-name some of the
         # objects in the scene:
@@ -166,20 +195,11 @@ class Exporter():
 
         # Go over each object in the list of nodes that are to be exported
         for obj in self.export_scenes:
-            if obj.name.startswith('NMS_'):
-                # This is the old format. Use the name of that it is being
-                # saved as.
-                name = self.mname
-            elif obj.name.endswith('.SCENE'):
-                # Trim the `.SCENE` part.
-                name = obj.name[:-6]
-            else:
-                # Just use the provided name.
-                name = obj.name
+            name = get_obj_name(obj, self.export_name)
             print('Located Object for export', name)
             scene = Model(Name=name)
             self.scene_directory = os.path.join(
-                self.basepath, self.group_name, self.mname)
+                self.basepath, self.group_name, self.export_name)
             # We don't want to actually add the main object to the scene,
             # Just its children.
             for sub_obj in obj.children:
@@ -410,6 +430,7 @@ class Exporter():
             print(ordered_nodes, 'ord nodes')
             for name in active_nodes:
                 # read from the ordered nodes data what goes in what order
+                # TODO: fix this
                 kwargs = {'Node': name[len("NMS_"):].upper(),
                           'RotIndex': str(ordered_nodes[1].index(name)),
                           'TransIndex': str(ordered_nodes[0].index(name)),
@@ -530,6 +551,7 @@ class Exporter():
                 descriptor_recurse(child, node)
                 # we also need to rename the object so that it is consistent
                 # with the descriptor:
+                # TODO: fix this
                 prefix = child.NMSDescriptor_props.proc_prefix.strip("_")
                 if child.name.startswith('NMS_'):
                     stripped_name = child.name[len("NMS_"):].upper()
@@ -877,10 +899,7 @@ class Exporter():
                     entitydata.append(rotation_data)
 
             # Create Mesh Object
-            if ob.NMSNode_props.override_name != "":
-                actualname = ob.NMSNode_props.override_name
-            else:
-                actualname = ob.name[len("NMS_"):].upper()
+            actualname = get_obj_name(ob, None)
             newob = Mesh(Name=actualname,
                          Transform=transform,
                          Vertices=verts,
@@ -926,24 +945,19 @@ class Exporter():
         # Locator and Reference Objects
         elif ob.NMSNode_props.node_types == 'Reference':
             print("Reference Detected")
-            if ob.NMSNode_props.override_name != "":
-                actualname = ob.NMSNode_props.override_name
-            else:
-                actualname = ob.name[len("NMS_"):].upper()
-            try:
-                scenegraph = ob.NMSReference_props.reference_path
-            except AttributeError:
-                raise Exception("Missing REF Property, Set it")
+            actualname = get_obj_name(ob, None)
+            scenegraph = ob.NMSReference_props.reference_path
+            if scenegraph == '':
+                name = get_obj_name(ob, self.export_name)
+                scenegraph = os.path.join(self.basepath, self.group_name, name)
+                scenegraph += '.SCENE.MBIN'
 
             newob = Reference(Name=actualname,
                               Transform=transform,
-                              Scenegraph=scenegraph)
+                              Scenegraph=scenegraph.upper())
         elif ob.NMSNode_props.node_types == 'Locator':
             print("Locator Detected")
-            if ob.NMSNode_props.override_name != "":
-                actualname = ob.NMSNode_props.override_name
-            else:
-                actualname = ob.name[len("NMS_"):].upper()
+            actualname = get_obj_name(ob, None)
             HasAttachment = ob.NMSLocator_props.has_entity
 
             newob = Locator(Name=actualname,
@@ -960,10 +974,7 @@ class Exporter():
 
         elif ob.NMSNode_props.node_types == 'Joint':
             print("Joint Detected")
-            if ob.NMSNode_props.override_name != "":
-                actualname = ob.NMSNode_props.override_name
-            else:
-                actualname = ob.name[len("NMS_"):].upper()
+            actualname = get_obj_name(ob, None)
             self.joints += 1
             newob = Joint(Name=actualname,
                           Transform=transform,
@@ -971,10 +982,7 @@ class Exporter():
 
         # Light Objects
         elif ob.NMSNode_props.node_types == 'Light':
-            if ob.NMSNode_props.override_name != "":
-                actualname = ob.NMSNode_props.override_name
-            else:
-                actualname = ob.name[len("NMS_"):].upper()
+            actualname = get_obj_name(ob, None)
             # Get Color
             col = tuple(ob.data.color)
             print("colour: {}".format(col))
@@ -1070,7 +1078,7 @@ class Exporter():
         if len(self.anim_frame_data) == 1:
             # in this case we only have the idle animation.
             path = os.path.join(self.basepath, self.group_name.upper(),
-                                self.mname.upper())
+                                self.export_name.upper())
             anim_entity = TkAnimationComponentData(
                 Idle=TkAnimationData(AnimType=list(anim_loops.values())[0]))
             # update the entity data directly
