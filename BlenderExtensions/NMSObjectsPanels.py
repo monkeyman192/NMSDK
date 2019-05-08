@@ -151,7 +151,10 @@ class NMSNodePropertyPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if getParentRefScene(context.object) is not None:
+        # display if the object is a child of a NMS reference scene, or if the
+        # object has no parent (to allow for new NMS scenes to be added).
+        if (getParentRefScene(context.object) is not None or
+                context.object.parent is None):
             return True
         else:
             return False
