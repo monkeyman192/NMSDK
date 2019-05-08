@@ -9,6 +9,7 @@ nav:
       - Importing: importing/importing.md
     - Exporting a Scene:
       - Setting up: exporting/exporting.md
+      - Node type guide: exporting/node_docs.md
       - Adding Entities: exporting/entities.md
       - Making a proc-gen scene: exporting/proc_gen.md
       - Creating Action Triggers: exporting/action_triggers.md
