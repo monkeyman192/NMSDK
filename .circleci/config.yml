@@ -39,6 +39,17 @@ jobs:
             - run:
                 name: Deploy docs to gh-pages branch
                 command: gh-pages --dotfiles --message "[skip ci] Auto-update" --dist html_docs/site
+    build-addon:
+        docker:
+            - image: python:3.7
+        steps:
+            - checkout
+            - run:
+                name: Build zip
+                command: python ./tools/build.py
+            - store_artifacts:
+                path: nmsdk.zip
+                destination: build
 
 workflows:
     version: 2
@@ -51,3 +62,4 @@ workflows:
                 filters:
                     branches:
                         only: Experimental
+            - build-addon
