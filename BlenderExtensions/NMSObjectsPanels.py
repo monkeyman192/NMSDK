@@ -164,8 +164,6 @@ class NMSNodePropertyPanel(bpy.types.Panel):
         obj = context.object
         row = layout.row()
         row.prop(obj.NMSNode_props, "node_types", expand=True)
-        row = layout.row()
-        row.prop(obj.NMSNode_props, "override_name")
 
 
 class NMSReferencePropertyPanel(bpy.types.Panel):
