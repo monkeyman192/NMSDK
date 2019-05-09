@@ -49,7 +49,7 @@ jobs:
                 command: python ./tools/build.py
             - store_artifacts:
                 path: nmsdk.zip
-                destination: build
+                destination: build/nmsdk.zip
 
 workflows:
     version: 2
