@@ -42,7 +42,7 @@ class Export():
     anim_data : collections.OrderedDict (Optional)
         Animation data.
     descriptior: Descriptor
-        Descriptor information
+        Descriptor information for the scene
     """
     def __init__(self, name, directory, basepath, model, anim_data=odict(),
                  descriptor=None):
@@ -149,13 +149,9 @@ class Export():
         # get the model to create all the required data and this will continue
         # on down the tree
         self.TkSceneNodeData.make_elements(main=True)
-        if self.descriptor is not None:
-            self.descriptor = self.descriptor.to_exml()
-            self.descriptor.make_elements(main=True)
         for material in self.materials:
             if type(material) != str:
                 material.make_elements(main=True)
-
         for anim_name in list(self.anim_data.keys()):
             self.anim_data[anim_name].make_elements(main=True)
 
@@ -170,7 +166,7 @@ class Export():
             os.makedirs(self.ent_path)
         if not os.path.exists(self.texture_path):
             os.makedirs(self.texture_path)
-        if not os.path.exists(self.anims_path):
+        if not os.path.exists(self.anims_path) and len(self.anim_data) != 0:
             os.makedirs(self.anims_path)
 
     def preprocess_streams(self):
@@ -638,8 +634,12 @@ class Export():
                              "{}.GEOMETRY.MBIN.PC".format(self.path))
         mbinc.serialize()
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
+        # Build all the descriptor exml data
         if self.descriptor is not None:
-            self.descriptor.tree.write("{}.DESCRIPTOR.exml".format(self.path))
+            descriptor = self.descriptor.to_exml()
+            descriptor.make_elements(main=True)
+            descriptor.tree.write(
+                "{}.DESCRIPTOR.exml".format(self.descriptor.path))
         for material in self.materials:
             if type(material) != str:
                 material.tree.write(

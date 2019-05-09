@@ -8,7 +8,7 @@ import bmesh  # pylint: disable=import-error
 from idprop.types import IDPropertyGroup  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
 # Internal imports
-from ..utils.misc import CompareMatrices, ContinuousCompare
+from ..utils.misc import CompareMatrices, ContinuousCompare, get_obj_name
 from .utils import (get_all_actions, apply_local_transforms,
                     calc_tangents, transform_to_NMS_coords)
 from .export import Export
@@ -47,35 +47,6 @@ print(scriptpath)
 if scriptpath not in sys.path:
     sys.path.append(scriptpath)
     # print(sys.path)
-
-
-def get_obj_name(obj, export_name):
-    # TODO: make this more general to apply for other object types too.
-    if obj.NMSNode_props.node_types == 'Reference':
-        # Reference types can have their name come from a few different places
-        if obj.NMSReference_props.scene_name != '':
-            name = obj.NMSReference_props.scene_name.upper()
-        elif obj.name.startswith('NMS_'):
-            # This is the old format. Use the name of that it is being
-            # saved as.
-            if obj.name == 'NMS_SCENE':
-                name = export_name
-            else:
-                name = obj.name[4:].upper()
-        elif obj.name.endswith('.SCENE'):
-            # Trim the `.SCENE` part.
-            name = obj.name[:-6]
-        else:
-            # Just use the provided name.
-            name = obj.name.upper()
-    else:
-        # Everything else we will just take the name it is given without the
-        # NMS_ at the front if it has it.
-        name = obj.name
-        if name.startswith('NMS_'):
-            name = name[4:].upper()
-        # TODO: add support for overwrite name?
-    return name
 
 
 """ Main exporter class with all the other functions contained in one place """
@@ -155,13 +126,6 @@ class Exporter():
         else:
             self.group_name = self.export_name
 
-        # let's sort out the descriptor first as it may re-name some of the
-        # objects in the scene:
-        # TODO: fix for scenes with nested descriptors
-        self.descriptor = None
-        if self.export_scenes[0].NMSReference_props.is_proc:
-            self.descriptor = self.descriptor_generator()
-
         # pre-process the animation information.
         # set to contain all the actions that are used in the scene
         self.scene_actions = set()
@@ -195,6 +159,10 @@ class Exporter():
 
         # Go over each object in the list of nodes that are to be exported
         for obj in self.export_scenes:
+            # First, sort out any descriptors
+            descriptor = None
+            if obj.NMSReference_props.is_proc:
+                descriptor = self.descriptor_generator(obj)
             name = get_obj_name(obj, self.export_name)
             print('Located Object for export', name)
             scene = Model(Name=name)
@@ -212,7 +180,7 @@ class Exporter():
                    self.basepath,
                    scene,
                    anim,
-                   self.descriptor)
+                   descriptor)
 
         self.global_scene.frame_set(0)
 
@@ -510,7 +478,7 @@ class Exporter():
                 StillFrameData=StillFrameData)
         return AnimationFiles
 
-    def descriptor_generator(self):
+    def descriptor_generator(self, obj):
         """ Generate a descriptor for the scene.
 
         Note
@@ -521,18 +489,18 @@ class Exporter():
         descriptor_struct = Descriptor()
 
         def descriptor_recurse(obj, structure):
-            # will recurse the object and add the object to the structure
+            # Recurse the object and add the object to the structure
             prefixes = set()
             important_children = []
             for child in obj.children:
-                if child.NMSDescriptor_props.proc_prefix != "":
+                if child.NMSDescriptor_props.proc_prefix != '':
                     p = child.NMSDescriptor_props.proc_prefix
                     # Let's do a bit of processing on the prefix first to make
                     # sure all is good.
                     # The user may or may not have put a leading or trailing
                     # underscore, so we'll get rid of them and add our own
                     # just in case...
-                    prefix = "_{0}_".format(p.strip("_"))
+                    prefix = '_{0}_'.format(p.strip('_')).upper()
                     prefixes.add(prefix)
                     # Add only children we like to the list (ie. those with
                     # some proc info)
@@ -545,32 +513,24 @@ class Exporter():
             # now recurse over the children with proc info
             for child in important_children:
                 # this will add a Node_Data object and return it
-                node = structure.get_child("_{0}_".format(
-                    child.NMSDescriptor_props.proc_prefix.strip("_")
-                    )).add_child(child)
-                descriptor_recurse(child, node)
-                # we also need to rename the object so that it is consistent
-                # with the descriptor:
-                # TODO: fix this
-                prefix = child.NMSDescriptor_props.proc_prefix.strip("_")
-                if child.name.startswith('NMS_'):
-                    stripped_name = child.name[len("NMS_"):].upper()
-                else:
-                    stripped_name = child.name.upper()
-                if stripped_name.strip('_').upper().startswith(prefix):
-                    child.NMSNode_props.override_name = "_{0}".format(
-                        stripped_name.strip('_').upper())
-                else:
-                    # hopefully the user hasn't messed anything up...
-                    child.NMSNode_props.override_name = "_{0}_{1}".format(
-                        prefix, stripped_name.strip('_').upper())
+                p = child.NMSDescriptor_props.proc_prefix
+                prefix = '_{0}_'.format(p.strip('_')).upper()
+                name = get_obj_name(child, self.export_name)
+                if not name.startswith(prefix):
+                    # If the name doesn't start with the prefix
+                    child.NMSNode_props.override_name = "{0}{1}".format(
+                        prefix, name.lstrip('_').upper())
+                node = structure.get_child(prefix).add_child(child)
+                if child.NMSNode_props.node_types != 'Reference':
+                    descriptor_recurse(child, node)
 
-        if len(self.export_scenes) == 1:
-            descriptor_recurse(self.export_scenes[0], descriptor_struct)
-        else:
-            raise NotImplementedError("This hasn't been implemented yet... :(")
+        descriptor_recurse(obj, descriptor_struct)
 
-        print(descriptor_struct)
+        # Get the objects name. We do this again now in case it has changed
+        name = get_obj_name(obj, self.export_name)
+        # Give the descriptor its path
+        descriptor_struct.path = os.path.join(self.basepath, self.group_name,
+                                              name).upper()
 
         return descriptor_struct
 

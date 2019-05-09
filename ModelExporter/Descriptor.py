@@ -4,6 +4,7 @@
 
 __author__ = "monkeyman192"
 
+from ..utils.misc import get_obj_name
 from ..NMS.classes import (List, TkModelDescriptorList, NMSString0x80,
                            TkResourceDescriptorList, TkResourceDescriptorData)
 from .utils import get_children
@@ -15,6 +16,7 @@ from .utils import get_children
 class Descriptor():
     def __init__(self):
         self.children = []
+        self.path = ''
 
     def add_child(self, TypeId):
         self.children.append(Node_List(TypeId))
@@ -107,13 +109,7 @@ class Node_Data():
                         return True
             return False
 
-        prefix = self.obj.NMSDescriptor_props.proc_prefix.strip("_")
-        stripped_name = self.obj.name[len("NMS_"):].upper()
-        if stripped_name.strip('_').upper().startswith(prefix):
-            name = "_{0}".format(stripped_name.strip('_').upper())
-        else:
-            # hopefully the user hasn't messed anything up...
-            name = "_{0}_{1}".format(prefix, stripped_name.strip('_').upper())
+        name = get_obj_name(self.obj, None)
 
         # get the list off all children of self.obj that are ref nodes and
         # aren't proc
