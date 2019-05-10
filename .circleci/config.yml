@@ -58,8 +58,11 @@ jobs:
           - attach_workspace:
               at: build
           - run:
+              name: ensure script is executable
+              command: chmod +x ./tools/upload-github-release-asset.sh
+          - run:
               name: run script
-              command: ./tools/upload-github-release-asset.sh github_api_token=${GITHUB_TOKEN} owner=monkeyman192 repo=NMSDK tag=v0.0.2 filename=./build/nmsdk.zip
+              command: bash ./tools/upload-github-release-asset.sh github_api_token=${GITHUB_TOKEN} owner=monkeyman192 repo=NMSDK tag=v0.0.2 filename=./build/nmsdk.zip
             
 workflows:
     version: 2
