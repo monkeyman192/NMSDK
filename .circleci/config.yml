@@ -51,7 +51,7 @@ jobs:
                 root: build
                 paths: nmsdk.zip
     release-addon:
-        step:
+        steps:
           - checkout
           - attach_workspace:
               at: build
