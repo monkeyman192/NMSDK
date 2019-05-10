@@ -47,10 +47,18 @@ jobs:
             - run:
                 name: Build zip
                 command: python ./tools/build.py
-            - store_artifacts:
-                path: nmsdk.zip
-                destination: build/nmsdk.zip
-
+            - persist_to_workspace:
+                root: build
+                paths: nmsdk.zip
+    release-addon:
+        step:
+          - checkout
+          - attach_workspace:
+              at: build
+          - run:
+              name: run script
+              command: ./tools/upload-github-release-asset.sh github_api_token=${GITHUB_TOKEN} owner=monkeyman192 repo=NMSDK tag=v0.0.2 filename=./build/nmsdk.zip
+            
 workflows:
     version: 2
     build:
@@ -63,3 +71,6 @@ workflows:
                     branches:
                         only: Experimental
             - build-addon
+            - release-addon:
+                requires:
+                    - build-addon
