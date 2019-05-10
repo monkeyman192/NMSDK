@@ -51,6 +51,8 @@ jobs:
                 root: build
                 paths: nmsdk.zip
     release-addon:
+        docker:
+            - image: circleci/node:4.8.2
         steps:
           - checkout
           - attach_workspace:
