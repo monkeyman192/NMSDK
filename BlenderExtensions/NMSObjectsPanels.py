@@ -95,6 +95,9 @@ class NMSReferenceProperties(bpy.types.PropertyGroup):
     reference_path = StringProperty(
         name="Reference Path",
         description="Path to scene to be referenced at this location.")
+    ref_path = StringProperty(
+        name="Reference Path (internal)",
+        description="Internal use only reference path variable.")
     scene_name = StringProperty(
         name="Scene name",
         description="Name of the scene for exporting purposes.")

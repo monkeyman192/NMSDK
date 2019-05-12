@@ -115,6 +115,7 @@ class Node_Data():
         # aren't proc
         non_proc_refs = get_children(self.obj, [], "Reference", not_proc)
         additional_ref_paths = set()
+
         for child in non_proc_refs:
             additional_ref_paths.add(child.NMSReference_props.reference_path)
 
@@ -124,7 +125,7 @@ class Node_Data():
 
         if self.obj.NMSNode_props.node_types == 'Reference':
             refs = List(NMSString0x80(
-                Value=self.obj.NMSReference_props.reference_path))
+                Value=self.obj.NMSReference_props.ref_path))
         else:
             refs = List()
         children = List()

@@ -31,6 +31,8 @@ from .ActionTriggerParser import ParseNodes
 
 # Attempt to find 'blender.exe path'
 
+# TODO: do we need any of this??
+
 for path in sys.path:
     if os.path.isdir(path):
         if 'ModelExporter' in os.listdir(path):
@@ -163,7 +165,9 @@ class Exporter():
             descriptor = None
             if obj.NMSReference_props.is_proc:
                 descriptor = self.descriptor_generator(obj)
-            name = get_obj_name(obj, self.export_name)
+            name = obj.NMSReference_props.scene_name
+            if name == '':
+                name = get_obj_name(obj, self.export_name)
             print('Located Object for export', name)
             scene = Model(Name=name)
             self.scene_directory = os.path.join(
@@ -204,7 +208,6 @@ class Exporter():
 
     def add_to_anim_data(self, ob):
         for child in ob.children:
-            print(child.name)
             if (not CompareMatrices(child.matrix_local, Matrix.Identity(4),
                                     1E-6) or
                     child.animation_data is not None):
@@ -479,12 +482,7 @@ class Exporter():
         return AnimationFiles
 
     def descriptor_generator(self, obj):
-        """ Generate a descriptor for the scene.
-
-        Note
-        ----
-        This will not work currently for scenes with nested references
-        """
+        """ Generate a descriptor for the specified object."""
 
         descriptor_struct = Descriptor()
 
@@ -687,12 +685,8 @@ class Exporter():
         #                                scale=True)
 
         # get the objects' location and convert to NMS coordinates
-        print(ob.matrix_local.decompose())
         trans, rot_q, scale = transform_to_NMS_coords(ob)
         rot = rot_q.to_euler()
-        print(trans)
-        print(rot)
-        print(scale)
 
         transform = TkTransformData(TransX=trans[0],
                                     TransY=trans[1],
@@ -762,7 +756,6 @@ class Exporter():
         # Main switch to identify meshes or locators/references
         if ob.NMSNode_props.node_types == 'Collision':
             # COLLISION MESH
-            print("Collision found: ", ob.name)
             colType = ob.NMSCollision_props.collision_types
 
             optdict = {}
@@ -835,12 +828,7 @@ class Exporter():
         elif ob.NMSNode_props.node_types == 'Mesh':
             # ACTUAL MESH
             # Parse object Geometry
-            print('Exporting: ', ob.name)
             verts, norms, tangs, luvs, indexes, chverts = self.mesh_parser(ob)
-            print("Object Count: ", len(verts), len(luvs), len(norms),
-                  len(indexes), len(chverts))
-            print("Object Rotation: ", degrees(rot[0]), degrees(rot[1]),
-                  degrees(rot[2]))
 
             # check whether the mesh has any child nodes we care about (such as
             # a rotation vector)
@@ -904,19 +892,23 @@ class Exporter():
 
         # Locator and Reference Objects
         elif ob.NMSNode_props.node_types == 'Reference':
-            print("Reference Detected")
             actualname = get_obj_name(ob, None)
             scenegraph = ob.NMSReference_props.reference_path
             if scenegraph == '':
-                name = get_obj_name(ob, self.export_name)
+                # We'd prefer the name to be set by the scene_name property
+                name = ob.NMSReference_props.scene_name
+                # But if not, just use the node name.
+                if name == '':
+                    name = get_obj_name(ob, None)
                 scenegraph = os.path.join(self.basepath, self.group_name, name)
                 scenegraph += '.SCENE.MBIN'
+                scenegraph = scenegraph.upper()
 
             newob = Reference(Name=actualname,
                               Transform=transform,
-                              Scenegraph=scenegraph.upper())
+                              Scenegraph=scenegraph)
+            ob.NMSReference_props.ref_path = scenegraph
         elif ob.NMSNode_props.node_types == 'Locator':
-            print("Locator Detected")
             actualname = get_obj_name(ob, None)
             HasAttachment = ob.NMSLocator_props.has_entity
 
@@ -933,7 +925,6 @@ class Exporter():
                                             newob)
 
         elif ob.NMSNode_props.node_types == 'Joint':
-            print("Joint Detected")
             actualname = get_obj_name(ob, None)
             self.joints += 1
             newob = Joint(Name=actualname,
