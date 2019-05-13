@@ -79,3 +79,6 @@ workflows:
             - release-addon:
                 requires:
                     - build-addon
+                filters:
+                    branches:
+                        only: Experimental
