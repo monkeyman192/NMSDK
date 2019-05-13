@@ -952,8 +952,9 @@ class Exporter():
         self.global_entitydata[ob.name] = entitydata
 
         # If we parsed a reference node or a collision node, stop.
-        if (ob.NMSNode_props.node_types == 'Reference' or
-                ob.NMSNode_props.node_types == 'Collision'):
+        if (ob.NMSNode_props.node_types == 'Collision' or
+                (ob.NMSNode_props.node_types == 'Reference' and
+                 ob.NMSReference_props.reference_path == '')):
             return
 
         # Parse children
