@@ -21,7 +21,6 @@ Putting it simply, the `Reference` node type is used to denote a scene that is t
 To allow for flexibility, `Reference` nodes can be given two important properties, `Reference path` and `Scene name`.
 
 `Reference path` is used to specify the path to an external scene file (relative to the PCBANKS folder).
-If this property is set, any contained child objects **will not** be exported.
 
 `Scene name` is used to specify the name of the exported sub-scene.
 This is the name of the scene that any child objects will be exported in.
