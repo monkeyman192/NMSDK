@@ -4,12 +4,14 @@
 # License: MIT
 # https://gist.github.com/stefanbuck/ce788fee19ab6eb0b4447a85fc99f447
 #
+# Contains modifications suggested by huxingyi:
+# https://gist.github.com/stefanbuck/ce788fee19ab6eb0b4447a85fc99f447#gistcomment-2555516
+# as well as personal changes (by monkeyman192).
 #
 # This script accepts the following parameters:
 #
 # * owner
 # * repo
-# * tag
 # * filename
 # * github_api_token
 #
@@ -17,7 +19,7 @@
 #
 # Example:
 #
-# upload-github-release-asset.sh github_api_token=TOKEN owner=stefanbuck repo=playground tag=v0.1.0 filename=./build.zip
+# upload-github-release-asset.sh github_api_token=TOKEN owner=stefanbuck repo=playground filename=./build.zip
 #
 
 # Check dependencies.
@@ -32,6 +34,9 @@ CONFIG=$@
 for line in $CONFIG; do
   eval "$line"
 done
+
+# Get the version of the plugin
+tag=$(bash ./read_nmsdk_version.sh)
 
 # Define variables.
 GH_API="https://api.github.com"
@@ -48,28 +53,41 @@ fi
 # Validate token.
 curl -o /dev/null -sH "$AUTH" $GH_REPO || { echo "Error: Invalid repo, token or network issue!";  exit 1; }
 
-echo "validated with github"
-
-# Create a release automatically
-curl \
-    --user $owner:$github_api_token \
-    --header "Accept: application/vnd.github.manifold-preview" \
-    --data "{\"tag_name\":\"$tag\"}" \
-    "https://api.github.com/repos/$owner/$repo/releases?access_token=$github_api_token"
-
 # Read asset tags.
 response=$(curl -sH "$AUTH" $GH_TAGS)
 
-echo "$response"
+# Get ID of the release.
+eval $(echo "$response" | grep -m 1 "id.:" | grep -w id | tr : = | tr -cd '[[:alnum:]]=')
+
+if [[ "$id" == '' ]]; then
+    # Create a release automatically
+    curl \
+        --user $owner:$github_api_token \
+        --header "Accept: application/vnd.github.manifold-preview" \
+        --data "{\"tag_name\":\"$tag\"}" \
+        "https://api.github.com/repos/$owner/$repo/releases?access_token=$github_api_token"
+
+    # Then re-ask for the ID
+    response=$(curl -sH "$AUTH" $GH_TAGS)
+    eval $(echo "$response" | grep -m 1 "id.:" | grep -w id | tr : = | tr -cd '[[:alnum:]]=')
+fi
+release_id="$id"
 
 # Get ID of the asset based on given filename.
-eval $(echo "$response" | grep -m 1 "id.:" | grep -w id | tr : = | tr -cd '[[:alnum:]]=')
-[ "$id" ] || { echo "Error: Failed to get release id for tag: $tag"; echo "$response" | awk 'length($0)<100' >&2; exit 1; }
+id=""
+eval $(echo "$response" | grep -C1 "name.:.\+$filename" | grep -m 1 "id.:" | grep -w id | tr : = | tr -cd '[[:alnum:]]=')
+asset_id="$id"
+if [ "$asset_id" = "" ]; then
+    echo "No need to overwrite asset"
+else
+    echo "Deleting asset($asset_id)... "
+    curl "$GITHUB_OAUTH_BASIC" -X "DELETE" -H "Authorization: token $github_api_token" "https://api.github.com/repos/$owner/$repo/releases/assets/$asset_id"
+fi
 
 # Upload asset
 echo "Uploading asset... "
 
 # Construct url
-GH_ASSET="https://uploads.github.com/repos/$owner/$repo/releases/$id/assets?name=$(basename $filename)"
+GH_ASSET="https://uploads.github.com/repos/$owner/$repo/releases/$release_id/assets?name=$(basename $filename)"
 
 curl "$GITHUB_OAUTH_BASIC" --data-binary @"$filename" -H "Authorization: token $github_api_token" -H "Content-Type: application/octet-stream" $GH_ASSET
