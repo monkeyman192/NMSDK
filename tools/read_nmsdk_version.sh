@@ -2,7 +2,7 @@
 # Read the version of NMSDK from .__init__.py
 
 # First, get just the line with the version in it
-ver_line=$(grep 'version' ../__init__.py)
+ver_line=$(grep 'version' ./__init__.py)
 # THen split it to get just the numbers
 blah=$(echo "$ver_line" | grep -o -E '[0-9]')
 

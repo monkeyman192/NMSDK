@@ -36,7 +36,7 @@ for line in $CONFIG; do
 done
 
 # Get the version of the plugin
-tag=$(bash ./read_nmsdk_version.sh)
+tag=$(bash ./tools/read_nmsdk_version.sh)
 
 # Define variables.
 GH_API="https://api.github.com"
