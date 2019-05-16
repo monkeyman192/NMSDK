@@ -47,6 +47,9 @@ jobs:
             - run:
                 name: Build zip
                 command: python ./tools/build.py
+            - store_artifacts:
+                path: build/nmsdk.zip
+                destination: build/nmsdk.zip
             - persist_to_workspace:
                 root: build
                 paths: nmsdk.zip
