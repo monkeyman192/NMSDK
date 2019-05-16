@@ -497,6 +497,16 @@ class Export():
                                                       Normalise=0,
                                                       Instancing="PerVertex",
                                                       PlatformData=""))
+                # Also write the small vertex data
+                Offset = 8*sID
+                SmallVertexElements.append(
+                    TkVertexElement(SemanticID=sID,
+                                    Size=4,
+                                    Type=5131,
+                                    Offset=Offset,
+                                    Normalise=0,
+                                    Instancing="PerVertex",
+                                    PlatformData=""))
             # for the INT_2_10_10_10_REV stuff
             elif sID in [2, 3]:
                 Offset = 16 + (sID - 2)*4
@@ -508,27 +518,15 @@ class Export():
                                                       Instancing="PerVertex",
                                                       PlatformData=""))
 
-        for sID in [0, 1]:
-            Offset = 8*sID
-            SmallVertexElements.append(TkVertexElement(SemanticID=sID,
-                                                       Size=4,
-                                                       Type=5131,
-                                                       Offset=Offset,
-                                                       Normalise=0,
-                                                       Instancing="PerVertex",
-                                                       PlatformData=""))
-        # fow now just make the small vert and vert layouts the same
-
-        # Vertex layout needs to be changed for the new normals/tangent format
-
         self.GeometryData['VertexLayout'] = TkVertexLayout(
             ElementCount=self.element_count,
             Stride=self.stride,
             PlatformData="",
             VertexElements=VertexElements)
+        # TODO: do more generically
         self.GeometryData['SmallVertexLayout'] = TkVertexLayout(
-            ElementCount=2,
-            Stride=16,
+            ElementCount=len(SmallVertexElements),
+            Stride=0x8 * len(SmallVertexElements),
             PlatformData="",
             VertexElements=SmallVertexElements)
 

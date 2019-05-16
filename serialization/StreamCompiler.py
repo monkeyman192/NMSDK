@@ -2,7 +2,7 @@
 
 from struct import pack, unpack
 
-from .utils import pad, read_list_header, read_list_data
+from .utils import pad, read_list_header, read_list_data, list_header
 
 
 class TkMeshMetaData():
@@ -157,9 +157,7 @@ class StreamData():
             # write the header
             f.write(self.header)
             # write the list header for the number of metadata structs
-            f.write(pack('<Q', 0x10))
-            f.write(pack('<I', self.count))
-            f.write(pack('<I', 1))
+            f.write(list_header(0x10, self.count, 1))
             # write the metadata
             for m in self.metadata:
                 f.write(bytes(m))
