@@ -536,11 +536,12 @@ class Exporter():
     def mesh_parser(self, ob):
         self.global_scene.objects.active = ob
         # Lists
-        verts = []
-        norms = []
-        tangents = []
-        luvs = []
         indexes = []
+        verts = []
+        uvs = []
+        normals = []
+        tangents = []
+        colours = []
         chverts = []        # convex hull vert data
         # Matrices
         # object_matrix_wrld = ob.matrix_world
@@ -555,60 +556,43 @@ class Exporter():
         if (uvcount < 1):
             raise Exception("Missing UV Map")
 
-        # data.update(calc_tessface=True)  # convert ngons to tris
-        data.calc_tessface()
-        # try:
-        #    data.calc_tangents(data.uv_layers[0].name)
-        # except:
-        #    raise Exception("Please Triangulate your Mesh")
+        uv_layer_name = data.uv_layers.active.name
+        uv_layer_data = data.uv_layers.active.data
 
-        # colcount = len(data.vertex_colors)
-        id = 0
-        for f in data.tessfaces:  # indices
-            # polygon = data.polygons[f.index] #Load Polygon
-            if len(f.vertices) == 4:
-                indexes.append((id, id + 1, id + 2))
-                indexes.append((id, id + 2, id + 3))
-                id += 4
-            else:
-                indexes.append((id, id + 1, id + 2))
-                id += 3
+        # Calculate the tangents and normals from the uv map
+        try:
+            data.calc_tangents(uvmap=uv_layer_name)
+        except RuntimeError:
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.select_all(action='SELECT')
+            bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY',
+                                               ngon_method='BEAUTY')
+            print(ob.name + ' needs to be triangulaed!!!')
+            data.calc_tangents(uvmap=uv_layer_name)
 
-            for vert in range(len(f.vertices)):
-                # Store them untransformed and we will fix them after tangent
-                # calculation
-                co = data.vertices[f.vertices[vert]].co
-                # Save Vertex Normal
-                norm = data.vertices[f.vertices[vert]].normal
-                # norm = f.normal #Save face normal
+        # Determine if the model has colour data
+        export_colours = bool(len(data.vertex_colors))
+        if export_colours:
+            colour_data = data.vertex_colors.active.data
 
-                # norm =    100 * norm_mat * data.loops[f.vertices[vert]].normal
-                # tangent = 100 * norm_mat * data.loops[f.vertices[vert]].tangent
-                # Invert YZ to match NMS game coords
-                verts.append((co[0], co[1], co[2], 1.0))
-                # (co[0], co[2], -co[1], 1.0)
-                # y and z components have - sign to what they had before...
-                norms.append((norm[0], norm[1], norm[2], 1.0))
-                # tangents.append((tangent[0], tangent[1], tangent[2], 0.0))
+        bpy.ops.object.mode_set(mode='OBJECT')
 
-                # Get Uvs
-                uv = getattr(data.tessface_uv_textures[0].data[f.index],
-                             'uv' + str(vert + 1))
-                luvs.append((uv.x, 1.0 - uv.y, 0.0, 0.0))
-                """
-                for k in range(colcount):
-                    r = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
-                        f.index) + '].color' + str(vert + 1) + '[0]*1023')
-                    g = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
-                        f.index) + '].color' + str(vert + 1) + '[1]*1023')
-                    b = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
-                        f.index) + '].color' + str(vert + 1) + '[2]*1023')
-                    eval('col_' + str(k) + '.append((r,g,b))')
-                """
-
-        # At this point mesh is triangulated
-        # I can get the triangulated input and calculate the tangents
-        tangents = calc_tangents(indexes, verts, norms, luvs)
+        # Iterate over all the MeshLoops of the mesh
+        for ml in data.loops:
+            index = ml.vertex_index
+            indexes.append(index)
+            vert = data.vertices[index].co
+            verts.append((vert[0], vert[1], vert[2], 1))
+            uv = uv_layer_data[index].uv
+            uvs.append((uv[0], 1 - uv[1], 0, 0))
+            normal = ml.normal
+            normals.append((normal[0], normal[1], normal[2], 1))
+            tangent = ml.tangent
+            tangents.append((tangent[0], tangent[1], tangent[2], 0))
+            if export_colours:
+                # TODO: if this requires the mode to be the vertex paint mode,
+                # detrmine this afterwards
+                colours.append(colour_data[index].color)
 
         # finally, let's find the convex hull data of the mesh:
         bpy.ops.object.mode_set(mode='EDIT')
@@ -629,7 +613,7 @@ class Exporter():
         # ob.matrix_world = rot_x_mat.inverted()*ob.matrix_world
 
         # Apply rotation and normal matrices on vertices and normal vectors
-        apply_local_transforms(rot_x_mat, verts, norms, tangents, chverts)
+        apply_local_transforms(rot_x_mat, verts, normals, tangents, chverts)
 
         """
         # convert indexes to an array now
@@ -639,7 +623,7 @@ class Exporter():
             indexes = array('H', indexes)
         """
 
-        return verts, norms, tangents, luvs, indexes, chverts
+        return verts, normals, tangents, uvs, indexes, chverts
 
     def recurce_entity(self, parent, obj, list_element=None, index=0):
         # this will return the class object of the property recursively

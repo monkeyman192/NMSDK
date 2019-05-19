@@ -251,9 +251,7 @@ class Export():
                 uvs=self.uv_stream[name],
                 normals=self.n_stream[name],
                 tangents=self.t_stream[name]))
-            new_indexes = []
-            for tri in self.index_stream[name]:
-                new_indexes.extend(tri)
+            new_indexes = self.index_stream[name]
             if max(new_indexes) > 2 ** 16:
                 indexes = array('I', new_indexes)
             else:
@@ -282,7 +280,7 @@ class Export():
         # This will do the main processing of the different streams.
         # indexes
         # the total number of index points in each object
-        index_counts = list(3 * x for x in self.i_stream_lens.values())
+        index_counts = list(self.i_stream_lens.values())
         # now, re-order the indexes:
         # new_index_counts = list(index_counts[self.index_mapping[i]] for i in
         # range(len(index_counts)))
@@ -322,30 +320,10 @@ class Export():
         # we need to fix up the index stream as the numbering needs to be
         # continuous across all the streams
         k = 0       # additive constant
-        for name in self.mesh_names:
-            # first add k to every element in every tuple
-            curr_max = 0
-            for j in range(self.i_stream_lens[name]):
-                self.index_stream[name][j] = tuple(k + index for index in
-                                                   self.index_stream[name][j])
-                local_max = max(self.index_stream[name][j])
-                if local_max > curr_max:
-                    curr_max = local_max
-            # now we set k to be the current max and this is added on to the\
-            # next set.
-            k = curr_max + 1
-
-        """
-        #print(self.index_stream)
-        #print('reshuffling indexes')
-        # now we need to re-shuffle the index data
-        # just fill with numbers for now, they will be overridden
-        new_index_data = list(range(self.num_mesh_objs))
-        for i in range(self.num_mesh_objs):
-            new_index_data[self.index_mapping.index(i)] = self.index_stream[i]
-        self.index_stream = new_index_data
-        #print(self.index_stream)
-        """
+        for index_stream in self.index_stream.values():
+            for j in range(len(index_stream)):
+                index_stream[j] = index_stream[j] + k
+            k = max(index_stream) + 1
 
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = 3 * sum(
@@ -563,8 +541,7 @@ class Export():
         IndexBuffer = array('I')
         for name in self.mesh_names:
             obj = self.index_stream[name]
-            for tri in obj:
-                IndexBuffer.extend(tri)
+            IndexBuffer.extend(obj)
         # TODO: make this better (determine format correctly)
         """
         # let's convert to the correct type of array data type here

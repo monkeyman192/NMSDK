@@ -260,8 +260,6 @@ class ImportScene():
         self.scn.update()
 
         if scene_node.Type == 'REFERENCE':
-            # TODO: requires optimisation to re-use already loaded mesh data
-            # if a scene is referenced multiple times
             mod_dir = get_NMS_dir(self.local_directory)
             empty_obj.NMSReference_props.reference_path = scene_node.Attribute(
                 'SCENEGRAPH')
