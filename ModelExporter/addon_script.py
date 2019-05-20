@@ -549,9 +549,7 @@ class Exporter():
         verts = []
         uvs = []
         normals = []
-        _normals = dict()
         tangents = []
-        _tangents = dict()
         colours = []
         chverts = []        # convex hull vert data
         # Matrices
@@ -603,7 +601,10 @@ class Exporter():
             if export_colours:
                 # TODO: if this requires the mode to be the vertex paint mode,
                 # detrmine this afterwards
-                colours.append(colour_data[vert_index].color)
+                vcol = colour_data[vert_index].color
+                colours.append([int(255 * vcol[0]),
+                                int(255 * vcol[1]),
+                                int(255 * vcol[2])])
 
         # finally, let's find the convex hull data of the mesh:
         bpy.ops.object.mode_set(mode='EDIT')

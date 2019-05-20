@@ -32,6 +32,8 @@ UVS = 1
 NORMS = 2
 TANGS = 3
 COLOUR = 4
+BLENDINDEX = 5
+BLENDWEIGHT = 6
 
 # Material types
 DIFFUSE = 'gDiffuseMap'
@@ -43,10 +45,14 @@ SEMANTICS = {'Vertices': VERTS,
              'UVs': UVS,
              'Normals': NORMS,
              'Tangents': TANGS,
-             'Colour': COLOUR}
+             'Colour': COLOUR,
+             'BlendIndex': BLENDINDEX,
+             'BlendWeight': BLENDWEIGHT}
 
 REV_SEMANTICS = {VERTS: 'Vertices',
                  UVS: 'UVs',
                  NORMS: 'Normals',
                  TANGS: 'Tangents',
-                 COLOUR: 'Colour'}
+                 COLOUR: 'Colour',
+                 BLENDINDEX: 'BlendIndex',
+                 BLENDWEIGHT: 'BlendWeight'}
