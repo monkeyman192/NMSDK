@@ -549,7 +549,9 @@ class Exporter():
         verts = []
         uvs = []
         normals = []
+        _normals = dict()
         tangents = []
+        _tangents = dict()
         colours = []
         chverts = []        # convex hull vert data
         # Matrices
@@ -587,12 +589,12 @@ class Exporter():
 
         # Iterate over all the MeshLoops of the mesh
         for ml in data.loops:
-            index = ml.vertex_index
+            index = ml.index
+            vert_index = ml.vertex_index
             indexes.append(index)
-        for i in range(len(data.vertices)):
-            vert = data.vertices[i].co
+            vert = data.vertices[vert_index].co
             verts.append((vert[0], vert[1], vert[2], 1))
-            uv = uv_layer_data[i].uv
+            uv = uv_layer_data[vert_index].uv
             uvs.append((uv[0], 1 - uv[1], 0, 0))
             normal = ml.normal
             normals.append((normal[0], normal[1], normal[2], 1))
@@ -601,7 +603,7 @@ class Exporter():
             if export_colours:
                 # TODO: if this requires the mode to be the vertex paint mode,
                 # detrmine this afterwards
-                colours.append(colour_data[i].color)
+                colours.append(colour_data[vert_index].color)
 
         # finally, let's find the convex hull data of the mesh:
         bpy.ops.object.mode_set(mode='EDIT')

@@ -298,6 +298,7 @@ class ImportScene():
         mesh.from_pydata(scene_node.verts[VERTS],
                          scene_node.edges,
                          scene_node.faces)
+
         # add normals
         for i, vert in enumerate(mesh.vertices):
             vert.normal = scene_node.verts[NORMS][i]
