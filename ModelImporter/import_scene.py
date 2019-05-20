@@ -265,10 +265,14 @@ class ImportScene():
                 'SCENEGRAPH')
             ref_scene_path = op.join(mod_dir,
                                      scene_node.Attribute('SCENEGRAPH'))
-            sub_scene = ImportScene(ref_scene_path, empty_obj, self.ref_scenes,
-                                    self.settings)
-            if sub_scene.requires_render:
-                sub_scene.render_scene()
+            if op.exists(ref_scene_path):
+                sub_scene = ImportScene(ref_scene_path, empty_obj,
+                                        self.ref_scenes, self.settings)
+                if sub_scene.requires_render:
+                    sub_scene.render_scene()
+            else:
+                print("The reference node {0} has a reference to a path "
+                      "that doesn't exist ({1})".format(name, ref_scene_path))
 
     def _add_existing_to_scene(self):
         # existing is a list of child objects to the reference
@@ -452,7 +456,7 @@ class ImportScene():
             if tex_type == DIFFUSE:
                 # texture
                 _path = self._get_path(tex_path)
-                if op.exists(_path):
+                if _path is not None and op.exists(_path):
                     img = bpy.data.images.load(_path)
                 diffuse_texture = nodes.new(type='ShaderNodeTexImage')
                 diffuse_texture.name = diffuse_texture.label = 'Texture Image - Diffuse'  # noqa
@@ -496,7 +500,7 @@ class ImportScene():
             elif tex_type == MASKS:
                 # texture
                 _path = self._get_path(tex_path)
-                if op.exists(_path):
+                if _path is not None and op.exists(_path):
                     img = bpy.data.images.load(_path)
                 mask_texture = nodes.new(type='ShaderNodeTexImage')
                 mask_texture.name = mask_texture.label = 'Texture Image - Mask'
@@ -548,7 +552,7 @@ class ImportScene():
             elif tex_type == NORMAL:
                 # texture
                 _path = self._get_path(tex_path)
-                if op.exists(_path):
+                if _path is not None and op.exists(_path):
                     img = bpy.data.images.load(_path)
                 normal_texture = nodes.new(type='ShaderNodeTexImage')
                 normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
@@ -724,8 +728,12 @@ class ImportScene():
         return real_path
 
     def _get_path(self, fpath):
-        return op.normpath(
-            op.join(self.local_directory, op.relpath(fpath, self.directory)))
+        try:
+            return op.normpath(
+                op.join(self.local_directory,
+                        op.relpath(fpath, self.directory)))
+        except ValueError:
+            return None
 
     def _load_bounded_hulls(self):
         with open(self.geometry_file, 'rb') as f:
