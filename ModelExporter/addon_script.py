@@ -51,6 +51,15 @@ if scriptpath not in sys.path:
     # print(sys.path)
 
 
+def triangulate_mesh(mesh):
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.triangulate(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+    del bm
+
+
 """ Main exporter class with all the other functions contained in one place """
 
 
@@ -551,6 +560,7 @@ class Exporter():
         # norm_mat = rot_x_mat.inverted().transposed()
 
         data = ob.data
+        data_is_temp = False
         # Raise exception if UV Map is missing
         uvcount = len(data.uv_layers)
         if (uvcount < 1):
@@ -563,11 +573,9 @@ class Exporter():
         try:
             data.calc_tangents(uvmap=uv_layer_name)
         except RuntimeError:
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.select_all(action='SELECT')
-            bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY',
-                                               ngon_method='BEAUTY')
-            print(ob.name + ' needs to be triangulaed!!!')
+            data = ob.to_mesh(self.global_scene, False, 'PREVIEW')
+            data_is_temp = True
+            triangulate_mesh(data)
             data.calc_tangents(uvmap=uv_layer_name)
 
         # Determine if the model has colour data
@@ -581,9 +589,10 @@ class Exporter():
         for ml in data.loops:
             index = ml.vertex_index
             indexes.append(index)
-            vert = data.vertices[index].co
+        for i in range(len(data.vertices)):
+            vert = data.vertices[i].co
             verts.append((vert[0], vert[1], vert[2], 1))
-            uv = uv_layer_data[index].uv
+            uv = uv_layer_data[i].uv
             uvs.append((uv[0], 1 - uv[1], 0, 0))
             normal = ml.normal
             normals.append((normal[0], normal[1], normal[2], 1))
@@ -592,23 +601,24 @@ class Exporter():
             if export_colours:
                 # TODO: if this requires the mode to be the vertex paint mode,
                 # detrmine this afterwards
-                colours.append(colour_data[index].color)
+                colours.append(colour_data[i].color)
 
         # finally, let's find the convex hull data of the mesh:
         bpy.ops.object.mode_set(mode='EDIT')
-        bm = bmesh.from_edit_mesh(data)
-        # create a copy so that the origial doesn't get messed up by the hull
-        bm_copy = bm.copy()
+        bm = bmesh.new()
+        bm.from_mesh(data)
         # convex hull data. Includes face and edges and stuff...
-        ch = bmesh.ops.convex_hull(bm_copy, input=bm_copy.verts)['geom']
+        ch = bmesh.ops.convex_hull(bm, input=bm.verts)['geom']
         for i in ch:
             if type(i) == bmesh.types.BMVert:
                 chverts.append((i.co[0], i.co[1], i.co[2], 1.0))
         bm.free()
         del ch
-        del bm_copy
         del bm
         bpy.ops.object.mode_set(mode='OBJECT')
+        if data_is_temp:
+            # If we created a temporary data object then delete it
+            del data
 
         # ob.matrix_world = rot_x_mat.inverted()*ob.matrix_world
 
