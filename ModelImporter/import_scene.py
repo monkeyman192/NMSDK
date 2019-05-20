@@ -377,7 +377,7 @@ class ImportScene():
 
         # Check to see if the mesh has an associated entity
         entity_path = scene_node.Attribute('ATTACHMENT')
-        if entity_path != '':
+        if entity_path != '' and entity_path is not None:
             mesh_obj.NMSMesh_props.has_entity = True
             mesh_obj.NMSEntity_props.name_or_path = entity_path
 
