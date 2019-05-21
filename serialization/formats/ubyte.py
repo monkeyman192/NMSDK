@@ -8,7 +8,7 @@ def bytes_to_ubyte(bytes_):
     return [int(n) for n in data]
 
 
-def ubytes_to_bytes(lst, target_length):
+def ubytes_to_bytes(lst, target_length=4):
     """ Read a list of numbers in the range [0, 255] and generate a byte
     array
 

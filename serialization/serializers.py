@@ -1,4 +1,4 @@
-from .formats import write_half, write_int_2_10_10_10_rev
+from .formats import write_half, write_int_2_10_10_10_rev, ubytes_to_bytes
 
 
 def serialize_vertex_stream(**kwargs):
@@ -7,7 +7,7 @@ def serialize_vertex_stream(**kwargs):
     """
     # determine what data we have been given:
     data_streams = ['verts', 'uvs', 'normals', 'tangents']
-    fmt_map = {'verts': 0, 'uvs': 0, 'normals': 1, 'tangents': 1}
+    fmt_map = {'verts': 0, 'uvs': 0, 'normals': 1, 'tangents': 1, 'colours': 2}
     data = bytearray()
     count = len(kwargs.get('verts', []))
     if count != 0:
@@ -24,6 +24,8 @@ def serialize_vertex_stream(**kwargs):
                         data.extend(write_half(val))
                 elif fmt_map[d] == 1:
                     data.extend(write_int_2_10_10_10_rev(kwargs[d][i]))
+                elif fmt_map[d] == 2:
+                    data.extend(ubytes_to_bytes(kwargs[d][i]))
         return data
     else:
         # return empty data

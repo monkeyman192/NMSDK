@@ -53,6 +53,7 @@ class Export():
         self.basepath = basepath
         # this is the main model file for the entire scene.
         self.Model = model
+        self.Model.check_vert_colours()
         # animation data (defaults to None)
         self.anim_data = anim_data
         self.descriptor = descriptor
@@ -67,6 +68,7 @@ class Export():
         self.uv_stream = odict()
         self.n_stream = odict()
         self.t_stream = odict()
+        self.c_stream = odict()
         self.chvertex_stream = odict()
         # a disctionary of the bounds of just mesh objects. This will be used
         # for the scene files
@@ -88,6 +90,11 @@ class Export():
             self.uv_stream[mesh.Name] = mesh.UVs
             self.n_stream[mesh.Name] = mesh.Normals
             self.t_stream[mesh.Name] = mesh.Tangents
+            if self.Model.has_vertex_colours:
+                if mesh.Colours is None:
+                    self.c_stream[mesh.Name] = [[0, 0, 0, 0]] * len(mesh.Vertices)  # noqa
+                else:
+                    self.c_stream[mesh.Name] = mesh.Colours
             self.chvertex_stream[mesh.Name] = mesh.CHVerts
             self.mesh_metadata[mesh.Name] = {'hash': nmsHash(mesh.Vertices)}
             # also add in the material data to the list

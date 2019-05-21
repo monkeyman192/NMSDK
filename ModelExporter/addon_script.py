@@ -10,7 +10,7 @@ from mathutils import Matrix, Vector  # pylint: disable=import-error
 # Internal imports
 from ..utils.misc import CompareMatrices, ContinuousCompare, get_obj_name
 from .utils import (get_all_actions, apply_local_transforms,
-                    calc_tangents, transform_to_NMS_coords)
+                    transform_to_NMS_coords)
 from .export import Export
 from .Descriptor import Descriptor
 from ..NMS.classes import (TkMaterialData, TkMaterialFlags,
@@ -623,20 +623,10 @@ class Exporter():
             # If we created a temporary data object then delete it
             del data
 
-        # ob.matrix_world = rot_x_mat.inverted()*ob.matrix_world
-
         # Apply rotation and normal matrices on vertices and normal vectors
         apply_local_transforms(rot_x_mat, verts, normals, tangents, chverts)
 
-        """
-        # convert indexes to an array now
-        if max(indexes) > 2**16:
-            indexes = array('I', indexes)
-        else:
-            indexes = array('H', indexes)
-        """
-
-        return verts, normals, tangents, uvs, indexes, chverts
+        return verts, normals, tangents, uvs, indexes, chverts, colours
 
     def recurce_entity(self, parent, obj, list_element=None, index=0):
         # this will return the class object of the property recursively
@@ -793,7 +783,7 @@ class Exporter():
             optdict['CollisionType'] = colType
 
             if (colType == "Mesh"):
-                c_verts, c_norms, c_tangs, c_uvs, c_indexes, c_chverts = self.mesh_parser(ob)  # noqa
+                c_verts, c_norms, c_tangs, c_uvs, c_indexes, c_chverts, _ = self.mesh_parser(ob)  # noqa
 
                 # Reset Transforms on meshes
 
@@ -825,7 +815,7 @@ class Exporter():
         elif ob.NMSNode_props.node_types == 'Mesh':
             # ACTUAL MESH
             # Parse object Geometry
-            verts, norms, tangs, luvs, indexes, chverts = self.mesh_parser(ob)
+            verts, norms, tangs, luvs, indexes, chverts, colours = self.mesh_parser(ob)  # noqa
 
             # check whether the mesh has any child nodes we care about (such as
             # a rotation vector)
@@ -853,6 +843,7 @@ class Exporter():
                          Tangents=tangs,
                          Indexes=indexes,
                          CHVerts=chverts,
+                         Colours=colours,
                          ExtraEntityData=entitydata,
                          HasAttachment=ob.NMSMesh_props.has_entity)
 
