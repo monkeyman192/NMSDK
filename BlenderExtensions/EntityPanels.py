@@ -1173,9 +1173,8 @@ class AddListStruct(bpy.types.Operator):
 
     def execute(self, context):
         obj = context.object
-        # TODO: see if this is needed? Maybe .add() returns None??
-        list_obj = rgetattr(obj, "{0}.{1}".format(self.list_struct,
-                                                  self.prop_name)).add()
+        rgetattr(obj, "{0}.{1}".format(self.list_struct,
+                                       self.prop_name)).add()
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -1192,9 +1191,9 @@ class RemoveListStruct(bpy.types.Operator):
 
     def execute(self, context):
         obj = context.object
-        list_obj = rgetattr(
-            obj, "{0}.{1}".format(self.list_struct,
-                                  self.prop_name)).remove(self.remove_index)
+        rgetattr(obj, "{0}.{1}".format(self.list_struct,
+                                       self.prop_name)).remove(
+            self.remove_index)
         return {'FINISHED'}
 
     def invoke(self, context, event):

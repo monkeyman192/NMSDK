@@ -9,7 +9,7 @@ from mathutils import Matrix, Vector
 from ..NMS.classes import Vector4f
 
 
-#region Misc
+# region Misc
 
 
 def get_all_actions(obj):
@@ -125,7 +125,7 @@ def traverse(obj):
         yield obj
 
 
-#region Transform Functions
+# region Transform Functions
 
 
 def apply_local_transforms(rotmat, verts, norms, tangents, chverts):

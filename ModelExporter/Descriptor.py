@@ -4,6 +4,7 @@
 
 __author__ = "monkeyman192"
 
+from ..utils.misc import get_obj_name
 from ..NMS.classes import (List, TkModelDescriptorList, NMSString0x80,
                            TkResourceDescriptorList, TkResourceDescriptorData)
 from .utils import get_children
@@ -15,6 +16,7 @@ from .utils import get_children
 class Descriptor():
     def __init__(self):
         self.children = []
+        self.path = ''
 
     def add_child(self, TypeId):
         self.children.append(Node_List(TypeId))
@@ -107,18 +109,13 @@ class Node_Data():
                         return True
             return False
 
-        prefix = self.obj.NMSDescriptor_props.proc_prefix.strip("_")
-        stripped_name = self.obj.name[len("NMS_"):].upper()
-        if stripped_name.strip('_').upper().startswith(prefix):
-            name = "_{0}".format(stripped_name.strip('_').upper())
-        else:
-            # hopefully the user hasn't messed anything up...
-            name = "_{0}_{1}".format(prefix, stripped_name.strip('_').upper())
+        name = get_obj_name(self.obj, None)
 
         # get the list off all children of self.obj that are ref nodes and
         # aren't proc
         non_proc_refs = get_children(self.obj, [], "Reference", not_proc)
         additional_ref_paths = set()
+
         for child in non_proc_refs:
             additional_ref_paths.add(child.NMSReference_props.reference_path)
 
@@ -128,7 +125,7 @@ class Node_Data():
 
         if self.obj.NMSNode_props.node_types == 'Reference':
             refs = List(NMSString0x80(
-                Value=self.obj.NMSReference_props.reference_path))
+                Value=self.obj.NMSReference_props.ref_path))
         else:
             refs = List()
         children = List()

@@ -7,6 +7,7 @@ def float_to_hex(num):
     return hex(unpack('<I', pack('<f', num))[0])
 
 
+# TODO: Rename
 def list_header(offset, size, end):
     """ Generate the list header.
 
@@ -25,9 +26,15 @@ def list_header(offset, size, end):
         0x10 bytes of data representing the list header in memory.
     """
     data = bytearray()
-    data.extend(pack('<Q', offset))
+    if size != 0:
+        data.extend(pack('<Q', offset))
+    else:
+        data.extend(pack('Q', 0))
     data.extend(pack('<I', size))
-    data.extend(end)
+    if isinstance(end, int):
+        data.extend(pack('<I', size))
+    else:
+        data.extend(end)
     return data
 
 

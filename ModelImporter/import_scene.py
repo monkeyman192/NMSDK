@@ -3,9 +3,7 @@ import os.path as op
 import xml.etree.ElementTree as ET
 import struct
 from math import radians
-from tempfile import TemporaryDirectory
 import subprocess
-import shutil
 
 # Blender imports
 import bpy  # pylint: disable=import-error
@@ -15,7 +13,7 @@ from mathutils import Matrix, Vector  # pylint: disable=import-error
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
                                      bytes_to_int_2_10_10_10_rev)
 from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOUR  # noqa pylint: disable=relative-beyond-top-level
+from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
 from .readers import read_material, read_metadata, read_gstream  # noqa pylint: disable=relative-beyond-top-level
 from .utils import element_to_dict  # noqa pylint: disable=relative-beyond-top-level
@@ -48,11 +46,16 @@ class ImportScene():
         A dictionary with the path to another scene as the key, and the blender
         object that has already been loaded as the value.
     """
-    def __init__(self, fpath, parent_obj=None, ref_scenes=dict()):
-        self.local_directory = op.dirname(fpath)
+    def __init__(self, fpath, parent_obj=None, ref_scenes=dict(),
+                 settings=dict()):
+        self.local_directory, self.scene_basename = op.split(fpath)
+        # scene_basename is the final component of the scene path.
+        # Ie. the file name without the extension
+        self.scene_basename = op.splitext(self.scene_basename)[0]
 
         self.parent_obj = parent_obj
         self.ref_scenes = ref_scenes
+        self.settings = settings
         # When scenes contain reference nodes there can be clashes with names.
         # To ensure correct parenting of objects in blender, we will keep track
         # of what objects exist within a scene as there will be no name clashes
@@ -93,33 +96,15 @@ class ImportScene():
         self.scn.render.engine = 'CYCLES'
 
         if ext.lower() == '.mbin':
-            # Determine if the current NMSDK setting require the exml to be
-            # cached
-            cache = bpy.context.scene.NMSDK_import_settings.cache_exml
-            if not cache:
-                with TemporaryDirectory() as temp_dir:
-                    fpath_dst = op.join(temp_dir, op.basename(fpath))
-                    shutil.copy(fpath, fpath_dst)
-                    retcode = subprocess.call(
-                        ["MBINCompiler", '-q', fpath_dst],
-                        shell=True)
-                    if retcode != 0:
-                        print('MBINCompiler failed to run. Please ensure it '
-                              'is registered on the path.')
-                        print('Import failed')
-                        return
-                    fpath = fpath_dst.replace('.MBIN', '.EXML')
-                    self._load_scene(fpath)
-            else:
-                retcode = subprocess.call(["MBINCompiler", '-q', fpath],
-                                          shell=True)
-                if retcode != 0:
-                    print('MBINCompiler failed to run. Please ensure it is '
-                          'registered on the path.')
-                    print('Import failed')
-                    return
-                fpath = fpath.replace('.MBIN', '.EXML')
-                self._load_scene(fpath)
+            retcode = subprocess.call(["MBINCompiler", '-q', fpath],
+                                      shell=True)
+            if retcode != 0:
+                print('MBINCompiler failed to run. Please ensure it is '
+                      'registered on the path.')
+                print('Import failed')
+                return
+            fpath = fpath.replace('.MBIN', '.EXML')
+            self._load_scene(fpath)
         elif ext.lower() != '.exml':
             raise TypeError('Selected file is of the wrong format.')
         else:
@@ -187,12 +172,13 @@ class ImportScene():
 
     def render_scene(self):
         """ Render the scene in the blender view. """
-        # First, add the empty NMS_SCENE object that everything will be a
-        # child of
+        # First, add the empty root object that everything will be a
+        # child of.
         if self.parent_obj is None:
             # First, remove everything else in the scene
-            self._clear_prev_scene()
-            self._add_empty_to_scene('NMS_SCENE')
+            if self.settings['clear_scene']:
+                self._clear_prev_scene()
+            self._add_empty_to_scene(self.scene_basename)
         for obj in self.scene_node_data.iter():
             if obj.Type == 'MESH':
                 obj.metadata = self.mesh_metadata.get(obj.Name.upper())
@@ -215,11 +201,13 @@ class ImportScene():
             of a complete scene. This is used to indicate that a single mesh
             part is being rendered.
         """
-        if scene_node == 'NMS_SCENE' and self.parent_obj is None:
-            # If the scene_node is simply 'NMS_SCENE' just add an empty and
-            # return
-            empty_mesh = bpy.data.meshes.new('NMS_SCENE')
-            empty_obj = bpy.data.objects.new('NMS_SCENE', empty_mesh)
+        if scene_node == self.scene_basename and self.parent_obj is None:
+            # If the scene_node is simply self.scene_basename just add an
+            # empty and return
+            empty_mesh = bpy.data.meshes.new(self.scene_basename)
+            empty_obj = bpy.data.objects.new(self.scene_basename,
+                                             empty_mesh)
+            empty_obj.NMSNode_props.node_types = 'Reference'
             empty_obj.matrix_world = ROT_MATRIX
             self.scn.objects.link(empty_obj)
             self.scn.objects.active = empty_obj
@@ -227,8 +215,8 @@ class ImportScene():
             # check if the scene is proc-gen
             descriptor_name = op.basename(self.scene_name) + '.DESCRIPTOR.MBIN'
             if op.exists(op.join(self.local_directory, descriptor_name)):
-                empty_obj.NMSScene_props.is_proc = True
-            self.local_objects['NMS_SCENE'] = empty_obj
+                empty_obj.NMSReference_props.is_proc = True
+            self.local_objects[empty_obj.name] = empty_obj
             return
 
         # Otherwise just assign everything as usual...
@@ -262,7 +250,7 @@ class ImportScene():
                 empty_obj.parent = self.local_objects[scene_node.parent.Name]
             else:
                 # Direct child of loaded scene
-                empty_obj.parent = self.local_objects['NMS_SCENE']
+                empty_obj.parent = self.local_objects[self.scene_basename]
         else:
             empty_obj.matrix_world = ROT_MATRIX * empty_obj.matrix_world
 
@@ -272,16 +260,19 @@ class ImportScene():
         self.scn.update()
 
         if scene_node.Type == 'REFERENCE':
-            # TODO: requires optimisation to re-use already loaded mesh data
-            # if a scene is referenced multiple times
             mod_dir = get_NMS_dir(self.local_directory)
             empty_obj.NMSReference_props.reference_path = scene_node.Attribute(
                 'SCENEGRAPH')
             ref_scene_path = op.join(mod_dir,
                                      scene_node.Attribute('SCENEGRAPH'))
-            sub_scene = ImportScene(ref_scene_path, empty_obj, self.ref_scenes)
-            if sub_scene.requires_render:
-                sub_scene.render_scene()
+            if op.exists(ref_scene_path):
+                sub_scene = ImportScene(ref_scene_path, empty_obj,
+                                        self.ref_scenes, self.settings)
+                if sub_scene.requires_render:
+                    sub_scene.render_scene()
+            else:
+                print("The reference node {0} has a reference to a path "
+                      "that doesn't exist ({1})".format(name, ref_scene_path))
 
     def _add_existing_to_scene(self):
         # existing is a list of child objects to the reference
@@ -307,6 +298,7 @@ class ImportScene():
         mesh.from_pydata(scene_node.verts[VERTS],
                          scene_node.edges,
                          scene_node.faces)
+
         # add normals
         for i, vert in enumerate(mesh.vertices):
             vert.normal = scene_node.verts[NORMS][i]
@@ -339,7 +331,7 @@ class ImportScene():
                 mesh_obj.parent = parent_obj
             else:
                 # Direct child of loaded scene
-                mesh_obj.parent = self.local_objects['NMS_SCENE']
+                mesh_obj.parent = self.local_objects[self.scene_basename]
         else:
             mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
 
@@ -364,8 +356,8 @@ class ImportScene():
             uv_layers[idx].uv = (uv[0], 1 - uv[1])
 
         # Add vertex colour
-        if COLOUR in scene_node.verts.keys():
-            colours = scene_node.verts[COLOUR]
+        if COLOURS in scene_node.verts.keys():
+            colours = scene_node.verts[COLOURS]
             if not mesh.vertex_colors:
                 mesh.vertex_colors.new()
             colour_loops = mesh.vertex_colors.active.data
@@ -380,12 +372,19 @@ class ImportScene():
         material = None
         if mat_path is not None:
             material = self._create_material(mat_path)
-            mesh_obj.NMSMesh_props.material_path = scene_node.Attribute('MATERIAL')  # noqa
+            mesh_obj.NMSMesh_props.material_path = scene_node.Attribute(
+                'MATERIAL')
         if material is not None:
             mesh_obj.data.materials.append(material)
             mesh_obj.active_material = material
 
-        if bpy.context.scene.NMSDK_import_settings.draw_hulls:
+        # Check to see if the mesh has an associated entity
+        entity_path = scene_node.Attribute('ATTACHMENT')
+        if entity_path != '' and entity_path is not None:
+            mesh_obj.NMSMesh_props.has_entity = True
+            mesh_obj.NMSEntity_props.name_or_path = entity_path
+
+        if self.settings['draw_hulls']:
             # create child object for bounded hull
             name = 'BH' + name
             mesh = bpy.data.meshes.new(name)
@@ -434,6 +433,7 @@ class ImportScene():
         principled_BSDF = nodes.new(type='ShaderNodeBsdfPrincipled')
         principled_BSDF.location = (200, 150)
         principled_BSDF.inputs['Roughness'].default_value = 1.0
+        FRAGMENT_COLOUR0 = principled_BSDF.outputs['BSDF']
 
         # Set up some constants
         if 61 in mat_data['Flags']:
@@ -443,13 +443,21 @@ class ImportScene():
         else:
             kfAlphaThreshold = 0.0001
 
+        if 0 not in mat_data['Flags']:
+            rgb_input = nodes.new(type='ShaderNodeRGB')
+            rgb_input.outputs[0].default_value[0] = uniforms['gMaterialColourVec4'][0]  # noqa
+            rgb_input.outputs[0].default_value[1] = uniforms['gMaterialColourVec4'][1]  # noqa
+            rgb_input.outputs[0].default_value[2] = uniforms['gMaterialColourVec4'][2]  # noqa
+            rgb_input.outputs[0].default_value[3] = uniforms['gMaterialColourVec4'][3]  # noqa
+            lColourVec4 = rgb_input.outputs['Color']
+
         # create the diffuse, mask and normal nodes and give them their images
         for tex_type, tex_path in mat_data['Samplers'].items():
             img = None
             if tex_type == DIFFUSE:
                 # texture
                 _path = self._get_path(tex_path)
-                if op.exists(_path):
+                if _path is not None and op.exists(_path):
                     img = bpy.data.images.load(_path)
                 diffuse_texture = nodes.new(type='ShaderNodeTexImage')
                 diffuse_texture.name = diffuse_texture.label = 'Texture Image - Diffuse'  # noqa
@@ -480,22 +488,6 @@ class ImportScene():
                     else:
                         print('Note: Please post on discord the model you are'
                               ' importing so I can fix this!!!')
-
-                if 20 in mat_data['Flags'] or 28 in mat_data['Flags']:
-                    # #ifdef _F21_VERTEXCOLOUR
-                    # lColourVec4 *= IN( mColourVec4 );
-                    col_attribute = nodes.new(type='ShaderNodeAttribute')
-                    col_attribute.attribute_name = 'Col'
-                    mix_colour = nodes.new(type='ShaderNodeMixRGB')
-                    links.new(mix_colour.inputs['Color1'],
-                              lColourVec4)
-                    links.new(mix_colour.inputs['Color2'],
-                              col_attribute.outputs['Color'])
-                    links.new(principled_BSDF.inputs['Base Color'],
-                              mix_colour.outputs['Color'])
-                else:
-                    links.new(principled_BSDF.inputs['Base Color'],
-                              lColourVec4)
                 # #ifndef _F44_IMPOSTER
                 if 43 not in mat_data['Flags']:
                     # #ifdef _F39_METALLIC_MASK
@@ -506,29 +498,10 @@ class ImportScene():
                         # use the default value from the file
                         if 'gMaterialParamsVec4' in uniforms:
                             principled_BSDF.inputs['Metallic'].default_value = uniforms['gMaterialParamsVec4'][2]  # noqa
-                if (8 in mat_data['Flags'] or 10 in mat_data['Flags'] or
-                        21 in mat_data['Flags']):
-                    # Handle transparency
-                    alpha_mix = nodes.new(type='ShaderNodeMixShader')
-                    alpha_shader = nodes.new(type='ShaderNodeBsdfTransparent')
-                    discard_node = nodes.new(type="ShaderNodeMath")
-                    discard_node.operation = 'LESS_THAN'
-                    discard_node.inputs[1].default_value = kfAlphaThreshold
-                    links.new(discard_node.inputs[0],
-                              diffuse_texture.outputs['Alpha'])
-                    links.new(alpha_mix.inputs['Fac'],
-                              discard_node.outputs['Value'])
-                    links.new(alpha_mix.inputs[1],
-                              principled_BSDF.outputs['BSDF'])
-                    links.new(alpha_mix.inputs[2],
-                              alpha_shader.outputs['BSDF'])
-                    FRAGMENT_COLOUR0 = alpha_mix.outputs['Shader']
-                else:
-                    FRAGMENT_COLOUR0 = principled_BSDF.outputs['BSDF']
             elif tex_type == MASKS:
                 # texture
                 _path = self._get_path(tex_path)
-                if op.exists(_path):
+                if _path is not None and op.exists(_path):
                     img = bpy.data.images.load(_path)
                 mask_texture = nodes.new(type='ShaderNodeTexImage')
                 mask_texture.name = mask_texture.label = 'Texture Image - Mask'
@@ -580,7 +553,7 @@ class ImportScene():
             elif tex_type == NORMAL:
                 # texture
                 _path = self._get_path(tex_path)
-                if op.exists(_path):
+                if _path is not None and op.exists(_path):
                     img = bpy.data.images.load(_path)
                 normal_texture = nodes.new(type='ShaderNodeTexImage')
                 normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
@@ -625,8 +598,52 @@ class ImportScene():
                     links.new(normal_texture.inputs['Vector'],
                               normal_scale.outputs['Vector'])
 
-        # Apply some fnial transforms to the data before connecting it to the
+        # Apply some final transforms to the data before connecting it to the
         # Material output node
+
+        if 20 in mat_data['Flags'] or 28 in mat_data['Flags']:
+            # #ifdef _F21_VERTEXCOLOUR
+            # lColourVec4 *= IN( mColourVec4 );
+            col_attribute = nodes.new(type='ShaderNodeAttribute')
+            col_attribute.attribute_name = 'Col'
+            mix_colour = nodes.new(type='ShaderNodeMixRGB')
+            links.new(mix_colour.inputs['Color1'],
+                      lColourVec4)
+            links.new(mix_colour.inputs['Color2'],
+                      col_attribute.outputs['Color'])
+            links.new(principled_BSDF.inputs['Base Color'],
+                      mix_colour.outputs['Color'])
+            lColourVec4 = mix_colour.outputs['Color']
+
+        if (8 in mat_data['Flags'] or 10 in mat_data['Flags'] or
+                21 in mat_data['Flags']):
+            # Handle transparency
+            alpha_mix = nodes.new(type='ShaderNodeMixShader')
+            alpha_shader = nodes.new(type='ShaderNodeBsdfTransparent')
+            if 0 in mat_data['Flags']:
+                # If there is a diffuse texture we use this to get rid of
+                # transparent pixels
+                discard_node = nodes.new(type="ShaderNodeMath")
+                discard_node.operation = 'LESS_THAN'
+                discard_node.inputs[1].default_value = kfAlphaThreshold
+
+                links.new(discard_node.inputs[0],
+                          diffuse_texture.outputs['Alpha'])
+                links.new(alpha_mix.inputs['Fac'],
+                          discard_node.outputs['Value'])
+            else:
+                # if there isn't we will use the material colour as the base
+                # colour of the transparency shader
+                links.new(alpha_shader.inputs['Color'],
+                          lColourVec4)
+
+            links.new(alpha_mix.inputs[1],
+                      FRAGMENT_COLOUR0)
+            links.new(alpha_mix.inputs[2],
+                      alpha_shader.outputs['BSDF'])
+
+            FRAGMENT_COLOUR0 = alpha_mix.outputs['Shader']
+
         if 50 in mat_data['Flags']:
             # #ifdef _F51_DECAL_DIFFUSE
             # FRAGMENT_COLOUR0 = vec4( lOutColours0Vec4.xyz, lColourVec4.a );
@@ -640,7 +657,12 @@ class ImportScene():
                       FRAGMENT_COLOUR0)
             FRAGMENT_COLOUR0 = alpha_mix_decal.outputs['Shader']
 
-        # FInally, link the fragment colour to the output material
+        # Link up the diffuse colour to the base colour on the prinicipled BSDF
+        # shader.
+        links.new(principled_BSDF.inputs['Base Color'],
+                  lColourVec4)
+
+        # Finally, link the fragment colour to the output material.
         links.new(output_material.inputs['Surface'],
                   FRAGMENT_COLOUR0)
 
@@ -707,8 +729,12 @@ class ImportScene():
         return real_path
 
     def _get_path(self, fpath):
-        return op.normpath(
-            op.join(self.local_directory, op.relpath(fpath, self.directory)))
+        try:
+            return op.normpath(
+                op.join(self.local_directory,
+                        op.relpath(fpath, self.directory)))
+        except ValueError:
+            return None
 
     def _load_bounded_hulls(self):
         with open(self.geometry_file, 'rb') as f:

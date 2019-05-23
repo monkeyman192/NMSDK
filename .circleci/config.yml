@@ -39,7 +39,34 @@ jobs:
             - run:
                 name: Deploy docs to gh-pages branch
                 command: gh-pages --dotfiles --message "[skip ci] Auto-update" --dist html_docs/site
-
+    build-addon:
+        docker:
+            - image: python:3.7
+        steps:
+            - checkout
+            - run:
+                name: Build zip
+                command: python ./tools/build.py
+            - store_artifacts:
+                path: build/nmsdk.zip
+                destination: build/nmsdk.zip
+            - persist_to_workspace:
+                root: build
+                paths: nmsdk.zip
+    release-addon:
+        docker:
+            - image: circleci/node:4.8.2
+        steps:
+          - checkout
+          - attach_workspace:
+              at: build
+          - run:
+              name: ensure script is executable
+              command: chmod +x ./tools/upload-github-release-asset.sh
+          - run:
+              name: run script
+              command: bash ./tools/upload-github-release-asset.sh github_api_token=${GITHUB_TOKEN} owner=monkeyman192 repo=NMSDK filename=./build/nmsdk.zip
+            
 workflows:
     version: 2
     build:
@@ -48,6 +75,13 @@ workflows:
             - deploy-docs:
                 requires:
                     - build-docs
+                filters:
+                    branches:
+                        only: Experimental
+            - build-addon
+            - release-addon:
+                requires:
+                    - build-addon
                 filters:
                     branches:
                         only: Experimental
