@@ -82,12 +82,18 @@
     
         <ul>
         
+            <li><a class="toctree-l4" href="#updating-from-old-format-scenes">Updating from old-format scenes</a></li>
+        
             <li><a class="toctree-l4" href="#setting-up">Setting up</a></li>
         
         </ul>
     
 
     </ul>
+                </li>
+                <li class="">
+                    
+    <a class="" href="../node_docs/">Node type guide</a>
                 </li>
                 <li class="">
                     
@@ -153,8 +159,29 @@
 <p>NMSDK's primary functionality is to convert scenes created in Blender into a format that NMS can load and display in the game.
 This can be anything from extra rocks or plants, to custom buildings that are scattered around on planets, new parts to be added to your base, or even new ships or freighters that can be flown or part of your fleet!</p>
 <p>To provide this functionality a new panel has been added to the blender user interface (UI) to allow the user to enter any relevant information required to export a model to the format compatible with NMS.</p>
+<h2 id="updating-from-old-format-scenes">Updating from old-format scenes</h2>
+<p>Previously all objects that were to be exported had to be a child of a node called <code>NMS_SCENE</code>. This requirement has been removed in the current version of NSMDK, as well as the requirement for an object to have <code>NMS_</code> at the beginning of its name.
+Old format scenes in blender can be updated to the new format by simply pressing the <code>Change NMS Node type</code> button in the NMSDK side panel:</p>
+<p><img alt="update nodes" src="/../images/update_old_scenes.png" /></p>
 <h2 id="setting-up">Setting up</h2>
-<p>The first thing to do is to create an empty object in Blender called <code>NMS_SCENE</code>. <strong>All</strong> objects to be exported <strong>must</strong> be a child of this object.</p>
+<p>NMSDK uses a consistent node setup for both imported and exported scenes to allow the <code>import &gt; modify &gt; export</code> workflow to be as seamless as possible.
+Because of this, the <code>Reference</code> node type is given a special place.
+Putting it simply, the <code>Reference</code> node type is used to denote a scene that is to be exported.
+<code>Reference</code> nodes can either be at the top level of a scene (to indicate that you have multiple scenes to be exported that are potentially unrelated to each other), or nested within a scene (to indicate that the sub-scene may be referenced by other scenes).
+To allow for flexibility, <code>Reference</code> nodes can be given two important properties, <code>Reference path</code> and <code>Scene name</code>.</p>
+<p><code>Reference path</code> is used to specify the path to an external scene file (relative to the PCBANKS folder).</p>
+<p><code>Scene name</code> is used to specify the name of the exported sub-scene.
+This is the name of the scene that any child objects will be exported in.</p>
+<p>To illustrate how the parameters work consider the following two images.</p>
+<p><img alt="sub ref example 1" src="/../images/sub_ref_example1.png" />
+<img alt="sub ref example 2" src="/../images/sub_ref_example2.png" /></p>
+<p>In the first image we can see that the object is a reference to a scene that already exists in the NMS game files.
+In this case the scene will simply contain a <code>REFERENCE</code> node with the <code>SCENEGRAPH</code> property being the path to the specified scene.</p>
+<p>In the second image we can see that the object has no reference path, but instead has a <code>Scene name</code>.
+When the blender scene is exported, there will be two scenes exported. The main scene (with <code>NMS_SCENE</code> being the top-most reference object), and the <code>ref_mount</code> object which will export to a scene file named <code>CONSTRUCTMOUNT.SCENE.MBIN</code>.
+The main scene will contain a <code>REFERENCE</code> node with the <code>SCENEGRAPH</code> property being the file path (again, relative to the PCBANKS folder) for this scene.</p>
+<p>Once you have set at least one primary object that is to be the <code>Reference</code> node, you can specify any subsequent objects to be a <code>Mesh</code>, <code>Locator</code>, <code>Reference</code>, <code>Light</code>, <code>Joint</code> or <code>Collision</code> node.
+These each have their own various uses and if you are familiar with NMS scenes it will be easy to specify what each object in a blender scene is.</p>
               
             </div>
           </div>
@@ -162,7 +189,7 @@ This can be anything from extra rocks or plants, to custom buildings that are sc
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../entities/" class="btn btn-neutral float-right" title="Adding Entities">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../node_docs/" class="btn btn-neutral float-right" title="Node type guide">Next <span class="icon icon-circle-arrow-right"></span></a>
       
       
         <a href="../../importing/importing/" class="btn btn-neutral" title="Importing"><span class="icon icon-circle-arrow-left"></span> Previous</a>
@@ -194,7 +221,7 @@ This can be anything from extra rocks or plants, to custom buildings that are sc
         <span><a href="../../importing/importing/" style="color: #fcfcfc;">&laquo; Previous</a></span>
       
       
-        <span style="margin-left: 15px"><a href="../entities/" style="color: #fcfcfc">Next &raquo;</a></span>
+        <span style="margin-left: 15px"><a href="../node_docs/" style="color: #fcfcfc">Next &raquo;</a></span>
       
     </span>
 </div>

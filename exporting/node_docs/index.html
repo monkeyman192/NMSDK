@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  <link rel="shortcut icon" href="../../img/favicon.ico">
+  <title>Node type guide - NMSDK</title>
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="../../css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "Node type guide";
+    var mkdocs_page_input_path = "exporting/node_docs.md";
+    var mkdocs_page_url = null;
+  </script>
+  
+  <script src="../../js/jquery-2.1.1.min.js" defer></script>
+  <script src="../../js/modernizr-2.8.3.min.js" defer></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+      <div class="wy-side-nav-search">
+        <a href="../.." class="icon icon-home"> NMSDK</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+	<ul class="current">
+	  
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../..">Home</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../../setup/">Setup</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <span class="caption-text">Importing a Scene</span>
+    <ul class="subnav">
+                <li class="">
+                    
+    <a class="" href="../../importing/importing/">Importing</a>
+                </li>
+    </ul>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <span class="caption-text">Exporting a Scene</span>
+    <ul class="subnav">
+                <li class="">
+                    
+    <a class="" href="../exporting/">Setting up</a>
+                </li>
+                <li class=" current">
+                    
+    <a class="current" href="./">Node type guide</a>
+    <ul class="subnav">
+            
+    <li class="toctree-l3"><a href="#node-properties">Node Properties</a></li>
+    
+        <ul>
+        
+            <li><a class="toctree-l4" href="#mesh-node">Mesh Node</a></li>
+        
+            <li><a class="toctree-l4" href="#locator-node">Locator Node</a></li>
+        
+            <li><a class="toctree-l4" href="#reference-node">Reference Node</a></li>
+        
+            <li><a class="toctree-l4" href="#descriptor-node">Descriptor Node</a></li>
+        
+            <li><a class="toctree-l4" href="#collision-node">Collision Node</a></li>
+        
+            <li><a class="toctree-l4" href="#light-node">Light Node</a></li>
+        
+            <li><a class="toctree-l4" href="#joint-node">Joint Node</a></li>
+        
+        </ul>
+    
+
+    </ul>
+                </li>
+                <li class="">
+                    
+    <a class="" href="../entities/">Adding Entities</a>
+                </li>
+                <li class="">
+                    
+    <a class="" href="../proc_gen/">Making a proc-gen scene</a>
+                </li>
+                <li class="">
+                    
+    <a class="" href="../action_triggers/">Creating Action Triggers</a>
+                </li>
+                <li class="">
+                    
+    <a class="" href="../shader_nodes/">Shader Setup</a>
+                </li>
+    </ul>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../../api/">API guide</a>
+	    </li>
+          
+        </ul>
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../..">NMSDK</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../..">Docs</a> &raquo;</li>
+    
+      
+        
+          <li>Exporting a Scene &raquo;</li>
+        
+      
+    
+    <li>Node type guide</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="node-properties">Node Properties</h1>
+<p>Each node type has various properties that can be set. These are documented below.</p>
+<hr />
+<h2 id="mesh-node">Mesh Node</h2>
+<p>The <code>Mesh</code> node is only type of node that is used for mesh data that you want to be exported into a geometry file.</p>
+<ul>
+<li><strong>Requires Entity</strong> : <code>bool</code></li>
+</ul>
+<p>Indicates whether or not the specified mesh object has an associated entity.
+Selecting this will add an entity panel (see the page on <a href="../entities/">adding entities</a> for more details.)</p>
+<ul>
+<li><strong>Material</strong> : <code>str</code></li>
+</ul>
+<p>The path to a material file if the mesh object does not have a custom material within blender.
+If you are using vanilla materials or a material you have already created/exported, then you can speed up the export process by simply setting this value to the path of the material file.</p>
+<hr />
+<h2 id="locator-node">Locator Node</h2>
+<p>A <code>Locator</code> node is used to create something at a particular point in space. Whether it me a place to group objects, or a location at which an interaction will occur at.</p>
+<ul>
+<li><strong>Requires Entity</strong> : <code>bool</code></li>
+</ul>
+<p>Indicates whether or not the specified mesh object has an associated entity.
+Selecting this will add an entity panel (see the page on <a href="../entities/">adding entities</a> for more details.)</p>
+<hr />
+<h2 id="reference-node">Reference Node</h2>
+<p>A <code>Reference</code> node is used to indicate that another scene is included by reference in the parent scene. This may sometimes happen multiple times in a scene in a nested fashion.</p>
+<ul>
+<li><strong>Reference Path</strong> : <code>str</code></li>
+</ul>
+<p>The path to the scene that is referenced within the parent scene at the specified location.
+This value can be set to nest vanilla scenes or already exported scenes within you current scene without having to export them again.</p>
+<ul>
+<li><strong>Scene Name</strong> : <code>str</code></li>
+</ul>
+<p>For a scene that is to be exported separately, but kept in the original scene as a reference, this is the base name of the scene file. So for example if you want a scene to be exported with the file name <code>TESTCUBE.SCENE.MBIN</code>, you would specify this to be <code>testcube</code>. The case of the value doesn't matter as it is always changed to uppercase in the export process.</p>
+<ul>
+<li><strong>Is a proc-gen scene?</strong> : <code>bool</code></li>
+</ul>
+<p>Used to indicate whether or not the scene being exported requires a descriptor to be produced, causing it be procedurally generated.
+For more info on how this works see <a href="../proc_gen/">here</a>.</p>
+<hr />
+<h2 id="descriptor-node">Descriptor Node</h2>
+<ul>
+<li><strong>Proc type</strong> : <code>enum</code> - Choice of <code>Always</code> (Default) or <code>Random</code></li>
+</ul>
+<p>Whether or not the specified object is to always be rendered (pending rendering state of its parent), or whether it should be randomly chosen from a group containing all other objects with the same <code>prefix</code> at the same level.</p>
+<ul>
+<li><strong>Proc prefix</strong> : <code>str</code></li>
+</ul>
+<p>The prefix used to group all objects that are to be randomly selected.</p>
+<p>For example, If you have 5 sibling all objects that you wish to be selected from, you would set this value to be the same for all of them.
+Note that NMSDK will construct the objects' name to be of the form <code>_&lt;prefix&gt;_&lt;node_name&gt;</code>. You can include leading or trailing underscores but NMSDK will standardise the name for it to not matter.</p>
+<hr />
+<h2 id="collision-node">Collision Node</h2>
+<p>A <code>Collision</code> node is used to specify a primitive object that will be used as a collition for the model.</p>
+<ul>
+<li><strong>Collision Type</strong> : <code>enum</code> - Choice of <code>Box</code>, <code>Sphere</code> or <code>Cylinder</code></li>
+</ul>
+<p>The type of collision primitive to use.</p>
+<ul>
+<li><strong>Scale Transform</strong> : <code>enum</code> - Choice of <code>Transform</code> or <code>Dimensions</code></li>
+</ul>
+<p>Specifies whether the final transform of the collision object uses the objects' transform (<code>Transform</code>), or the actual size (<code>Dimensions</code>). This is useful if an object has has a scale transform applied to it, you can still retreive the shape of it by using the <code>Dimensions</code> option.</p>
+<hr />
+<h2 id="light-node">Light Node</h2>
+<p>A <code>Light</code> node is used to create a light source in the scene.</p>
+<ul>
+<li><strong>Intensity</strong> : <code>float</code></li>
+</ul>
+<p>The intensity of the light.</p>
+<ul>
+<li><strong>FOV</strong> : <code>float</code></li>
+</ul>
+<p>The field of view of the light source. Values can range from 0 to 360 (degrees).</p>
+<hr />
+<h2 id="joint-node">Joint Node</h2>
+<p>A <code>Joint</code> node is used for animation data. This is currently not working right now but it has no further properties that need to be set to use it.</p>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../entities/" class="btn btn-neutral float-right" title="Adding Entities">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+        <a href="../exporting/" class="btn btn-neutral" title="Setting up"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+      
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" style="cursor: pointer">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+        <span><a href="../exporting/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+      
+      
+        <span style="margin-left: 15px"><a href="../entities/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+    </span>
+</div>
+    <script>var base_url = '../..';</script>
+    <script src="../../js/theme.js" defer></script>
+      <script src="../../search/main.js" defer></script>
+
+</body>
+</html>
