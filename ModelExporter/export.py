@@ -18,7 +18,7 @@ from array import array
 # Internal imports
 from ..NMS.classes import (TkAttachmentData, TkGeometryData, List,
                            TkVertexElement, TkVertexLayout, Vector4f)
-from ..NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS
+from ..NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES
 from ..serialization.mbincompiler import mbinCompiler
 from ..serialization.StreamCompiler import StreamData, TkMeshMetaData
 from ..serialization.serializers import (serialize_index_stream,
@@ -92,9 +92,12 @@ class Export():
             self.t_stream[mesh.Name] = mesh.Tangents
             if self.Model.has_vertex_colours:
                 if mesh.Colours is None:
-                    self.c_stream[mesh.Name] = [[0, 0, 0, 0]] * len(mesh.Vertices)  # noqa
+                    self.c_stream[mesh.Name] = ([[0, 0, 0, 0]] *
+                                                len(mesh.Vertices))
                 else:
                     self.c_stream[mesh.Name] = mesh.Colours
+            else:
+                self.c_stream[mesh.Name] = None
             self.chvertex_stream[mesh.Name] = mesh.CHVerts
             self.mesh_metadata[mesh.Name] = {'hash': nmsHash(mesh.Vertices)}
             # also add in the material data to the list
@@ -202,9 +205,14 @@ class Export():
         self.stream_list.sort()
 
         self.element_count = len(self.stream_list)
-        # this is 6* if normals and tangents are INT_2_10_10_10_REV, and
-        # 5* if just normals
-        self.stride = 6 * self.element_count
+        self.offsets = odict()
+        for sid in self.stream_list:
+            if len(self.offsets) == 0:
+                self.offsets[sid] = STRIDES[sid]
+            else:
+                self.offsets[sid] = (list(self.offsets.values())[-1] +
+                                     STRIDES[sid])
+        self.stride = sum([STRIDES[x] for x in self.stream_list])
 
         # secondly this will generate two lists containing the individual
         # lengths of each stream
@@ -257,7 +265,8 @@ class Export():
                 verts=self.vertex_stream[name],
                 uvs=self.uv_stream[name],
                 normals=self.n_stream[name],
-                tangents=self.t_stream[name]))
+                tangents=self.t_stream[name],
+                colours=self.c_stream[name]))
             new_indexes = self.index_stream[name]
             if max(new_indexes) > 2 ** 16:
                 indexes = array('I', new_indexes)
@@ -305,7 +314,7 @@ class Export():
                                        sum(v_stream_lens[:i+1])-1)
                                       for i in range(self.num_mesh_objs)]))
         # bounded hull data
-        ch_stream_lens = list(self.v_stream_lens.values())
+        ch_stream_lens = list(self.ch_stream_lens.values())
         self.hull_bounds = odict(zip(self.mesh_names,
                                      [(sum(ch_stream_lens[:i]),
                                        sum(ch_stream_lens[:i + 1]))
@@ -474,7 +483,7 @@ class Export():
         for sID in self.stream_list:
             # sID is the SemanticID
             if sID in [0, 1]:
-                Offset = 8*self.stream_list.index(sID)
+                Offset = self.offsets[sID]
                 VertexElements.append(TkVertexElement(SemanticID=sID,
                                                       Size=4,
                                                       Type=5131,
@@ -494,10 +503,19 @@ class Export():
                                     PlatformData=""))
             # for the INT_2_10_10_10_REV stuff
             elif sID in [2, 3]:
-                Offset = 16 + (sID - 2)*4
+                Offset = self.offsets[sID]
                 VertexElements.append(TkVertexElement(SemanticID=sID,
                                                       Size=4,
                                                       Type=36255,
+                                                      Offset=Offset,
+                                                      Normalise=0,
+                                                      Instancing="PerVertex",
+                                                      PlatformData=""))
+            elif sID == 4:
+                Offset = self.offsets[sID]
+                VertexElements.append(TkVertexElement(SemanticID=sID,
+                                                      Size=4,
+                                                      Type=5121,
                                                       Offset=Offset,
                                                       Normalise=0,
                                                       Instancing="PerVertex",

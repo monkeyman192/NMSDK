@@ -567,7 +567,6 @@ class Exporter():
             raise Exception("Missing UV Map")
 
         uv_layer_name = data.uv_layers.active.name
-        uv_layer_data = data.uv_layers.active.data
 
         # Calculate the tangents and normals from the uv map
         try:
@@ -578,10 +577,15 @@ class Exporter():
             triangulate_mesh(data)
             data.calc_tangents(uvmap=uv_layer_name)
 
+        # Need to assign UV data *after* any possible triangulation
+        uv_layer_data = data.uv_layers.active.data
+
         # Determine if the model has colour data
         export_colours = bool(len(data.vertex_colors))
         if export_colours:
             colour_data = data.vertex_colors.active.data
+        else:
+            colours = None
 
         bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -592,7 +596,7 @@ class Exporter():
             indexes.append(index)
             vert = data.vertices[vert_index].co
             verts.append((vert[0], vert[1], vert[2], 1))
-            uv = uv_layer_data[vert_index].uv
+            uv = uv_layer_data[index].uv
             uvs.append((uv[0], 1 - uv[1], 0, 0))
             normal = ml.normal
             normals.append((normal[0], normal[1], normal[2], 1))
@@ -601,7 +605,7 @@ class Exporter():
             if export_colours:
                 # TODO: if this requires the mode to be the vertex paint mode,
                 # detrmine this afterwards
-                vcol = colour_data[vert_index].color
+                vcol = colour_data[index].color
                 colours.append([int(255 * vcol[0]),
                                 int(255 * vcol[1]),
                                 int(255 * vcol[2])])

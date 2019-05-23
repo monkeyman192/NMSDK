@@ -13,7 +13,7 @@ from mathutils import Matrix, Vector  # pylint: disable=import-error
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
                                      bytes_to_int_2_10_10_10_rev)
 from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOUR  # noqa pylint: disable=relative-beyond-top-level
+from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
 from .readers import read_material, read_metadata, read_gstream  # noqa pylint: disable=relative-beyond-top-level
 from .utils import element_to_dict  # noqa pylint: disable=relative-beyond-top-level
@@ -356,8 +356,8 @@ class ImportScene():
             uv_layers[idx].uv = (uv[0], 1 - uv[1])
 
         # Add vertex colour
-        if COLOUR in scene_node.verts.keys():
-            colours = scene_node.verts[COLOUR]
+        if COLOURS in scene_node.verts.keys():
+            colours = scene_node.verts[COLOURS]
             if not mesh.vertex_colors:
                 mesh.vertex_colors.new()
             colour_loops = mesh.vertex_colors.active.data

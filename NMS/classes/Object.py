@@ -99,6 +99,8 @@ class Object():
             # ... until we hit the Model object who is the only object that has
             # no parent.
             self.Meshes[obj.Name] = obj
+            if obj.Colours is not None:
+                self.has_vertex_colours = True
 
     def populate_entitylist(self, obj):
         if self.Parent is not None:
@@ -110,7 +112,6 @@ class Object():
         self.Children.append(child)
         child.give_parent(self)     # give the child it's parent
         if child.IsMesh:
-            print('{0} is a mesh'.format(self.Name))
             # if the child has mesh data, we want to pass the reference of the
             # object up to the Model object
             self.populate_meshlist(child)

@@ -31,9 +31,16 @@ VERTS = 0
 UVS = 1
 NORMS = 2
 TANGS = 3
-COLOUR = 4
+COLOURS = 4
 BLENDINDEX = 5
 BLENDWEIGHT = 6
+
+# Mesh vertex stride sizes
+STRIDES = {VERTS: 8,
+           UVS: 8,
+           NORMS: 4,
+           TANGS: 4,
+           COLOURS: 4}
 
 # Material types
 DIFFUSE = 'gDiffuseMap'
@@ -45,7 +52,7 @@ SEMANTICS = {'Vertices': VERTS,
              'UVs': UVS,
              'Normals': NORMS,
              'Tangents': TANGS,
-             'Colour': COLOUR,
+             'Colours': COLOURS,
              'BlendIndex': BLENDINDEX,
              'BlendWeight': BLENDWEIGHT}
 
@@ -53,6 +60,6 @@ REV_SEMANTICS = {VERTS: 'Vertices',
                  UVS: 'UVs',
                  NORMS: 'Normals',
                  TANGS: 'Tangents',
-                 COLOUR: 'Colour',
+                 COLOURS: 'Colours',
                  BLENDINDEX: 'BlendIndex',
                  BLENDWEIGHT: 'BlendWeight'}

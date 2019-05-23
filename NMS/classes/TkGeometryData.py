@@ -6,7 +6,6 @@ from .Struct import Struct
 from .List import List
 from .TkVertexLayout import TkVertexLayout
 from ...serialization.utils import serialize, list_header
-from ...serialization.formats import write_half, write_int_2_10_10_10_rev
 
 
 class TkGeometryData(Struct):
@@ -67,7 +66,6 @@ class TkGeometryData(Struct):
 
         # this will be a specific serialisation method for this whole struct
         for pname in self.data:
-            print(pname)
             if pname in ['VertexCount', 'IndexCount', 'Indices16Bit',
                          'CollisionIndexCount']:
                 output.write(pack('<i', self.data[pname]))
@@ -123,7 +121,6 @@ class TkGeometryData(Struct):
                         'BoundHullVertEd')
             elif pname == 'BoundHullVerts':
                 length = len(self.data[pname])
-                print(len)
                 output.write(list_header(curr_offset + bytes_in_list, length,
                                          lst_end))
                 bytes_in_list += 0x10 * length
@@ -161,39 +158,6 @@ class TkGeometryData(Struct):
                     for val in self.data['IndexBuffer']:
                         data.extend(pack('<H', val))
                 list_data['IndexBuffer'] = data
-                # list_data.append(data)
-            elif pname in ['VertexStream', 'SmallVertexStream']:
-                # total length. With INT_2_10_10_10_REV format normals and
-                # verts they are half the size, so this will be int(1.5*~)
-                length = int(1.5 * len(self.data[pname]))
-                output.write(list_header(curr_offset + bytes_in_list, length,
-                                         lst_end))
-                curr_offset -= 0x10
-                bytes_in_list += length
-                data = bytearray()
-                # [0, 4, 8, etc up to final point] These are the indexes at
-                # which things start
-                start_indexes = range(len(self.data[pname]))[0::4]
-                # this will keep track of what type of data we are dealing with
-                spec = 0
-                for start_index in start_indexes:
-                    d = self.data[pname][start_index:start_index+4]
-                    if spec in [0, 1]:
-                        for val in d:
-                            # write the half-float representation
-                            data.extend(write_half(val))
-                    elif spec in [2, 3]:
-                        # write the INT_2_10_10_10_REV representation
-                        data.extend(write_int_2_10_10_10_rev(d))
-                    if pname == 'VertexStream':
-                        spec = (spec + 1) % 4
-                    elif pname == 'SmallVertexStream':
-                        spec = (spec + 1) % 2
-                """
-                for val in self.data[pname]:
-                    data.extend(binary16(val))
-                """
-                list_data[pname] = data
             elif pname == 'StreamMetaDataArray':
                 length = len(self.data[pname])
                 output.write(list_header(curr_offset + bytes_in_list, length,
