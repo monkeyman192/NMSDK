@@ -18,7 +18,7 @@ from array import array
 # Internal imports
 from ..NMS.classes import (TkAttachmentData, TkGeometryData, List,
                            TkVertexElement, TkVertexLayout, Vector4f)
-from ..NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS
+from ..NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES
 from ..serialization.mbincompiler import mbinCompiler
 from ..serialization.StreamCompiler import StreamData, TkMeshMetaData
 from ..serialization.serializers import (serialize_index_stream,
@@ -53,6 +53,7 @@ class Export():
         self.basepath = basepath
         # this is the main model file for the entire scene.
         self.Model = model
+        self.Model.check_vert_colours()
         # animation data (defaults to None)
         self.anim_data = anim_data
         self.descriptor = descriptor
@@ -67,6 +68,7 @@ class Export():
         self.uv_stream = odict()
         self.n_stream = odict()
         self.t_stream = odict()
+        self.c_stream = odict()
         self.chvertex_stream = odict()
         # a disctionary of the bounds of just mesh objects. This will be used
         # for the scene files
@@ -88,6 +90,14 @@ class Export():
             self.uv_stream[mesh.Name] = mesh.UVs
             self.n_stream[mesh.Name] = mesh.Normals
             self.t_stream[mesh.Name] = mesh.Tangents
+            if self.Model.has_vertex_colours:
+                if mesh.Colours is None:
+                    self.c_stream[mesh.Name] = ([[0, 0, 0, 0]] *
+                                                len(mesh.Vertices))
+                else:
+                    self.c_stream[mesh.Name] = mesh.Colours
+            else:
+                self.c_stream[mesh.Name] = None
             self.chvertex_stream[mesh.Name] = mesh.CHVerts
             self.mesh_metadata[mesh.Name] = {'hash': nmsHash(mesh.Vertices)}
             # also add in the material data to the list
@@ -195,9 +205,14 @@ class Export():
         self.stream_list.sort()
 
         self.element_count = len(self.stream_list)
-        # this is 6* if normals and tangents are INT_2_10_10_10_REV, and
-        # 5* if just normals
-        self.stride = 6 * self.element_count
+        self.offsets = odict()
+        for sid in self.stream_list:
+            if len(self.offsets) == 0:
+                self.offsets[sid] = STRIDES[sid]
+            else:
+                self.offsets[sid] = (list(self.offsets.values())[-1] +
+                                     STRIDES[sid])
+        self.stride = sum([STRIDES[x] for x in self.stream_list])
 
         # secondly this will generate two lists containing the individual
         # lengths of each stream
@@ -250,10 +265,9 @@ class Export():
                 verts=self.vertex_stream[name],
                 uvs=self.uv_stream[name],
                 normals=self.n_stream[name],
-                tangents=self.t_stream[name]))
-            new_indexes = []
-            for tri in self.index_stream[name]:
-                new_indexes.extend(tri)
+                tangents=self.t_stream[name],
+                colours=self.c_stream[name]))
+            new_indexes = self.index_stream[name]
             if max(new_indexes) > 2 ** 16:
                 indexes = array('I', new_indexes)
             else:
@@ -282,7 +296,7 @@ class Export():
         # This will do the main processing of the different streams.
         # indexes
         # the total number of index points in each object
-        index_counts = list(3 * x for x in self.i_stream_lens.values())
+        index_counts = list(self.i_stream_lens.values())
         # now, re-order the indexes:
         # new_index_counts = list(index_counts[self.index_mapping[i]] for i in
         # range(len(index_counts)))
@@ -300,7 +314,7 @@ class Export():
                                        sum(v_stream_lens[:i+1])-1)
                                       for i in range(self.num_mesh_objs)]))
         # bounded hull data
-        ch_stream_lens = list(self.v_stream_lens.values())
+        ch_stream_lens = list(self.ch_stream_lens.values())
         self.hull_bounds = odict(zip(self.mesh_names,
                                      [(sum(ch_stream_lens[:i]),
                                        sum(ch_stream_lens[:i + 1]))
@@ -322,30 +336,10 @@ class Export():
         # we need to fix up the index stream as the numbering needs to be
         # continuous across all the streams
         k = 0       # additive constant
-        for name in self.mesh_names:
-            # first add k to every element in every tuple
-            curr_max = 0
-            for j in range(self.i_stream_lens[name]):
-                self.index_stream[name][j] = tuple(k + index for index in
-                                                   self.index_stream[name][j])
-                local_max = max(self.index_stream[name][j])
-                if local_max > curr_max:
-                    curr_max = local_max
-            # now we set k to be the current max and this is added on to the\
-            # next set.
-            k = curr_max + 1
-
-        """
-        #print(self.index_stream)
-        #print('reshuffling indexes')
-        # now we need to re-shuffle the index data
-        # just fill with numbers for now, they will be overridden
-        new_index_data = list(range(self.num_mesh_objs))
-        for i in range(self.num_mesh_objs):
-            new_index_data[self.index_mapping.index(i)] = self.index_stream[i]
-        self.index_stream = new_index_data
-        #print(self.index_stream)
-        """
+        for index_stream in self.index_stream.values():
+            for j in range(len(index_stream)):
+                index_stream[j] = index_stream[j] + k
+            k = max(index_stream) + 1
 
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = 3 * sum(
@@ -489,7 +483,7 @@ class Export():
         for sID in self.stream_list:
             # sID is the SemanticID
             if sID in [0, 1]:
-                Offset = 8*self.stream_list.index(sID)
+                Offset = self.offsets[sID]
                 VertexElements.append(TkVertexElement(SemanticID=sID,
                                                       Size=4,
                                                       Type=5131,
@@ -509,10 +503,19 @@ class Export():
                                     PlatformData=""))
             # for the INT_2_10_10_10_REV stuff
             elif sID in [2, 3]:
-                Offset = 16 + (sID - 2)*4
+                Offset = self.offsets[sID]
                 VertexElements.append(TkVertexElement(SemanticID=sID,
                                                       Size=4,
                                                       Type=36255,
+                                                      Offset=Offset,
+                                                      Normalise=0,
+                                                      Instancing="PerVertex",
+                                                      PlatformData=""))
+            elif sID == 4:
+                Offset = self.offsets[sID]
+                VertexElements.append(TkVertexElement(SemanticID=sID,
+                                                      Size=4,
+                                                      Type=5121,
                                                       Offset=Offset,
                                                       Normalise=0,
                                                       Instancing="PerVertex",
@@ -563,8 +566,7 @@ class Export():
         IndexBuffer = array('I')
         for name in self.mesh_names:
             obj = self.index_stream[name]
-            for tri in obj:
-                IndexBuffer.extend(tri)
+            IndexBuffer.extend(obj)
         # TODO: make this better (determine format correctly)
         """
         # let's convert to the correct type of array data type here

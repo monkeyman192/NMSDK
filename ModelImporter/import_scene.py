@@ -13,7 +13,7 @@ from mathutils import Matrix, Vector  # pylint: disable=import-error
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
                                      bytes_to_int_2_10_10_10_rev)
 from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOUR  # noqa pylint: disable=relative-beyond-top-level
+from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
 from .readers import read_material, read_metadata, read_gstream  # noqa pylint: disable=relative-beyond-top-level
 from .utils import element_to_dict  # noqa pylint: disable=relative-beyond-top-level
@@ -260,17 +260,19 @@ class ImportScene():
         self.scn.update()
 
         if scene_node.Type == 'REFERENCE':
-            # TODO: requires optimisation to re-use already loaded mesh data
-            # if a scene is referenced multiple times
             mod_dir = get_NMS_dir(self.local_directory)
             empty_obj.NMSReference_props.reference_path = scene_node.Attribute(
                 'SCENEGRAPH')
             ref_scene_path = op.join(mod_dir,
                                      scene_node.Attribute('SCENEGRAPH'))
-            sub_scene = ImportScene(ref_scene_path, empty_obj, self.ref_scenes,
-                                    self.settings)
-            if sub_scene.requires_render:
-                sub_scene.render_scene()
+            if op.exists(ref_scene_path):
+                sub_scene = ImportScene(ref_scene_path, empty_obj,
+                                        self.ref_scenes, self.settings)
+                if sub_scene.requires_render:
+                    sub_scene.render_scene()
+            else:
+                print("The reference node {0} has a reference to a path "
+                      "that doesn't exist ({1})".format(name, ref_scene_path))
 
     def _add_existing_to_scene(self):
         # existing is a list of child objects to the reference
@@ -296,6 +298,7 @@ class ImportScene():
         mesh.from_pydata(scene_node.verts[VERTS],
                          scene_node.edges,
                          scene_node.faces)
+
         # add normals
         for i, vert in enumerate(mesh.vertices):
             vert.normal = scene_node.verts[NORMS][i]
@@ -353,8 +356,8 @@ class ImportScene():
             uv_layers[idx].uv = (uv[0], 1 - uv[1])
 
         # Add vertex colour
-        if COLOUR in scene_node.verts.keys():
-            colours = scene_node.verts[COLOUR]
+        if COLOURS in scene_node.verts.keys():
+            colours = scene_node.verts[COLOURS]
             if not mesh.vertex_colors:
                 mesh.vertex_colors.new()
             colour_loops = mesh.vertex_colors.active.data
@@ -454,7 +457,7 @@ class ImportScene():
             if tex_type == DIFFUSE:
                 # texture
                 _path = self._get_path(tex_path)
-                if op.exists(_path):
+                if _path is not None and op.exists(_path):
                     img = bpy.data.images.load(_path)
                 diffuse_texture = nodes.new(type='ShaderNodeTexImage')
                 diffuse_texture.name = diffuse_texture.label = 'Texture Image - Diffuse'  # noqa
@@ -498,7 +501,7 @@ class ImportScene():
             elif tex_type == MASKS:
                 # texture
                 _path = self._get_path(tex_path)
-                if op.exists(_path):
+                if _path is not None and op.exists(_path):
                     img = bpy.data.images.load(_path)
                 mask_texture = nodes.new(type='ShaderNodeTexImage')
                 mask_texture.name = mask_texture.label = 'Texture Image - Mask'
@@ -550,7 +553,7 @@ class ImportScene():
             elif tex_type == NORMAL:
                 # texture
                 _path = self._get_path(tex_path)
-                if op.exists(_path):
+                if _path is not None and op.exists(_path):
                     img = bpy.data.images.load(_path)
                 normal_texture = nodes.new(type='ShaderNodeTexImage')
                 normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
@@ -726,8 +729,12 @@ class ImportScene():
         return real_path
 
     def _get_path(self, fpath):
-        return op.normpath(
-            op.join(self.local_directory, op.relpath(fpath, self.directory)))
+        try:
+            return op.normpath(
+                op.join(self.local_directory,
+                        op.relpath(fpath, self.directory)))
+        except ValueError:
+            return None
 
     def _load_bounded_hulls(self):
         with open(self.geometry_file, 'rb') as f:

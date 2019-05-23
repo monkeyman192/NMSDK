@@ -99,6 +99,8 @@ class Object():
             # ... until we hit the Model object who is the only object that has
             # no parent.
             self.Meshes[obj.Name] = obj
+            if obj.Colours is not None:
+                self.has_vertex_colours = True
 
     def populate_entitylist(self, obj):
         if self.Parent is not None:
@@ -110,7 +112,6 @@ class Object():
         self.Children.append(child)
         child.give_parent(self)     # give the child it's parent
         if child.IsMesh:
-            print('{0} is a mesh'.format(self.Name))
             # if the child has mesh data, we want to pass the reference of the
             # object up to the Model object
             self.populate_meshlist(child)
@@ -122,7 +123,8 @@ class Object():
         # which have been provided.
         # we will not include CHVerts as this will be given by default anyway
         # and we don't need to a semantic ID for it
-        for name in ['Vertices', 'Indexes', 'UVs', 'Normals', 'Tangents']:
+        for name in ['Vertices', 'Indexes', 'UVs', 'Normals', 'Tangents',
+                     'Colours']:
             if self.__dict__.get(name, None) is not None:
                 self.provided_streams = self.provided_streams.union(
                     set([name]))
@@ -243,6 +245,7 @@ class Mesh(Object):
         self.Normals = kwargs.get('Normals', None)
         self.Tangents = kwargs.get('Tangents', None)
         self.CHVerts = kwargs.get('CHVerts', None)
+        self.Colours = kwargs.get('Colours', None)
         self.IsMesh = True
         # this will be a list of length 2 with each element being a 4-tuple.
         self.BBox = kwargs.get('BBox', None)
@@ -385,6 +388,8 @@ class Model(Object):
     def __init__(self, Name, **kwargs):
         super(Model, self).__init__(Name, **kwargs)
         self._Type = "MODEL"
+        # Whether the object has vertex colour info
+        self.has_vertex_colours = False
 
     def create_attributes(self, data):
         # data will be just the information required for the Attributes
@@ -393,6 +398,13 @@ class Model(Object):
                                      Value=data['GEOMETRY']),
             TkSceneNodeAttributeData(Name='NUMLODS',
                                      Value=data.get('NUMLODS', 1)))
+
+    def check_vert_colours(self):
+        for mesh in self.Meshes.values():
+            # Also, if an object has vertex colour data, the entire scene needs
+            # to know so dummy data can be provided for every other mesh
+            if mesh.Colours is not None:
+                self.has_vertex_colours = True
 
 
 class Reference(Object):
