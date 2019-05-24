@@ -32,7 +32,7 @@ def list_header(offset, size, end):
         data.extend(pack('Q', 0))
     data.extend(pack('<I', size))
     if isinstance(end, int):
-        data.extend(pack('<I', size))
+        data.extend(pack('<I', end))
     else:
         data.extend(end)
     return data

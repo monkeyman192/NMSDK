@@ -366,6 +366,13 @@ class ImportScene():
                 colour_loops[idx].color = (colour[0]/255,
                                            colour[1]/255,
                                            colour[2]/255)
+        print(name)
+        if 5 in scene_node.verts.keys():
+            print('blend indices')
+            print(scene_node.verts[5])
+        if 6 in scene_node.verts.keys():
+            print('blend weight')
+            print(scene_node.verts[6])
 
         # sort out materials
         mat_path = self._get_material_path(scene_node)
@@ -747,6 +754,7 @@ class ImportScene():
                 f.seek(0x4, 1)
 
     def _load_mesh(self, mesh):
+        # TODO: remove??? I don't think this does anything any more...
         """ Load the mesh data from the geometry stream file."""
         mesh.raw_verts, mesh.raw_idxs = read_gstream(self.geometry_stream_file,
                                                      mesh.metadata)

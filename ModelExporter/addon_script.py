@@ -582,6 +582,9 @@ class Exporter():
 
         # Determine if the model has colour data
         export_colours = bool(len(data.vertex_colors))
+        # If we have an overwrite to say not to export them then don't
+        if self.settings['no_vert_colours']:
+            export_colours = False
         if export_colours:
             colour_data = data.vertex_colors.active.data
         else:
@@ -597,11 +600,11 @@ class Exporter():
             vert = data.vertices[vert_index].co
             verts.append((vert[0], vert[1], vert[2], 1))
             uv = uv_layer_data[index].uv
-            uvs.append((uv[0], 1 - uv[1], 0, 0))
+            uvs.append((uv[0], 1 - uv[1], 0, 1))
             normal = ml.normal
             normals.append((normal[0], normal[1], normal[2], 1))
             tangent = ml.tangent
-            tangents.append((tangent[0], tangent[1], tangent[2], 0))
+            tangents.append((tangent[0], tangent[1], tangent[2], 1))
             if export_colours:
                 # TODO: if this requires the mode to be the vertex paint mode,
                 # detrmine this afterwards
@@ -787,6 +790,10 @@ class Exporter():
             optdict['CollisionType'] = colType
 
             if (colType == "Mesh"):
+                # Mesh collisions will only have bounded hull data.
+                # We'll give them some "fake" vertex data which consists of
+                # no actual vertex data, but an index that doesn't point to
+                # anything.
                 c_verts, c_norms, c_tangs, c_uvs, c_indexes, c_chverts, _ = self.mesh_parser(ob)  # noqa
 
                 # Reset Transforms on meshes

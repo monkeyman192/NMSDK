@@ -84,6 +84,12 @@ class NMS_Export_Operator(Operator, ExportHelper):
                     "location with the project name. Anything else in the "
                     "project is ignored",
         default=False)
+    no_vert_colours = BoolProperty(
+        name="Don't export vertex colours",
+        description="Ticking this box will force vertex colours to not be "
+                    "exported. Use this if you have accidentally added vertex "
+                    "colours to a mesh and don't know how to get rid of them.",
+        default=False)
 
     # ExportHelper mixin class uses this
     filename_ext = ""
@@ -93,6 +99,7 @@ class NMS_Export_Operator(Operator, ExportHelper):
         layout.prop(self, 'export_directory')
         layout.prop(self, 'group_name')
         layout.prop(self, 'AT_only')
+        layout.prop(self, 'no_vert_colours')
 
     def execute(self, context):
         keywords = self.as_keywords()

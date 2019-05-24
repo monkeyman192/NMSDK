@@ -112,7 +112,7 @@ class NMSCollisionProperties(bpy.types.PropertyGroup):
     collision_types = EnumProperty(
         name="Collision Types",
         description="Type of collision to be used",
-        items=[  # ("Mesh" , "Mesh" , "Mesh Collision"),
+        items=[("Mesh" , "Mesh" , "Mesh Collision"),
                ("Box", "Box", "Box (rectangular prism collision"),
                ("Sphere", "Sphere", "Spherical collision"),
                ("Cylinder", "Cylinder", "Cylindrical collision")])

@@ -205,14 +205,16 @@ class Export():
         self.stream_list.sort()
 
         self.element_count = len(self.stream_list)
-        self.offsets = odict()
+        # Create a list to store the offset sizes for each data type
+        offsets = list()
         for sid in self.stream_list:
-            if len(self.offsets) == 0:
-                self.offsets[sid] = STRIDES[sid]
-            else:
-                self.offsets[sid] = (list(self.offsets.values())[-1] +
-                                     STRIDES[sid])
-        self.stride = sum([STRIDES[x] for x in self.stream_list])
+            offsets.append(STRIDES[sid])
+        # Now create an ordered dictionary. Each kvp is the sid and the actual
+        # offset as calculated by the sum of all the entries before it.
+        self.offsets = odict()
+        for i, sid in enumerate(self.stream_list):
+            self.offsets[sid] = sum(offsets[:i])
+        self.stride = sum(offsets)
 
         # secondly this will generate two lists containing the individual
         # lengths of each stream
@@ -342,7 +344,7 @@ class Export():
             k = max(index_stream) + 1
 
         # First we need to find the length of each stream.
-        self.GeometryData['IndexCount'] = 3 * sum(
+        self.GeometryData['IndexCount'] = sum(
             list(self.i_stream_lens.values()))
         self.GeometryData['VertexCount'] = sum(
             list(self.v_stream_lens.values()))
