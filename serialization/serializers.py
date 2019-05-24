@@ -5,20 +5,21 @@ def serialize_vertex_stream(**kwargs):
     """
     Return a serialized version of the vertex data
     """
-    # determine what data we have been given:
+    # Store the list of names of the data received
     data_streams = ['verts', 'uvs', 'normals', 'tangents', 'colours']
     fmt_map = {'verts': 0, 'uvs': 0, 'normals': 1, 'tangents': 1, 'colours': 2}
     data = bytearray()
-    count = len(kwargs.get('verts', []))
+    count = len(kwargs.get('verts', list()))
     if count != 0:
-        # remove any data streams that are not included
-        for k in kwargs:
-            if k in data_streams:
-                # ensure all entries have the same number of entries
-                # (except colour as it can be None)
-                if k != 'colours':
-                    if len(kwargs.get(k, [])) != count:
-                        data_streams.remove(k)
+        # Remove any data that isn't actually provided
+        for key, value in kwargs.items():
+            if isinstance(value, list) and key in fmt_map.keys():
+                if len(value) != count:
+                    data_streams.remove(key)
+            else:
+                if key in data_streams:
+                    data_streams.remove(key)
+
         for i in range(count):
             for d in data_streams:
                 if fmt_map[d] == 0:
@@ -27,8 +28,7 @@ def serialize_vertex_stream(**kwargs):
                 elif fmt_map[d] == 1:
                     data.extend(write_int_2_10_10_10_rev(kwargs[d][i]))
                 elif fmt_map[d] == 2:
-                    if kwargs[d] is not None:
-                        data.extend(ubytes_to_bytes(kwargs[d][i]))
+                    data.extend(ubytes_to_bytes(kwargs[d][i]))
         return data
     else:
         # return empty data
