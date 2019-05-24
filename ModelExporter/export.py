@@ -299,12 +299,7 @@ class Export():
         # indexes
         # the total number of index points in each object
         index_counts = list(self.i_stream_lens.values())
-        # now, re-order the indexes:
-        # new_index_counts = list(index_counts[self.index_mapping[i]] for i in
-        # range(len(index_counts)))
-        # and sort out the batches
-        # self.batches = list((sum(new_index_counts[:i]), new_index_counts[i])
-        # for i in range(self.num_mesh_objs))
+        # self.batches: the first value is the start, the second is the number
         self.batches = odict(zip(self.mesh_names,
                                  [(sum(index_counts[:i]), index_counts[i])
                                   for i in range(self.num_mesh_objs)]))
@@ -323,18 +318,6 @@ class Export():
                                       for i in range(self.num_mesh_objs)]))
         print(self.hull_bounds, 'bound hulls')
 
-        # CollisionIndexCount
-        # go over all the meshes and add all the batches.
-        # Not sure if this can be optimised to be obtained earier... Probably
-        # !OBSOLETE  well... technically not, but not used right now...
-        ColIndexCount = 0
-        """
-        for mesh in range(len(self.Model.Meshes.values())):
-            if mesh._Type == 'COLLISION':
-                if mesh.CType == 'Mesh':
-                    ColIndexCount += index_counts[i]
-        """
-
         # we need to fix up the index stream as the numbering needs to be
         # continuous across all the streams
         k = 0       # additive constant
@@ -342,13 +325,16 @@ class Export():
             for j in range(len(index_stream)):
                 index_stream[j] = index_stream[j] + k
             k = max(index_stream) + 1
+        self.max_index = k
+
+        num_mesh_colls = len(self.Model.mesh_colls)
 
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = sum(
-            list(self.i_stream_lens.values()))
+            list(self.i_stream_lens.values())) + 3 * num_mesh_colls
         self.GeometryData['VertexCount'] = sum(
-            list(self.v_stream_lens.values()))
-        self.GeometryData['CollisionIndexCount'] = ColIndexCount
+            list(self.v_stream_lens.values())) + 3 * num_mesh_colls
+        self.GeometryData['CollisionIndexCount'] = 3 * num_mesh_colls
         self.GeometryData['MeshVertRStart'] = list(
             self.vert_bounds[name][0] for name in self.mesh_names)
         self.GeometryData['MeshVertREnd'] = list(
@@ -363,12 +349,58 @@ class Export():
         else:
             self.GeometryData['Indices16Bit'] = 1
 
+        # Sort out mesh collision convex hull data
+
+        hull_batches = dict()
+        hull_verts = dict()
+        hull_indexes = dict()
+
+        # create the list of mesh collision fake vert and index values
+        batch_offset = 0
+        for i, name in enumerate(self.Model.mesh_colls.keys()):
+            # For each mesh collision determine the start verts and indexes
+            start_verts = self.GeometryData['MeshVertREnd'][-1] + 3 * i + 1
+            start_idxs = 3 * i
+            end_verts = start_verts + 2
+            batch_offset = start_idxs + 3
+            self.GeometryData['MeshVertRStart'].append(start_verts)
+            self.GeometryData['MeshVertREnd'].append(end_verts)
+            hull_verts[name] = (start_verts, end_verts)
+            hull_batches[name] = (start_idxs, 3)
+            # Add the fake indexes
+            self.index_stream[name] = list(
+                range(self.max_index + 3 * i, self.max_index + 3 * (i + 1)))
+        for name, batch in self.batches.items():
+            self.batches[name] = [batch[0] + batch_offset,
+                                  batch[1]]
+
+        # Also add the bounded hull vert start and ends
+        for name, obj in self.Model.mesh_colls.items():
+            length = len(obj.CHVerts)
+            start = self.GeometryData['BoundHullVertEd'][-1]
+            end = start + length
+            self.GeometryData['BoundHullVertSt'].append(start)
+            self.GeometryData['BoundHullVertEd'].append(end)
+            hull_indexes[name] = (start, end)
+
         # might as well also populate the hull data since we only need to union
         # it all:
         hull_data = []
+        self.GeometryData['BoundHullVerts'] = list()
         for name in self.mesh_names:
             hull_data += self.chvertex_stream[name]
-        self.GeometryData['BoundHullVerts'] = hull_data
+        for obj in self.Model.mesh_colls.values():
+            hull_data.extend(obj.CHVerts)
+        for vert in hull_data:
+            self.GeometryData['BoundHullVerts'].append(Vector4f(x=vert[0],
+                                                                y=vert[1],
+                                                                z=vert[2],
+                                                                t=1.0))
+
+        self.vert_bounds.update(hull_verts)
+        self.hull_bounds.update(hull_indexes)
+        self.batches.update(hull_batches)
+        print(self.batches, 'batches')
 
     def process_nodes(self):
         # this will iterate first over the list of mesh data and apply all the
@@ -380,7 +412,10 @@ class Export():
         for obj in traverse(self.Model):
             if obj.IsMesh:
                 name = obj.Name
-                mesh_obj = self.Model.Meshes[name]
+                if obj._Type == 'MESH':
+                    mesh_obj = self.Model.Meshes[name]
+                elif obj._Type == 'COLLISION':
+                    mesh_obj = self.Model.mesh_colls[name]
                 name = mesh_obj.Name
 
                 data = odict()
@@ -440,7 +475,9 @@ class Export():
                         m = 2
                     self.mesh_metadata[name]['IndexDataSize'] = m * data[
                         'BATCHCOUNT']
-
+                else:
+                    # We need to rename the mesh collision objects
+                    obj.Name = self.path
             else:
                 if obj._Type == 'LOCATOR':
                     if obj.HasAttachment:
@@ -462,6 +499,7 @@ class Export():
                     else:
                         data = None
                 elif obj._Type == 'COLLISION':
+                    obj.Name = self.path
                     if obj.CType == 'Box':
                         data = {'WIDTH': obj.Width, 'HEIGHT': obj.Height,
                                 'DEPTH': obj.Depth}
@@ -566,6 +604,11 @@ class Export():
 
         # finally we can also flatten the index stream:
         IndexBuffer = array('I')
+        # First write the mesh collision index buffer
+        for name in self.Model.mesh_colls.keys():
+            obj = self.index_stream[name]
+            IndexBuffer.extend(obj)
+        # Then write the normal mesh index buffer
         for name in self.mesh_names:
             obj = self.index_stream[name]
             IndexBuffer.extend(obj)

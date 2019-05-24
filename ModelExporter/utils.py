@@ -128,10 +128,37 @@ def traverse(obj):
 # region Transform Functions
 
 
+def apply_local_transform(rotmat, data, normalize=True, use_norm_mat=False):
+    """ Applys a local transform to the supplied data.
+
+    Parameters
+    ----------
+    data : list of tuples
+        The source data.
+    normalize : bool
+        Whether or not to normalize the resultant vector.
+    use_norm_mat : bool
+        Whether or not to use the normalized rotation matrix.
+        This will be used for tangents and normals.
+
+    This operation occurs in place
+    """
+    if use_norm_mat:
+        norm_mat = rotmat.inverted().transposed()
+    for i in range(len(data)):
+        if use_norm_mat:
+            _data = norm_mat * Vector((data[i]))
+        else:
+            _data = rotmat * Vector((data[i]))
+        if normalize:
+            _data.normalize()
+        data[i] = (_data[0], _data[1], _data[2], 1.0)
+
+
+# TODO: !REMOVE
 def apply_local_transforms(rotmat, verts, norms, tangents, chverts):
     norm_mat = rotmat.inverted().transposed()
 
-    print(len(verts), len(norms), len(tangents), len(chverts))
     for i in range(len(verts)):
         # Load Vertex
         vert = rotmat * Vector((verts[i]))

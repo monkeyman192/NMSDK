@@ -10,7 +10,7 @@ from mathutils import Matrix, Vector  # pylint: disable=import-error
 # Internal imports
 from ..utils.misc import CompareMatrices, ContinuousCompare, get_obj_name
 from .utils import (get_all_actions, apply_local_transforms,
-                    transform_to_NMS_coords)
+                    transform_to_NMS_coords, apply_local_transform)
 from .export import Export
 from .Descriptor import Descriptor
 from ..NMS.classes import (TkMaterialData, TkMaterialFlags,
@@ -27,6 +27,9 @@ from ..NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
                            Joint)
 from ..NMS.LOOKUPS import MATERIALFLAGS
 from .ActionTriggerParser import ParseNodes
+
+
+ROT_X_MAT = Matrix.Rotation(radians(-90), 4, 'X')
 
 
 # Attempt to find 'blender.exe path'
@@ -52,12 +55,43 @@ if scriptpath not in sys.path:
 
 
 def triangulate_mesh(mesh):
+    """ Triangule the provided mesh.
+
+    Note
+    ----
+    This will modify the original mesh. To avoid this you should ALWAYS pass in
+    a temporary mesh object and do manipulations on this.
+    """
     bm = bmesh.new()
     bm.from_mesh(mesh)
     bmesh.ops.triangulate(bm, faces=bm.faces)
     bm.to_mesh(mesh)
     bm.free()
     del bm
+
+
+def generate_hull(mesh):
+    """ Generate the convex hull for a mesh.
+
+    Returns
+    -------
+    chverts : list of tuples
+        The list of vertex points for the convex hull of the given mesh.
+    """
+    chverts = list()
+    bpy.ops.object.mode_set(mode='EDIT')
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    # convex hull data. Includes face and edges and stuff...
+    ch = bmesh.ops.convex_hull(bm, input=bm.verts)['geom']
+    for i in ch:
+        if type(i) == bmesh.types.BMVert:
+            chverts.append((i.co[0], i.co[1], i.co[2], 1.0))
+    bm.free()
+    del ch
+    del bm
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return chverts
 
 
 """ Main exporter class with all the other functions contained in one place """
@@ -93,10 +127,6 @@ class Exporter():
         # of nodes and the animation types they have.
         self.anim_node_data = dict()
         self.nodes_in_all_anims = list()
-
-        # this is the total number of collision indexes. The geometry file as
-        # of 1.3 requires it.
-        self.CollisionIndexCount = 0
 
         # current number of joints. This is incremented as required.
         self.joints = 0
@@ -554,7 +584,6 @@ class Exporter():
         chverts = []        # convex hull vert data
         # Matrices
         # object_matrix_wrld = ob.matrix_world
-        rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
         # ob.matrix_world = rot_x_mat*ob.matrix_world
         # scale_mat = Matrix.Scale(1, 4)
         # norm_mat = rot_x_mat.inverted().transposed()
@@ -606,32 +635,22 @@ class Exporter():
             tangent = ml.tangent
             tangents.append((tangent[0], tangent[1], tangent[2], 1))
             if export_colours:
-                # TODO: if this requires the mode to be the vertex paint mode,
-                # detrmine this afterwards
                 vcol = colour_data[index].color
                 colours.append([int(255 * vcol[0]),
                                 int(255 * vcol[1]),
                                 int(255 * vcol[2])])
 
         # finally, let's find the convex hull data of the mesh:
-        bpy.ops.object.mode_set(mode='EDIT')
-        bm = bmesh.new()
-        bm.from_mesh(data)
-        # convex hull data. Includes face and edges and stuff...
-        ch = bmesh.ops.convex_hull(bm, input=bm.verts)['geom']
-        for i in ch:
-            if type(i) == bmesh.types.BMVert:
-                chverts.append((i.co[0], i.co[1], i.co[2], 1.0))
-        bm.free()
-        del ch
-        del bm
-        bpy.ops.object.mode_set(mode='OBJECT')
+        chverts = generate_hull(data)
         if data_is_temp:
             # If we created a temporary data object then delete it
             del data
 
         # Apply rotation and normal matrices on vertices and normal vectors
-        apply_local_transforms(rot_x_mat, verts, normals, tangents, chverts)
+        apply_local_transform(ROT_X_MAT, verts, normalize=False)
+        apply_local_transform(ROT_X_MAT, normals, use_norm_mat=True)
+        apply_local_transform(ROT_X_MAT, tangents, use_norm_mat=True)
+        apply_local_transform(ROT_X_MAT, chverts, normalize=False)
 
         return verts, normals, tangents, uvs, indexes, chverts, colours
 
@@ -752,13 +771,10 @@ class Exporter():
             # COLLISION MESH
             colType = ob.NMSCollision_props.collision_types
 
-            optdict = {}
-            # TODO: replace this with something determine locally?
-            # (saves having to define self.scene_directory ages ago for this
-            # single use...)
-            optdict['Name'] = self.scene_directory
-            # do a slightly modified transform data as we want the scale to
-            # always be (1,1,1)
+            # The object will have its name in the scene so that any data
+            # required can be linked up. This name will be overwritten by the
+            # exporter to be the path name of the scene.
+            optdict = {'Name': get_obj_name(ob, None)}
 
             # Let's do a check on the values of the scale and the dimensions.
             # We can have it so that the user can apply scale, even if by
@@ -790,21 +806,19 @@ class Exporter():
             optdict['CollisionType'] = colType
 
             if (colType == "Mesh"):
-                # Mesh collisions will only have bounded hull data.
+                # Mesh collisions will only have convex hull data.
                 # We'll give them some "fake" vertex data which consists of
                 # no actual vertex data, but an index that doesn't point to
                 # anything.
-                c_verts, c_norms, c_tangs, c_uvs, c_indexes, c_chverts, _ = self.mesh_parser(ob)  # noqa
+
+                chverts = generate_hull(ob.data)
+
+                # Apply rotation to the convex hull
+                apply_local_transform(ROT_X_MAT, chverts, normalize=False)
 
                 # Reset Transforms on meshes
 
-                optdict['Vertices'] = c_verts
-                optdict['Indexes'] = c_indexes
-                optdict['UVs'] = c_uvs
-                optdict['Normals'] = c_norms
-                optdict['Tangents'] = c_tangs
-                optdict['CHVerts'] = c_chverts
-                self.CollisionIndexCount += len(c_indexes)
+                optdict['CHVerts'] = chverts
             # Handle Primitives
             elif (colType == "Box"):
                 optdict['Width'] = dims[0]/factor[0]
