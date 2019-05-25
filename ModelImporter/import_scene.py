@@ -126,6 +126,29 @@ class ImportScene():
 
         # get the information about what data the geometry file contains
         with open(self.geometry_file, 'rb') as f:
+            # Check to see if we have any mesh collision data
+            f.seek(0x6C)
+            self.CollisionIndexCount = struct.unpack('<I', f.read(0x4))[0]
+            if self.CollisionIndexCount != 0:
+                # Determine if the index data is 16bit or 32 bit (2 or 4 bytes)
+                f.seek(0x68)
+                self.Indices16Bit = bool(struct.unpack('<I', f.read(0x4))[0])
+                f.seek(0x180)
+                list_offset, _ = read_list_header(f)
+                f.seek(list_offset, 1)
+                if self.Indices16Bit:
+                    fmt = 'H'
+                    mult = 2
+                else:
+                    fmt = 'I'
+                    mult = 4
+                # Read all the mesh index data into a single list
+                self.mesh_indexes = struct.unpack(
+                    '<' + fmt * self.CollisionIndexCount,
+                    f.read(self.CollisionIndexCount * mult))
+            else:
+                self.mesh_indexes = list()
+
             f.seek(0x140)
             self.count, self.stride = struct.unpack('<II', f.read(0x8))
             # skip platform data
@@ -159,6 +182,19 @@ class ImportScene():
         mesh_node._generate_geometry()
         mesh_node._generate_bounded_hull(self.bh_data)
 
+    def load_collision_mesh(self, mesh_node):
+        """ Load the collision mesh data.
+        This only needs the bounded hull data and the index buffer with the
+        VERTRSTART vaue subtracted off.
+        """
+        idx_start = int(mesh_node.Attribute('BATCHSTART'))
+        idx_count = int(mesh_node.Attribute('BATCHCOUNT'))
+        idxs = self.mesh_indexes[idx_start: idx_start + idx_count]
+        for idx in idxs:
+            mesh_node.idxs.append(idx - int(mesh_node.Attribute('VERTRSTART')))
+        mesh_node._generate_geometry(from_bh=True)
+        mesh_node._generate_bounded_hull(self.bh_data)
+
     def render_mesh(self, mesh_ID):
         """Render the specified mesh in the blender view. """
         obj = self.scene_node_data.get(mesh_ID)
@@ -187,6 +223,12 @@ class ImportScene():
             elif (obj.Type == 'LOCATOR' or obj.Type == 'JOINT'
                   or obj.Type == 'REFERENCE'):
                 self._add_empty_to_scene(obj)
+            elif obj.Type == 'COLLISION':
+                if obj.Attribute('TYPE') == 'MESH':
+                    self.load_collision_mesh(obj)
+                    self._add_mesh_collision_to_scene(obj)
+                else:
+                    self._add_primitive_collision_to_scene(obj)
         self.state = {'FINISHED'}
 
 # region private methods
@@ -273,6 +315,47 @@ class ImportScene():
             else:
                 print("The reference node {0} has a reference to a path "
                       "that doesn't exist ({1})".format(name, ref_scene_path))
+
+    def _add_mesh_collision_to_scene(self, scene_node):
+        """ Adds the given collision node to the Blender scene. """
+        name = scene_node.Name + '_COLL'
+        mesh = bpy.data.meshes.new(name)
+        mesh.from_pydata(scene_node.bounded_hull,
+                         scene_node.edges,
+                         scene_node.faces)
+        bh_obj = bpy.data.objects.new(name, mesh)
+
+        bh_obj.NMSNode_props.node_types = 'Collision'
+        bh_obj.NMSCollision_props.collision_types = 'Mesh'
+
+        # get transform and apply
+        transform = scene_node.Transform['Trans']
+        bh_obj.location = Vector(transform)
+        # get rotation and apply
+        rotation = scene_node.Transform['Rot']
+        bh_obj.rotation_mode = 'ZXY'
+        bh_obj.rotation_euler = rotation
+        # get scale and apply
+        scale = scene_node.Transform['Scale']
+        bh_obj.scale = Vector(scale)
+
+        if self.parent_obj is not None and scene_node.parent.Name is None:
+            # Direct child of reference node
+            bh_obj.parent = self.parent_obj
+            self.ref_scenes[self.scene_name].append(bh_obj)
+        elif scene_node.parent.Name is not None:
+            # Other child
+            parent_obj = self.local_objects[scene_node.parent.Name]
+            bh_obj.parent = parent_obj
+        else:
+            # Direct child of loaded scene
+            bh_obj.parent = self.local_objects[self.scene_basename]
+
+        self.scn.objects.link(bh_obj)
+        self.local_objects[bh_obj.name] = bh_obj
+
+    def _add_primitive_collision_to_scene(self, scene_node):
+        pass
 
     def _add_existing_to_scene(self):
         # existing is a list of child objects to the reference

@@ -7,7 +7,7 @@ class SceneNodeData():
         self.parent = parent
         self.verts = dict()
         self.idxs = list()
-        self.bounded_hull = None
+        self.bounded_hull = list()
         # The metadata will be read from the geometry file later.
         self.metadata = None
         self.children = list()
@@ -44,10 +44,18 @@ class SceneNodeData():
         self.bounded_hull = bh_data[int(self.Attribute('BOUNDHULLST')):
                                     int(self.Attribute('BOUNDHULLED'))]
 
-    def _generate_geometry(self):
-        """ Generate the faces and edge data. """
-        if len(self.idxs) == 0 or len(self.verts.keys()) == 0:
-            raise ValueError('Something has gone wrong!!!')
+    def _generate_geometry(self, from_bh=False):
+        """ Generate the faces and edge data.
+
+        Parameters
+        ----------
+        from_bh : bool
+            Whether the data is being generated from the hull data.
+        """
+        if len(self.idxs) == 0:
+            if ((from_bh and len(self.bounded_hull) == 0) or
+                    (not from_bh and len(self.verts.keys()) == 0)):
+                raise ValueError('Something has gone wrong!!!')
         self.faces = list(zip(self.idxs[0::3],
                               self.idxs[1::3],
                               self.idxs[2::3]))
