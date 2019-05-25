@@ -158,9 +158,9 @@
 For every scene (Ie. <code>Reference</code> node which has no <em>Reference Path</em> property set), you can specify that a scene is proc-gen by setting the <em>Is a proc-gen scene?</em> property to <code>True</code>.</p>
 <p>Once this property has been set, a new panel will appear with <a href="../node_docs/#descriptor-node">descriptor settings</a></p>
 <p>For nodes that you wish to always appear, you can leave <em>Proc type</em> as <code>Always</code> and ignore the <em>Proc prefix</em> value</p>
-<p><img alt="desc_always" src="/../../images/desc_always.png" /></p>
+<p><img alt="desc_always" src="../../images/desc_always.png" /></p>
 <p>If you wish for a node to be selected from a set, select the <em>Proc type</em> <code>Random</code> and specify the prefix in <em>Proc prefix</em>. All objects with the same <em>Proc prefix</em> value will form a pool from which objects are to be selected from. Note that if an object is not selected, none of its children will be either.</p>
-<p><img alt="desc_random" src="/../../images/desc_random.png" /></p>
+<p><img alt="desc_random" src="../../images/desc_random.png" /></p>
 <p>In the above example, we have <code>NMS_CONSTRUCTBIGGUNGUN</code> and <code>ref_mount</code> with <em>Proc type</em> as <code>Always</code>, meaning they will always appear in the scene. The 5 <code>NMS_LIGHTSPRITE</code> instances all have <em>Proc type</em> as <code>Random</code> and <em>Proc prefix</em> as <code>LIGHT</code>, meaning in the final scene, only one of them will appear randomly. Their final node names in the produced scene will also be <code>_LIGHT_LIGHTSPRITE</code>.</p>
 <h4 id="tips-and-things-to-note">Tips and things to note:</h4>
 <ul>
