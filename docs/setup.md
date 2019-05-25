@@ -19,4 +19,4 @@ The easiest way to have *MBINCompiler* set up is to download the most recent
 release and register *MBINCompiler* to the path so that it can be picked up
 anywhere by Blender.
 If you already have a version of *MBINCompiler* on your computer, ensure it is
-version **1.7.0.4** or above. This can be found on the [MBINCompiler releases](https://github.com/monkeyman192/MBINCompiler/releases) page.
+version **v1.78.0-pre1** or above. This can be found on the [MBINCompiler releases](https://github.com/monkeyman192/MBINCompiler/releases) page.

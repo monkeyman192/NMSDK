@@ -15,3 +15,4 @@ nav:
       - Creating Action Triggers: exporting/action_triggers.md
       - Shader Setup: exporting/shader_nodes.md
     - API guide: api.md
+    - Change log: change_log.md

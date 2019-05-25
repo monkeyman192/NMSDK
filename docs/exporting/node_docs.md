@@ -78,8 +78,8 @@ The type of collision primitive to use.
 
 Specifies whether the final transform of the collision object uses the objects' transform (`Transform`), or the actual size (`Dimensions`). This is useful if an object has has a scale transform applied to it, you can still retreive the shape of it by using the `Dimensions` option.
 
+Note: If you are using a `Mesh` collision type you **MUST** apply any scaling or rotational transforms for the mesh to be exported correctly.
 
-**Note**: If you are using a `Mesh` collision type you **MUST** apply any scaling or rotational transforms for the mesh to be exported correctly.
 ---
 
 ## Light Node

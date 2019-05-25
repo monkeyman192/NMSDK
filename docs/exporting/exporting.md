@@ -40,3 +40,10 @@ The main scene will contain a `REFERENCE` node with the `SCENEGRAPH` property be
 
 Once you have set at least one primary object that is to be the `Reference` node, you can specify any subsequent objects to be a `Mesh`, `Locator`, `Reference`, `Light`, `Joint` or `Collision` node.
 These each have their own various uses and if you are familiar with NMS scenes it will be easy to specify what each object in a blender scene is.
+
+## Tips
+
+For a detailed guide on the different node types, see the [node docs](./node_docs.md). There are a few tips that should be kept in mind generally:
+
+- Only objects that are the children of a `Reference` node will be exported.
+- Mesh collisions should be used sparingly. They take up more computational power and may cause your model to slow down the game. If you must use mesh collisions be sure to use very low poly models (in the 100's of verts, max). It is preferrential to use primitive type collision objects when possible.
