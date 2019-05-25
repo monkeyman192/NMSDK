@@ -9,8 +9,8 @@ from idprop.types import IDPropertyGroup  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
 # Internal imports
 from ..utils.misc import CompareMatrices, ContinuousCompare, get_obj_name
-from .utils import (get_all_actions, apply_local_transforms,
-                    transform_to_NMS_coords, apply_local_transform)
+from .utils import (get_all_actions, apply_local_transform,
+                    transform_to_NMS_coords)
 from .export import Export
 from .Descriptor import Descriptor
 from ..NMS.classes import (TkMaterialData, TkMaterialFlags,
@@ -70,13 +70,21 @@ def triangulate_mesh(mesh):
     del bm
 
 
-def generate_hull(mesh):
+def generate_hull(mesh, determine_indexes=False):
     """ Generate the convex hull for a mesh.
+
+    Parameters
+    ----------
+    determine_indexes : bool
+        Whether to determine the index buffer for the convex hull.
+        This is only needed for mesh collisions
 
     Returns
     -------
     chverts : list of tuples
         The list of vertex points for the convex hull of the given mesh.
+    indexes : list of ints (optional)
+        The index buffer for the verts.
     """
     chverts = list()
     bpy.ops.object.mode_set(mode='EDIT')
@@ -84,14 +92,27 @@ def generate_hull(mesh):
     bm.from_mesh(mesh)
     # convex hull data. Includes face and edges and stuff...
     ch = bmesh.ops.convex_hull(bm, input=bm.verts)['geom']
+    faces = list()
     for i in ch:
         if type(i) == bmesh.types.BMVert:
             chverts.append((i.co[0], i.co[1], i.co[2], 1.0))
+        elif type(i) == bmesh.types.BMFace:
+            if determine_indexes:
+                faces.append(i)
+    # determine the index stream
+    if determine_indexes:
+        indexes = list()
+        for face in faces:
+            for loop in face.loops:
+                indexes.append(loop.vert.index)
     bm.free()
     del ch
     del bm
     bpy.ops.object.mode_set(mode='OBJECT')
-    return chverts
+    if determine_indexes:
+        return chverts, indexes
+    else:
+        return chverts
 
 
 """ Main exporter class with all the other functions contained in one place """
@@ -811,7 +832,7 @@ class Exporter():
                 # no actual vertex data, but an index that doesn't point to
                 # anything.
 
-                chverts = generate_hull(ob.data)
+                chverts, chindexes = generate_hull(ob.data, True)
 
                 # Apply rotation to the convex hull
                 apply_local_transform(ROT_X_MAT, chverts, normalize=False)
@@ -819,6 +840,7 @@ class Exporter():
                 # Reset Transforms on meshes
 
                 optdict['CHVerts'] = chverts
+                optdict['CHIndexes'] = chindexes
             # Handle Primitives
             elif (colType == "Box"):
                 optdict['Width'] = dims[0]/factor[0]

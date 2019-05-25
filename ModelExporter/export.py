@@ -70,7 +70,10 @@ class Export():
         self.t_stream = odict()
         self.c_stream = odict()
         self.chvertex_stream = odict()
-        # a disctionary of the bounds of just mesh objects. This will be used
+        # mesh collision convex hull data
+        self.ch_indexes = odict()
+        self.ch_verts = odict()
+        # a dictionary of the bounds of just mesh objects. This will be used
         # for the scene files
         self.mesh_bounds = odict()
         # this will hopefully mean that there will be at most one copy of each
@@ -222,27 +225,6 @@ class Export():
         self.v_stream_lens = odict()
         self.ch_stream_lens = odict()
 
-        """
-        # to fix 1.3x mesh collisions, we need to make all the mesh collisions
-        # have their indexes first
-        # we require a mapping to know which is which though
-        # the unchanged mapping
-        self.index_mapping = list(range(len(self.Model.ListOfMeshes)))
-        # an int to keep track of where to place the value
-        # (incremented by loop)
-        insert_point = 0
-        for i in range(len(self.Model.ListOfMeshes)):
-            mesh = self.Model.ListOfMeshes[i]
-            if mesh._Type == 'COLLISION':
-                if mesh.CType == 'Mesh':
-                    # move the index it is now located at 'insert_point' so we
-                    # can construct it correctly in the scene
-                    self.index_mapping = movetoindex(self.index_mapping, i,
-                                                     insert_point)
-                    insert_point += 1
-        print(self.index_mapping, 'index_mapping')
-        """
-
         # populate the lists containing the lengths of each individual stream
         for name in self.mesh_names:
             self.i_stream_lens[name] = len(self.index_stream[name])
@@ -303,7 +285,6 @@ class Export():
         self.batches = odict(zip(self.mesh_names,
                                  [(sum(index_counts[:i]), index_counts[i])
                                   for i in range(self.num_mesh_objs)]))
-        print(self.batches, 'batches')
         # vertices
         v_stream_lens = list(self.v_stream_lens.values())
         self.vert_bounds = odict(zip(self.mesh_names,
@@ -316,25 +297,30 @@ class Export():
                                      [(sum(ch_stream_lens[:i]),
                                        sum(ch_stream_lens[:i + 1]))
                                       for i in range(self.num_mesh_objs)]))
-        print(self.hull_bounds, 'bound hulls')
 
         # we need to fix up the index stream as the numbering needs to be
         # continuous across all the streams
-        k = 0       # additive constant
+        mesh_index_end = 0       # additive constant
         for index_stream in self.index_stream.values():
             for j in range(len(index_stream)):
-                index_stream[j] = index_stream[j] + k
-            k = max(index_stream) + 1
-        self.max_index = k
+                index_stream[j] = index_stream[j] + mesh_index_end
+            mesh_index_end = max(index_stream) + 1
 
-        num_mesh_colls = len(self.Model.mesh_colls)
+        # get the convex hull index and vertex data
+        for name, obj in self.Model.mesh_colls.items():
+            self.ch_indexes[name] = obj.CHIndexes
+            self.ch_verts[name] = obj.CHVerts
+
+        # get the total lengths for the geometry data
+        num_mesh_col_idxs = sum([len(x) for x in self.ch_indexes.values()])
+        num_mesh_col_verts = sum([len(x) for x in self.ch_verts.values()])
 
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = sum(
-            list(self.i_stream_lens.values())) + 3 * num_mesh_colls
+            list(self.i_stream_lens.values())) + num_mesh_col_idxs
         self.GeometryData['VertexCount'] = sum(
-            list(self.v_stream_lens.values())) + 3 * num_mesh_colls
-        self.GeometryData['CollisionIndexCount'] = 3 * num_mesh_colls
+            list(self.v_stream_lens.values())) + num_mesh_col_verts
+        self.GeometryData['CollisionIndexCount'] = num_mesh_col_idxs
         self.GeometryData['MeshVertRStart'] = list(
             self.vert_bounds[name][0] for name in self.mesh_names)
         self.GeometryData['MeshVertREnd'] = list(
@@ -355,21 +341,23 @@ class Export():
         hull_verts = dict()
         hull_indexes = dict()
 
-        # create the list of mesh collision fake vert and index values
+        # create the list of mesh collision index data
         batch_offset = 0
-        for i, name in enumerate(self.Model.mesh_colls.keys()):
+        for name in self.ch_verts.keys():
             # For each mesh collision determine the start verts and indexes
-            start_verts = self.GeometryData['MeshVertREnd'][-1] + 3 * i + 1
-            start_idxs = 3 * i
-            end_verts = start_verts + 2
-            batch_offset = start_idxs + 3
+            start_verts = self.GeometryData['MeshVertREnd'][-1] + 1
+            start_idxs = batch_offset
+            end_verts = start_verts + len(self.ch_verts[name]) - 1
+            batch_offset = start_idxs + len(self.ch_indexes[name])
             self.GeometryData['MeshVertRStart'].append(start_verts)
             self.GeometryData['MeshVertREnd'].append(end_verts)
             hull_verts[name] = (start_verts, end_verts)
-            hull_batches[name] = (start_idxs, 3)
-            # Add the fake indexes
-            self.index_stream[name] = list(
-                range(self.max_index + 3 * i, self.max_index + 3 * (i + 1)))
+            hull_batches[name] = (start_idxs, len(self.ch_indexes[name]))
+            # Add the mesh collision indexes
+            self.index_stream[name] = [mesh_index_end + x for x in
+                                       self.ch_indexes[name]]
+            mesh_index_end = mesh_index_end + max(self.ch_indexes[name]) + 1
+        # Fix up the index values for the actual mesh data
         for name, batch in self.batches.items():
             self.batches[name] = [batch[0] + batch_offset,
                                   batch[1]]
@@ -389,8 +377,8 @@ class Export():
         self.GeometryData['BoundHullVerts'] = list()
         for name in self.mesh_names:
             hull_data += self.chvertex_stream[name]
-        for obj in self.Model.mesh_colls.values():
-            hull_data.extend(obj.CHVerts)
+        for verts in self.ch_verts.values():
+            hull_data.extend(verts)
         for vert in hull_data:
             self.GeometryData['BoundHullVerts'].append(Vector4f(x=vert[0],
                                                                 y=vert[1],
@@ -400,7 +388,6 @@ class Export():
         self.vert_bounds.update(hull_verts)
         self.hull_bounds.update(hull_indexes)
         self.batches.update(hull_batches)
-        print(self.batches, 'batches')
 
     def process_nodes(self):
         # this will iterate first over the list of mesh data and apply all the

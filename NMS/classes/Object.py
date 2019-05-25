@@ -321,6 +321,7 @@ class Collision(Object):
             self.IsMesh = True
             self.Material = None
             self.CHVerts = kwargs.get('CHVerts', None)
+            self.CHIndexes = kwargs.get('CHIndexes', None)
         else:
             # just give all 4 values. The required ones will be non-zero (deal
             # with later in the main file...)
