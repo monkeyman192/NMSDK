@@ -224,7 +224,7 @@ class ImportScene():
                   or obj.Type == 'REFERENCE'):
                 self._add_empty_to_scene(obj)
             elif obj.Type == 'COLLISION':
-                if obj.Attribute('TYPE') == 'MESH':
+                if obj.Attribute('TYPE') == 'Mesh':
                     self.load_collision_mesh(obj)
                     self._add_mesh_collision_to_scene(obj)
                 else:
