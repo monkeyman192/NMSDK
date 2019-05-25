@@ -51,6 +51,7 @@ class Object():
         # this is a list of all the MESH objects or collisions of type MESH so
         # that we can easily access it.
         self.Meshes = odict()
+        self.mesh_colls = odict()
         # The list will be automatically populated when a child is added to any
         # children of this object.
         self.ListOfEntities = []    # this works similarly to the above...
@@ -98,9 +99,12 @@ class Object():
         else:
             # ... until we hit the Model object who is the only object that has
             # no parent.
-            self.Meshes[obj.Name] = obj
-            if obj.Colours is not None:
-                self.has_vertex_colours = True
+            if obj._Type == "COLLISION":
+                self.mesh_colls[obj.Name] = obj
+            else:
+                self.Meshes[obj.Name] = obj
+                if obj.Colours is not None:
+                    self.has_vertex_colours = True
 
     def populate_entitylist(self, obj):
         if self.Parent is not None:
@@ -313,18 +317,11 @@ class Collision(Object):
         self._Type = "COLLISION"
         self.CType = kwargs.get("CollisionType", "Mesh")
         if self.CType == "Mesh":
-            # get the relevant bits of data from the kwargs
+            # We will only be passed the convex hull verts
             self.IsMesh = True
-            self.Vertices = kwargs.get('Vertices', None)
-            self.Indexes = kwargs.get('Indexes', None)
             self.Material = None
-            self.UVs = kwargs.get('UVs', None)
-            self.Normals = kwargs.get('Normals', None)
-            self.Tangents = kwargs.get('Tangents', None)
             self.CHVerts = kwargs.get('CHVerts', None)
-
-            # find out what streams have been provided
-            self.determine_included_streams()
+            self.CHIndexes = kwargs.get('CHIndexes', None)
         else:
             # just give all 4 values. The required ones will be non-zero (deal
             # with later in the main file...)

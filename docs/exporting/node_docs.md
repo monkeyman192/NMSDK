@@ -70,7 +70,7 @@ Note that NMSDK will construct the objects' name to be of the form `_<prefix>_<n
 
 A `Collision` node is used to specify a primitive object that will be used as a collition for the model.
 
-- **Collision Type** : `enum` - Choice of `Box`, `Sphere` or `Cylinder`
+- **Collision Type** : `enum` - Choice of `Mesh`, `Box`, `Sphere` or `Cylinder`
 
 The type of collision primitive to use.
 
@@ -78,6 +78,8 @@ The type of collision primitive to use.
 
 Specifies whether the final transform of the collision object uses the objects' transform (`Transform`), or the actual size (`Dimensions`). This is useful if an object has has a scale transform applied to it, you can still retreive the shape of it by using the `Dimensions` option.
 
+
+**Note**: If you are using a `Mesh` collision type you **MUST** apply any scaling or rotational transforms for the mesh to be exported correctly.
 ---
 
 ## Light Node
