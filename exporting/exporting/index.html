@@ -162,7 +162,7 @@ This can be anything from extra rocks or plants, to custom buildings that are sc
 <h2 id="updating-from-old-format-scenes">Updating from old-format scenes</h2>
 <p>Previously all objects that were to be exported had to be a child of a node called <code>NMS_SCENE</code>. This requirement has been removed in the current version of NSMDK, as well as the requirement for an object to have <code>NMS_</code> at the beginning of its name.
 Old format scenes in blender can be updated to the new format by simply pressing the <code>Change NMS Node type</code> button in the NMSDK side panel:</p>
-<p><img alt="update nodes" src="/../images/update_old_scenes.png" /></p>
+<p><img alt="update nodes" src="/../../images/update_old_scenes.png" /></p>
 <h2 id="setting-up">Setting up</h2>
 <p>NMSDK uses a consistent node setup for both imported and exported scenes to allow the <code>import &gt; modify &gt; export</code> workflow to be as seamless as possible.
 Because of this, the <code>Reference</code> node type is given a special place.
@@ -173,8 +173,8 @@ To allow for flexibility, <code>Reference</code> nodes can be given two importan
 <p><code>Scene name</code> is used to specify the name of the exported sub-scene.
 This is the name of the scene that any child objects will be exported in.</p>
 <p>To illustrate how the parameters work consider the following two images.</p>
-<p><img alt="sub ref example 1" src="/../images/sub_ref_example1.png" />
-<img alt="sub ref example 2" src="/../images/sub_ref_example2.png" /></p>
+<p><img alt="sub ref example 1" src="/../../images/sub_ref_example1.png" />
+<img alt="sub ref example 2" src="/../../images/sub_ref_example2.png" /></p>
 <p>In the first image we can see that the object is a reference to a scene that already exists in the NMS game files.
 In this case the scene will simply contain a <code>REFERENCE</code> node with the <code>SCENEGRAPH</code> property being the path to the specified scene.</p>
 <p>In the second image we can see that the object has no reference path, but instead has a <code>Scene name</code>.
