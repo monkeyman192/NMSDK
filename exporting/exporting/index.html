@@ -86,6 +86,8 @@
         
             <li><a class="toctree-l4" href="#setting-up">Setting up</a></li>
         
+            <li><a class="toctree-l4" href="#tips">Tips</a></li>
+        
         </ul>
     
 
@@ -117,6 +119,11 @@
             <li class="toctree-l1">
 		
     <a class="" href="../../api/">API guide</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../../change_log/">Change log</a>
 	    </li>
           
         </ul>
@@ -182,6 +189,12 @@ When the blender scene is exported, there will be two scenes exported. The main 
 The main scene will contain a <code>REFERENCE</code> node with the <code>SCENEGRAPH</code> property being the file path (again, relative to the PCBANKS folder) for this scene.</p>
 <p>Once you have set at least one primary object that is to be the <code>Reference</code> node, you can specify any subsequent objects to be a <code>Mesh</code>, <code>Locator</code>, <code>Reference</code>, <code>Light</code>, <code>Joint</code> or <code>Collision</code> node.
 These each have their own various uses and if you are familiar with NMS scenes it will be easy to specify what each object in a blender scene is.</p>
+<h2 id="tips">Tips</h2>
+<p>For a detailed guide on the different node types, see the <a href="../node_docs/">node docs</a>. There are a few tips that should be kept in mind generally:</p>
+<ul>
+<li>Only objects that are the children of a <code>Reference</code> node will be exported.</li>
+<li>Mesh collisions should be used sparingly. They take up more computational power and may cause your model to slow down the game. If you must use mesh collisions be sure to use very low poly models (in the 100's of verts, max). It is preferrential to use primitive type collision objects when possible.</li>
+</ul>
               
             </div>
           </div>

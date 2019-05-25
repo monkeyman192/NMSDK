@@ -96,8 +96,6 @@
         
             <li><a class="toctree-l4" href="#collision-node">Collision Node</a></li>
         
-            <li><a class="toctree-l4" href="#note-if-you-are-using-a-mesh-collision-type-you-must-apply-any-scaling-or-rotational-transforms-for-the-mesh-to-be-exported-correctly">Note: If you are using a Mesh collision type you MUST apply any scaling or rotational transforms for the mesh to be exported correctly.</a></li>
-        
             <li><a class="toctree-l4" href="#light-node">Light Node</a></li>
         
             <li><a class="toctree-l4" href="#joint-node">Joint Node</a></li>
@@ -129,6 +127,11 @@
             <li class="toctree-l1">
 		
     <a class="" href="../../api/">API guide</a>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../../change_log/">Change log</a>
 	    </li>
           
         </ul>
@@ -230,7 +233,8 @@ Note that NMSDK will construct the objects' name to be of the form <code>_&lt;pr
 <li><strong>Scale Transform</strong> : <code>enum</code> - Choice of <code>Transform</code> or <code>Dimensions</code></li>
 </ul>
 <p>Specifies whether the final transform of the collision object uses the objects' transform (<code>Transform</code>), or the actual size (<code>Dimensions</code>). This is useful if an object has has a scale transform applied to it, you can still retreive the shape of it by using the <code>Dimensions</code> option.</p>
-<h2 id="note-if-you-are-using-a-mesh-collision-type-you-must-apply-any-scaling-or-rotational-transforms-for-the-mesh-to-be-exported-correctly"><strong>Note</strong>: If you are using a <code>Mesh</code> collision type you <strong>MUST</strong> apply any scaling or rotational transforms for the mesh to be exported correctly.</h2>
+<p>Note: If you are using a <code>Mesh</code> collision type you <strong>MUST</strong> apply any scaling or rotational transforms for the mesh to be exported correctly.</p>
+<hr />
 <h2 id="light-node">Light Node</h2>
 <p>A <code>Light</code> node is used to create a light source in the scene.</p>
 <ul>

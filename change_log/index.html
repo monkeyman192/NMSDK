@@ -7,23 +7,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   
-  <link rel="shortcut icon" href="../../img/favicon.ico">
-  <title>Shader Setup - NMSDK</title>
+  <link rel="shortcut icon" href="../img/favicon.ico">
+  <title>Change log - NMSDK</title>
   <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
 
-  <link rel="stylesheet" href="../../css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../css/theme_extra.css" type="text/css" />
+  <link rel="stylesheet" href="../css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../css/theme_extra.css" type="text/css" />
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
   
   <script>
     // Current page data
-    var mkdocs_page_name = "Shader Setup";
-    var mkdocs_page_input_path = "exporting/shader_nodes.md";
+    var mkdocs_page_name = "Change log";
+    var mkdocs_page_input_path = "change_log.md";
     var mkdocs_page_url = null;
   </script>
   
-  <script src="../../js/jquery-2.1.1.min.js" defer></script>
-  <script src="../../js/modernizr-2.8.3.min.js" defer></script>
+  <script src="../js/jquery-2.1.1.min.js" defer></script>
+  <script src="../js/modernizr-2.8.3.min.js" defer></script>
   <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
   <script>hljs.initHighlightingOnLoad();</script> 
   
@@ -36,9 +36,9 @@
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
       <div class="wy-side-nav-search">
-        <a href="../.." class="icon icon-home"> NMSDK</a>
+        <a href=".." class="icon icon-home"> NMSDK</a>
         <div role="search">
-  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
   </form>
 </div>
@@ -50,12 +50,12 @@
           
             <li class="toctree-l1">
 		
-    <a class="" href="../..">Home</a>
+    <a class="" href="..">Home</a>
 	    </li>
           
             <li class="toctree-l1">
 		
-    <a class="" href="../../setup/">Setup</a>
+    <a class="" href="../setup/">Setup</a>
 	    </li>
           
             <li class="toctree-l1">
@@ -64,7 +64,7 @@
     <ul class="subnav">
                 <li class="">
                     
-    <a class="" href="../../importing/importing/">Importing</a>
+    <a class="" href="../importing/importing/">Importing</a>
                 </li>
     </ul>
 	    </li>
@@ -75,45 +75,51 @@
     <ul class="subnav">
                 <li class="">
                     
-    <a class="" href="../exporting/">Setting up</a>
+    <a class="" href="../exporting/exporting/">Setting up</a>
                 </li>
                 <li class="">
                     
-    <a class="" href="../node_docs/">Node type guide</a>
+    <a class="" href="../exporting/node_docs/">Node type guide</a>
                 </li>
                 <li class="">
                     
-    <a class="" href="../entities/">Adding Entities</a>
+    <a class="" href="../exporting/entities/">Adding Entities</a>
                 </li>
                 <li class="">
                     
-    <a class="" href="../proc_gen/">Making a proc-gen scene</a>
+    <a class="" href="../exporting/proc_gen/">Making a proc-gen scene</a>
                 </li>
                 <li class="">
                     
-    <a class="" href="../action_triggers/">Creating Action Triggers</a>
+    <a class="" href="../exporting/action_triggers/">Creating Action Triggers</a>
                 </li>
-                <li class=" current">
+                <li class="">
                     
-    <a class="current" href="./">Shader Setup</a>
+    <a class="" href="../exporting/shader_nodes/">Shader Setup</a>
+                </li>
+    </ul>
+	    </li>
+          
+            <li class="toctree-l1">
+		
+    <a class="" href="../api/">API guide</a>
+	    </li>
+          
+            <li class="toctree-l1 current">
+		
+    <a class="current" href="./">Change log</a>
     <ul class="subnav">
             
-    <li class="toctree-l3"><a href="#setting-up-the-nms-ubershader-node">Setting up the NMS UberShader node</a></li>
+    <li class="toctree-l2"><a href="#nmsdk-changelog">NMSDK Changelog</a></li>
+    
+        <ul>
+        
+            <li><a class="toctree-l3" href="#releases">Releases:</a></li>
+        
+        </ul>
     
 
     </ul>
-                </li>
-    </ul>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="../../api/">API guide</a>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="../../change_log/">Change log</a>
 	    </li>
           
         </ul>
@@ -126,7 +132,7 @@
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
         <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../..">NMSDK</a>
+        <a href="..">NMSDK</a>
       </nav>
 
       
@@ -134,15 +140,11 @@
         <div class="rst-content">
           <div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
-    <li><a href="../..">Docs</a> &raquo;</li>
+    <li><a href="..">Docs</a> &raquo;</li>
     
       
-        
-          <li>Exporting a Scene &raquo;</li>
-        
-      
     
-    <li>Shader Setup</li>
+    <li>Change log</li>
     <li class="wy-breadcrumbs-aside">
       
     </li>
@@ -152,11 +154,22 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="setting-up-the-nms-ubershader-node">Setting up the NMS UberShader node</h1>
-<ol>
-<li>Make sure you have the blender renderer set up as the 'Cycles' renderer.</li>
-</ol>
-<p>The rest... Coming soon!</p>
+                <h1 id="nmsdk-changelog">NMSDK Changelog</h1>
+<h2 id="releases">Releases:</h2>
+<h3 id="current-v0911-25052019">Current - v0.9.11 (25/05/2019):</h3>
+<p>This version (FINALLY!) implements the exporting of mesh type collisions.</p>
+<p>To allow this the <code>Mesh</code> type has been re-enabled in the <code>Collision</code> node panel.
+Currently if you wish to export a mesh type collision, you need to apply the scale and rotation transforms to the mesh, otherwise your exported data will not have these values.</p>
+<h3 id="past">Past:</h3>
+<h4 id="v0910-24052019">v0.9.10 (24/05/2019):</h4>
+<ul>
+<li>This version fixes a number of issues introduced in v0.9.9 when attempting to fix imports. Exports should now be far more stable.</li>
+</ul>
+<h4 id="v099-23052019">v0.9.9 (23/05/2019):</h4>
+<ul>
+<li>Vertex colour is now able to be exported. To add vertex colour to a model change the mode in blender to "Vertex Paint".</li>
+<li>Nested referenced scenes can also be exported. This gives complete flexibility to the way a scene is to be exported.</li>
+</ul>
               
             </div>
           </div>
@@ -164,10 +177,8 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../../api/" class="btn btn-neutral float-right" title="API guide">Next <span class="icon icon-circle-arrow-right"></span></a>
       
-      
-        <a href="../action_triggers/" class="btn btn-neutral" title="Creating Action Triggers"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../api/" class="btn btn-neutral" title="API guide"><span class="icon icon-circle-arrow-left"></span> Previous</a>
       
     </div>
   
@@ -193,16 +204,14 @@
     <span class="rst-current-version" data-toggle="rst-current-version">
       
       
-        <span><a href="../action_triggers/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+        <span><a href="../api/" style="color: #fcfcfc;">&laquo; Previous</a></span>
       
-      
-        <span style="margin-left: 15px"><a href="../../api/" style="color: #fcfcfc">Next &raquo;</a></span>
       
     </span>
 </div>
-    <script>var base_url = '../..';</script>
-    <script src="../../js/theme.js" defer></script>
-      <script src="../../search/main.js" defer></script>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
 
 </body>
 </html>
