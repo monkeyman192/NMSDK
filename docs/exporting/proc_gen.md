@@ -7,11 +7,11 @@ Once this property has been set, a new panel will appear with [descriptor settin
 
 For nodes that you wish to always appear, you can leave *Proc type* as `Always` and ignore the *Proc prefix* value
 
-![desc_always](/../../images/desc_always.png)
+![desc_always](../../images/desc_always.png)
 
 If you wish for a node to be selected from a set, select the *Proc type* `Random` and specify the prefix in *Proc prefix*. All objects with the same *Proc prefix* value will form a pool from which objects are to be selected from. Note that if an object is not selected, none of its children will be either.
 
-![desc_random](/../../images/desc_random.png)
+![desc_random](../../images/desc_random.png)
 
 In the above example, we have `NMS_CONSTRUCTBIGGUNGUN` and `ref_mount` with *Proc type* as `Always`, meaning they will always appear in the scene. The 5 `NMS_LIGHTSPRITE` instances all have *Proc type* as `Random` and *Proc prefix* as `LIGHT`, meaning in the final scene, only one of them will appear randomly. Their final node names in the produced scene will also be `_LIGHT_LIGHTSPRITE`.
 

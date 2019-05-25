@@ -10,7 +10,7 @@ To provide this functionality a new panel has been added to the blender user int
 Previously all objects that were to be exported had to be a child of a node called `NMS_SCENE`. This requirement has been removed in the current version of NSMDK, as well as the requirement for an object to have `NMS_` at the beginning of its name.
 Old format scenes in blender can be updated to the new format by simply pressing the `Change NMS Node type` button in the NMSDK side panel:
 
-![update nodes](/../../images/update_old_scenes.png)
+![update nodes](../../images/update_old_scenes.png)
 
 ## Setting up
 
@@ -28,8 +28,8 @@ This is the name of the scene that any child objects will be exported in.
 
 To illustrate how the parameters work consider the following two images.
 
-![sub ref example 1](/../../images/sub_ref_example1.png)
-![sub ref example 2](/../../images/sub_ref_example2.png)
+![sub ref example 1](../../images/sub_ref_example1.png)
+![sub ref example 2](../../images/sub_ref_example2.png)
 
 In the first image we can see that the object is a reference to a scene that already exists in the NMS game files.
 In this case the scene will simply contain a `REFERENCE` node with the `SCENEGRAPH` property being the path to the specified scene.
