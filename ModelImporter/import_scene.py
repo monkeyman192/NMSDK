@@ -7,6 +7,7 @@ import subprocess
 
 # Blender imports
 import bpy  # pylint: disable=import-error
+import bmesh  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
 
 # Internal imports
@@ -355,7 +356,67 @@ class ImportScene():
         self.local_objects[bh_obj.name] = bh_obj
 
     def _add_primitive_collision_to_scene(self, scene_node):
-        pass
+        name = scene_node.Name + '_COLL'
+        mesh = bpy.data.meshes.new(name)
+        coll_type = scene_node.Attribute('TYPE')
+        bm = bmesh.new()
+        if coll_type == 'Box':
+            bmesh.ops.create_cube(bm, size=1.0)
+            scale_mult = [float(scene_node.Attribute('WIDTH')),
+                          float(scene_node.Attribute('HEIGHT')),
+                          float(scene_node.Attribute('DEPTH'))]
+        elif coll_type == 'Sphere':
+            bmesh.ops.create_icosphere(bm, subdivisions=4, diameter=1.0)
+            scale_mult = [float(scene_node.Attribute('RADIUS')),
+                          float(scene_node.Attribute('RADIUS')),
+                          float(scene_node.Attribute('RADIUS'))]
+        elif coll_type == 'Cylinder':
+            bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True,
+                                  diameter1=1.0, diameter2=1.0, depth=1.0,
+                                  segments=20, matrix=ROT_MATRIX)
+            scale_mult = [float(scene_node.Attribute('RADIUS')),
+                          float(scene_node.Attribute('HEIGHT')),
+                          float(scene_node.Attribute('RADIUS'))]
+        else:
+            print('Skipping unsupported coll_type: {0}'.format(coll_type))
+            bm.free()
+            del bm
+            return
+        # Convert the bmesh back to the mesh
+        bm.to_mesh(mesh)
+        bm.free()
+        del bm
+
+        coll_obj = bpy.data.objects.new(name, mesh)
+        coll_obj.NMSNode_props.node_types = 'Mesh'
+
+        # get transform and apply
+        transform = scene_node.Transform['Trans']
+        coll_obj.location = Vector(transform)
+        # get rotation and apply
+        rotation = scene_node.Transform['Rot']
+        coll_obj.rotation_mode = 'ZXY'
+        coll_obj.rotation_euler = rotation
+        # get scale and apply
+        scale = scene_node.Transform['Scale']
+        mod_scale = tuple(scale_mult[i] * scale[i] for i in range(3))
+        coll_obj.scale = Vector(mod_scale)
+
+        # TODO: make its own function
+        if self.parent_obj is not None and scene_node.parent.Name is None:
+            # Direct child of reference node
+            coll_obj.parent = self.parent_obj
+            self.ref_scenes[self.scene_name].append(coll_obj)
+        elif scene_node.parent.Name is not None:
+            # Other child
+            parent_obj = self.local_objects[scene_node.parent.Name]
+            coll_obj.parent = parent_obj
+        else:
+            # Direct child of loaded scene
+            coll_obj.parent = self.local_objects[self.scene_basename]
+
+        self.scn.objects.link(coll_obj)
+        self.local_objects[coll_obj.name] = coll_obj
 
     def _add_existing_to_scene(self):
         # existing is a list of child objects to the reference
@@ -778,7 +839,11 @@ class ImportScene():
         elif size == 2:
             fmt = '<H'
         else:
-            raise ValueError('Something has gone wrong!!')
+            err = ("An error has ocurred. Here is the object information:\n" +
+                   "Mesh name: {0}\n".format(mesh.Name) +
+                   "Mesh indexes: {0}\n".format(idx_count) +
+                   "Mesh metadata: {0}\n".format(mesh.metadata))
+            raise ValueError(err)
         with open(self.geometry_stream_file, 'rb') as f:
             f.seek(mesh.metadata.idx_off)
             for _ in range(idx_count):
