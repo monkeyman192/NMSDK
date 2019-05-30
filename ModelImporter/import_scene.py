@@ -259,7 +259,7 @@ class ImportScene():
             descriptor_name = op.basename(self.scene_name) + '.DESCRIPTOR.MBIN'
             if op.exists(op.join(self.local_directory, descriptor_name)):
                 empty_obj.NMSReference_props.is_proc = True
-            self.local_objects[empty_obj.name] = empty_obj
+            self.local_objects[scene_node] = empty_obj
             return
 
         # Otherwise just assign everything as usual...
@@ -281,7 +281,7 @@ class ImportScene():
         scale = scene_node.Transform['Scale']
         empty_obj.scale = Vector(scale)
 
-        self.local_objects[name] = empty_obj
+        self.local_objects[scene_node] = empty_obj
 
         if not standalone:
             if self.parent_obj is not None and scene_node.parent.Name is None:
@@ -290,7 +290,7 @@ class ImportScene():
                 self.ref_scenes[self.scene_name].append(empty_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
-                empty_obj.parent = self.local_objects[scene_node.parent.Name]
+                empty_obj.parent = self.local_objects[scene_node.parent]
             else:
                 # Direct child of loaded scene
                 empty_obj.parent = self.local_objects[self.scene_basename]
@@ -346,14 +346,18 @@ class ImportScene():
             self.ref_scenes[self.scene_name].append(bh_obj)
         elif scene_node.parent.Name is not None:
             # Other child
-            parent_obj = self.local_objects[scene_node.parent.Name]
+            parent_obj = self.local_objects[scene_node.parent]
             bh_obj.parent = parent_obj
         else:
             # Direct child of loaded scene
             bh_obj.parent = self.local_objects[self.scene_basename]
 
+        if not self.settings['show_collisions']:
+            # Only draw the collisions if they are wanted
+            bh_obj.hide = True
+
         self.scn.objects.link(bh_obj)
-        self.local_objects[bh_obj.name] = bh_obj
+        self.local_objects[scene_node] = bh_obj
 
     def _add_primitive_collision_to_scene(self, scene_node):
         name = scene_node.Name + '_COLL'
@@ -388,7 +392,8 @@ class ImportScene():
         del bm
 
         coll_obj = bpy.data.objects.new(name, mesh)
-        coll_obj.NMSNode_props.node_types = 'Mesh'
+        coll_obj.NMSNode_props.node_types = 'Collision'
+        coll_obj.NMSCollision_props.collision_types = coll_type
 
         # get transform and apply
         transform = scene_node.Transform['Trans']
@@ -409,14 +414,18 @@ class ImportScene():
             self.ref_scenes[self.scene_name].append(coll_obj)
         elif scene_node.parent.Name is not None:
             # Other child
-            parent_obj = self.local_objects[scene_node.parent.Name]
+            parent_obj = self.local_objects[scene_node.parent]
             coll_obj.parent = parent_obj
         else:
             # Direct child of loaded scene
             coll_obj.parent = self.local_objects[self.scene_basename]
 
+        if not self.settings['show_collisions']:
+            # Only draw the collisions if they are wanted
+            coll_obj.hide = True
+
         self.scn.objects.link(coll_obj)
-        self.local_objects[coll_obj.name] = coll_obj
+        self.local_objects[scene_node] = coll_obj
 
     def _add_existing_to_scene(self):
         # existing is a list of child objects to the reference
@@ -461,7 +470,7 @@ class ImportScene():
         scale = scene_node.Transform['Scale']
         mesh_obj.scale = Vector(scale)
 
-        self.local_objects[name] = mesh_obj
+        self.local_objects[scene_node] = mesh_obj
 
         # give object correct parent
         if not standalone:
@@ -471,7 +480,7 @@ class ImportScene():
                 self.ref_scenes[self.scene_name].append(mesh_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
-                parent_obj = self.local_objects[scene_node.parent.Name]
+                parent_obj = self.local_objects[scene_node.parent]
                 mesh_obj.parent = parent_obj
             else:
                 # Direct child of loaded scene
