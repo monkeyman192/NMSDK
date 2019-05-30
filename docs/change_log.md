@@ -2,14 +2,20 @@
 
 ## Releases:
 
-### Current - v0.9.11 (25/05/2019):
+### Current - v0.9.12
 
-This version (FINALLY!) implements the exporting of mesh type collisions.
+- Add support for importing `Box`, `Cylinder` and `Sphere` type primitive collisions.
+- On import there is an option to allow for displaying the collisions which is false by default.
+- 
+
+### Past:
+
+#### v0.9.11 (25/05/2019):
+
+- This version (FINALLY!) implements the exporting of mesh type collisions.
 
 To allow this the `Mesh` type has been re-enabled in the `Collision` node panel.
 Currently if you wish to export a mesh type collision, you need to apply the scale and rotation transforms to the mesh, otherwise your exported data will not have these values.
-
-### Past:
 
 #### v0.9.10 (24/05/2019):
 

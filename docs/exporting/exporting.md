@@ -47,3 +47,11 @@ For a detailed guide on the different node types, see the [node docs](./node_doc
 
 - Only objects that are the children of a `Reference` node will be exported.
 - Mesh collisions should be used sparingly. They take up more computational power and may cause your model to slow down the game. If you must use mesh collisions be sure to use very low poly models (in the 100's of verts, max). It is preferrential to use primitive type collision objects when possible.
+- When exporting an object it may be exported with edges and faces messed up. This happens when the mesh is improperly triangulated. Whilst NMSDK should triangulate a mesh properly it sometimes doesn't work as well as it should.
+You can see the issue in the following two images (c/o Krem):
+![bad export blender](../../images/bad_export_blender.png)
+![bad export](../../images/bad_export.png)
+As we can see, the orange region doesn't look the same in the model viewer as it does in blender before export.
+To fix the issue, we can select the mesh in blender, change to `EDIT` mode, then select `Mesh` > `Faces` > `Triangulate Faces` (see image below)
+![triangulate](../../images/triangulate.png)
+On re-export the issue should be fixed.
