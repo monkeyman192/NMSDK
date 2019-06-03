@@ -5,6 +5,12 @@ This can be anything from extra rocks or plants, to custom buildings that are sc
 
 To provide this functionality a new panel has been added to the blender user interface (UI) to allow the user to enter any relevant information required to export a model to the format compatible with NMS.
 
+## Important info before you start
+
+If you are importing an `.obj` file into Blender to be exported with NMSDK, ensure that the vertex split mode is set to `Keep Vert Order` (see below). If this is not done then you will need to manually triangulate the mesh before exporting.
+
+![import obj](../../images/import_obj.png)
+
 ## Updating from old-format scenes
 
 Previously all objects that were to be exported had to be a child of a node called `NMS_SCENE`. This requirement has been removed in the current version of NSMDK, as well as the requirement for an object to have `NMS_` at the beginning of its name.
@@ -47,3 +53,11 @@ For a detailed guide on the different node types, see the [node docs](./node_doc
 
 - Only objects that are the children of a `Reference` node will be exported.
 - Mesh collisions should be used sparingly. They take up more computational power and may cause your model to slow down the game. If you must use mesh collisions be sure to use very low poly models (in the 100's of verts, max). It is preferrential to use primitive type collision objects when possible.
+- When exporting an object it may be exported with edges and faces messed up. This happens when the mesh is improperly triangulated. Whilst NMSDK should triangulate a mesh properly it sometimes doesn't work as well as it should.
+You can see the issue in the following two images (c/o Krem):
+![bad export blender](../../images/bad_export_blender.png)
+![bad export](../../images/bad_export.png)
+As we can see, the orange region doesn't look the same in the model viewer as it does in blender before export.
+To fix the issue, we can select the mesh in blender, change to `EDIT` mode, then select `Mesh` > `Faces` > `Triangulate Faces` (see image below)
+![triangulate](../../images/triangulate.png)
+On re-export the issue should be fixed.
