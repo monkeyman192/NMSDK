@@ -5,7 +5,7 @@ import os.path as op
 import os
 
 
-SETTINGS_DIR = op.join(op.expanduser('APPDATA'), 'NMSDK')
+SETTINGS_DIR = op.join(os.getenv('APPDATA'), 'NMSDK')
 SETTINGS_FNAME = 'settings.json'
 
 DEFAULT_SETTINGS = {'export_directory': 'CUSTOMMODELS',

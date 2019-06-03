@@ -85,8 +85,9 @@ class _SaveDefaultSettings(Operator):
     bl_label = "Save Settings"
 
     def execute(self, context):
-        default_settings = context.scene.default_settings
+        default_settings = context.scene.nmsdk_default_settings
         default_settings.save()
+        return {'FINISHED'}
 
 
 class NMSDKSettings(PropertyGroup):
@@ -117,7 +118,7 @@ class NMSDKDefaultSettings(PropertyGroup):
     def save(self):
         """ Save the current settings. """
         settings = {'export_directory': self.export_directory,
-                    'group_name': self. group_name}
+                    'group_name': self.group_name}
         write_settings(settings)
     # TODO: add load method?
 
@@ -157,6 +158,9 @@ class NMS_Export_Operator(Operator, ExportHelper):
     filename_ext = ""
 
     def draw(self, context):
+        default_settings = context.scene.nmsdk_default_settings
+        self.export_directory = default_settings.export_directory
+        self.group_name = default_settings.group_name
         layout = self.layout
         layout.prop(self, 'export_directory')
         layout.prop(self, 'group_name')
