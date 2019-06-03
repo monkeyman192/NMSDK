@@ -161,6 +161,10 @@ class NMS_Import_Operator(Operator, ImportHelper):
                     'bounded hulls of the materials. This is only for research'
                     '/debugging, so can safely be left as False.',
         default=False)
+    import_collisions = BoolProperty(
+        name='Import collisions',
+        description='Whether or not to import the collision objects.',
+        default=True)
     show_collisions = BoolProperty(
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
@@ -170,7 +174,9 @@ class NMS_Import_Operator(Operator, ImportHelper):
         layout = self.layout
         layout.prop(self, 'draw_hulls')
         layout.prop(self, 'clear_scene')
-        layout.prop(self, 'show_collisions')
+        coll_box = layout.box()
+        coll_box.prop(self, 'import_collisions')
+        coll_box.prop(self, 'show_collisions')
 
     def execute(self, context):
         keywords = self.as_keywords()
