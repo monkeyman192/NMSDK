@@ -6,7 +6,7 @@
 
 - Add support for importing `Box`, `Cylinder` and `Sphere` type primitive collisions.
 - On import there is an option to allow for displaying the collisions which is false by default.
-- 
+- Display of collisions can be toggled by the button in the NMSDK side panel.
 
 ### Past:
 

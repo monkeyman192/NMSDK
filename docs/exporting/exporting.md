@@ -5,6 +5,12 @@ This can be anything from extra rocks or plants, to custom buildings that are sc
 
 To provide this functionality a new panel has been added to the blender user interface (UI) to allow the user to enter any relevant information required to export a model to the format compatible with NMS.
 
+## Important info before you start
+
+If you are importing an `.obj` file into Blender to be exported with NMSDK, ensure that the vertex split mode is set to `Keep Vert Order` (see below). If this is not done then you will need to manually triangulate the mesh before exporting.
+
+![import obj](../../images/import_obj.png)
+
 ## Updating from old-format scenes
 
 Previously all objects that were to be exported had to be a child of a node called `NMS_SCENE`. This requirement has been removed in the current version of NSMDK, as well as the requirement for an object to have `NMS_` at the beginning of its name.
