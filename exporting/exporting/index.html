@@ -82,6 +82,8 @@
     
         <ul>
         
+            <li><a class="toctree-l4" href="#important-info-before-you-start">Important info before you start</a></li>
+        
             <li><a class="toctree-l4" href="#updating-from-old-format-scenes">Updating from old-format scenes</a></li>
         
             <li><a class="toctree-l4" href="#setting-up">Setting up</a></li>
@@ -166,6 +168,9 @@
 <p>NMSDK's primary functionality is to convert scenes created in Blender into a format that NMS can load and display in the game.
 This can be anything from extra rocks or plants, to custom buildings that are scattered around on planets, new parts to be added to your base, or even new ships or freighters that can be flown or part of your fleet!</p>
 <p>To provide this functionality a new panel has been added to the blender user interface (UI) to allow the user to enter any relevant information required to export a model to the format compatible with NMS.</p>
+<h2 id="important-info-before-you-start">Important info before you start</h2>
+<p>If you are importing an <code>.obj</code> file into Blender to be exported with NMSDK, ensure that the vertex split mode is set to <code>Keep Vert Order</code> (see below). If this is not done then you will need to manually triangulate the mesh before exporting.</p>
+<p><img alt="import obj" src="../../images/import_obj.png" /></p>
 <h2 id="updating-from-old-format-scenes">Updating from old-format scenes</h2>
 <p>Previously all objects that were to be exported had to be a child of a node called <code>NMS_SCENE</code>. This requirement has been removed in the current version of NSMDK, as well as the requirement for an object to have <code>NMS_</code> at the beginning of its name.
 Old format scenes in blender can be updated to the new format by simply pressing the <code>Change NMS Node type</code> button in the NMSDK side panel:</p>
@@ -194,6 +199,14 @@ These each have their own various uses and if you are familiar with NMS scenes i
 <ul>
 <li>Only objects that are the children of a <code>Reference</code> node will be exported.</li>
 <li>Mesh collisions should be used sparingly. They take up more computational power and may cause your model to slow down the game. If you must use mesh collisions be sure to use very low poly models (in the 100's of verts, max). It is preferrential to use primitive type collision objects when possible.</li>
+<li>When exporting an object it may be exported with edges and faces messed up. This happens when the mesh is improperly triangulated. Whilst NMSDK should triangulate a mesh properly it sometimes doesn't work as well as it should.
+You can see the issue in the following two images (c/o Krem):
+<img alt="bad export blender" src="../../images/bad_export_blender.png" />
+<img alt="bad export" src="../../images/bad_export.png" />
+As we can see, the orange region doesn't look the same in the model viewer as it does in blender before export.
+To fix the issue, we can select the mesh in blender, change to <code>EDIT</code> mode, then select <code>Mesh</code> &gt; <code>Faces</code> &gt; <code>Triangulate Faces</code> (see image below)
+<img alt="triangulate" src="../../images/triangulate.png" />
+On re-export the issue should be fixed.</li>
 </ul>
               
             </div>

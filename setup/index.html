@@ -155,7 +155,10 @@
             <div class="section">
               
                 <h2 id="installing-nmsdk">Installing NMSDK</h2>
-<p>Put the files in the right place.</p>
+<p>Installing NMSDK is very easy. Head to the <a href="https://github.com/monkeyman192/NMSDK/releases">NMSDK Release page</a> on GitHub and download the most recently released version.</p>
+<p>Open Blender and open the user settings (Ctrl + Alt + U), and select <code>Install Add-on from File...</code> (it is at the bottom left of the window).
+Select the <code>.zip</code> file you just downloaded and blender should install it without any errors.</p>
+<p>To make exporting easier, NMSDK will automatically convert all produced <code>.exml</code> files to <code>.mbin</code> files. For this to work, <em>MBINCompiler</em> is required. See below for instructions on downloading and installing the latest version.</p>
 <h3 id="prerequisites">Prerequisites</h3>
 <h4 id="blender">Blender</h4>
 <p>NMSDK requires a version of blender greater than or equal to 2.79.
@@ -169,6 +172,9 @@ release and register <em>MBINCompiler</em> to the path so that it can be picked 
 anywhere by Blender.
 If you already have a version of <em>MBINCompiler</em> on your computer, ensure it is
 version <strong>v1.78.0-pre1</strong> or above. This can be found on the <a href="https://github.com/monkeyman192/MBINCompiler/releases">MBINCompiler releases</a> page.</p>
+<p>For NMSDK to be able to use <em>MBINCompiler</em>, the program needs to be registered to the path so that it can be called from anywhere on your computer.
+Open the folder containing the <code>MBINCompiler.exe</code> you just downloaded, open this folder in command line, then enter <code>MBINCompiler.exe register</code>.
+This will add the folder the <code>.exe</code> is in to the system path, allowing NMSDK to be able to access the program from anywhere.</p>
               
             </div>
           </div>

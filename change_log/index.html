@@ -156,11 +156,21 @@
               
                 <h1 id="nmsdk-changelog">NMSDK Changelog</h1>
 <h2 id="releases">Releases:</h2>
-<h3 id="current-v0911-25052019">Current - v0.9.11 (25/05/2019):</h3>
-<p>This version (FINALLY!) implements the exporting of mesh type collisions.</p>
+<h3 id="current-v0912">Current - v0.9.12</h3>
+<ul>
+<li>Add support for importing <code>Box</code>, <code>Cylinder</code> and <code>Sphere</code> type primitive collisions.</li>
+<li>On import there is an option to allow for displaying the collisions which is false by default.</li>
+<li>Display of collisions can be toggled by the button in the NMSDK side panel.</li>
+<li>When importing models, importing collisions can be turned off so that no collision meshes appear in the scene.</li>
+<li>Default values can be set for the <code>export path</code> and <code>group name</code> export properties in the NMSDK settings panel. These will persists across multiple sessions to make exporting multiple models in the same set easier.</li>
+</ul>
+<h3 id="past">Past:</h3>
+<h4 id="v0911-25052019">v0.9.11 (25/05/2019):</h4>
+<ul>
+<li>This version (FINALLY!) implements the exporting of mesh type collisions.</li>
+</ul>
 <p>To allow this the <code>Mesh</code> type has been re-enabled in the <code>Collision</code> node panel.
 Currently if you wish to export a mesh type collision, you need to apply the scale and rotation transforms to the mesh, otherwise your exported data will not have these values.</p>
-<h3 id="past">Past:</h3>
 <h4 id="v0910-24052019">v0.9.10 (24/05/2019):</h4>
 <ul>
 <li>This version fixes a number of issues introduced in v0.9.9 when attempting to fix imports. Exports should now be far more stable.</li>
