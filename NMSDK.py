@@ -9,6 +9,8 @@ from bpy.types import Operator, PropertyGroup  # noqa pylint: disable=import-err
 from .ModelImporter.import_scene import ImportScene
 from .ModelExporter.addon_script import Exporter
 
+from .utils.settings import read_settings, write_settings
+
 
 # operators to be used for the public API
 
@@ -77,6 +79,16 @@ class _ToggleCollisionVisibility(Operator):
         return {'FINISHED'}
 
 
+class _SaveDefaultSettings(Operator):
+    """Save any default settings"""
+    bl_idname = "nmsdk._save_default_settings"
+    bl_label = "Save Settings"
+
+    def execute(self, context):
+        default_settings = context.scene.default_settings
+        default_settings.save()
+
+
 class NMSDKSettings(PropertyGroup):
     show_collisions = BoolProperty(
         name='Draw collisions',
@@ -86,6 +98,28 @@ class NMSDKSettings(PropertyGroup):
     def toggle_collision_visibility(self):
         """ Toggle the collision visibility state. """
         self.show_collisions = not self.show_collisions
+
+
+class NMSDKDefaultSettings(PropertyGroup):
+
+    default_settings = read_settings()
+
+    export_directory = StringProperty(
+        name="Export Directory",
+        description="The base path under which all models will be exported.",
+        default=default_settings['export_directory'])
+    group_name = StringProperty(
+        name="Group Name",
+        description="Group name so that models that all belong in the same "
+                    "folder are placed there (path becomes group_name/name)",
+        default=default_settings['group_name'])
+
+    def save(self):
+        """ Save the current settings. """
+        settings = {'export_directory': self.export_directory,
+                    'group_name': self. group_name}
+        write_settings(settings)
+    # TODO: add load method?
 
 
 # operators to be added to the blender UI for various tasks
