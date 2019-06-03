@@ -7,6 +7,8 @@
 - Add support for importing `Box`, `Cylinder` and `Sphere` type primitive collisions.
 - On import there is an option to allow for displaying the collisions which is false by default.
 - Display of collisions can be toggled by the button in the NMSDK side panel.
+- When importing models, importing collisions can be turned off so that no collision meshes appear in the scene.
+- Default values can be set for the `export path` and `group name` export properties in the NMSDK settings panel. These will persists across multiple sessions to make exporting multiple models in the same set easier.
 
 ### Past:
 
