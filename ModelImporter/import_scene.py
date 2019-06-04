@@ -16,7 +16,7 @@ from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pyli
 from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
-from .readers import read_material, read_metadata, read_gstream  # noqa pylint: disable=relative-beyond-top-level
+from .readers import read_material, read_metadata, read_gstream, read_anim  # noqa pylint: disable=relative-beyond-top-level
 from .utils import element_to_dict  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
@@ -25,6 +25,9 @@ VERT_TYPE_MAP = {5121: {'size': 1, 'func': bytes_to_ubyte},
                  5131: {'size': 2, 'func': bytes_to_half},
                  36255: {'size': 1, 'func': bytes_to_int_2_10_10_10_rev}}
 ROT_MATRIX = Matrix.Rotation(radians(90), 4, 'X')
+DATA_PATH_MAP = {'Rotation': 'rotation_quaternion',
+                 'Translation': 'location',
+                 'Scale': 'scale'}
 
 TYPE_MAP = {'MESH': 'Mesh', 'LOCATOR': 'Locator', 'REFERENCE': 'Reference',
             'JOINT': 'Joint'}
@@ -92,6 +95,7 @@ class ImportScene():
         self.vertex_elements = list()
         self.bh_data = list()
         self.materials = dict()
+        self.animations = dict()
 
         # change to render with cycles
         self.scn.render.engine = 'CYCLES'
@@ -124,6 +128,10 @@ class ImportScene():
                 self.directory) + '.PC')
         self.geometry_stream_file = self.geometry_file.replace('GEOMETRY',
                                                                'GEOMETRY.DATA')
+        self.implicit_anim_file = self.geometry_file.replace(
+            'GEOMETRY.MBIN.PC', 'ANIM.MBIN')
+        if op.exists(self.implicit_anim_file):
+            self.animations['Default'] = read_anim(self.implicit_anim_file)
 
         # get the information about what data the geometry file contains
         with open(self.geometry_file, 'rb') as f:
@@ -231,9 +239,46 @@ class ImportScene():
                         self._add_mesh_collision_to_scene(obj)
                     else:
                         self._add_primitive_collision_to_scene(obj)
+        # Add any animations
+        if self.animations != dict():
+            self._add_animation_to_scene(self.animations['Default'])
         self.state = {'FINISHED'}
 
 # region private methods
+
+    def _add_animation_to_scene(self, anim_data):
+        # Set the total number of frames as specified by the animation
+        self.scn.frame_start = 1
+        self.scn.frame_end = anim_data['FrameCount']
+        # Make sure the current frame number is 1
+        self.scn.frame_current = 1
+        # Create a mapping object that is used to determine which node to apply
+        # the transform to for any given rot/trans/scale value.
+        node_map = {'Rotation': [''] * anim_data['NodeCount'],
+                    'Translation': [''] * anim_data['NodeCount'],
+                    'Scale': [''] * anim_data['NodeCount']}
+        for node_data in anim_data['NodeData']:
+            name = node_data['Node']
+            node_map['Rotation'][int(node_data['RotIndex'])] = name
+            node_map['Translation'][int(node_data['TransIndex'])] = name
+            node_map['Scale'][int(node_data['ScaleIndex'])] = name
+        # For each frame, apply the animation data
+        for curr_frame, frame in enumerate(anim_data['AnimFrameData']):
+            for _type in ['Rotation', 'Translation', 'Scale']:
+                for i, data in enumerate(frame[_type]):
+                    node = node_map[_type][i]
+                    try:
+                        obj = self.scn.objects[node]
+                        if _type == 'Rotation':
+                            obj.rotation_quaternion = data
+                        elif _type == 'Translation':
+                            obj.location = data[:3]
+                        elif _type == 'Scale':
+                            obj.scale = data[:3]
+                        obj.keyframe_insert(data_path=DATA_PATH_MAP[_type],
+                                            frame=curr_frame + 1)
+                    except KeyError:
+                        pass
 
     def _add_empty_to_scene(self, scene_node, standalone=False):
         """ Adds the given scene node data to the Blender scene.
@@ -559,7 +604,10 @@ class ImportScene():
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """
         for obj in bpy.data.objects:
-            bpy.data.objects.remove(obj)
+            # Don't remove the camera or lamp objects
+            if obj.name not in ['Camera', 'Lamp']:
+                print('removing {0}'.format(obj.name))
+                bpy.data.objects.remove(obj)
         for mesh in bpy.data.meshes:
             bpy.data.meshes.remove(mesh)
         for mat in bpy.data.materials:
