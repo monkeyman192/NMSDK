@@ -2,11 +2,9 @@ import struct
 from collections import namedtuple
 
 # TODO: move to the serialization folder?
-# TODO: change lots of the read_header code to use the ListHeader context
-# handler
 
 from ..serialization.utils import read_list_header, read_string, bytes_to_quat  # noqa pylint: disable=relative-beyond-top-level
-from ..serialization.list_header import ListHeader
+from ..serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL  # noqa pylint: disable=relative-beyond-top-level
 
 
@@ -86,8 +84,47 @@ def read_entity(fname):
 
     This will currently only support reading the animation data from the
     entity file as it's all we care about right now...
+
+    Returns
+    -------
+    anim_data : list
+        List of dictionaries containing the path and name of the contained
+        animation data.
     """
-    anim_data = dict()
+
+    def read_TkAnimationComponentData(f):
+        data = dict()
+        # Read the anim name and path into the data dictionary
+        data['Anim'] = read_string(f, 0x10)
+        data['Filename'] = read_string(f, 0x80)
+        # Move the pointer to the end of the TkAnimationComponentData struct
+        f.seek(0xA8, 1)
+        return data
+
+    anim_data = list()
+    with open(fname, 'rb') as f:
+        f.seek(0x60)
+        has_anims = False
+        # Scan the list of components to see if we have a
+        # TkAnimationComponentData struct present.
+        with ListHeader(f) as components:
+            for _ in range(components.count):
+                return_offset = f.tell()
+                offset = struct.unpack('<Q', f.read(0x8))[0]
+                struct_name = read_string(f, 0x40)
+                if struct_name == 'cTkAnimationComponentData':
+                    has_anims = True
+                    break
+        # If no animation data is found, return.
+        if not has_anims:
+            return anim_data
+        # Jump to the start of the struct
+        f.seek(return_offset + offset)
+        anim_data.append(read_TkAnimationComponentData(f))
+        with ListHeader(f) as anims:
+            for _ in range(anims.count):
+                anim_data.append(read_TkAnimationComponentData(f))
+        return anim_data
 
 
 def read_material(fname):

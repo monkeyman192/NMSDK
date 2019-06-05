@@ -16,7 +16,8 @@ from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pyli
 from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
-from .readers import read_material, read_metadata, read_gstream, read_anim  # noqa pylint: disable=relative-beyond-top-level
+from .readers import (read_material, read_metadata, read_gstream, read_anim,  # noqa pylint: disable=relative-beyond-top-level
+                      read_entity)
 from .utils import element_to_dict  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
@@ -95,6 +96,7 @@ class ImportScene():
         self.vertex_elements = list()
         self.bh_data = list()
         self.materials = dict()
+        self.entities = set()
         self.animations = dict()
 
         # change to render with cycles
@@ -128,10 +130,6 @@ class ImportScene():
                 self.directory) + '.PC')
         self.geometry_stream_file = self.geometry_file.replace('GEOMETRY',
                                                                'GEOMETRY.DATA')
-        self.implicit_anim_file = self.geometry_file.replace(
-            'GEOMETRY.MBIN.PC', 'ANIM.MBIN')
-        if op.exists(self.implicit_anim_file):
-            self.animations['Default'] = read_anim(self.implicit_anim_file)
 
         # get the information about what data the geometry file contains
         with open(self.geometry_file, 'rb') as f:
@@ -179,6 +177,35 @@ class ImportScene():
         self.mesh_metadata = read_metadata(self.geometry_file)
 
 # region public methods
+
+    def load_animations(self):
+        """ Handle the loading of the animations. """
+        anim_data = list()
+        # If there are no entities, there is no animation data. (Even implicit
+        # animations have an entity associated.)
+        if len(self.entities) == 0:
+            return
+        mod_dir = get_NMS_dir(self.local_directory)
+        # Iterate over the entity files to collate all the animation data
+        for entity in self.entities:
+            entity_path = op.join(mod_dir, entity)
+            anim_data.extend(read_entity(entity_path))
+        # For each animation data, read the animation in and add it to the
+        # scene.
+        for data in anim_data:
+            if data['Anim'] == '' and data['Filename'] == '':
+                # In this case we are using the implicit animation data
+                self.implicit_anim_file = self.geometry_file.replace(
+                    'GEOMETRY.MBIN.PC', 'ANIM.MBIN')
+                if op.exists(self.implicit_anim_file):
+                    self.animations['_DEFAULT'] = read_anim(
+                        self.implicit_anim_file)
+            else:
+                anim_file_path = op.join(mod_dir, data['Filename'])
+                self.animations[data['Anim']] = read_anim(anim_file_path)
+
+        #if self.animations != dict():
+        #    self._add_animation_to_scene(self.animations['Default'])
 
     def load_mesh(self, mesh_node):
         """ Load the mesh.
@@ -240,8 +267,7 @@ class ImportScene():
                     else:
                         self._add_primitive_collision_to_scene(obj)
         # Add any animations
-        if self.animations != dict():
-            self._add_animation_to_scene(self.animations['Default'])
+        self.load_animations()
         self.state = {'FINISHED'}
 
 # region private methods
@@ -310,6 +336,10 @@ class ImportScene():
 
         # Otherwise just assign everything as usual...
         name = scene_node.Name
+
+        # add the objects entity file if it has one
+        if scene_node.Attribute('ATTACHMENT') is not None:
+            self.entities.add(scene_node.Attribute('ATTACHMENT'))
 
         # create a new empty instance
         empty_mesh = bpy.data.meshes.new(name)
@@ -498,6 +528,10 @@ class ImportScene():
                          scene_node.edges,
                          scene_node.faces)
 
+        # add the objects entity file if it has one
+        if scene_node.Attribute('ATTACHMENT') is not None:
+            self.entities.add(scene_node.Attribute('ATTACHMENT'))
+
         # add normals
         for i, vert in enumerate(mesh.vertices):
             vert.normal = scene_node.verts[NORMS][i]
@@ -565,6 +599,7 @@ class ImportScene():
                 colour_loops[idx].color = (colour[0]/255,
                                            colour[1]/255,
                                            colour[2]/255)
+        """ Some debugging info
         print(name)
         if 5 in scene_node.verts.keys():
             print('blend indices')
@@ -572,6 +607,7 @@ class ImportScene():
         if 6 in scene_node.verts.keys():
             print('blend weight')
             print(scene_node.verts[6])
+        """
 
         # sort out materials
         mat_path = self._get_material_path(scene_node)
