@@ -204,8 +204,10 @@ class ImportScene():
                 anim_file_path = op.join(mod_dir, data['Filename'])
                 self.animations[data['Anim']] = read_anim(anim_file_path)
 
-        #if self.animations != dict():
-        #    self._add_animation_to_scene(self.animations['Default'])
+        for name, anim in self.animations.items():
+            # print(anim['StillFrameData'])
+            print(name)
+            self._add_animation_to_scene_new(name, anim)
 
     def load_mesh(self, mesh_node):
         """ Load the mesh.
@@ -271,6 +273,56 @@ class ImportScene():
         self.state = {'FINISHED'}
 
 # region private methods
+
+    def _add_animation_to_scene_new(self, anim_name, anim_data):
+        # First, let's find out what animation data each object has
+        # We do this by looking at the indexes of the rotation, translation and
+        # scale data and see whether that lies within the AnimNodeData or the
+        # StillFrameData
+        node_data_map = dict()
+        rot_anim_len = len(anim_data['AnimFrameData'][0]['Rotation'])
+        trans_anim_len = len(anim_data['AnimFrameData'][0]['Translation'])
+        scale_anim_len = len(anim_data['AnimFrameData'][0]['Scale'])
+        rot_still_len = len(anim_data['StillFrameData']['Rotation'])
+        trans_still_len = len(anim_data['StillFrameData']['Translation'])
+        scale_still_len = len(anim_data['StillFrameData']['Scale'])
+        for node_data in anim_data['NodeData']:
+            data = {'anim': dict(), 'still': dict()}
+            # For each node, check to see if the data is in the animation data
+            # or in the still frame data
+            rotIndex = int(node_data['RotIndex'])
+            if rotIndex >= rot_anim_len:
+                rotIndex -= rot_anim_len
+                data['still']['Rotation'] = rotIndex
+            else:
+                data['anim']['Rotation'] = rotIndex
+            transIndex = int(node_data['TransIndex'])
+            if transIndex >= trans_anim_len:
+                transIndex -= trans_anim_len
+                data['still']['Translation'] = transIndex
+            else:
+                data['anim']['Translation'] = transIndex
+            scaleIndex = int(node_data['ScaleIndex'])
+            if scaleIndex >= scale_anim_len:
+                scaleIndex -= scale_anim_len
+                data['still']['Scale'] = scaleIndex
+            else:
+                data['anim']['Scale'] = scaleIndex
+            node_data_map[node_data['Node']] = data
+        print(node_data_map)
+
+        # Now that we have all the indexes sorted out, for each node, we create
+        # a new action and give it all the information it requires.
+        for name, data in node_data_map.items():
+            try:
+                obj = self.scn.objects[name]
+            except KeyError:
+                pass
+            obj.animation_data_create()
+            obj.animation_data.action = bpy.data.actions.new(
+                name="{0}_{1}".format(anim_name, name))
+            action = obj.animation_data.action.fcurves.new(
+                data_path="location", action_group=anim_name)
 
     def _add_animation_to_scene(self, anim_data):
         # Set the total number of frames as specified by the animation
@@ -599,7 +651,7 @@ class ImportScene():
                 colour_loops[idx].color = (colour[0]/255,
                                            colour[1]/255,
                                            colour[2]/255)
-        """ Some debugging info
+        """ # Some debugging info
         print(name)
         if 5 in scene_node.verts.keys():
             print('blend indices')
@@ -608,7 +660,6 @@ class ImportScene():
             print('blend weight')
             print(scene_node.verts[6])
         """
-
         # sort out materials
         mat_path = self._get_material_path(scene_node)
         material = None
@@ -650,6 +701,46 @@ class ImportScene():
             bpy.data.materials.remove(mat)
         for img in bpy.data.images:
             bpy.data.images.remove(img)
+
+    def _create_anim_channels(self, obj, anim_name):
+        """ Generate all the channels required for the animation. """
+        loc_x = obj.animation_data.action.fcurves.new(data_path='location',
+                                                      index=0,
+                                                      action_group=anim_name)
+        loc_y = obj.animation_data.action.fcurves.new(data_path='location',
+                                                      index=1,
+                                                      action_group=anim_name)
+        loc_z = obj.animation_data.action.fcurves.new(data_path='location',
+                                                      index=2,
+                                                      action_group=anim_name)
+        rot_w = obj.animation_data.action.fcurves.new(
+            data_path='rotation_quaternion',
+            index=0,
+            action_group=anim_name)
+        rot_x = obj.animation_data.action.fcurves.new(
+            data_path='rotation_quaternion',
+            index=1,
+            action_group=anim_name)
+        rot_y = obj.animation_data.action.fcurves.new(
+            data_path='rotation_quaternion',
+            index=2,
+            action_group=anim_name)
+        rot_z = obj.animation_data.action.fcurves.new(
+            data_path='rotation_quaternion',
+            index=3,
+            action_group=anim_name)
+        sca_x = obj.animation_data.action.fcurves.new(data_path='scale',
+                                                      index=0,
+                                                      action_group=anim_name)
+        sca_y = obj.animation_data.action.fcurves.new(data_path='scale',
+                                                      index=1,
+                                                      action_group=anim_name)
+        sca_z = obj.animation_data.action.fcurves.new(data_path='scale',
+                                                      index=2,
+                                                      action_group=anim_name)
+        return ((loc_x, loc_y, loc_z),
+                (rot_x, rot_y, rot_z, rot_w),
+                (sca_x, sca_y, sca_z))
 
     def _create_material(self, mat_path):
         # retrieve a cached copy if it exists
