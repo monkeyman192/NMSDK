@@ -195,24 +195,35 @@ class ImportScene():
         # For each animation data, read the animation in and add it to the
         # scene.
         for data in anim_data:
-            if data['Anim'] == '' and data['Filename'] == '':
+            if data['Filename'] == '':
+                if data['Anim'] == '':
+                    name = '_DEFAULT'
+                else:
+                    name = data['Anim']
                 # In this case we are using the implicit animation data
                 self.implicit_anim_file = self.geometry_file.replace(
                     'GEOMETRY.MBIN.PC', 'ANIM.MBIN')
                 if op.exists(self.implicit_anim_file):
-                    self.animations['_DEFAULT'] = read_anim(
-                        self.implicit_anim_file)
+                    self.animations[name] = read_anim(self.implicit_anim_file)
             else:
                 anim_file_path = op.join(mod_dir, data['Filename'])
                 self.animations[data['Anim']] = read_anim(anim_file_path)
 
-        curr_anims = list()
+        # Get the current list of animations in the scene
+        try:
+            curr_anims = self.scn['_anim_names']
+        except KeyError:
+            curr_anims = ['None']
+
+        # Ensure the animation starts on frame 0
+        self.scn.frame_start = 0
+        self.scn.frame_current = 0
 
         for name, anim in self.animations.items():
-            # print(anim['StillFrameData'])
-            print(name)
-            curr_anims.append(name)
-            self._add_animation_to_scene_new(name, anim)
+            print('Importing animation: {0}'.format(name))
+            if name not in curr_anims:
+                curr_anims.append(name)
+            self._add_animation_to_scene(name, anim)
 
         # Update the list of animations
         self.scn['_anim_names'] = curr_anims
@@ -282,7 +293,7 @@ class ImportScene():
 
 # region private methods
 
-    def _add_animation_to_scene_new(self, anim_name, anim_data):
+    def _add_animation_to_scene(self, anim_name, anim_data):
         # First, let's find out what animation data each object has
         # We do this by looking at the indexes of the rotation, translation and
         # scale data and see whether that lies within the AnimNodeData or the
@@ -326,42 +337,10 @@ class ImportScene():
             action_name = "{0}_{1}".format(anim_name, name)
             obj.animation_data.action = bpy.data.actions.new(
                 name=action_name)
+            # set the action to have a fake user
+            obj.animation_data.action.use_fake_user = True
             fcurves = self._create_anim_channels(obj, action_name)
             self._apply_animdata_to_fcurves(fcurves, data, anim_data)
-
-    def _add_animation_to_scene(self, anim_data):
-        # Set the total number of frames as specified by the animation
-        self.scn.frame_start = 1
-        self.scn.frame_end = anim_data['FrameCount']
-        # Make sure the current frame number is 1
-        self.scn.frame_current = 1
-        # Create a mapping object that is used to determine which node to apply
-        # the transform to for any given rot/trans/scale value.
-        node_map = {'Rotation': [''] * anim_data['NodeCount'],
-                    'Translation': [''] * anim_data['NodeCount'],
-                    'Scale': [''] * anim_data['NodeCount']}
-        for node_data in anim_data['NodeData']:
-            name = node_data['Node']
-            node_map['Rotation'][int(node_data['RotIndex'])] = name
-            node_map['Translation'][int(node_data['TransIndex'])] = name
-            node_map['Scale'][int(node_data['ScaleIndex'])] = name
-        # For each frame, apply the animation data
-        for curr_frame, frame in enumerate(anim_data['AnimFrameData']):
-            for _type in ['Rotation', 'Translation', 'Scale']:
-                for i, data in enumerate(frame[_type]):
-                    node = node_map[_type][i]
-                    try:
-                        obj = self.scn.objects[node]
-                        if _type == 'Rotation':
-                            obj.rotation_quaternion = data
-                        elif _type == 'Translation':
-                            obj.location = data[:3]
-                        elif _type == 'Scale':
-                            obj.scale = data[:3]
-                        obj.keyframe_insert(data_path=DATA_PATH_MAP[_type],
-                                            frame=curr_frame + 1)
-                    except KeyError:
-                        pass
 
     def _add_empty_to_scene(self, scene_node, standalone=False):
         """ Adds the given scene node data to the Blender scene.
@@ -751,7 +730,9 @@ class ImportScene():
     def _apply_stillframe_data(self, fcurve, data, num_frame):
         fcurve.keyframe_points.add(2)
         fcurve.keyframe_points[0].co = 0.0, float(data)
-        fcurve.keyframe_points[1].co = float(num_frame), float(data)
+        fcurve.keyframe_points[0].interpolation = 'CONSTANT'
+        fcurve.keyframe_points[1].co = float(num_frame - 1), float(data)
+        fcurve.keyframe_points[1].interpolation = 'CONSTANT'
 
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """

@@ -79,9 +79,33 @@ class AnimationsPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        if context.scene.anim_names != 'None':
-            layout.prop(context.scene, "anim_names")
-        else:
+        try:
+            if context.scene['_anim_names'] == []:
+                layout.label(text="No loaded animations")
+            else:
+                try:
+                    anim_choice_text = 'Current animation: {0}'.format(
+                        context.scene['curr_anim'])
+                except KeyError:
+                    anim_choice_text = 'Select an animation'
+                layout.operator_menu_enum("nmsdk._change_animation",
+                                          "anim_names",
+                                          text=anim_choice_text)
+                """
+                try:
+                    layout.label(text="Current animation: {0}".format(
+                        context.scene['curr_anim']))
+                except KeyError:
+                    layout.label(text="No animation currently selected")
+                """
+                row = layout.row()
+                row.operator("nmsdk._play_animation",
+                             icon='PLAY', emboss=False)
+                row.operator("nmsdk._pause_animation",
+                             icon='PAUSE', emboss=False)
+                row.operator("nmsdk._stop_animation",
+                             icon='REW', emboss=False)
+        except KeyError:
             layout.label(text="No loaded animations")
 
 

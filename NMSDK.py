@@ -12,7 +12,7 @@ from .ModelExporter.addon_script import Exporter
 from .utils.settings import read_settings, write_settings
 
 
-# operators to be used for the public API
+# Operators to be used for the public API
 
 
 class ImportSceneOperator(Operator):
@@ -90,6 +90,98 @@ class _SaveDefaultSettings(Operator):
         return {'FINISHED'}
 
 
+# Animation classes and functions
+
+
+def get_anim_names(self, context):
+    try:
+        names = context.scene['_anim_names']
+        return list(tuple([name] * 3) for name in names)
+    except KeyError:
+        return [('None', 'None', 'None')]
+
+
+class _ChangeAnimation(Operator):
+    """Change the currently selected animation"""
+    bl_idname = "nmsdk._change_animation"
+    bl_label = "Change Animation"
+
+    anim_names = EnumProperty(
+            name='Available animations',
+            description='List of all available animations for the scene',
+            items=get_anim_names)
+
+    def execute(self, context):
+        """Set every node in the scene to have the appropriate action.
+        If the node is not animated in the current animation then set its
+        action to None.
+        """
+        context.scene['curr_anim'] = self.anim_names
+        frame_count = 0
+        for obj in context.scene.objects:
+            # Generate the action name
+            action_name = '{0}_{1}'.format(self.anim_names, obj.name)
+            if action_name in bpy.data.actions:
+                obj.animation_data.action = bpy.data.actions[action_name]
+                frame_count = max(frame_count,
+                                  obj.animation_data.action.frame_range[1])
+            else:
+                # If the action doesn't exist, then the object isn't animated
+                try:
+                    obj.animation_data.action = None
+                except AttributeError:
+                    # Some objects in the scene may not have animation data
+                    continue
+        context.scene.frame_end = frame_count
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class _PlayAnimation(Operator):
+    """Play the currently selected animation"""
+    bl_idname = "nmsdk._play_animation"
+    bl_label = "Play"
+
+    def execute(self, context):
+        bpy.ops.screen.animation_play()
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class _PauseAnimation(Operator):
+    """Pause the currently playing animation"""
+    bl_idname = "nmsdk._pause_animation"
+    bl_label = "Pause"
+
+    def execute(self, context):
+        bpy.ops.screen.animation_cancel(restore_frame=False)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class _StopAnimation(Operator):
+    """Stop the currently selected animation"""
+    bl_idname = "nmsdk._stop_animation"
+    bl_label = "Stop"
+
+    def execute(self, context):
+        bpy.ops.screen.animation_cancel()
+        bpy.ops.screen.frame_jump(end=False)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+# Settings classes
+
+
 class NMSDKSettings(PropertyGroup):
     show_collisions = BoolProperty(
         name='Draw collisions',
@@ -120,10 +212,9 @@ class NMSDKDefaultSettings(PropertyGroup):
         settings = {'export_directory': self.export_directory,
                     'group_name': self.group_name}
         write_settings(settings)
-    # TODO: add load method?
 
 
-# operators to be added to the blender UI for various tasks
+# Operators to be added to the blender UI for various tasks
 
 
 class NMS_Export_Operator(Operator, ExportHelper):

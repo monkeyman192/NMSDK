@@ -12,6 +12,9 @@ from .NMSDK import (_FixOldFormat, _ToggleCollisionVisibility,
                     _SaveDefaultSettings)
 # Settings
 from .NMSDK import NMSDKSettings, NMSDKDefaultSettings
+# Animation classes
+from .NMSDK import (_ChangeAnimation, _PlayAnimation, _PauseAnimation,
+                    _StopAnimation)
 
 customNodes = NMSNodes()
 
@@ -39,14 +42,6 @@ def menu_func_import(self, context):
                          text="Import NMS SCENE.EXML")
 
 
-def get_anim_names(self, context):
-    try:
-        names = context.scene['_anim_names']
-        return list(tuple([name] * 3) for name in names)
-    except KeyError:
-        return [('None', 'None', 'None')]
-
-
 def register():
     bpy.utils.register_class(NMS_Export_Operator)
     bpy.utils.register_class(NMS_Import_Operator)
@@ -57,13 +52,13 @@ def register():
     bpy.utils.register_class(_FixOldFormat)
     bpy.utils.register_class(_ToggleCollisionVisibility)
     bpy.utils.register_class(_SaveDefaultSettings)
+    bpy.utils.register_class(_ChangeAnimation)
+    bpy.utils.register_class(_PlayAnimation)
+    bpy.utils.register_class(_PauseAnimation)
+    bpy.utils.register_class(_StopAnimation)
     bpy.types.Scene.nmsdk_settings = PointerProperty(type=NMSDKSettings)
     bpy.types.Scene.nmsdk_default_settings = PointerProperty(
         type=NMSDKDefaultSettings)
-    bpy.types.Scene.anim_names = EnumProperty(
-        name='Available animations',
-        description='List of all available animations for the scene',
-        items=get_anim_names)
     bpy.types.INFO_MT_file_export.append(menu_func_export)
     bpy.types.INFO_MT_file_import.append(menu_func_import)
     NMSPanels.register()
@@ -83,6 +78,10 @@ def unregister():
     bpy.utils.unregister_class(_FixOldFormat)
     bpy.utils.unregister_class(_ToggleCollisionVisibility)
     bpy.utils.unregister_class(_SaveDefaultSettings)
+    bpy.utils.unregister_class(_ChangeAnimation)
+    bpy.utils.unregister_class(_PlayAnimation)
+    bpy.utils.unregister_class(_PauseAnimation)
+    bpy.utils.unregister_class(_StopAnimation)
     del bpy.types.Scene.nmsdk_settings
     del bpy.types.Scene.nmsdk_default_settings
     del bpy.types.Scene.anim_names
