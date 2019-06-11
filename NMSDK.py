@@ -313,6 +313,7 @@ class NMS_Import_Operator(Operator, ImportHelper):
         # when the import occurs
         context.scene.nmsdk_settings.show_collisions = self.show_collisions
         fdir = self.properties.filepath
+        context.scene['_anim_names'] = ['None']
         print(fdir)
         importer = ImportScene(fdir, parent_obj=None, ref_scenes=dict(),
                                settings=keywords)
