@@ -1,7 +1,7 @@
 import bpy
 from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
                                 NMSShaderNode, SettingsPanels)
-from bpy.props import PointerProperty  # noqa pylint: disable=import-error, no-name-in-module
+from bpy.props import PointerProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
 
 # External API operators
 from .NMSDK import ImportSceneOperator, ImportMeshOperator
@@ -39,6 +39,14 @@ def menu_func_import(self, context):
                          text="Import NMS SCENE.EXML")
 
 
+def get_anim_names(self, context):
+    try:
+        names = context.scene['_anim_names']
+        return list(tuple([name] * 3) for name in names)
+    except KeyError:
+        return [('None', 'None', 'None')]
+
+
 def register():
     bpy.utils.register_class(NMS_Export_Operator)
     bpy.utils.register_class(NMS_Import_Operator)
@@ -52,6 +60,10 @@ def register():
     bpy.types.Scene.nmsdk_settings = PointerProperty(type=NMSDKSettings)
     bpy.types.Scene.nmsdk_default_settings = PointerProperty(
         type=NMSDKDefaultSettings)
+    bpy.types.Scene.anim_names = EnumProperty(
+        name='Available animations',
+        description='List of all available animations for the scene',
+        items=get_anim_names)
     bpy.types.INFO_MT_file_export.append(menu_func_export)
     bpy.types.INFO_MT_file_import.append(menu_func_import)
     NMSPanels.register()
@@ -73,6 +85,7 @@ def unregister():
     bpy.utils.unregister_class(_SaveDefaultSettings)
     del bpy.types.Scene.nmsdk_settings
     del bpy.types.Scene.nmsdk_default_settings
+    del bpy.types.Scene.anim_names
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
     bpy.types.INFO_MT_file_import.remove(menu_func_import)
     NMSPanels.unregister()

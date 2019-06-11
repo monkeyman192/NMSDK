@@ -65,6 +65,26 @@ class DefaultsPanel(bpy.types.Panel):
                         text='Save settings')
 
 
+class AnimationsPanel(bpy.types.Panel):
+    bl_idname = 'AnimationsPanel'
+    bl_label = 'Animation controls'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
+    bl_category = 'NMSDK'
+    bl_context = 'objectmode'
+
+    @classmethod
+    def poll(self, context):
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+        if context.scene.anim_names != 'None':
+            layout.prop(context.scene, "anim_names")
+        else:
+            layout.label(text="No loaded animations")
+
+
 class SettingsPanels():
 
     @staticmethod
@@ -73,6 +93,7 @@ class SettingsPanels():
         bpy.utils.register_class(UpdateSettingsPanel)
         bpy.utils.register_class(ToolsPanel)
         bpy.utils.register_class(DefaultsPanel)
+        bpy.utils.register_class(AnimationsPanel)
 
     @staticmethod
     def unregister():
@@ -80,3 +101,4 @@ class SettingsPanels():
         bpy.utils.unregister_class(UpdateSettingsPanel)
         bpy.utils.unregister_class(ToolsPanel)
         bpy.utils.unregister_class(DefaultsPanel)
+        bpy.utils.unregister_class(AnimationsPanel)

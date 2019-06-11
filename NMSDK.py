@@ -1,4 +1,4 @@
-from bpy.props import StringProperty, BoolProperty  # noqa pylint: disable=import-error, no-name-in-module
+from bpy.props import StringProperty, BoolProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
 import bpy
 
 # ExportHelper is a helper class, defines filename and

@@ -4,11 +4,13 @@ import xml.etree.ElementTree as ET
 import struct
 from math import radians
 import subprocess
+from collections import namedtuple
 
 # Blender imports
 import bpy  # pylint: disable=import-error
 import bmesh  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
+from bpy.props import EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
 
 # Internal imports
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
@@ -204,10 +206,16 @@ class ImportScene():
                 anim_file_path = op.join(mod_dir, data['Filename'])
                 self.animations[data['Anim']] = read_anim(anim_file_path)
 
+        curr_anims = list()
+
         for name, anim in self.animations.items():
             # print(anim['StillFrameData'])
             print(name)
+            curr_anims.append(name)
             self._add_animation_to_scene_new(name, anim)
+
+        # Update the list of animations
+        self.scn['_anim_names'] = curr_anims
 
     def load_mesh(self, mesh_node):
         """ Load the mesh.
@@ -283,9 +291,6 @@ class ImportScene():
         rot_anim_len = len(anim_data['AnimFrameData'][0]['Rotation'])
         trans_anim_len = len(anim_data['AnimFrameData'][0]['Translation'])
         scale_anim_len = len(anim_data['AnimFrameData'][0]['Scale'])
-        rot_still_len = len(anim_data['StillFrameData']['Rotation'])
-        trans_still_len = len(anim_data['StillFrameData']['Translation'])
-        scale_still_len = len(anim_data['StillFrameData']['Scale'])
         for node_data in anim_data['NodeData']:
             data = {'anim': dict(), 'still': dict()}
             # For each node, check to see if the data is in the animation data
@@ -309,7 +314,6 @@ class ImportScene():
             else:
                 data['anim']['Scale'] = scaleIndex
             node_data_map[node_data['Node']] = data
-        print(node_data_map)
 
         # Now that we have all the indexes sorted out, for each node, we create
         # a new action and give it all the information it requires.
@@ -317,12 +321,13 @@ class ImportScene():
             try:
                 obj = self.scn.objects[name]
             except KeyError:
-                pass
+                continue
             obj.animation_data_create()
+            action_name = "{0}_{1}".format(anim_name, name)
             obj.animation_data.action = bpy.data.actions.new(
-                name="{0}_{1}".format(anim_name, name))
-            action = obj.animation_data.action.fcurves.new(
-                data_path="location", action_group=anim_name)
+                name=action_name)
+            fcurves = self._create_anim_channels(obj, action_name)
+            self._apply_animdata_to_fcurves(fcurves, data, anim_data)
 
     def _add_animation_to_scene(self, anim_data):
         # Set the total number of frames as specified by the animation
@@ -688,6 +693,66 @@ class ImportScene():
             bh_obj.parent = mesh_obj
             self.scn.objects.link(bh_obj)
 
+    def _apply_animdata_to_fcurves(self, fcurves, mapping, anim_data):
+        """ Apply the supplied animation data to the fcurves. """
+        loc, rot, sca = fcurves
+        num_frames = anim_data['FrameCount']
+        # Apply still frame data first.
+        still_data = mapping['still']
+        for key, value in still_data.items():
+            data = anim_data['StillFrameData'][key][value]
+            if key == 'Translation':
+                self._apply_stillframe_data(loc.x, data[0], num_frames)
+                self._apply_stillframe_data(loc.y, data[1], num_frames)
+                self._apply_stillframe_data(loc.z, data[2], num_frames)
+            elif key == 'Rotation':
+                self._apply_stillframe_data(rot.x, data[0], num_frames)
+                self._apply_stillframe_data(rot.y, data[1], num_frames)
+                self._apply_stillframe_data(rot.z, data[2], num_frames)
+                self._apply_stillframe_data(rot.w, data[3], num_frames)
+            elif key == 'Scale':
+                self._apply_stillframe_data(sca.x, data[0], num_frames)
+                self._apply_stillframe_data(sca.y, data[1], num_frames)
+                self._apply_stillframe_data(sca.z, data[2], num_frames)
+        animated_data = mapping['anim']
+        for key, value in animated_data.items():
+            if key == 'Translation':
+                loc.x.keyframe_points.add(num_frames)
+                loc.y.keyframe_points.add(num_frames)
+                loc.z.keyframe_points.add(num_frames)
+            elif key == 'Rotation':
+                rot.x.keyframe_points.add(num_frames)
+                rot.y.keyframe_points.add(num_frames)
+                rot.z.keyframe_points.add(num_frames)
+                rot.w.keyframe_points.add(num_frames)
+            elif key == 'Scale':
+                sca.x.keyframe_points.add(num_frames)
+                sca.y.keyframe_points.add(num_frames)
+                sca.z.keyframe_points.add(num_frames)
+            for i, frame in enumerate(anim_data['AnimFrameData']):
+                data = frame[key][value]
+                if key == 'Translation':
+                    self._apply_animframe_data(loc.x, data[0], i)
+                    self._apply_animframe_data(loc.y, data[1], i)
+                    self._apply_animframe_data(loc.z, data[2], i)
+                elif key == 'Rotation':
+                    self._apply_animframe_data(rot.x, data[0], i)
+                    self._apply_animframe_data(rot.y, data[1], i)
+                    self._apply_animframe_data(rot.z, data[2], i)
+                    self._apply_animframe_data(rot.w, data[3], i)
+                elif key == 'Scale':
+                    self._apply_animframe_data(sca.x, data[0], i)
+                    self._apply_animframe_data(sca.y, data[1], i)
+                    self._apply_animframe_data(sca.z, data[2], i)
+
+    def _apply_animframe_data(self, fcurve, data, frame):
+        fcurve.keyframe_points[int(frame)].co = float(frame), float(data)
+
+    def _apply_stillframe_data(self, fcurve, data, num_frame):
+        fcurve.keyframe_points.add(2)
+        fcurve.keyframe_points[0].co = 0.0, float(data)
+        fcurve.keyframe_points[1].co = float(num_frame), float(data)
+
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """
         for obj in bpy.data.objects:
@@ -703,7 +768,23 @@ class ImportScene():
             bpy.data.images.remove(img)
 
     def _create_anim_channels(self, obj, anim_name):
-        """ Generate all the channels required for the animation. """
+        """ Generate all the channels required for the animation.
+
+        Parameters
+        ----------
+        obj : Blender object
+            The object to create the anim channels on.
+        anim_name : str
+            Name of the animation so that all fcurves are in the same group.
+
+        Returns
+        -------
+        Tuple of collections.namedtuple's:
+            (location, rotation, scale)
+        """
+        location = namedtuple('location', ['x', 'y', 'z'])
+        rotation = namedtuple('rotation', ['x', 'y', 'z', 'w'])
+        scale = namedtuple('scale', ['x', 'y', 'z'])
         loc_x = obj.animation_data.action.fcurves.new(data_path='location',
                                                       index=0,
                                                       action_group=anim_name)
@@ -713,6 +794,7 @@ class ImportScene():
         loc_z = obj.animation_data.action.fcurves.new(data_path='location',
                                                       index=2,
                                                       action_group=anim_name)
+        loc = location(loc_x, loc_y, loc_z)
         rot_w = obj.animation_data.action.fcurves.new(
             data_path='rotation_quaternion',
             index=0,
@@ -729,6 +811,7 @@ class ImportScene():
             data_path='rotation_quaternion',
             index=3,
             action_group=anim_name)
+        rot = rotation(rot_x, rot_y, rot_z, rot_w)
         sca_x = obj.animation_data.action.fcurves.new(data_path='scale',
                                                       index=0,
                                                       action_group=anim_name)
@@ -738,9 +821,8 @@ class ImportScene():
         sca_z = obj.animation_data.action.fcurves.new(data_path='scale',
                                                       index=2,
                                                       action_group=anim_name)
-        return ((loc_x, loc_y, loc_z),
-                (rot_x, rot_y, rot_z, rot_w),
-                (sca_x, sca_y, sca_z))
+        sca = scale(sca_x, sca_y, sca_z)
+        return (loc, rot, sca)
 
     def _create_material(self, mat_path):
         # retrieve a cached copy if it exists
