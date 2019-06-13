@@ -9,17 +9,17 @@ from collections import namedtuple
 # Blender imports
 import bpy  # pylint: disable=import-error
 import bmesh  # pylint: disable=import-error
-from mathutils import Matrix, Vector  # pylint: disable=import-error
+from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
 from bpy.props import EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
 
 # Internal imports
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
                                      bytes_to_int_2_10_10_10_rev)
 from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS  # noqa pylint: disable=relative-beyond-top-level
+from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
 from .readers import (read_material, read_metadata, read_gstream, read_anim,  # noqa pylint: disable=relative-beyond-top-level
-                      read_entity)
+                      read_entity, read_mesh_binding_data)
 from .utils import element_to_dict  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
@@ -100,6 +100,14 @@ class ImportScene():
         self.materials = dict()
         self.entities = set()
         self.animations = dict()
+        # This list of joints is used to add all the bones if needed
+        self.joints = list()
+        self.skinned_meshes = list()
+        # inverse bind matrices are the global transforms of the joints parent
+        self.inv_bind_matrices = dict()
+        # bind matrices are the local transforms of the intial states of the
+        # joint itself.
+        self.bind_matrices = dict()
 
         # change to render with cycles
         self.scn.render.engine = 'CYCLES'
@@ -172,6 +180,8 @@ class ImportScene():
                 f.seek(0x10, 1)
                 self.vertex_elements.append(data)
 
+        self.mesh_binding_data = read_mesh_binding_data(self.geometry_file)
+
         # load all the bounded hull data
         self._load_bounded_hulls()
 
@@ -220,7 +230,7 @@ class ImportScene():
         self.scn.frame_current = 0
 
         for name, anim in self.animations.items():
-            print('Importing animation: {0}'.format(name))
+            print('\nImporting animation: {0}\n'.format(name))
             if name not in curr_anims:
                 curr_anims.append(name)
             self._add_animation_to_scene(name, anim)
@@ -272,6 +282,11 @@ class ImportScene():
             if self.settings['clear_scene']:
                 self._clear_prev_scene()
             self._add_empty_to_scene(self.scene_basename)
+        # If we need to know the list of joints, get them now...
+        if self.mesh_binding_data is not None:
+            for obj in self.scene_node_data.iter():
+                if obj.Type == 'JOINT':
+                    self.joints.append(obj)
         for obj in self.scene_node_data.iter():
             if obj.Type == 'MESH':
                 obj.metadata = self.mesh_metadata.get(obj.Name.upper())
@@ -287,11 +302,34 @@ class ImportScene():
                         self._add_mesh_collision_to_scene(obj)
                     else:
                         self._add_primitive_collision_to_scene(obj)
+        if self.mesh_binding_data is not None:
+            self._add_armature_to_scene()
+            armature = bpy.data.armatures[self.scene_basename]
+            self.scn.objects.active = bpy.data.objects['Armature']
+            # Set the mode as edit mode so we can make edit_bones
+            bpy.ops.object.mode_set(mode='EDIT')
+            for joint in self.joints:
+                print('Adding bone {0}'.format(joint.Name))
+                self._add_bone_to_scene(joint, armature)
+            bpy.ops.object.mode_set(mode='OBJECT')
+        # Now that we have the armature set up, apply modifiers to each of the
+        # meshes to bind them.
+        for mesh_obj in self.skinned_meshes:
+            mod = mesh_obj.modifiers.new('Armature', 'ARMATURE')
+            mod.object = bpy.data.objects['Armature']
         # Add any animations
         self.load_animations()
+        bpy.ops.nmsdk._change_animation(anim_names='None')
         self.state = {'FINISHED'}
 
 # region private methods
+
+    def _add_armature_to_scene(self):
+        """ Each joint will be added as an armature. """
+        armature = bpy.data.armatures.new(self.scene_basename)
+        obj = bpy.data.objects.new('Armature', armature)
+        self.scn.objects.link(obj)
+        obj.parent = self.local_objects[self.scene_basename]
 
     def _add_animation_to_scene(self, anim_name, anim_data):
         # First, let's find out what animation data each object has
@@ -341,6 +379,140 @@ class ImportScene():
             obj.animation_data.action.use_fake_user = True
             fcurves = self._create_anim_channels(obj, action_name)
             self._apply_animdata_to_fcurves(fcurves, data, anim_data)
+
+        # If we have a mesh with joint bindings, also animate the armature
+        if self.mesh_binding_data is not None:
+            armature = bpy.data.objects['Armature']
+            armature.animation_data_create()
+            action_name = "{0}_Armature".format(anim_name)
+            armature.animation_data.action = bpy.data.actions.new(
+                name=action_name)
+            # set the action to have a fake user
+            armature.animation_data.action.use_fake_user = True
+            num_frames = anim_data['FrameCount']
+            for name, node_data in node_data_map.items():
+                # we only care about animating the joints
+                if name not in [x.Name for x in self.joints]:
+                    continue
+                print('-- adding {0}'.format(name))
+                bone = armature.pose.bones[name]
+                # get the global transform of the parent bone
+                if bone.parent is not None:
+                    parent_base_transform = self.inv_bind_matrices[
+                        bone.parent.name]
+                else:
+                    parent_base_transform = Matrix.Identity(4)
+                inv_transform = self.bind_matrices[name]
+
+                still_data = node_data['still']
+                animated_data = node_data['anim']
+
+                # Keep a track of all the still frame transforms
+                still_loc_matrix = Matrix.Identity(4)
+                still_rot_matrix = Matrix.Identity(4)
+                still_sca_matrix = Matrix.Identity(4)
+
+                # Apply the transforms as required
+                for key, value in still_data.items():
+                    data = anim_data['StillFrameData'][key][value]
+                    if key == 'Translation':
+                        still_loc_matrix = Matrix.Translation(data)
+                    elif key == 'Rotation':
+                        # move the w value to the start to initialize the
+                        # quaternion
+                        rot_data = [data[3], data[0], data[1], data[2]]
+                        still_rot_matrix = Quaternion(
+                            rot_data).to_matrix().to_4x4()
+                    elif key == 'Scale':
+                        still_sca_matrix = Matrix([[data[0], 0, 0, 0],
+                                                   [0, data[1], 0, 0],
+                                                   [0, 0, data[2], 0],
+                                                   [0, 0, 0, 1]])
+                # Combine all the still frame matrices into one
+                still_matrix = (still_loc_matrix * still_rot_matrix *
+                                still_sca_matrix)
+                # Apply the inverse of the base transform matrix to find the
+                # relative still frame transform
+                print('local still frame transform')
+                print(still_matrix.decompose())
+                bone.matrix_basis = inv_transform * still_matrix
+                # For each transform applied, add a keyframe
+                for key in still_data.keys():
+                    self._apply_stillpose_data(bone, DATA_PATH_MAP[key],
+                                               num_frames, action_name)
+                # Apply the proper animated data
+                for i, frame in enumerate(anim_data['AnimFrameData']):
+                    anim_loc_matrix = Matrix.Identity(4)
+                    anim_rot_matrix = Matrix.Identity(4)
+                    anim_sca_matrix = Matrix.Identity(4)
+                    # First apply the required transforms
+                    for key, value in animated_data.items():
+                        data = frame[key][value]
+                        if key == 'Translation':
+                            anim_loc_matrix = Matrix.Translation(data)
+                        elif key == 'Rotation':
+                            # move the w value to the start to initialize the
+                            # quaternion
+                            rot_data = [data[3], data[0], data[1], data[2]]
+                            anim_rot_matrix = Quaternion(
+                                rot_data).to_matrix().to_4x4()
+                        elif key == 'Scale':
+                            anim_sca_matrix = Matrix([[data[0], 0, 0, 0],
+                                                      [0, data[1], 0, 0],
+                                                      [0, 0, data[2], 0],
+                                                      [0, 0, 0, 1]])
+                    anim_matrix = (anim_loc_matrix * anim_rot_matrix *
+                                   anim_sca_matrix)
+                    result = inv_transform * anim_matrix * still_matrix
+                    if i == 0:
+                        print('local animation transform and total')
+                        print(anim_matrix.decompose())
+                        print(result.decompose())
+                    bone.matrix_basis = result
+                    # For each transform applied, add a keyframe
+                    for key in animated_data.keys():
+                        self._apply_animpose_data(bone, DATA_PATH_MAP[key],
+                                                  i, action_name)
+
+    def _add_bone_to_scene(self, scene_node, armature):
+        bone = armature.edit_bones.new(scene_node.Name)
+        bone.use_inherit_rotation = True
+        bone.use_inherit_scale = True
+        if scene_node.parent.Type == 'JOINT':
+            _parent = armature.edit_bones[scene_node.parent.Name]
+        else:
+            _parent = None
+        bone.parent = _parent
+        joint_index = scene_node.Attribute('JOINTINDEX', int)
+        joint_binding_data = self.mesh_binding_data[
+            'JointBindings'][joint_index]
+        inv_bind_matrix = joint_binding_data['InvBindMatrix']
+        inv_bind_matrix = Matrix([inv_bind_matrix[:4],
+                                  inv_bind_matrix[4:8],
+                                  inv_bind_matrix[8:12],
+                                  inv_bind_matrix[12:]])
+        inv_bind_matrix.transpose()
+        bind_trans = joint_binding_data['BindTranslate']
+        bind_rot = joint_binding_data['BindRotate']
+        bind_sca = joint_binding_data['BindScale']
+        bind_matrix = self._compose_matrix(bind_trans, bind_rot, bind_sca)
+        bind_matrix.invert()
+        # Assign the bind matrix so we can do easy lookup of it later for
+        # applying animations. We assign a copy since the `.invert()` mathod
+        # is in-place.
+        # Ironically, the inverse bind matrix is strored uninverted, and the
+        # bind matrix is stored inverted...
+        self.inv_bind_matrices[scene_node.Name] = inv_bind_matrix.copy()
+        self.bind_matrices[scene_node.Name] = bind_matrix
+        inv_bind_matrix.invert()
+        if _parent is not None:
+            bone.head = _parent.tail
+        bone.tail = inv_bind_matrix.to_translation()
+
+        if bone.length == 0:
+            bone.tail = bone.head + Vector(0, (1*10**(-4), 0))
+
+        bone.use_connect = True
 
     def _add_empty_to_scene(self, scene_node, standalone=False):
         """ Adds the given scene node data to the Blender scene.
@@ -635,7 +807,8 @@ class ImportScene():
                 colour_loops[idx].color = (colour[0]/255,
                                            colour[1]/255,
                                            colour[2]/255)
-        """ # Some debugging info
+        # Some debugging info
+        """
         print(name)
         if 5 in scene_node.verts.keys():
             print('blend indices')
@@ -644,6 +817,26 @@ class ImportScene():
             print('blend weight')
             print(scene_node.verts[6])
         """
+
+        # Add vertexes to mesh groups
+        if self.mesh_binding_data is not None:
+            first_skin_mat = int(scene_node.Attribute('FIRSTSKINMAT'))
+            last_skin_mat = int(scene_node.Attribute('LASTSKINMAT'))
+            skin_mats = self.mesh_binding_data[
+                'SkinMatrixLayout'][first_skin_mat: last_skin_mat]
+            for skin_mat in skin_mats:
+                joint = self._find_joint(skin_mat)
+                mesh_obj.vertex_groups.new(joint.Name)
+            if len(skin_mats) != 0:
+                for i, vert in enumerate(mesh.vertices):
+                    blend_indices = scene_node.verts[BLENDINDEX][i]
+                    blend_weights = scene_node.verts[BLENDWEIGHT][i]
+                    for j, bw in enumerate(blend_weights):
+                        if bw != 0:
+                            mesh_obj.vertex_groups[blend_indices[j]].add(
+                                [vert.index], bw, 'ADD')
+            self.skinned_meshes.append(mesh_obj)
+
         # sort out materials
         mat_path = self._get_material_path(scene_node)
         material = None
@@ -734,6 +927,14 @@ class ImportScene():
         fcurve.keyframe_points[1].co = float(num_frame - 1), float(data)
         fcurve.keyframe_points[1].interpolation = 'CONSTANT'
 
+    def _apply_stillpose_data(self, bone, _type, num_frames, name):
+        bone.keyframe_insert(data_path=_type, frame=0, group=name)
+        bone.keyframe_insert(data_path=_type, frame=num_frames - 1,
+                             group=name)
+
+    def _apply_animpose_data(self, bone, _type, frame, name):
+        bone.keyframe_insert(data_path=_type, frame=frame, group=name)
+
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """
         for obj in bpy.data.objects:
@@ -747,6 +948,17 @@ class ImportScene():
             bpy.data.materials.remove(mat)
         for img in bpy.data.images:
             bpy.data.images.remove(img)
+
+    def _compose_matrix(self, trans, rotation, scale):
+        """ Create a 4x4 matrix representation of the objects transform. """
+        mat_loc = Matrix.Translation(trans)
+        mat_sca = Matrix([[scale[0], 0, 0, 0],
+                          [0, scale[1], 0, 0],
+                          [0, 0, scale[2], 0],
+                          [0, 0, 0, 1]])
+        _rotation = [rotation[3], rotation[0], rotation[1], rotation[2]]
+        mat_rot = Quaternion(_rotation).to_matrix().to_4x4()
+        return mat_loc * mat_rot * mat_sca
 
     def _create_anim_channels(self, obj, anim_name):
         """ Generate all the channels required for the animation.
@@ -1123,6 +1335,17 @@ class ImportScene():
                     # Skip 't' component.
                     mesh.verts[semIDs[i]].append(
                         read_funcs[i](f.read(read_sizes[i]))[:-1])
+
+    def _find_joint(self, index=None, name=None):
+        """ Return the joint with the specified index. """
+        for joint in self.joints:
+            if index is not None:
+                if int(joint.Attribute('JOINTINDEX')) == index:
+                    return joint
+            elif name is not None:
+                if joint.Name == name:
+                    return joint
+        return None
 
     def _get_material_path(self, scene_node):
         real_path = None

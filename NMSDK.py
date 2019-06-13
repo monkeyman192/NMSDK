@@ -118,8 +118,8 @@ class _ChangeAnimation(Operator):
         """
         context.scene['curr_anim'] = self.anim_names
         frame_count = 0
+        # Apply the action to each object
         for obj in context.scene.objects:
-            # Generate the action name
             action_name = '{0}_{1}'.format(self.anim_names, obj.name)
             if action_name in bpy.data.actions:
                 obj.animation_data.action = bpy.data.actions[action_name]
@@ -132,6 +132,14 @@ class _ChangeAnimation(Operator):
                 except AttributeError:
                     # Some objects in the scene may not have animation data
                     continue
+        if self.anim_names == 'None':
+            for armature in bpy.data.armatures:
+                armature.pose_position = 'REST'
+        else:
+            for armature in bpy.data.armatures:
+                armature.pose_position = 'POSE'
+
+        # Set the final frame count
         context.scene.frame_end = frame_count
         return {'FINISHED'}
 

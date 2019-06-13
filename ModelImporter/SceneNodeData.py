@@ -17,11 +17,11 @@ class SceneNodeData():
 
 # region public methods
 
-    def Attribute(self, name):
+    def Attribute(self, name, astype=str):
         # Doesn't support AltID's
         for attrib in self.info['Attributes']:
             if attrib['Name'] == name:
-                return attrib['Value']
+                return astype(attrib['Value'])
 
     def iter(self):
         """ Returns an ordered iterable list of SceneNodeData objects. """

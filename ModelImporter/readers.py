@@ -175,6 +175,49 @@ def read_material(fname):
     return data
 
 
+def read_mesh_binding_data(fname):
+    """ Read the data relating to mesh/joint bindings from the geometry file.
+
+    Returns
+    -------
+    data : dict
+        All the relevant data from the geometry file
+    """
+    data = dict()
+    with open(fname, 'rb') as f:
+        # First, check that there is data to read. If not, then return nothing
+        f.seek(0x78)
+        if struct.unpack('<I', f.read(0x4))[0] == 0:
+            return
+        # Read joint binding data
+        f.seek(0x70)
+        data['JointBindings'] = list()
+        with ListHeader(f) as JointBindings:
+            for _ in range(JointBindings.count):
+                jb_data = dict()
+                fmt = '<' + 'f' * 0x10
+                jb_data['InvBindMatrix'] = struct.unpack(fmt, f.read(0x40))
+                jb_data['BindTranslate'] = struct.unpack('<fff', f.read(0xC))
+                jb_data['BindRotate'] = struct.unpack('<ffff', f.read(0x10))
+                jb_data['BindScale'] = struct.unpack('<fff', f.read(0xC))
+                data['JointBindings'].append(jb_data)
+        # skip to the skin matrix layout data
+        f.seek(0xB0)
+        with ListHeader(f) as SkinMatrixLayout:
+            fmt = '<' + 'I' * SkinMatrixLayout.count
+            data_size = 4 * SkinMatrixLayout.count
+            data['SkinMatrixLayout'] = struct.unpack(fmt, f.read(data_size))
+
+        # skip to the MeshBaseSkinMat data
+        f.seek(0x100)
+        with ListHeader(f) as MeshBaseSkinMat:
+            fmt = '<' + 'I' * MeshBaseSkinMat.count
+            data_size = 4 * MeshBaseSkinMat.count
+            data['MeshBaseSkinMat'] = struct.unpack(fmt, f.read(data_size))
+
+    return data
+
+
 def read_metadata(fname):
     """ Reads all the metadata from the gstream file.
 
