@@ -394,15 +394,9 @@ class ImportScene():
                 # we only care about animating the joints
                 if name not in [x.Name for x in self.joints]:
                     continue
-                print('-- adding {0}'.format(name))
+                print('-- adding {0} --'.format(name))
+
                 bone = armature.pose.bones[name]
-                # get the global transform of the parent bone
-                if bone.parent is not None:
-                    parent_base_transform = self.inv_bind_matrices[
-                        bone.parent.name]
-                else:
-                    parent_base_transform = Matrix.Identity(4)
-                inv_transform = self.bind_matrices[name]
 
                 still_data = node_data['still']
                 animated_data = node_data['anim']
@@ -421,6 +415,8 @@ class ImportScene():
                         # move the w value to the start to initialize the
                         # quaternion
                         rot_data = [data[3], data[0], data[1], data[2]]
+                        #rot_quat = Quaternion(rot_data)
+                        #print(rot_quat.rotation_difference)
                         still_rot_matrix = Quaternion(
                             rot_data).to_matrix().to_4x4()
                     elif key == 'Scale':
@@ -429,18 +425,13 @@ class ImportScene():
                                                    [0, 0, data[2], 0],
                                                    [0, 0, 0, 1]])
                 # Combine all the still frame matrices into one
+                # This will be combined later on each frame to have the final
+                # transform matrix in the world-space
                 still_matrix = (still_loc_matrix * still_rot_matrix *
                                 still_sca_matrix)
-                # Apply the inverse of the base transform matrix to find the
-                # relative still frame transform
-                print('local still frame transform')
-                print(still_matrix.decompose())
-                bone.matrix_basis = inv_transform * still_matrix
-                # For each transform applied, add a keyframe
-                for key in still_data.keys():
-                    self._apply_stillpose_data(bone, DATA_PATH_MAP[key],
-                                               num_frames, action_name)
+
                 # Apply the proper animated data
+                bone_ref_mat = bone.matrix.copy()
                 for i, frame in enumerate(anim_data['AnimFrameData']):
                     anim_loc_matrix = Matrix.Identity(4)
                     anim_rot_matrix = Matrix.Identity(4)
@@ -463,15 +454,24 @@ class ImportScene():
                                                       [0, 0, 0, 1]])
                     anim_matrix = (anim_loc_matrix * anim_rot_matrix *
                                    anim_sca_matrix)
-                    result = inv_transform * anim_matrix * still_matrix
+                    loc_transform = anim_matrix * still_matrix
+                    delta_transform = self.bind_matrices[name] * loc_transform
                     if i == 0:
-                        print('local animation transform and total')
-                        print(anim_matrix.decompose())
-                        print(result.decompose())
-                    bone.matrix_basis = result
+                        print('local animation transform')
+                        print(loc_transform.decompose())
+                        print(delta_transform.decompose())
+                    bone.matrix = delta_transform * bone_ref_mat
+                    if i == 0:
+                        print(bone.head, bone.tail)
+                        print(bone.rotation_quaternion)
                     # For each transform applied, add a keyframe
-                    for key in animated_data.keys():
-                        self._apply_animpose_data(bone, DATA_PATH_MAP[key],
+                    for key in ['Translation', 'Rotation', 'Scale']:
+                        if key in still_data:
+                            if i == 0 or i == num_frames - 1:
+                                self._apply_pose_data(bone, DATA_PATH_MAP[key],
+                                                      i, action_name)
+                        elif key in animated_data:
+                            self._apply_pose_data(bone, DATA_PATH_MAP[key],
                                                   i, action_name)
 
     def _add_bone_to_scene(self, scene_node, armature):
@@ -496,13 +496,13 @@ class ImportScene():
         bind_rot = joint_binding_data['BindRotate']
         bind_sca = joint_binding_data['BindScale']
         bind_matrix = self._compose_matrix(bind_trans, bind_rot, bind_sca)
-        bind_matrix.invert()
         # Assign the bind matrix so we can do easy lookup of it later for
         # applying animations. We assign a copy since the `.invert()` mathod
         # is in-place.
         # Ironically, the inverse bind matrix is strored uninverted, and the
         # bind matrix is stored inverted...
         self.inv_bind_matrices[scene_node.Name] = inv_bind_matrix.copy()
+        bind_matrix.invert()
         self.bind_matrices[scene_node.Name] = bind_matrix
         inv_bind_matrix.invert()
         if _parent is not None:
@@ -927,12 +927,7 @@ class ImportScene():
         fcurve.keyframe_points[1].co = float(num_frame - 1), float(data)
         fcurve.keyframe_points[1].interpolation = 'CONSTANT'
 
-    def _apply_stillpose_data(self, bone, _type, num_frames, name):
-        bone.keyframe_insert(data_path=_type, frame=0, group=name)
-        bone.keyframe_insert(data_path=_type, frame=num_frames - 1,
-                             group=name)
-
-    def _apply_animpose_data(self, bone, _type, frame, name):
+    def _apply_pose_data(self, bone, _type, frame, name):
         bone.keyframe_insert(data_path=_type, frame=frame, group=name)
 
     def _clear_prev_scene(self):
