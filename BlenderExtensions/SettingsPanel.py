@@ -79,8 +79,19 @@ class AnimationsPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        nmsdk_settings = context.scene.nmsdk_settings
+        if nmsdk_settings.anims_loaded is False:
+            if context.scene['_loadable_anim_names'] != []:
+                # In this case, have a menu to allow for the animations to be
+                # loaded
+                layout.operator_menu_enum('nmsdk._load_animation',
+                                          'anim_names',
+                                          text='Add an animation')
         try:
-            if context.scene['_anim_names'] == []:
+            anim_names = context.scene['_anim_names']
+            if not isinstance(anim_names, list):
+                anim_names = context.scene['_anim_names'].to_list()
+            if anim_names == list():
                 layout.label(text="No loaded animations")
             else:
                 try:

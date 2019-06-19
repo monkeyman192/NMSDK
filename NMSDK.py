@@ -92,6 +92,13 @@ class _SaveDefaultSettings(Operator):
 
 # Animation classes and functions
 
+def get_loaded_anim_names(self, context):
+    try:
+        names = context.scene['_loadable_anim_names'].keys()
+        return list(tuple([name] * 3) for name in names)
+    except KeyError:
+        return [('None', 'None', 'None')]
+
 
 def get_anim_names(self, context):
     try:
@@ -99,6 +106,38 @@ def get_anim_names(self, context):
         return list(tuple([name] * 3) for name in names)
     except KeyError:
         return [('None', 'None', 'None')]
+
+
+class _LoadAnimation(Operator):
+    """Load the selected animation data"""
+    bl_idname = "nmsdk._load_animation"
+    bl_label = "Load Animation"
+
+    anim_names = EnumProperty(
+            name='Available animations',
+            description='List of all available animations for the scene',
+            items=get_loaded_anim_names)
+
+    def execute(self, context):
+        # Set the variables
+        anim_names = context.scene['_anim_names']
+        loadable_anim_names = context.scene['_loadable_anim_names']
+        # Safely add or remove the name from the list
+        if not isinstance(anim_names, list):
+            anim_names = context.scene['_anim_names'].to_list()
+        anim_names.append(self.anim_names)
+        context.scene['_anim_names'] = anim_names
+        if not isinstance(loadable_anim_names, dict):
+            loadable_anim_names = context.scene[
+                '_loadable_anim_names'].to_dict()
+        loadable_anim_names.pop(self.anim_names)
+        context.scene['_loadable_anim_names'] = loadable_anim_names
+        # TODO: need to make the animation loading functions separate from the
+        # ImportScene class so that they can be called here.
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
 
 
 class _ChangeAnimation(Operator):
@@ -195,6 +234,10 @@ class NMSDKSettings(PropertyGroup):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    anims_loaded = BoolProperty(
+        name='Animations loaded',
+        description='Whether the animations are loaded or not',
+        default=True)
 
     def toggle_collision_visibility(self):
         """ Toggle the collision visibility state. """
@@ -306,14 +349,22 @@ class NMS_Import_Operator(Operator, ImportHelper):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    import_bones = BoolProperty(
+        name='Import bones',
+        description="Whether or not to import the models' bones",
+        default=False)
 
     def draw(self, context):
         layout = self.layout
         layout.prop(self, 'draw_hulls')
         layout.prop(self, 'clear_scene')
         coll_box = layout.box()
+        coll_box.label('Collisions')
         coll_box.prop(self, 'import_collisions')
         coll_box.prop(self, 'show_collisions')
+        animation_box = layout.box()
+        animation_box.label('Animation')
+        animation_box.prop(self, 'import_bones')
 
     def execute(self, context):
         keywords = self.as_keywords()
@@ -326,6 +377,9 @@ class NMS_Import_Operator(Operator, ImportHelper):
         importer = ImportScene(fdir, parent_obj=None, ref_scenes=dict(),
                                settings=keywords)
         importer.render_scene()
+        # If there are no actual animations loaded, set the list as empty.
+        if context.scene['_anim_names'] == ['None']:
+            context.scene['_anim_names'] = list()
         status = importer.state
         self.report({'INFO'}, "Models Imported Successfully")
         print('Scene imported!')

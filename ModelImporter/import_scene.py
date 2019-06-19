@@ -181,7 +181,10 @@ class ImportScene():
                 f.seek(0x10, 1)
                 self.vertex_elements.append(data)
 
-        self.mesh_binding_data = read_mesh_binding_data(self.geometry_file)
+        if self.settings['import_bones']:
+            self.mesh_binding_data = read_mesh_binding_data(self.geometry_file)
+        else:
+            self.mesh_binding_data = None
 
         # load all the bounded hull data
         self._load_bounded_hulls()
@@ -205,20 +208,26 @@ class ImportScene():
             anim_data.extend(read_entity(entity_path))
         # For each animation data, read the animation in and add it to the
         # scene.
-        for data in anim_data:
-            if data['Filename'] == '':
-                if data['Anim'] == '':
-                    name = '_DEFAULT'
+        print('Found {0} animations to be loaded!'.format(len(anim_data)))
+        if len(anim_data) < 10:
+            self.scn.nmsdk_settings.anims_loaded = True
+            for data in anim_data:
+                if data['Filename'] == '':
+                    if data['Anim'] == '':
+                        name = '_DEFAULT'
+                    else:
+                        name = data['Anim']
+                    # In this case we are using the implicit animation data
+                    self.implicit_anim_file = self.geometry_file.replace(
+                        'GEOMETRY.MBIN.PC', 'ANIM.MBIN')
+                    if op.exists(self.implicit_anim_file):
+                        self.animations[name] = read_anim(
+                            self.implicit_anim_file)
                 else:
-                    name = data['Anim']
-                # In this case we are using the implicit animation data
-                self.implicit_anim_file = self.geometry_file.replace(
-                    'GEOMETRY.MBIN.PC', 'ANIM.MBIN')
-                if op.exists(self.implicit_anim_file):
-                    self.animations[name] = read_anim(self.implicit_anim_file)
-            else:
-                anim_file_path = op.join(mod_dir, data['Filename'])
-                self.animations[data['Anim']] = read_anim(anim_file_path)
+                    anim_file_path = op.join(mod_dir, data['Filename'])
+                    self.animations[data['Anim']] = read_anim(anim_file_path)
+        else:
+            self.scn.nmsdk_settings.anims_loaded = False
 
         # Get the current list of animations in the scene
         try:
@@ -226,12 +235,22 @@ class ImportScene():
         except KeyError:
             curr_anims = ['None']
 
+        # Also get the list of currently loadable animations
+        try:
+            loadable_anims = self.scn['_loadable_anim_names']
+        except KeyError:
+            loadable_anims = dict()
+
+        if not self.scn.nmsdk_settings.anims_loaded:
+            loadable_anims.update(anim_data)
+            self.scn['_loadable_anim_names'] = loadable_anims
+
         # Ensure the animation starts on frame 0
         self.scn.frame_start = 0
         self.scn.frame_current = 0
 
         for name, anim in self.animations.items():
-            print('\nImporting animation: {0}\n'.format(name))
+            print('Importing animation: {0}'.format(name))
             if name not in curr_anims:
                 curr_anims.append(name)
             self._add_animation_to_scene(name, anim)
@@ -494,7 +513,7 @@ class ImportScene():
         bone.tail = inv_bind_matrix.inverted().to_translation()
 
         if bone.length == 0:
-            bone.tail = bone.head + Vector([0, (1*10**(-4), 0)])
+            bone.tail = bone.head + Vector([0, 10**(-4), 0])
 
         bone.use_connect = True
 
