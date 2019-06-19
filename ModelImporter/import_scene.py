@@ -5,6 +5,7 @@ import struct
 from math import radians
 import subprocess
 from collections import namedtuple
+from collections import OrderedDict as odict
 
 # Blender imports
 import bpy  # pylint: disable=import-error
@@ -336,7 +337,7 @@ class ImportScene():
         # We do this by looking at the indexes of the rotation, translation and
         # scale data and see whether that lies within the AnimNodeData or the
         # StillFrameData
-        node_data_map = dict()
+        node_data_map = odict()
         rot_anim_len = len(anim_data['AnimFrameData'][0]['Rotation'])
         trans_anim_len = len(anim_data['AnimFrameData'][0]['Translation'])
         scale_anim_len = len(anim_data['AnimFrameData'][0]['Scale'])
@@ -371,6 +372,7 @@ class ImportScene():
                 obj = self.scn.objects[name]
             except KeyError:
                 continue
+
             obj.animation_data_create()
             action_name = "{0}_{1}".format(anim_name, name)
             obj.animation_data.action = bpy.data.actions.new(
@@ -378,7 +380,7 @@ class ImportScene():
             # set the action to have a fake user
             obj.animation_data.action.use_fake_user = True
             fcurves = self._create_anim_channels(obj, action_name)
-            self._apply_animdata_to_fcurves(fcurves, data, anim_data)
+            self._apply_animdata_to_fcurves(fcurves, data, anim_data, False)
 
         # If we have a mesh with joint bindings, also animate the armature
         if self.mesh_binding_data is not None:
@@ -401,69 +403,50 @@ class ImportScene():
                 still_data = node_data['still']
                 animated_data = node_data['anim']
 
-                # Keep a track of all the still frame transforms
-                still_loc_matrix = Matrix.Identity(4)
-                still_rot_matrix = Matrix.Identity(4)
-                still_sca_matrix = Matrix.Identity(4)
+                location = None
+                rotation = None
+                scale = None
 
                 # Apply the transforms as required
                 for key, value in still_data.items():
                     data = anim_data['StillFrameData'][key][value]
                     if key == 'Translation':
-                        still_loc_matrix = Matrix.Translation(data)
+                        location = Vector(data[:3])
                     elif key == 'Rotation':
                         # move the w value to the start to initialize the
                         # quaternion
-                        rot_data = [data[3], data[0], data[1], data[2]]
-                        #rot_quat = Quaternion(rot_data)
-                        #print(rot_quat.rotation_difference)
-                        still_rot_matrix = Quaternion(
-                            rot_data).to_matrix().to_4x4()
+                        rotation = Quaternion([data[3], data[0], data[1],
+                                               data[2]])
                     elif key == 'Scale':
-                        still_sca_matrix = Matrix([[data[0], 0, 0, 0],
-                                                   [0, data[1], 0, 0],
-                                                   [0, 0, data[2], 0],
-                                                   [0, 0, 0, 1]])
-                # Combine all the still frame matrices into one
-                # This will be combined later on each frame to have the final
-                # transform matrix in the world-space
-                still_matrix = (still_loc_matrix * still_rot_matrix *
-                                still_sca_matrix)
+                        scale = Vector(data[:3])
 
                 # Apply the proper animated data
-                bone_ref_mat = bone.matrix.copy()
+                # bone_ref_mat = bone.matrix.copy()
                 for i, frame in enumerate(anim_data['AnimFrameData']):
-                    anim_loc_matrix = Matrix.Identity(4)
-                    anim_rot_matrix = Matrix.Identity(4)
-                    anim_sca_matrix = Matrix.Identity(4)
                     # First apply the required transforms
                     for key, value in animated_data.items():
                         data = frame[key][value]
                         if key == 'Translation':
-                            anim_loc_matrix = Matrix.Translation(data)
+                            location = Vector(data[:3])
                         elif key == 'Rotation':
                             # move the w value to the start to initialize the
                             # quaternion
-                            rot_data = [data[3], data[0], data[1], data[2]]
-                            anim_rot_matrix = Quaternion(
-                                rot_data).to_matrix().to_4x4()
+                            rotation = Quaternion([data[3], data[0], data[1],
+                                                   data[2]])
                         elif key == 'Scale':
-                            anim_sca_matrix = Matrix([[data[0], 0, 0, 0],
-                                                      [0, data[1], 0, 0],
-                                                      [0, 0, data[2], 0],
-                                                      [0, 0, 0, 1]])
-                    anim_matrix = (anim_loc_matrix * anim_rot_matrix *
-                                   anim_sca_matrix)
-                    loc_transform = anim_matrix * still_matrix
-                    delta_transform = self.bind_matrices[name] * loc_transform
-                    if i == 0:
-                        print('local animation transform')
-                        print(loc_transform.decompose())
-                        print(delta_transform.decompose())
-                    bone.matrix = delta_transform * bone_ref_mat
-                    if i == 0:
-                        print(bone.head, bone.tail)
-                        print(bone.rotation_quaternion)
+                            scale = Vector(data[:3])
+
+                    delta_loc = location - self.bind_matrices[name][0]
+                    delta_rot = rotation.rotation_difference(
+                        self.bind_matrices[name][1])
+                    ref_scale = self.bind_matrices[name][2]
+                    delta_sca = Vector((scale[0]/ref_scale[0],
+                                        scale[1]/ref_scale[1],
+                                        scale[2]/ref_scale[2]))
+
+                    bone.location = delta_loc
+                    bone.rotation_quaternion = delta_rot
+                    bone.scale = delta_sca
                     # For each transform applied, add a keyframe
                     for key in ['Translation', 'Rotation', 'Scale']:
                         if key in still_data:
@@ -495,22 +478,23 @@ class ImportScene():
         bind_trans = joint_binding_data['BindTranslate']
         bind_rot = joint_binding_data['BindRotate']
         bind_sca = joint_binding_data['BindScale']
-        bind_matrix = self._compose_matrix(bind_trans, bind_rot, bind_sca)
         # Assign the bind matrix so we can do easy lookup of it later for
-        # applying animations. We assign a copy since the `.invert()` mathod
-        # is in-place.
+        # applying animations.
         # Ironically, the inverse bind matrix is strored uninverted, and the
         # bind matrix is stored inverted...
-        self.inv_bind_matrices[scene_node.Name] = inv_bind_matrix.copy()
-        bind_matrix.invert()
-        self.bind_matrices[scene_node.Name] = bind_matrix
-        inv_bind_matrix.invert()
+        self.inv_bind_matrices[scene_node.Name] = inv_bind_matrix
+        self.bind_matrices[scene_node.Name] = (Vector(bind_trans[:3]),
+                                               Quaternion((bind_rot[3],
+                                                           bind_rot[0],
+                                                           bind_rot[1],
+                                                           bind_rot[2])),
+                                               Vector(bind_sca[:3]))
         if _parent is not None:
-            bone.head = _parent.tail
-        bone.tail = inv_bind_matrix.to_translation()
+            bone.matrix = self.inv_bind_matrices[_parent.name]
+        bone.tail = inv_bind_matrix.inverted().to_translation()
 
         if bone.length == 0:
-            bone.tail = bone.head + Vector(0, (1*10**(-4), 0))
+            bone.tail = bone.head + Vector([0, (1*10**(-4), 0)])
 
         bone.use_connect = True
 
@@ -580,6 +564,10 @@ class ImportScene():
                 empty_obj.parent = self.local_objects[self.scene_basename]
         else:
             empty_obj.matrix_world = ROT_MATRIX * empty_obj.matrix_world
+
+        # Set the rotation mode to be in quaternions so that anims work
+        # correctly
+        empty_obj.rotation_mode = 'QUATERNION'
 
         # link the object then update the scene so that the above transforms
         # can be applied before we do the NMS -> blender scene rotation
@@ -865,10 +853,39 @@ class ImportScene():
             bh_obj.parent = mesh_obj
             self.scn.objects.link(bh_obj)
 
-    def _apply_animdata_to_fcurves(self, fcurves, mapping, anim_data):
-        """ Apply the supplied animation data to the fcurves. """
+    def _apply_animdata_to_fcurves(self, fcurves, mapping, anim_data,
+                                   use_null_transform):
+        """ Apply the supplied animation data to the fcurves.
+
+        Parameters
+        ----------
+        fcurves : tuple of namedtuples.
+            A Tuple containing the location, rotation and scaling nameduples.
+        mapping : dict
+            Information describing what components are still frame and which
+            are animated.
+        anim_data : dict
+            The actual animation data
+        use_null_transform : bool
+            If true, then the joints shouldn't be animated as there are bones
+            which will provide the animation data.
+        """
         loc, rot, sca = fcurves
         num_frames = anim_data['FrameCount']
+        # If we are using the null transforms, just make all animations still
+        # frame.
+        if use_null_transform:
+            self._apply_stillframe_data(loc.x, 0, num_frames)
+            self._apply_stillframe_data(loc.y, 0, num_frames)
+            self._apply_stillframe_data(loc.z, 0, num_frames)
+            self._apply_stillframe_data(rot.x, 0, num_frames)
+            self._apply_stillframe_data(rot.y, 0, num_frames)
+            self._apply_stillframe_data(rot.z, 0, num_frames)
+            self._apply_stillframe_data(rot.w, 1, num_frames)
+            self._apply_stillframe_data(sca.x, 1, num_frames)
+            self._apply_stillframe_data(sca.y, 1, num_frames)
+            self._apply_stillframe_data(sca.z, 1, num_frames)
+            return
         # Apply still frame data first.
         still_data = mapping['still']
         for key, value in still_data.items():
