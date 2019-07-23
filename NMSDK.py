@@ -94,18 +94,45 @@ class _SaveDefaultSettings(Operator):
 
 def get_loaded_anim_names(self, context):
     try:
-        names = context.scene['_loadable_anim_names'].keys()
-        return list(tuple([name] * 3) for name in names)
+        names = context.scene.nmsdk_anim_data.loadable_anim_data.keys()
+        # Only show the names of animations that haven't been loaded
+        return list(tuple([name] * 3) for name in names if name not in
+                    context.scene.nmsdk_anim_data.loaded_anims)
     except KeyError:
         return [('None', 'None', 'None')]
 
 
 def get_anim_names(self, context):
     try:
-        names = context.scene['_anim_names']
+        names = context.scene.nmsdk_anim_data.loaded_anims
         return list(tuple([name] * 3) for name in names)
     except KeyError:
         return [('None', 'None', 'None')]
+
+
+class AnimProperties(PropertyGroup):
+    anims_loaded = BoolProperty(
+        name='Animations loaded',
+        description='Whether the animations are loaded or not',
+        default=True)
+    has_bound_mesh = BoolProperty(
+        name='Has bound mesh',
+        description='Whether or not the mesh of the object is bound to bones',
+        default=False)
+    # key: name of animation
+    # value: path to animation data
+    loadable_anim_data = dict()
+    # names of loaded animations. Instantiate with the default 'None'
+    loaded_anims = ['None']
+    # List of joint names
+    joints = list()
+
+    def reset(self):
+        """ Reset all the values back to their original ones. """
+        self.anims_loaded = False
+        self.loadable_anim_data = dict()
+        self.loaded_anims = ['None']
+        self.joints = list()
 
 
 class _LoadAnimation(Operator):
@@ -113,27 +140,19 @@ class _LoadAnimation(Operator):
     bl_idname = "nmsdk._load_animation"
     bl_label = "Load Animation"
 
-    anim_names = EnumProperty(
+    loadable_anim_name = EnumProperty(
             name='Available animations',
             description='List of all available animations for the scene',
             items=get_loaded_anim_names)
 
     def execute(self, context):
         # Set the variables
-        anim_names = context.scene['_anim_names']
-        loadable_anim_names = context.scene['_loadable_anim_names']
-        # Safely add or remove the name from the list
-        if not isinstance(anim_names, list):
-            anim_names = context.scene['_anim_names'].to_list()
-        anim_names.append(self.anim_names)
-        context.scene['_anim_names'] = anim_names
-        if not isinstance(loadable_anim_names, dict):
-            loadable_anim_names = context.scene[
-                '_loadable_anim_names'].to_dict()
-        loadable_anim_names.pop(self.anim_names)
-        context.scene['_loadable_anim_names'] = loadable_anim_names
-        # TODO: need to make the animation loading functions separate from the
-        # ImportScene class so that they can be called here.
+        loadable_anim_names = context.scene.nmsdk_anim_data.loadable_anim_data
+        anim_name = self.loadable_anim_name
+        anim_data = loadable_anim_names.pop(anim_name)
+        bpy.ops.nmsdk.animation_handler(
+            anim_name=anim_name,
+            anim_path=anim_data['Filename'])
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -234,10 +253,6 @@ class NMSDKSettings(PropertyGroup):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
-    anims_loaded = BoolProperty(
-        name='Animations loaded',
-        description='Whether the animations are loaded or not',
-        default=True)
 
     def toggle_collision_visibility(self):
         """ Toggle the collision visibility state. """
@@ -353,6 +368,10 @@ class NMS_Import_Operator(Operator, ImportHelper):
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
+    load_anims = BoolProperty(
+        name='Load all animations',
+        description='Whether or not to load all the animation data initially',
+        default=True)
 
     def draw(self, context):
         layout = self.layout
@@ -365,21 +384,21 @@ class NMS_Import_Operator(Operator, ImportHelper):
         animation_box = layout.box()
         animation_box.label('Animation')
         animation_box.prop(self, 'import_bones')
+        animation_box.prop(self, 'load_anims')
 
     def execute(self, context):
         keywords = self.as_keywords()
         # set the state of the show_collisions button from the value specified
         # when the import occurs
         context.scene.nmsdk_settings.show_collisions = self.show_collisions
+        # Reset the animation data
+        context.scene.nmsdk_anim_data.reset()
         fdir = self.properties.filepath
         context.scene['_anim_names'] = ['None']
         print(fdir)
         importer = ImportScene(fdir, parent_obj=None, ref_scenes=dict(),
                                settings=keywords)
         importer.render_scene()
-        # If there are no actual animations loaded, set the list as empty.
-        if context.scene['_anim_names'] == ['None']:
-            context.scene['_anim_names'] = list()
         status = importer.state
         self.report({'INFO'}, "Models Imported Successfully")
         print('Scene imported!')

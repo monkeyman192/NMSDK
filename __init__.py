@@ -14,7 +14,8 @@ from .NMSDK import (_FixOldFormat, _ToggleCollisionVisibility,
 from .NMSDK import NMSDKSettings, NMSDKDefaultSettings
 # Animation classes
 from .NMSDK import (_ChangeAnimation, _PlayAnimation, _PauseAnimation,
-                    _StopAnimation, _LoadAnimation)
+                    _StopAnimation, _LoadAnimation, AnimProperties)
+from .ModelImporter.animation_handler import AnimationHandler
 
 customNodes = NMSNodes()
 
@@ -57,9 +58,12 @@ def register():
     bpy.utils.register_class(_PlayAnimation)
     bpy.utils.register_class(_PauseAnimation)
     bpy.utils.register_class(_StopAnimation)
+    bpy.utils.register_class(AnimationHandler)
+    bpy.utils.register_class(AnimProperties)
     bpy.types.Scene.nmsdk_settings = PointerProperty(type=NMSDKSettings)
     bpy.types.Scene.nmsdk_default_settings = PointerProperty(
         type=NMSDKDefaultSettings)
+    bpy.types.Scene.nmsdk_anim_data = PointerProperty(type=AnimProperties)
     bpy.types.INFO_MT_file_export.append(menu_func_export)
     bpy.types.INFO_MT_file_import.append(menu_func_import)
     NMSPanels.register()
@@ -84,9 +88,11 @@ def unregister():
     bpy.utils.unregister_class(_PlayAnimation)
     bpy.utils.unregister_class(_PauseAnimation)
     bpy.utils.unregister_class(_StopAnimation)
+    bpy.utils.unregister_class(AnimationHandler)
+    bpy.utils.unregister_class(AnimProperties)
     del bpy.types.Scene.nmsdk_settings
     del bpy.types.Scene.nmsdk_default_settings
-    del bpy.types.Scene.anim_names
+    del bpy.types.Scene.anim_data
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
     bpy.types.INFO_MT_file_import.remove(menu_func_import)
     NMSPanels.unregister()

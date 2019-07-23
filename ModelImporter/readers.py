@@ -92,16 +92,7 @@ def read_entity(fname):
         animation data.
     """
 
-    def read_TkAnimationComponentData(f):
-        data = dict()
-        # Read the anim name and path into the data dictionary
-        data['Anim'] = read_string(f, 0x10)
-        data['Filename'] = read_string(f, 0x80)
-        # Move the pointer to the end of the TkAnimationComponentData struct
-        f.seek(0xA8, 1)
-        return data
-
-    anim_data = list()
+    anim_data = dict()
     with open(fname, 'rb') as f:
         f.seek(0x60)
         has_anims = False
@@ -120,10 +111,12 @@ def read_entity(fname):
             return anim_data
         # Jump to the start of the struct
         f.seek(return_offset + offset)
-        anim_data.append(read_TkAnimationComponentData(f))
+        _anim_data = read_TkAnimationComponentData(f)
+        anim_data[_anim_data.pop('Anim')] = _anim_data
         with ListHeader(f) as anims:
             for _ in range(anims.count):
-                anim_data.append(read_TkAnimationComponentData(f))
+                _anim_data = read_TkAnimationComponentData(f)
+                anim_data[_anim_data.pop('Anim')] = _anim_data
         return anim_data
 
 
@@ -273,3 +266,13 @@ def read_gstream(fname, info):
         f.seek(info.idx_off)
         indexes = f.read(info.idx_size)
     return verts, indexes
+
+
+def read_TkAnimationComponentData(f):
+    """ Extract the animation name and path from the entity file. """
+    data = dict()
+    data['Anim'] = read_string(f, 0x10)
+    data['Filename'] = read_string(f, 0x80)
+    # Move the pointer to the end of the TkAnimationComponentData struct
+    f.seek(0xA8, 1)
+    return data

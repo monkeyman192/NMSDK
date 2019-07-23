@@ -4,8 +4,6 @@ import xml.etree.ElementTree as ET
 import struct
 from math import radians
 import subprocess
-from collections import namedtuple
-from collections import OrderedDict as odict
 
 # Blender imports
 import bpy  # pylint: disable=import-error
@@ -59,7 +57,20 @@ class ImportScene():
         self.local_directory, self.scene_basename = op.split(fpath)
         # scene_basename is the final component of the scene path.
         # Ie. the file name without the extension
-        self.scene_basename = op.splitext(self.scene_basename)[0]
+        self.scene_basename, ftype = op.splitext(self.scene_basename)
+
+        # Determine the type of file provided and get the exml and mbin file
+        # paths for that file.
+        if ftype.lower() == '.exml':
+            mbin_fpath = (op.join(self.local_directory, self.scene_basename) +
+                          '.MBIN')
+            exml_fpath = fpath
+        elif ftype.lower() == '.mbin':
+            exml_fpath = (op.join(self.local_directory, self.scene_basename) +
+                          '.EXML')
+            mbin_fpath = fpath
+        else:
+            raise TypeError('Selected file is of the wrong format.')
 
         self.parent_obj = parent_obj
         self.ref_scenes = ref_scenes
@@ -74,7 +85,9 @@ class ImportScene():
         self.scn = bpy.context.scene
 
         # Find the local name of the scene (relative to the NMS PCBANKS dir)
-        with open(fpath, 'rb') as fobj:
+        # This needs to be read from the mbin file, so ensure we are either
+        # reading from it or construct the name.
+        with open(mbin_fpath, 'rb') as fobj:
             fobj.seek(0x60)
             self.scene_name = fobj.read(0x80).decode().replace('\x00', '')
         print('Loading {0}'.format(self.scene_name))
@@ -88,12 +101,6 @@ class ImportScene():
             return
 
         self.ref_scenes[self.scene_name] = list()
-
-        # check to see if there already exists an exml file with the same name
-        if op.exists(fpath.upper().replace('.MBIN', '.EXML')):
-            fpath = fpath.upper().replace('.MBIN', '.EXML')
-
-        ext = op.splitext(fpath)[1]
 
         self.data = None
         self.vertex_elements = list()
@@ -113,7 +120,7 @@ class ImportScene():
         # change to render with cycles
         self.scn.render.engine = 'CYCLES'
 
-        if ext.lower() == '.mbin':
+        if not op.exists(mbin_fpath):
             retcode = subprocess.call(["MBINCompiler", '-q', fpath],
                                       shell=True)
             if retcode != 0:
@@ -121,12 +128,7 @@ class ImportScene():
                       'registered on the path.')
                 print('Import failed')
                 return
-            fpath = fpath.replace('.MBIN', '.EXML')
-            self._load_scene(fpath)
-        elif ext.lower() != '.exml':
-            raise TypeError('Selected file is of the wrong format.')
-        else:
-            self._load_scene(fpath)
+        self._load_scene(exml_fpath)
 
         if self.data is None:
             raise ValueError('Cannot load scene file...')
@@ -186,6 +188,9 @@ class ImportScene():
         else:
             self.mesh_binding_data = None
 
+        self.scn.nmsdk_anim_data.has_bound_mesh = (
+            self.mesh_binding_data is not None)
+
         # load all the bounded hull data
         self._load_bounded_hulls()
 
@@ -196,67 +201,57 @@ class ImportScene():
 
     def load_animations(self):
         """ Handle the loading of the animations. """
-        anim_data = list()
+
+        _loadable_anim_data = self.scn.nmsdk_anim_data.loadable_anim_data
         # If there are no entities, there is no animation data. (Even implicit
         # animations have an entity associated.)
         if len(self.entities) == 0:
             return
         mod_dir = get_NMS_dir(self.local_directory)
         # Iterate over the entity files to collate all the animation data
+        local_anims = dict()
         for entity in self.entities:
             entity_path = op.join(mod_dir, entity)
-            anim_data.extend(read_entity(entity_path))
-        # For each animation data, read the animation in and add it to the
-        # scene.
-        print('Found {0} animations to be loaded!'.format(len(anim_data)))
-        if len(anim_data) < 10:
-            self.scn.nmsdk_settings.anims_loaded = True
-            for data in anim_data:
-                if data['Filename'] == '':
-                    if data['Anim'] == '':
-                        name = '_DEFAULT'
-                    else:
-                        name = data['Anim']
-                    # In this case we are using the implicit animation data
-                    self.implicit_anim_file = self.geometry_file.replace(
-                        'GEOMETRY.MBIN.PC', 'ANIM.MBIN')
-                    if op.exists(self.implicit_anim_file):
-                        self.animations[name] = read_anim(
-                            self.implicit_anim_file)
-                else:
-                    anim_file_path = op.join(mod_dir, data['Filename'])
-                    self.animations[data['Anim']] = read_anim(anim_file_path)
+            local_anims.update(read_entity(entity_path))
+        if len(local_anims) == 0:
+            # If there are no animations added by this scene just return to
+            # save time.
+            return
+        # Find out how many animations have been found in this scene.
+        # If the total number is greater than 10 then we don't want to render
+        # them all as it gets too slow to import a scene then.
+        print('Found {0} animations to be loaded!'.format(len(local_anims)))
+
+        # Update the global animation data dictionary
+        _loadable_anim_data.update(local_anims)
+
+        if self.settings['load_anims']:
+            load_anims = True
         else:
-            self.scn.nmsdk_settings.anims_loaded = False
+            # TODO: don't hardcode this value...
+            if len(_loadable_anim_data) < 10:
+                load_anims = True
+            else:
+                print('Warning! Too many animations detected!')
+                load_anims = False
 
-        # Get the current list of animations in the scene
-        try:
-            curr_anims = self.scn['_anim_names']
-        except KeyError:
-            curr_anims = ['None']
+        self._fix_anim_data(local_anims, mod_dir)
 
-        # Also get the list of currently loadable animations
-        try:
-            loadable_anims = self.scn['_loadable_anim_names']
-        except KeyError:
-            loadable_anims = dict()
+        self.scn.nmsdk_anim_data.anims_loaded = load_anims
 
-        if not self.scn.nmsdk_settings.anims_loaded:
-            loadable_anims.update(anim_data)
-            self.scn['_loadable_anim_names'] = loadable_anims
+        if load_anims:
+            for anim_name, anim_data in local_anims.items():
+                fpath = anim_data['Filename']
+                # Call the animation loading operator with the info
+                if anim_name not in self.scn.nmsdk_anim_data.loaded_anims:
+                    if op.exists(fpath):
+                        bpy.ops.nmsdk.animation_handler(
+                            anim_name=anim_name,
+                            anim_path=fpath)
 
         # Ensure the animation starts on frame 0
         self.scn.frame_start = 0
         self.scn.frame_current = 0
-
-        for name, anim in self.animations.items():
-            print('Importing animation: {0}'.format(name))
-            if name not in curr_anims:
-                curr_anims.append(name)
-            self._add_animation_to_scene(name, anim)
-
-        # Update the list of animations
-        self.scn['_anim_names'] = curr_anims
 
     def load_mesh(self, mesh_node):
         """ Load the mesh.
@@ -297,6 +292,7 @@ class ImportScene():
         """ Render the scene in the blender view. """
         # First, add the empty root object that everything will be a
         # child of.
+        print('rendering {0}'.format(self.scene_name))
         if self.parent_obj is None:
             # First, remove everything else in the scene
             if self.settings['clear_scene']:
@@ -307,6 +303,7 @@ class ImportScene():
             for obj in self.scene_node_data.iter():
                 if obj.Type == 'JOINT':
                     self.joints.append(obj)
+                    self.scn.nmsdk_anim_data.joints.append(obj.Name)
         for obj in self.scene_node_data.iter():
             if obj.Type == 'MESH':
                 obj.metadata = self.mesh_metadata.get(obj.Name.upper())
@@ -337,7 +334,6 @@ class ImportScene():
         for mesh_obj in self.skinned_meshes:
             mod = mesh_obj.modifiers.new('Armature', 'ARMATURE')
             mod.object = bpy.data.objects['Armature']
-        # Add any animations
         self.load_animations()
         bpy.ops.nmsdk._change_animation(anim_names='None')
         self.state = {'FINISHED'}
@@ -350,131 +346,6 @@ class ImportScene():
         obj = bpy.data.objects.new('Armature', armature)
         self.scn.objects.link(obj)
         obj.parent = self.local_objects[self.scene_basename]
-
-    def _add_animation_to_scene(self, anim_name, anim_data):
-        # First, let's find out what animation data each object has
-        # We do this by looking at the indexes of the rotation, translation and
-        # scale data and see whether that lies within the AnimNodeData or the
-        # StillFrameData
-        node_data_map = odict()
-        rot_anim_len = len(anim_data['AnimFrameData'][0]['Rotation'])
-        trans_anim_len = len(anim_data['AnimFrameData'][0]['Translation'])
-        scale_anim_len = len(anim_data['AnimFrameData'][0]['Scale'])
-        for node_data in anim_data['NodeData']:
-            data = {'anim': dict(), 'still': dict()}
-            # For each node, check to see if the data is in the animation data
-            # or in the still frame data
-            rotIndex = int(node_data['RotIndex'])
-            if rotIndex >= rot_anim_len:
-                rotIndex -= rot_anim_len
-                data['still']['Rotation'] = rotIndex
-            else:
-                data['anim']['Rotation'] = rotIndex
-            transIndex = int(node_data['TransIndex'])
-            if transIndex >= trans_anim_len:
-                transIndex -= trans_anim_len
-                data['still']['Translation'] = transIndex
-            else:
-                data['anim']['Translation'] = transIndex
-            scaleIndex = int(node_data['ScaleIndex'])
-            if scaleIndex >= scale_anim_len:
-                scaleIndex -= scale_anim_len
-                data['still']['Scale'] = scaleIndex
-            else:
-                data['anim']['Scale'] = scaleIndex
-            node_data_map[node_data['Node']] = data
-
-        # Now that we have all the indexes sorted out, for each node, we create
-        # a new action and give it all the information it requires.
-        for name, data in node_data_map.items():
-            try:
-                obj = self.scn.objects[name]
-            except KeyError:
-                continue
-
-            obj.animation_data_create()
-            action_name = "{0}_{1}".format(anim_name, name)
-            obj.animation_data.action = bpy.data.actions.new(
-                name=action_name)
-            # set the action to have a fake user
-            obj.animation_data.action.use_fake_user = True
-            fcurves = self._create_anim_channels(obj, action_name)
-            self._apply_animdata_to_fcurves(fcurves, data, anim_data, False)
-
-        # If we have a mesh with joint bindings, also animate the armature
-        if self.mesh_binding_data is not None:
-            armature = bpy.data.objects['Armature']
-            armature.animation_data_create()
-            action_name = "{0}_Armature".format(anim_name)
-            armature.animation_data.action = bpy.data.actions.new(
-                name=action_name)
-            # set the action to have a fake user
-            armature.animation_data.action.use_fake_user = True
-            num_frames = anim_data['FrameCount']
-            for name, node_data in node_data_map.items():
-                # we only care about animating the joints
-                if name not in [x.Name for x in self.joints]:
-                    continue
-                print('-- adding {0} --'.format(name))
-
-                bone = armature.pose.bones[name]
-
-                still_data = node_data['still']
-                animated_data = node_data['anim']
-
-                location = None
-                rotation = None
-                scale = None
-
-                # Apply the transforms as required
-                for key, value in still_data.items():
-                    data = anim_data['StillFrameData'][key][value]
-                    if key == 'Translation':
-                        location = Vector(data[:3])
-                    elif key == 'Rotation':
-                        # move the w value to the start to initialize the
-                        # quaternion
-                        rotation = Quaternion([data[3], data[0], data[1],
-                                               data[2]])
-                    elif key == 'Scale':
-                        scale = Vector(data[:3])
-
-                # Apply the proper animated data
-                # bone_ref_mat = bone.matrix.copy()
-                for i, frame in enumerate(anim_data['AnimFrameData']):
-                    # First apply the required transforms
-                    for key, value in animated_data.items():
-                        data = frame[key][value]
-                        if key == 'Translation':
-                            location = Vector(data[:3])
-                        elif key == 'Rotation':
-                            # move the w value to the start to initialize the
-                            # quaternion
-                            rotation = Quaternion([data[3], data[0], data[1],
-                                                   data[2]])
-                        elif key == 'Scale':
-                            scale = Vector(data[:3])
-
-                    delta_loc = location - self.bind_matrices[name][0]
-                    delta_rot = rotation.rotation_difference(
-                        self.bind_matrices[name][1])
-                    ref_scale = self.bind_matrices[name][2]
-                    delta_sca = Vector((scale[0]/ref_scale[0],
-                                        scale[1]/ref_scale[1],
-                                        scale[2]/ref_scale[2]))
-
-                    bone.location = delta_loc
-                    bone.rotation_quaternion = delta_rot
-                    bone.scale = delta_sca
-                    # For each transform applied, add a keyframe
-                    for key in ['Translation', 'Rotation', 'Scale']:
-                        if key in still_data:
-                            if i == 0 or i == num_frames - 1:
-                                self._apply_pose_data(bone, DATA_PATH_MAP[key],
-                                                      i, action_name)
-                        elif key in animated_data:
-                            self._apply_pose_data(bone, DATA_PATH_MAP[key],
-                                                  i, action_name)
 
     def _add_bone_to_scene(self, scene_node, armature):
         bone = armature.edit_bones.new(scene_node.Name)
@@ -502,12 +373,21 @@ class ImportScene():
         # Ironically, the inverse bind matrix is strored uninverted, and the
         # bind matrix is stored inverted...
         self.inv_bind_matrices[scene_node.Name] = inv_bind_matrix
+        self.scn.objects[scene_node.Name]['bind_data'] = (
+            Vector(bind_trans[:3]),
+            Quaternion((bind_rot[3],
+                        bind_rot[0],
+                        bind_rot[1],
+                        bind_rot[2])),
+            Vector(bind_sca[:3]))
+        """
         self.bind_matrices[scene_node.Name] = (Vector(bind_trans[:3]),
                                                Quaternion((bind_rot[3],
                                                            bind_rot[0],
                                                            bind_rot[1],
                                                            bind_rot[2])),
                                                Vector(bind_sca[:3]))
+        """
         if _parent is not None:
             bone.matrix = self.inv_bind_matrices[_parent.name]
         bone.tail = inv_bind_matrix.inverted().to_translation()
@@ -600,6 +480,7 @@ class ImportScene():
             ref_scene_path = op.join(mod_dir,
                                      scene_node.Attribute('SCENEGRAPH'))
             if op.exists(ref_scene_path):
+                print('loading referenced scene: {0}'.format(ref_scene_path))
                 sub_scene = ImportScene(ref_scene_path, empty_obj,
                                         self.ref_scenes, self.settings)
                 if sub_scene.requires_render:
@@ -872,100 +753,6 @@ class ImportScene():
             bh_obj.parent = mesh_obj
             self.scn.objects.link(bh_obj)
 
-    def _apply_animdata_to_fcurves(self, fcurves, mapping, anim_data,
-                                   use_null_transform):
-        """ Apply the supplied animation data to the fcurves.
-
-        Parameters
-        ----------
-        fcurves : tuple of namedtuples.
-            A Tuple containing the location, rotation and scaling nameduples.
-        mapping : dict
-            Information describing what components are still frame and which
-            are animated.
-        anim_data : dict
-            The actual animation data
-        use_null_transform : bool
-            If true, then the joints shouldn't be animated as there are bones
-            which will provide the animation data.
-        """
-        loc, rot, sca = fcurves
-        num_frames = anim_data['FrameCount']
-        # If we are using the null transforms, just make all animations still
-        # frame.
-        if use_null_transform:
-            self._apply_stillframe_data(loc.x, 0, num_frames)
-            self._apply_stillframe_data(loc.y, 0, num_frames)
-            self._apply_stillframe_data(loc.z, 0, num_frames)
-            self._apply_stillframe_data(rot.x, 0, num_frames)
-            self._apply_stillframe_data(rot.y, 0, num_frames)
-            self._apply_stillframe_data(rot.z, 0, num_frames)
-            self._apply_stillframe_data(rot.w, 1, num_frames)
-            self._apply_stillframe_data(sca.x, 1, num_frames)
-            self._apply_stillframe_data(sca.y, 1, num_frames)
-            self._apply_stillframe_data(sca.z, 1, num_frames)
-            return
-        # Apply still frame data first.
-        still_data = mapping['still']
-        for key, value in still_data.items():
-            data = anim_data['StillFrameData'][key][value]
-            if key == 'Translation':
-                self._apply_stillframe_data(loc.x, data[0], num_frames)
-                self._apply_stillframe_data(loc.y, data[1], num_frames)
-                self._apply_stillframe_data(loc.z, data[2], num_frames)
-            elif key == 'Rotation':
-                self._apply_stillframe_data(rot.x, data[0], num_frames)
-                self._apply_stillframe_data(rot.y, data[1], num_frames)
-                self._apply_stillframe_data(rot.z, data[2], num_frames)
-                self._apply_stillframe_data(rot.w, data[3], num_frames)
-            elif key == 'Scale':
-                self._apply_stillframe_data(sca.x, data[0], num_frames)
-                self._apply_stillframe_data(sca.y, data[1], num_frames)
-                self._apply_stillframe_data(sca.z, data[2], num_frames)
-        animated_data = mapping['anim']
-        for key, value in animated_data.items():
-            if key == 'Translation':
-                loc.x.keyframe_points.add(num_frames)
-                loc.y.keyframe_points.add(num_frames)
-                loc.z.keyframe_points.add(num_frames)
-            elif key == 'Rotation':
-                rot.x.keyframe_points.add(num_frames)
-                rot.y.keyframe_points.add(num_frames)
-                rot.z.keyframe_points.add(num_frames)
-                rot.w.keyframe_points.add(num_frames)
-            elif key == 'Scale':
-                sca.x.keyframe_points.add(num_frames)
-                sca.y.keyframe_points.add(num_frames)
-                sca.z.keyframe_points.add(num_frames)
-            for i, frame in enumerate(anim_data['AnimFrameData']):
-                data = frame[key][value]
-                if key == 'Translation':
-                    self._apply_animframe_data(loc.x, data[0], i)
-                    self._apply_animframe_data(loc.y, data[1], i)
-                    self._apply_animframe_data(loc.z, data[2], i)
-                elif key == 'Rotation':
-                    self._apply_animframe_data(rot.x, data[0], i)
-                    self._apply_animframe_data(rot.y, data[1], i)
-                    self._apply_animframe_data(rot.z, data[2], i)
-                    self._apply_animframe_data(rot.w, data[3], i)
-                elif key == 'Scale':
-                    self._apply_animframe_data(sca.x, data[0], i)
-                    self._apply_animframe_data(sca.y, data[1], i)
-                    self._apply_animframe_data(sca.z, data[2], i)
-
-    def _apply_animframe_data(self, fcurve, data, frame):
-        fcurve.keyframe_points[int(frame)].co = float(frame), float(data)
-
-    def _apply_stillframe_data(self, fcurve, data, num_frame):
-        fcurve.keyframe_points.add(2)
-        fcurve.keyframe_points[0].co = 0.0, float(data)
-        fcurve.keyframe_points[0].interpolation = 'CONSTANT'
-        fcurve.keyframe_points[1].co = float(num_frame - 1), float(data)
-        fcurve.keyframe_points[1].interpolation = 'CONSTANT'
-
-    def _apply_pose_data(self, bone, _type, frame, name):
-        bone.keyframe_insert(data_path=_type, frame=frame, group=name)
-
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """
         for obj in bpy.data.objects:
@@ -990,63 +777,6 @@ class ImportScene():
         _rotation = [rotation[3], rotation[0], rotation[1], rotation[2]]
         mat_rot = Quaternion(_rotation).to_matrix().to_4x4()
         return mat_loc * mat_rot * mat_sca
-
-    def _create_anim_channels(self, obj, anim_name):
-        """ Generate all the channels required for the animation.
-
-        Parameters
-        ----------
-        obj : Blender object
-            The object to create the anim channels on.
-        anim_name : str
-            Name of the animation so that all fcurves are in the same group.
-
-        Returns
-        -------
-        Tuple of collections.namedtuple's:
-            (location, rotation, scale)
-        """
-        location = namedtuple('location', ['x', 'y', 'z'])
-        rotation = namedtuple('rotation', ['x', 'y', 'z', 'w'])
-        scale = namedtuple('scale', ['x', 'y', 'z'])
-        loc_x = obj.animation_data.action.fcurves.new(data_path='location',
-                                                      index=0,
-                                                      action_group=anim_name)
-        loc_y = obj.animation_data.action.fcurves.new(data_path='location',
-                                                      index=1,
-                                                      action_group=anim_name)
-        loc_z = obj.animation_data.action.fcurves.new(data_path='location',
-                                                      index=2,
-                                                      action_group=anim_name)
-        loc = location(loc_x, loc_y, loc_z)
-        rot_w = obj.animation_data.action.fcurves.new(
-            data_path='rotation_quaternion',
-            index=0,
-            action_group=anim_name)
-        rot_x = obj.animation_data.action.fcurves.new(
-            data_path='rotation_quaternion',
-            index=1,
-            action_group=anim_name)
-        rot_y = obj.animation_data.action.fcurves.new(
-            data_path='rotation_quaternion',
-            index=2,
-            action_group=anim_name)
-        rot_z = obj.animation_data.action.fcurves.new(
-            data_path='rotation_quaternion',
-            index=3,
-            action_group=anim_name)
-        rot = rotation(rot_x, rot_y, rot_z, rot_w)
-        sca_x = obj.animation_data.action.fcurves.new(data_path='scale',
-                                                      index=0,
-                                                      action_group=anim_name)
-        sca_y = obj.animation_data.action.fcurves.new(data_path='scale',
-                                                      index=1,
-                                                      action_group=anim_name)
-        sca_z = obj.animation_data.action.fcurves.new(data_path='scale',
-                                                      index=2,
-                                                      action_group=anim_name)
-        sca = scale(sca_x, sca_y, sca_z)
-        return (loc, rot, sca)
 
     def _create_material(self, mat_path):
         # retrieve a cached copy if it exists
@@ -1377,6 +1107,33 @@ class ImportScene():
                 if joint.Name == name:
                     return joint
         return None
+
+    def _fix_anim_data(self, local_anims, mod_dir):
+        """ Replace an implicitly named animation with a name and a path. """
+        _loadable_anim_data = self.scn.nmsdk_anim_data.loadable_anim_data
+        # Make a copy of the dictionary to avoid modifying it while iterating
+        # over its values.
+        local_anims_copy = local_anims.copy()
+        for anim_name, anim_data in local_anims_copy.items():
+            if anim_data['Filename'] == '':
+                # In this case we are using the implicit animation data
+                fpath = self.geometry_file.replace('GEOMETRY.MBIN.PC',
+                                                   'ANIM.MBIN')
+                # Update the loadable anim data dictionary with the new
+                # name. We only want to do this if the animation file
+                # actually exists.
+                del _loadable_anim_data['']
+                del local_anims['']
+                if op.exists(fpath):
+                    anim_data['Filename'] = fpath
+                    _loadable_anim_data.update({'_DEFAULT': anim_data})
+                    local_anims.update({'_DEFAULT': anim_data})
+            else:
+                fpath = op.join(mod_dir, anim_data['Filename'])
+                _loadable_anim_data[anim_name]['Filename'] = fpath
+                local_anims[anim_name]['Filename'] = fpath
+
+        return local_anims
 
     def _get_material_path(self, scene_node):
         real_path = None
