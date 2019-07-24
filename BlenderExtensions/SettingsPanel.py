@@ -79,34 +79,35 @@ class AnimationsPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        try:
-            if context.scene['_anim_names'] == []:
-                layout.label(text="No loaded animations")
-            else:
-                try:
-                    anim_choice_text = 'Current animation: {0}'.format(
-                        context.scene['curr_anim'])
-                except KeyError:
-                    anim_choice_text = 'Select an animation'
-                layout.operator_menu_enum("nmsdk._change_animation",
-                                          "anim_names",
-                                          text=anim_choice_text)
-                """
-                try:
-                    layout.label(text="Current animation: {0}".format(
-                        context.scene['curr_anim']))
-                except KeyError:
-                    layout.label(text="No animation currently selected")
-                """
-                row = layout.row()
-                row.operator("nmsdk._play_animation",
-                             icon='PLAY', emboss=False)
-                row.operator("nmsdk._pause_animation",
-                             icon='PAUSE', emboss=False)
-                row.operator("nmsdk._stop_animation",
-                             icon='REW', emboss=False)
-        except KeyError:
+        anim_data = context.scene.nmsdk_anim_data
+        if anim_data.anims_loaded is False:
+            if len(anim_data.loadable_anim_data) != 0:
+                # In this case, have a menu to allow for the animations to be
+                # loaded
+                layout.operator_menu_enum('nmsdk._load_animation',
+                                          'loadable_anim_name',
+                                          text='Add an animation')
+        anim_names = anim_data.loaded_anims
+        if not isinstance(anim_names, list):
+            anim_names = anim_data.loaded_anims.to_list()
+        if anim_names == ['None']:
             layout.label(text="No loaded animations")
+        else:
+            try:
+                anim_choice_text = 'Current animation: {0}'.format(
+                    context.scene['curr_anim'])
+            except KeyError:
+                anim_choice_text = 'Select an animation'
+            layout.operator_menu_enum("nmsdk._change_animation",
+                                      "anim_names",
+                                      text=anim_choice_text)
+            row = layout.row()
+            row.operator("nmsdk._play_animation",
+                         icon='PLAY', emboss=False)
+            row.operator("nmsdk._pause_animation",
+                         icon='PAUSE', emboss=False)
+            row.operator("nmsdk._stop_animation",
+                         icon='REW', emboss=False)
 
 
 class SettingsPanels():

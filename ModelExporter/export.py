@@ -497,9 +497,7 @@ class Export():
                 elif obj._Type == 'MODEL':
                     obj.Name = self.path
                     data = {'GEOMETRY': str(self.path) + ".GEOMETRY.MBIN"}
-                elif obj._Type == 'REFERENCE':
-                    data = None
-                elif obj._Type == 'LIGHT':
+                elif obj._Type in ['REFERENCE', 'LIGHT', 'JOINT']:
                     data = None
             obj.create_attributes(data)
 

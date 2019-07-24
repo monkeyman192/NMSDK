@@ -92,16 +92,7 @@ def read_entity(fname):
         animation data.
     """
 
-    def read_TkAnimationComponentData(f):
-        data = dict()
-        # Read the anim name and path into the data dictionary
-        data['Anim'] = read_string(f, 0x10)
-        data['Filename'] = read_string(f, 0x80)
-        # Move the pointer to the end of the TkAnimationComponentData struct
-        f.seek(0xA8, 1)
-        return data
-
-    anim_data = list()
+    anim_data = dict()
     with open(fname, 'rb') as f:
         f.seek(0x60)
         has_anims = False
@@ -120,10 +111,12 @@ def read_entity(fname):
             return anim_data
         # Jump to the start of the struct
         f.seek(return_offset + offset)
-        anim_data.append(read_TkAnimationComponentData(f))
+        _anim_data = read_TkAnimationComponentData(f)
+        anim_data[_anim_data.pop('Anim')] = _anim_data
         with ListHeader(f) as anims:
             for _ in range(anims.count):
-                anim_data.append(read_TkAnimationComponentData(f))
+                _anim_data = read_TkAnimationComponentData(f)
+                anim_data[_anim_data.pop('Anim')] = _anim_data
         return anim_data
 
 
@@ -171,6 +164,49 @@ def read_material(fname):
             data['Samplers'][name] = Map
             if i != list_count - 1:
                 f.seek(0x38, 1)
+
+    return data
+
+
+def read_mesh_binding_data(fname):
+    """ Read the data relating to mesh/joint bindings from the geometry file.
+
+    Returns
+    -------
+    data : dict
+        All the relevant data from the geometry file
+    """
+    data = dict()
+    with open(fname, 'rb') as f:
+        # First, check that there is data to read. If not, then return nothing
+        f.seek(0x78)
+        if struct.unpack('<I', f.read(0x4))[0] == 0:
+            return
+        # Read joint binding data
+        f.seek(0x70)
+        data['JointBindings'] = list()
+        with ListHeader(f) as JointBindings:
+            for _ in range(JointBindings.count):
+                jb_data = dict()
+                fmt = '<' + 'f' * 0x10
+                jb_data['InvBindMatrix'] = struct.unpack(fmt, f.read(0x40))
+                jb_data['BindTranslate'] = struct.unpack('<fff', f.read(0xC))
+                jb_data['BindRotate'] = struct.unpack('<ffff', f.read(0x10))
+                jb_data['BindScale'] = struct.unpack('<fff', f.read(0xC))
+                data['JointBindings'].append(jb_data)
+        # skip to the skin matrix layout data
+        f.seek(0xB0)
+        with ListHeader(f) as SkinMatrixLayout:
+            fmt = '<' + 'I' * SkinMatrixLayout.count
+            data_size = 4 * SkinMatrixLayout.count
+            data['SkinMatrixLayout'] = struct.unpack(fmt, f.read(data_size))
+
+        # skip to the MeshBaseSkinMat data
+        f.seek(0x100)
+        with ListHeader(f) as MeshBaseSkinMat:
+            fmt = '<' + 'I' * MeshBaseSkinMat.count
+            data_size = 4 * MeshBaseSkinMat.count
+            data['MeshBaseSkinMat'] = struct.unpack(fmt, f.read(data_size))
 
     return data
 
@@ -230,3 +266,13 @@ def read_gstream(fname, info):
         f.seek(info.idx_off)
         indexes = f.read(info.idx_size)
     return verts, indexes
+
+
+def read_TkAnimationComponentData(f):
+    """ Extract the animation name and path from the entity file. """
+    data = dict()
+    data['Anim'] = read_string(f, 0x10)
+    data['Filename'] = read_string(f, 0x80)
+    # Move the pointer to the end of the TkAnimationComponentData struct
+    f.seek(0xA8, 1)
+    return data

@@ -7,9 +7,11 @@ from .Empty import Empty  # noqa
 from .Object import (Locator, Light, Mesh, Joint, Emitter, Collision, Model,  # noqa
                      Reference)
 from .Vector4f import Vector4f  # noqa
+from .Quaternion import Quaternion  # noqa
 from .NMSString0x10 import NMSString0x10  # noqa
 from .NMSString0x20 import NMSString0x20  # noqa
 from .NMSString0x80 import NMSString0x80  # noqa
+
 from .TkAttachmentData import TkAttachmentData  # noqa
 from .TkVertexLayout import TkVertexLayout  # noqa
 from .TkVertexElement import TkVertexElement  # noqa
