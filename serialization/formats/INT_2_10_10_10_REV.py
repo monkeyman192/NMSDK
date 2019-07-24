@@ -32,12 +32,6 @@ def twos_complement(input_value, num_bits):
     return -(input_value & mask) + (input_value & ~mask)
 
 
-"""def bin_to_signed_int(b):
-    # this will take a binary number and return the signed int of it
-    sgn = b >> 9    # this the most significant bit
-    if sgn == 1:"""
-
-
 def write_int_2_10_10_10_rev(verts):
     """
     writes the verts to a INT_2_10_10_10_REV

@@ -20,7 +20,7 @@ from ..NMS.classes import (TkMaterialData, TkMaterialFlags,
 # Animation objects
 from ..NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
 from ..NMS.classes import TkAnimationComponentData, TkAnimationData
-from ..NMS.classes import List, Vector4f
+from ..NMS.classes import List, Vector4f, Quaternion
 from ..NMS.classes import TkAttachmentData
 # Object Classes
 from ..NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
@@ -494,10 +494,10 @@ class Exporter():
                                                          t=1.0))
                         elif i == 1:
                             rot = action_data[node][frame][1]
-                            Rotations.append(Vector4f(x=rot.x,
-                                                      y=rot.y,
-                                                      z=rot.z,
-                                                      t=rot.w))
+                            Rotations.append(Quaternion(x=rot.x,
+                                                        y=rot.y,
+                                                        z=rot.z,
+                                                        w=rot.w))
                         elif i == 2:
                             scale = action_data[node][frame][2]
                             Scales.append(Vector4f(x=scale.x,
@@ -520,10 +520,10 @@ class Exporter():
                                                           t=1.0))
                     elif i == 1:
                         rot = action_data[node][0][1]
-                        stillRotations.append(Vector4f(x=rot.x,
-                                                       y=rot.y,
-                                                       z=rot.z,
-                                                       t=rot.w))
+                        stillRotations.append(Quaternion(x=rot.x,
+                                                         y=rot.y,
+                                                         z=rot.z,
+                                                         w=rot.w))
                     elif i == 2:
                         scale = action_data[node][0][2]
                         stillScales.append(Vector4f(x=scale.x,
@@ -722,7 +722,7 @@ class Exporter():
 
         # get the objects' location and convert to NMS coordinates
         trans, rot_q, scale = transform_to_NMS_coords(ob)
-        rot = rot_q.to_euler()
+        rot = rot_q.to_euler()      # TODO: should be 'ZXY'??
 
         transform = TkTransformData(TransX=trans[0],
                                     TransY=trans[1],
