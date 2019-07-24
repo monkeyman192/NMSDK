@@ -246,6 +246,8 @@ class Exporter():
                    anim,
                    descriptor)
 
+        self.assign_anim_data()
+
         self.global_scene.frame_set(0)
 
         self.state = 'FINISHED'
@@ -999,7 +1001,7 @@ class Exporter():
     def process_anims(self):
         # get all the data. We will then consider number of actions globally
         # and process the entity stuff accordingly
-        anim_loops = dict()
+        self.anim_loops = dict()
         for anim_name in self.animation_anim_data:
             print("processing anim {}".format(anim_name))
             action_data = dict()
@@ -1020,7 +1022,7 @@ class Exporter():
                 # requisite key.
                 action_data[jnt_action[0]] = list()
                 # set whether or not the animation is to loop
-                anim_loops[anim_name] = self.global_scene.objects[
+                self.anim_loops[anim_name] = self.global_scene.objects[
                     jnt_action[0]].NMSAnimation_props.anim_loops_choice
 
             # Let's hope none of the anims have different amounts of frames...
@@ -1060,6 +1062,8 @@ class Exporter():
             # particular action
             self.anim_frame_data[anim_name] = action_data
             self.anim_node_data[anim_name] = nodes_with_anim
+
+    def assign_anim_data(self):
         # now semi-process the animation data to generate data for the
         # animation controller entity file
         if len(self.anim_frame_data) == 1:
@@ -1067,7 +1071,8 @@ class Exporter():
             path = os.path.join(self.basepath, self.group_name.upper(),
                                 self.export_name.upper())
             anim_entity = TkAnimationComponentData(
-                Idle=TkAnimationData(AnimType=list(anim_loops.values())[0]))
+                Idle=TkAnimationData(
+                    AnimType=list(self.anim_loops.values())[0]))
             # update the entity data directly
             self.anim_controller_obj[1].ExtraEntityData[
                 self.anim_controller_obj[0]].append(anim_entity)
