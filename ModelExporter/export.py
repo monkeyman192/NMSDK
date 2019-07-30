@@ -659,7 +659,6 @@ class Export():
 
     def write(self):
         # write each of the exml files.
-        # self.TkGeometryData.tree.write("{}.GEOMETRY.exml".format(self.path))
         mbinc = mbinCompiler(self.TkGeometryData,
                              "{}.GEOMETRY.MBIN.PC".format(self.path))
         mbinc.serialize()

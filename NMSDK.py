@@ -22,8 +22,39 @@ class ImportSceneOperator(Operator):
 
     path = StringProperty(default="")
 
+    clear_scene = BoolProperty(
+        name='Clear scene',
+        description='Whether or not to clear the currently exiting scene in '
+                    'blender.',
+        default=True)
+
+    draw_hulls = BoolProperty(
+        name='Draw bounded hulls',
+        description='Whether or not to draw the points that make up the '
+                    'bounded hulls of the materials. This is only for research'
+                    '/debugging, so can safely be left as False.',
+        default=False)
+    import_collisions = BoolProperty(
+        name='Import collisions',
+        description='Whether or not to import the collision objects.',
+        default=True)
+    show_collisions = BoolProperty(
+        name='Draw collisions',
+        description='Whether or not to draw the collision objects.',
+        default=False)
+    import_bones = BoolProperty(
+        name='Import bones',
+        description="Whether or not to import the models' bones",
+        default=False)
+    load_anims = BoolProperty(
+        name='Load all animations',
+        description='Whether or not to load all the animation data initially',
+        default=True)
+
     def execute(self, context):
-        importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict())
+        keywords = self.as_keywords()
+        importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict(),
+                               settings=keywords)
         importer.render_scene()
         return importer.state
 
