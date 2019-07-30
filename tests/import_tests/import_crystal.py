@@ -17,4 +17,4 @@ assert_or_exit(res == {'FINISHED'}, 1)
 # Then, we can check that some values of the scene are correct...
 assert_or_exit('_Crystal_A' in bpy.data.objects, 2)
 crystal_ob = bpy.data.objects['_Crystal_A']
-assert_or_exit(len(crystal_ob.data.vertices) == 852, 4)
+assert_or_exit(len(crystal_ob.data.vertices) == 852, 3)
