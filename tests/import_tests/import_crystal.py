@@ -4,7 +4,7 @@ import os
 import os.path as op
 # We need a weird import path so that the function can be imported when running
 # blender from subprocess with pytest...
-from nmsdk.utils.test_helpers import assert_or_exit
+from nmsdk.utils.test_helpers import assert_or_exit  # noqa pylint: disable=import-error, no-name-in-module
 
 
 # Path is relative to the plugin directory

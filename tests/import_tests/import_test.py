@@ -1,7 +1,7 @@
 import subprocess
 
 
-CRYSTAL_TEST_PATH = "C:\\Program Files\\Blender Foundation\\Blender\\2.79\\scripts\\addons\\nmsdk\\tests\\import_tests\\import_crystal.py"
+CRYSTAL_TEST_PATH = "C:\\Program Files\\Blender Foundation\\Blender\\2.79\\scripts\\addons\\nmsdk\\tests\\import_tests\\import_crystal.py"  # noqa
 
 
 def test_import_crystal():
