@@ -14,9 +14,3 @@ class Quaternion(Struct):
         self.data['z'] = kwargs.get('z', 0.0)
         self.data['w'] = kwargs.get('w', 0.0)
         """ End of the struct contents"""
-
-    def __bytes__(self):
-        return write_int_2_10_10_10_rev([self.data['x'],
-                                         self.data['y'],
-                                         self.data['z'],
-                                         self.data['w']])
