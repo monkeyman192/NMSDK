@@ -120,7 +120,7 @@ class ImportScene():
         # change to render with cycles
         self.scn.render.engine = 'CYCLES'
 
-        if not op.exists(mbin_fpath):
+        if not op.exists(exml_fpath):
             retcode = subprocess.call(["MBINCompiler", '-q', fpath],
                                       shell=True)
             if retcode != 0:
