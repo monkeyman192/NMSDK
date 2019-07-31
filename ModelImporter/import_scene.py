@@ -1119,11 +1119,15 @@ class ImportScene():
                 # In this case we are using the implicit animation data
                 fpath = self.geometry_file.replace('GEOMETRY.MBIN.PC',
                                                    'ANIM.MBIN')
+                # If the anim name is empty, replace it with a new one called
+                # "_DEFAULT"
+                if anim_name == '':
+                    del _loadable_anim_data['']
+                    del local_anims['']
+                    anim_name = '_DEFAULT'
                 # Update the loadable anim data dictionary with the new
                 # name. We only want to do this if the animation file
                 # actually exists.
-                del _loadable_anim_data['']
-                del local_anims['']
                 if op.exists(fpath):
                     anim_data['Filename'] = fpath
                     _loadable_anim_data.update({'_DEFAULT': anim_data})

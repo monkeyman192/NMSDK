@@ -9,6 +9,7 @@ TESTS_PATH = 'tests\\import_tests'
 
 CRYSTAL_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH, 'import_crystal.py')
 BAD_IMPORT_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH, 'import_bad.py')
+SMALLPROPA_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH, 'import_smallpropa.py')
 
 
 def run_test(test_path):
@@ -23,8 +24,13 @@ def run_test(test_path):
 
 
 def test_import_crystal():
-    # Test the importing of the crystal model
+    # Test the importing of a model with mesh collisions
     run_test(CRYSTAL_TEST_PATH)
+
+
+def test_import_smallpropa():
+    # Test the importing of a model with animations
+    run_test(SMALLPROPA_TEST_PATH)
 
 
 @pytest.mark.skip(reason="Test doesn't work yet... :(")
