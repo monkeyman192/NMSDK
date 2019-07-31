@@ -6,6 +6,10 @@ CRYSTAL_TEST_PATH = "C:\\Program Files\\Blender Foundation\\Blender\\2.79\\scrip
 
 def test_import_crystal():
     proc = subprocess.Popen(['blender', '-b', '-noaudio',
-                             '--python', CRYSTAL_TEST_PATH], shell=True)
-    proc.wait()
-    assert proc.returncode == 0
+                             '--python', CRYSTAL_TEST_PATH],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    # Capture the stderr
+    _, stderr = proc.communicate()
+    # Ensure that there were no errors
+    assert stderr.decode() == ''
