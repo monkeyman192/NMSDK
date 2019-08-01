@@ -15,8 +15,21 @@ def CompareMatrices(mat1, mat2, tol):
 
 def ContinuousCompare(lst, tol):
     """
-    Takes a list of tuples, and each element is compared to the next one
-    Any tuple that changes has the index of it returned
+    Takes a list of tuples, and each element is compared to the next one.
+    Any tuple that changes has the index of it returned.
+
+    Parameters
+    ----------
+    lst : list of tuples
+        A list of tuples which are animation data.
+    tol : float
+        The minimum difference between two consecutive values before they are
+        considered different.
+
+    Returns
+    -------
+    changing_indices : set
+        The indexes that of the components of the tuple that change.
     """
     changing_indices = set()
     last_tup = None

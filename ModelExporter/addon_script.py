@@ -20,7 +20,7 @@ from ..NMS.classes import (TkMaterialData, TkMaterialFlags,
 # Animation objects
 from ..NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
 from ..NMS.classes import TkAnimationComponentData, TkAnimationData
-from ..NMS.classes import List, Vector4f
+from ..NMS.classes import List, Vector4f, Quaternion
 from ..NMS.classes import TkAttachmentData
 # Object Classes
 from ..NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
@@ -245,6 +245,8 @@ class Exporter():
                    scene,
                    anim,
                    descriptor)
+
+        self.assign_anim_data()
 
         self.global_scene.frame_set(0)
 
@@ -492,10 +494,10 @@ class Exporter():
                                                          t=1.0))
                         elif i == 1:
                             rot = action_data[node][frame][1]
-                            Rotations.append(Vector4f(x=rot.x,
-                                                      y=rot.y,
-                                                      z=rot.z,
-                                                      t=rot.w))
+                            Rotations.append(Quaternion(x=rot.x,
+                                                        y=rot.y,
+                                                        z=rot.z,
+                                                        w=rot.w))
                         elif i == 2:
                             scale = action_data[node][frame][2]
                             Scales.append(Vector4f(x=scale.x,
@@ -518,10 +520,10 @@ class Exporter():
                                                           t=1.0))
                     elif i == 1:
                         rot = action_data[node][0][1]
-                        stillRotations.append(Vector4f(x=rot.x,
-                                                       y=rot.y,
-                                                       z=rot.z,
-                                                       t=rot.w))
+                        stillRotations.append(Quaternion(x=rot.x,
+                                                         y=rot.y,
+                                                         z=rot.z,
+                                                         w=rot.w))
                     elif i == 2:
                         scale = action_data[node][0][2]
                         stillScales.append(Vector4f(x=scale.x,
@@ -720,7 +722,7 @@ class Exporter():
 
         # get the objects' location and convert to NMS coordinates
         trans, rot_q, scale = transform_to_NMS_coords(ob)
-        rot = rot_q.to_euler()
+        rot = rot_q.to_euler()      # TODO: should be 'ZXY'??
 
         transform = TkTransformData(TransX=trans[0],
                                     TransY=trans[1],
@@ -999,7 +1001,7 @@ class Exporter():
     def process_anims(self):
         # get all the data. We will then consider number of actions globally
         # and process the entity stuff accordingly
-        anim_loops = dict()
+        self.anim_loops = dict()
         for anim_name in self.animation_anim_data:
             print("processing anim {}".format(anim_name))
             action_data = dict()
@@ -1020,7 +1022,7 @@ class Exporter():
                 # requisite key.
                 action_data[jnt_action[0]] = list()
                 # set whether or not the animation is to loop
-                anim_loops[anim_name] = self.global_scene.objects[
+                self.anim_loops[anim_name] = self.global_scene.objects[
                     jnt_action[0]].NMSAnimation_props.anim_loops_choice
 
             # Let's hope none of the anims have different amounts of frames...
@@ -1060,6 +1062,8 @@ class Exporter():
             # particular action
             self.anim_frame_data[anim_name] = action_data
             self.anim_node_data[anim_name] = nodes_with_anim
+
+    def assign_anim_data(self):
         # now semi-process the animation data to generate data for the
         # animation controller entity file
         if len(self.anim_frame_data) == 1:
@@ -1067,7 +1071,8 @@ class Exporter():
             path = os.path.join(self.basepath, self.group_name.upper(),
                                 self.export_name.upper())
             anim_entity = TkAnimationComponentData(
-                Idle=TkAnimationData(AnimType=list(anim_loops.values())[0]))
+                Idle=TkAnimationData(
+                    AnimType=list(self.anim_loops.values())[0]))
             # update the entity data directly
             self.anim_controller_obj[1].ExtraEntityData[
                 self.anim_controller_obj[0]].append(anim_entity)

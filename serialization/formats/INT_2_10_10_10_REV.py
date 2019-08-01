@@ -32,12 +32,6 @@ def twos_complement(input_value, num_bits):
     return -(input_value & mask) + (input_value & ~mask)
 
 
-"""def bin_to_signed_int(b):
-    # this will take a binary number and return the signed int of it
-    sgn = b >> 9    # this the most significant bit
-    if sgn == 1:"""
-
-
 def write_int_2_10_10_10_rev(verts):
     """
     writes the verts to a INT_2_10_10_10_REV
@@ -53,16 +47,7 @@ def write_int_2_10_10_10_rev(verts):
             newverts[i] = a
         else:
             newverts[i] = (abs(a) ^ 0b1111111111) + 1
-    # flip the x and z
-    # newverts[0], newverts[2] = newverts[2], newverts[0]
 
     for i in range(4):
         out = out | (newverts[i] << i*10)
     return struct.pack('<I', out)
-
-
-if __name__ == "__main__":
-    # TODO: make test
-    data = read_int_2_10_10_10_rev(0x764361b3)
-    print(data)
-    print(write_int_2_10_10_10_rev(data))

@@ -58,3 +58,6 @@ textures/*
 
 # vscode files
 .vscode/
+
+# We only want to store .mbin files, any exml files generated during testing should be ignored...
+*.EXML

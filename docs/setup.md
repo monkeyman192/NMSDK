@@ -2,7 +2,7 @@
 
 Installing NMSDK is very easy. Head to the [NMSDK Release page](https://github.com/monkeyman192/NMSDK/releases) on GitHub and download the most recently released version.
 
-Open Blender and open the user settings (Ctrl + Alt + U), and select `Install Add-on from File...` (it is at the bottom left of the window).
+Open Blender and open the user settings (Ctrl + Alt + U) (or `File` > `User Preferences...`), and select `Install Add-on from File...` (it is at the bottom left of the window).
 Select the `.zip` file you just downloaded and blender should install it without any errors.
 
 To make exporting easier, NMSDK will automatically convert all produced `.exml` files to `.mbin` files. For this to work, *MBINCompiler* is required. See below for instructions on downloading and installing the latest version.

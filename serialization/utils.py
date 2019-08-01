@@ -75,6 +75,7 @@ def to_chr(string):
     return out_string
 
 
+# TODO: move the quaternion functions to a separate file as its own format
 def quat_drop_component(arr):
     """ Determine which component of the quaternion to drop. """
     max_loc = 0
@@ -93,6 +94,36 @@ def quat_drop_component(arr):
         else:
             max_loc = arr.index(max(condensed_arr))
     return max_loc
+
+
+def bytes_to_quat(data):
+    """ Reads a byte array to a quaternion. """
+    c_x, c_y, c_z = unpack('<HHH', data.read(0x6))
+    # Get most significant bit
+    i_x = c_x >> 0xF
+    i_y = c_y >> 0xF
+    # Determine which component was dropped
+    dropcomponent = (i_x << 1 | i_y << 0)
+    # Strip most significant bit
+    c_x = c_x & 0x7FFF
+    c_y = c_y & 0x7FFF
+    c_z = c_z & 0x7FFF
+    # generate quaternion components
+    q_x = (c_x - 0x3FFF) * (1 / 0x3FFF) * (1 / sqrt(2))
+    q_y = (c_y - 0x3FFF) * (1 / 0x3FFF) * (1 / sqrt(2))
+    q_z = (c_z - 0x3FFF) * (1 / 0x3FFF) * (1 / sqrt(2))
+    q_w = sqrt(max(0, 1 - q_x ** 2 - q_y ** 2 - q_z ** 2))
+    # Return quaternion in the correct order depending on drop component
+    if dropcomponent == 0:
+        return (q_x, q_y, q_z, q_w)
+    if dropcomponent == 1:
+        return (q_x, q_y, q_w, q_z)
+    if dropcomponent == 2:
+        return (q_x, q_w, q_y, q_z)
+    if dropcomponent == 3:
+        return (q_w, q_x, q_y, q_z)
+    # Default return case in case something goes wrong...
+    return (0, 0, 0, 0)
 
 
 def quat_to_hex(q):
@@ -121,14 +152,30 @@ def read_list_data(data, element_size):
     return return_data
 
 
-def read_list_header(data):
+def read_list_header(data, return_to_start=True):
     """
     Takes the 0x10 byte header and returns the relative offset and
     number of entries
+
+    Parameters
+    ----------
+    return_to_start : bool
+        Whether to return the data objects' pointer back to the start of the
+        list header or not.
     """
     offset, count = unpack('<QI', data.read(0xC))
-    data.seek(-0xC, 1)
+    if return_to_start:
+        data.seek(-0xC, 1)
+    else:
+        data.seek(0x4, 1)
     return offset, count
+
+
+def read_string(data, length):
+    """ Read a null terminated string. """
+    fmt = str(length) + 's'
+    string = unpack(fmt, data.read(length))[0].split(b'\x00')[0]
+    return string.decode()
 
 
 def serialize(x):
@@ -147,3 +194,9 @@ def serialize(x):
         # this should work because we can give custom classes a __bytes__ class
         # method so that it returns the goods!
         return bytes(x)
+
+
+if __name__ == "__main__":
+    from io import BytesIO
+    b = BytesIO(b'\xFF\x3F\xFF\x3F\xFF\x3F')
+    print(bytes_to_quat(b))

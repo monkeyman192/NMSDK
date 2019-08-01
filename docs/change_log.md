@@ -2,15 +2,21 @@
 
 ## Releases:
 
-### Current - v0.9.12
+### Current - v0.9.13
+
+ - Import process has been expanded to allow for animations to be imported. This includes both simple animations (one with just translation/rotation/scaling of nodes in the scene), as well as complex animations which involve skinned meshes and bones. Currently complex animations are still a bit broken, but hopefully they will be fixed in the future.
+ To see more details on what options are available for imported animations, see [here](importing/importing.md#import_settings).
+ - Tests have been added to NMSDK! This has no affect on the plugin itself, however if you clone the repo from github you will now notice a number of files from the game which are used to test the importing capabilities of NMSDK. This will be extended greatly in the future, but for now there is only the framework and a few simple tests.
+
+### Past:
+
+#### v0.9.12 (03/06/2019):
 
 - Add support for importing `Box`, `Cylinder` and `Sphere` type primitive collisions.
 - On import there is an option to allow for displaying the collisions which is false by default.
 - Display of collisions can be toggled by the button in the NMSDK side panel.
 - When importing models, importing collisions can be turned off so that no collision meshes appear in the scene.
 - Default values can be set for the `export path` and `group name` export properties in the NMSDK settings panel. These will persists across multiple sessions to make exporting multiple models in the same set easier.
-
-### Past:
 
 #### v0.9.11 (25/05/2019):
 
