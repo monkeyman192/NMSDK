@@ -1130,8 +1130,14 @@ class ImportScene():
                 # actually exists.
                 if op.exists(fpath):
                     anim_data['Filename'] = fpath
-                    _loadable_anim_data.update({'_DEFAULT': anim_data})
-                    local_anims.update({'_DEFAULT': anim_data})
+                    _loadable_anim_data.update({anim_name: anim_data})
+                    local_anims.update({anim_name: anim_data})
+                else:
+                    # If the path to the animation doesn't actually exist,
+                    # remove it from the list so that it isn't loaded
+                    if anim_name in _loadable_anim_data:
+                        del _loadable_anim_data[anim_name]
+                        del local_anims[anim_name]
             else:
                 fpath = op.join(mod_dir, anim_data['Filename'])
                 _loadable_anim_data[anim_name]['Filename'] = fpath
