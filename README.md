@@ -3,30 +3,48 @@
 # NMS Custom Model Importer (NMSDK)
 ## Experimental branch
 
-NMSDK is a blender plugin designed to allow the models to be added to No Man's Sky.
+NMSDK is a blender plugin designed to allow models to be added to No Man's Sky, as well as to load models from the games' data.
 
-### Requirements:
- - Blender is a free, open-souce 3D modelling program which can be downloaded [here](https://www.blender.org/download/).
- - [MBINCompiler](https://github.com/monkeyman192/MBINCompiler) which is used to convert the *exml* files produced into *mbin* files the game can read.
+### Installing NMSDK
 
-### Installation:
-The best way to install NMSDK is to clone the github repo using your favorite git client directly into the Blender addon cache, (generally) located at `C:\Users\<user name>\AppData\Roaming\Blender Foundation\Blender\2.78\scripts\addons`.
-By cloning the repo into this folder any time there is an update you can simply pull the most recent branch and the plugin will automatically be updated in blender (you will need to close to have changes applied).
-You also shouldn't need to actually install the plugin, it shoudl be visible in the list once the source code has been copied to the directory above.
+Installing NMSDK is very easy. Head to the [NMSDK Release page](https://github.com/monkeyman192/NMSDK/releases) on GitHub and download the most recently released version.
 
- - First, ensure you also have a recent copy of [MBINCompiler](https://github.com/monkeyman192/MBINCompiler/releases) placed in the `NMSDK` folder.
- - Open Blender, then navigate to the Add-on settings (File > User Preferences). Select the option to "Install from File", and select the `NMSDK.py` file in the root blender directory.
- - You're done and can now start on importing a model into the game!
- 
- ### Usage:
-The first thing you should always do when adding a new model to the game is to create an empty node in blender at the origin called `NMS_SCENE`. It is this object that **everything you want imported into the game MUST be a child of**. This it to provide a reference point for all objects and to allow for NMSDK to construct the correct hierarchy of objects, as well as to allow for custom UI elements to be generated.
+Open Blender and open the user settings (Ctrl + Alt + U) (or `File` > `User Preferences...`), and select `Install Add-on from File...` (it is at the bottom left of the window).
+Select the `.zip` file you just downloaded and blender should install it without any errors.
 
-If you are familiar with the blender interface, you will notice that there are a number of extra panels under the `Object` properties. These panels are what allow you to customise your data and specify how they should be expected to behave in NMS.
+To make exporting easier, NMSDK will automatically convert all produced `.exml` files to `.mbin` files. For this to work, *MBINCompiler* is required. See below for instructions on downloading and installing the latest version.
 
-For a far more detailed set of instructions, see the [documentation](/docs/NMSDK-tutorial.docx) (**Note: Currently outdated**)
+### Prerequisites
 
-#### Credits:
+#### Blender
+
+NMSDK requires a version of blender greater than or equal to 2.79.
+This is due to the model importer component to need a shader node that only exists with Blender 2.79 and above.
+
+NMSDK has not been tested for blender 2.80, however it is likely to not work, and support for 2.80 will not come until 2.80 is out of beta and is the latest official release.
+
+#### MBINCompiler
+
+For NMSDK to work, it requires [MBINCompiler](https://github.com/monkeyman192/MBINCompiler)
+to generate the *.mbin* files that are read by the game.
+The easiest way to have *MBINCompiler* set up is to download the most recent
+release and register *MBINCompiler* to the path so that it can be picked up
+anywhere by Blender.
+If you already have a version of *MBINCompiler* on your computer, ensure it is
+version **v1.78.0-pre1** or above. This can be found on the [MBINCompiler releases](https://github.com/monkeyman192/MBINCompiler/releases) page.
+
+For NMSDK to be able to use *MBINCompiler*, the program needs to be registered to the path so that it can be called from anywhere on your computer.
+Open the folder containing the `MBINCompiler.exe` you just downloaded, open this folder in command line, then enter `MBINCompiler.exe register`.
+This will add the folder the `.exe` is in to the system path, allowing NMSDK to be able to access the program from anywhere.
+
+---
+
+### Usage:
+
+For a comprehensive guide on using NMSDK, please visit the [documentation](https://monkeyman192.github.io/NMSDK/) for more details.
+
+### Credits:
  - Primarily coded and maintained by monkeyman192.
  - All functionality for extracting data from blender provided by Gregkwaste.
  - Thanks to GmrLeon for their assistance in converting structs to python for the entity construction.
- - And Big thanks to MsrSgtShooterPerson for the fantastic banner!
+ - And big thanks to MsrSgtShooterPerson for the fantastic banner!
