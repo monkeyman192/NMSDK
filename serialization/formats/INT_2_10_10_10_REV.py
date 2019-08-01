@@ -47,16 +47,7 @@ def write_int_2_10_10_10_rev(verts):
             newverts[i] = a
         else:
             newverts[i] = (abs(a) ^ 0b1111111111) + 1
-    # flip the x and z
-    # newverts[0], newverts[2] = newverts[2], newverts[0]
 
     for i in range(4):
         out = out | (newverts[i] << i*10)
     return struct.pack('<I', out)
-
-
-if __name__ == "__main__":
-    # TODO: make test
-    data = read_int_2_10_10_10_rev(0x764361b3)
-    print(data)
-    print(write_int_2_10_10_10_rev(data))

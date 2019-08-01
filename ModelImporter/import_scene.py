@@ -120,7 +120,7 @@ class ImportScene():
         # change to render with cycles
         self.scn.render.engine = 'CYCLES'
 
-        if not op.exists(mbin_fpath):
+        if not op.exists(exml_fpath):
             retcode = subprocess.call(["MBINCompiler", '-q', fpath],
                                       shell=True)
             if retcode != 0:
@@ -1119,15 +1119,25 @@ class ImportScene():
                 # In this case we are using the implicit animation data
                 fpath = self.geometry_file.replace('GEOMETRY.MBIN.PC',
                                                    'ANIM.MBIN')
+                # If the anim name is empty, replace it with a new one called
+                # "_DEFAULT"
+                if anim_name == '':
+                    del _loadable_anim_data['']
+                    del local_anims['']
+                    anim_name = '_DEFAULT'
                 # Update the loadable anim data dictionary with the new
                 # name. We only want to do this if the animation file
                 # actually exists.
-                del _loadable_anim_data['']
-                del local_anims['']
                 if op.exists(fpath):
                     anim_data['Filename'] = fpath
-                    _loadable_anim_data.update({'_DEFAULT': anim_data})
-                    local_anims.update({'_DEFAULT': anim_data})
+                    _loadable_anim_data.update({anim_name: anim_data})
+                    local_anims.update({anim_name: anim_data})
+                else:
+                    # If the path to the animation doesn't actually exist,
+                    # remove it from the list so that it isn't loaded
+                    if anim_name in _loadable_anim_data:
+                        del _loadable_anim_data[anim_name]
+                        del local_anims[anim_name]
             else:
                 fpath = op.join(mod_dir, anim_data['Filename'])
                 _loadable_anim_data[anim_name]['Filename'] = fpath
