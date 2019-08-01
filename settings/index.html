@@ -8,7 +8,7 @@
   
   
   <link rel="shortcut icon" href="../img/favicon.ico">
-  <title>Change log - NMSDK</title>
+  <title>NMSDK Settings Panel - NMSDK</title>
   <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
 
   <link rel="stylesheet" href="../css/theme.css" type="text/css" />
@@ -17,8 +17,8 @@
   
   <script>
     // Current page data
-    var mkdocs_page_name = "Change log";
-    var mkdocs_page_input_path = "change_log.md";
+    var mkdocs_page_name = "NMSDK Settings Panel";
+    var mkdocs_page_input_path = "settings.md";
     var mkdocs_page_url = null;
   </script>
   
@@ -105,21 +105,9 @@
     <a class="" href="../api/">API guide</a>
 	    </li>
           
-            <li class="toctree-l1 current">
+            <li class="toctree-l1">
 		
-    <a class="current" href="./">Change log</a>
-    <ul class="subnav">
-            
-    <li class="toctree-l2"><a href="#nmsdk-changelog">NMSDK Changelog</a></li>
-    
-        <ul>
-        
-            <li><a class="toctree-l3" href="#releases">Releases:</a></li>
-        
-        </ul>
-    
-
-    </ul>
+    <a class="" href="../change_log/">Change log</a>
 	    </li>
           
         </ul>
@@ -144,7 +132,7 @@
     
       
     
-    <li>Change log</li>
+    <li>NMSDK Settings Panel</li>
     <li class="wy-breadcrumbs-aside">
       
     </li>
@@ -154,49 +142,38 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="nmsdk-changelog">NMSDK Changelog</h1>
-<h2 id="releases">Releases:</h2>
-<h3 id="current-v0913">Current - v0.9.13</h3>
+                <h1 id="nmsdk-settings-panel">NMSDK Settings Panel</h1>
+<p>As part of the NMSDK plugin for blender, as settings panel available on the left-hand side of the screen is available in Object Mode.
+This panel provides a number of functions which are useful in the import and export processes.</p>
+<h2 id="update-tools">Update Tools:</h2>
+<p>This section provides a button which, when pressed, will update an older format exportable scene to the newest format. This simply renames the main scene and makes a few other little changes that are easy enough to do yourself, but this button will make it easier!</p>
+<h2 id="scene-tools">Scene Tools:</h2>
+<p>This section provides tool which can be used to modify the current scene. Currently the options are:</p>
 <ul>
-<li>Import process has been expanded to allow for animations to be imported. This includes both simple animations (one with just translation/rotation/scaling of nodes in the scene), as well as complex animations which involve skinned meshes and bones. Currently complex animations are still a bit broken, but hopefully they will be fixed in the future.
- To see more details on what options are available for imported animations, see <a href="../importing/importing/#import_settings">here</a>.</li>
-<li>Tests have been added to NMSDK! This has no affect on the plugin itself, however if you clone the repo from github you will now notice a number of files from the game which are used to test the importing capabilities of NMSDK. This will be extended greatly in the future, but for now there is only the framework and a few simple tests.</li>
+<li>Collision visibility.
+  This button toggles the visibility of collisions in the scene. This is useful for scenes with many collisions where you want to hide all of them to see the model more clearly.</li>
 </ul>
-<h3 id="past">Past:</h3>
-<h4 id="v0912-03062019">v0.9.12 (03/06/2019):</h4>
+<h2 id="default-values">Default values:</h2>
+<p>A number of default values can be set. These are written to a <code>.json</code> file so that they are persistent across session.
+These values are used for the export process and can be set manually there too, but if you are going to be exporting multiple files all in a separate group, it is useful to set the default value here to save yoruself time later.
+The current default values that can be set are:</p>
 <ul>
-<li>Add support for importing <code>Box</code>, <code>Cylinder</code> and <code>Sphere</code> type primitive collisions.</li>
-<li>On import there is an option to allow for displaying the collisions which is false by default.</li>
-<li>Display of collisions can be toggled by the button in the NMSDK side panel.</li>
-<li>When importing models, importing collisions can be turned off so that no collision meshes appear in the scene.</li>
-<li>Default values can be set for the <code>export path</code> and <code>group name</code> export properties in the NMSDK settings panel. These will persists across multiple sessions to make exporting multiple models in the same set easier.</li>
+<li>Export Directory:
+  This is the directory that would be relative to the PCBANKS folder in the games' files where the model is to be exported to.</li>
+<li>Group name:
+  This is the name of the subfolder of the Export Directory where the scene and all other files will be written to. If this is empty it will default to the name of the scene.</li>
 </ul>
-<h4 id="v0911-25052019">v0.9.11 (25/05/2019):</h4>
-<ul>
-<li>This version (FINALLY!) implements the exporting of mesh type collisions.</li>
-</ul>
-<p>To allow this the <code>Mesh</code> type has been re-enabled in the <code>Collision</code> node panel.
-Currently if you wish to export a mesh type collision, you need to apply the scale and rotation transforms to the mesh, otherwise your exported data will not have these values.</p>
-<h4 id="v0910-24052019">v0.9.10 (24/05/2019):</h4>
-<ul>
-<li>This version fixes a number of issues introduced in v0.9.9 when attempting to fix imports. Exports should now be far more stable.</li>
-</ul>
-<h4 id="v099-23052019">v0.9.9 (23/05/2019):</h4>
-<ul>
-<li>Vertex colour is now able to be exported. To add vertex colour to a model change the mode in blender to "Vertex Paint".</li>
-<li>Nested referenced scenes can also be exported. This gives complete flexibility to the way a scene is to be exported.</li>
-</ul>
+<p>The above two settings mean that your exported filepath will be <code>&lt;Export Directory&gt;/&lt;Group Name&gt;</code>.</p>
+<h2 id="animation-controls">Animation controls:</h2>
+<p>This section provides a number of controls relating to animation playback and loading.
+For models with less than 10 animations, all the animations will be loaded automatically unless the "Load all animations" import setting is unchecked.</p>
+<p>When a model with animations is loaded the list of available animations to play will be displayed in a drop-down menu, with convenient 'Play', 'Pause' and 'Stop' buttons.
+For models with extra animations to be loaded. A further drop-down menu is displayed which lists all the possible animations the scene contains and gives the option to load them one-by-one.
+NMSDK has this behaviour due to the fact that for scene with large numbers of nodes and animations, it takes prohibitively long to import all the animations (not to mention the blend file will get very large!).</p>
               
             </div>
           </div>
           <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-      
-        <a href="../api/" class="btn btn-neutral" title="API guide"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-      
-    </div>
   
 
   <hr/>
@@ -219,8 +196,6 @@ Currently if you wish to export a mesh type collision, you need to apply the sca
   <div class="rst-versions" role="note" style="cursor: pointer">
     <span class="rst-current-version" data-toggle="rst-current-version">
       
-      
-        <span><a href="../api/" style="color: #fcfcfc;">&laquo; Previous</a></span>
       
       
     </span>
