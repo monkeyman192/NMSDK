@@ -79,6 +79,58 @@ def read_anim(fname):
         return anim_data
 
 
+def read_descriptor(fname):
+    """ Read a descriptor.
+
+    This will recurse over the descriptor and retreive the names of the type
+    IDs.
+
+    Returns
+    -------
+    data : dict
+        key: value pair is the name of the type id and a list of object names
+    """
+    def read_TkModelDescriptorList(f):
+        data = list()
+        with ListHeader(f) as lst:
+            for _ in range(lst.count):
+                data.append(read_TkResourceDescriptorList(f))
+        return data
+
+    def read_TkResourceDescriptorList(f):
+        data = dict()
+        data['TypeID'] = read_string(f, 0x10)
+        data['Descriptors'] = list()
+        with ListHeader(f) as resources:
+            for _ in range(resources.count):
+                data['Descriptors'].append(read_TkResourceDescriptorData(f))
+        return data
+
+    def read_TkResourceDescriptorData(f):
+        data = dict()
+        data['Name'] = read_string(f, 0x20)
+        # Jump to the start of the list of Children
+        f.seek(0x98, 1)
+        data['Children'] = list()
+        with ListHeader(f) as children:
+            for _ in range(children.count):
+                offset = struct.unpack('<Q', f.read(0x8))[0]
+                struct_name = read_string(f, 0x40)
+                f.seek(-0x48, 1)
+                if struct_name == 'cTkModelDescriptorList':
+                    f.seek(offset, 1)
+                    data['Children'].append(read_TkModelDescriptorList(f))
+        return data
+    
+    #data = dict()
+    with open(fname, 'rb') as f:
+        f.seek(0x60)
+        # Read the descriptor into an un-flattened view
+        _data = read_TkModelDescriptorList(f)
+        # Now we need to flatten the information to be in a more useful format
+        return _data
+
+
 def read_entity(fname):
     """ Read an entity file.
 

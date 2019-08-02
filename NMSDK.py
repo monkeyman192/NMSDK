@@ -284,6 +284,10 @@ class NMSDKSettings(PropertyGroup):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    is_proc_gen = BoolProperty(
+        name='Scene is proc-gen',
+        description='Whether or not the scene has an associated descriptor',
+        default=False)
 
     def toggle_collision_visibility(self):
         """ Toggle the collision visibility state. """
@@ -424,6 +428,8 @@ class NMS_Import_Operator(Operator, ImportHelper):
         context.scene.nmsdk_settings.show_collisions = self.show_collisions
         # Reset the animation data
         context.scene.nmsdk_anim_data.reset()
+        # set the scene to be not procedurally generated
+        context.scene.nmsdk_settings.is_proc = False
         fdir = self.properties.filepath
         context.scene['_anim_names'] = ['None']
         print(fdir)

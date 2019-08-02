@@ -18,7 +18,7 @@ from ..serialization.utils import read_list_header  # noqa pylint: disable=relat
 from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
 from .readers import (read_material, read_metadata, read_gstream, read_anim,  # noqa pylint: disable=relative-beyond-top-level
-                      read_entity, read_mesh_binding_data)
+                      read_entity, read_mesh_binding_data, read_descriptor)
 from .utils import element_to_dict  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
@@ -107,6 +107,7 @@ class ImportScene():
         self.bh_data = list()
         self.materials = dict()
         self.entities = set()
+        self.descriptor_data = None
         self.animations = dict()
         # This list of joints is used to add all the bones if needed
         self.joints = list()
@@ -420,8 +421,12 @@ class ImportScene():
             bpy.ops.object.mode_set(mode='OBJECT')
             # check if the scene is proc-gen
             descriptor_name = op.basename(self.scene_name) + '.DESCRIPTOR.MBIN'
-            if op.exists(op.join(self.local_directory, descriptor_name)):
+            descriptor_fname = op.join(self.local_directory, descriptor_name)
+            if op.exists(descriptor_fname):
+                print('helloooooo')
                 empty_obj.NMSReference_props.is_proc = True
+                self.scn.nmsdk_settings.is_proc_gen = True
+                self.descriptor_data = read_descriptor(descriptor_fname)
             self.local_objects[scene_node] = empty_obj
             return
 

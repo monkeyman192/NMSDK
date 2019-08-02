@@ -110,6 +110,54 @@ class AnimationsPanel(bpy.types.Panel):
                          icon='REW', emboss=False)
 
 
+class DescriptorPanel(bpy.types.Panel):
+    bl_idname = 'DescriptorPanel'
+    bl_label = 'Descriptor handler'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
+    bl_category = 'NMSDK'
+    bl_context = 'objectmode'
+
+    groups = dict()
+
+    @classmethod
+    def poll(self, context):
+        return True
+
+    def determine_categories(self):
+        """ Determine the categories for each object based on the information.
+        """
+        # If the group data has already been determined, do nothing.
+        # TODO: This may need to change to be able to handle when the actual
+        # proc-gen structure of a scene changes.
+        if self.groups != dict():
+            return
+        # Otherwise, recurse over all the objects in the scene and determine
+        # all the group names and the objects existing in each group
+        for obj in bpy.context.scene.objects:
+            if obj.NMSReference_props.is_proc:
+                group_name = obj.NMSDescriptor_props.proc_prefix
+                if obj.NMSDescriptor_props.choice_types == 'Random':
+                    if group_name not in self.groups:
+                        self.groups[group_name] = [obj.name]
+                    else:
+                        self.groups[group_name].append(obj.name)
+
+    def draw(self, context):
+        layout = self.layout
+        # If the scene is not proc-gen, simply display a label saying so.
+        if context.scene.nmsdk_settings.is_proc_gen is False:
+            layout.label(text='Scene contains no procedurally generated '
+                              'elements')
+            return
+        # Otherwise, we want to display a number of things...
+        # For now while testing, let's just dyanimcally display some labels...
+        # First we need the categories
+        self.determine_categories()
+        for group_name in self.groups:
+            layout.label(text=str(group_name))
+
+
 class SettingsPanels():
 
     @staticmethod
@@ -119,6 +167,7 @@ class SettingsPanels():
         bpy.utils.register_class(ToolsPanel)
         bpy.utils.register_class(DefaultsPanel)
         bpy.utils.register_class(AnimationsPanel)
+        bpy.utils.register_class(DescriptorPanel)
 
     @staticmethod
     def unregister():
@@ -127,3 +176,4 @@ class SettingsPanels():
         bpy.utils.unregister_class(ToolsPanel)
         bpy.utils.unregister_class(DefaultsPanel)
         bpy.utils.unregister_class(AnimationsPanel)
+        bpy.utils.unregister_class(DescriptorPanel)
