@@ -687,14 +687,19 @@ class Export():
                                      "{}.ANIM.exml".format(name.upper())))
 
     def convert_to_mbin(self):
-        # passes all the files produced by
+        """ Convert all .exml file to .mbin files. """
         print('Converting .exml files to .mbin. Please wait.')
         for directory, _, files in os.walk(os.path.join(self.basepath,
                                                         self.directory)):
             for file in files:
                 location = os.path.join(directory, file)
-                if os.path.splitext(location)[1] == '.exml':
-                    retcode = subprocess.call(["MBINCompiler", location],
+                if os.path.splitext(location)[1].lower() == '.exml':
+                    # Force MBINCompiler to overwrite existing files and
+                    # ignore errors.
+                    # TODO: make this more robust and potentially allow for
+                    # some of these options to be specified on export...
+                    retcode = subprocess.call(["MBINCompiler", "-y", "-f",
+                                               location],
                                               shell=True)
                     if retcode == 0:
                         os.remove(location)
