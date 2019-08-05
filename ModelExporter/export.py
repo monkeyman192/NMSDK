@@ -179,7 +179,7 @@ class Export():
             os.makedirs(self.ent_path)
         if not os.path.exists(self.texture_path):
             os.makedirs(self.texture_path)
-        if not os.path.exists(self.anims_path) and len(self.anim_data) != 0:
+        if not os.path.exists(self.anims_path) and len(self.anim_data) > 1:
             os.makedirs(self.anims_path)
 
     def preprocess_streams(self):
