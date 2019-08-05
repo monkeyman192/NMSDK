@@ -22,7 +22,7 @@ class TkAnimationData(Struct):
         self.data['LoopOffsetMax'] = kwargs.get('LoopOffsetMax', 0)
         self.data['Delay'] = kwargs.get('Delay', 0)
         self.data['Speed'] = kwargs.get('Speed', 1)
-        self.data['ActionFrameStart'] = kwargs.get('ActionFrameStart', -1)
+        self.data['ActionFrameStart'] = kwargs.get('ActionFrameStart', 0)
         self.data['ActionFrame'] = kwargs.get('ActionFrame', -1)
         self.data['ControlCreatureSize'] = kwargs.get('ControlCreatureSize',
                                                       'AllSizes')
