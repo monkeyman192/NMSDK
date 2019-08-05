@@ -237,6 +237,9 @@ class Exporter():
             for sub_obj in obj.children:
                 self.parse_object(sub_obj, scene)
             anim = self.anim_generator()
+
+            self.assign_anim_data()
+
             mpath = os.path.dirname(os.path.abspath(exportpath))
             os.chdir(mpath)
             Export(name,
@@ -246,11 +249,9 @@ class Exporter():
                    anim,
                    descriptor)
 
-        self.assign_anim_data()
-
         self.global_scene.frame_set(0)
 
-        self.state = 'FINISHED'
+        self.state = {'FINISHED'}
 
     def select_only(self, ob):
         # sets only the provided object to be selected
@@ -463,8 +464,7 @@ class Exporter():
             print(ordered_nodes, 'ord nodes')
             for name in active_nodes:
                 # read from the ordered nodes data what goes in what order
-                # TODO: fix this
-                kwargs = {'Node': name[len("NMS_"):].upper(),
+                kwargs = {'Node': name.upper(),
                           'RotIndex': str(ordered_nodes[1].index(name)),
                           'TransIndex': str(ordered_nodes[0].index(name)),
                           'ScaleIndex': str(ordered_nodes[2].index(name))}
@@ -615,7 +615,7 @@ class Exporter():
         data_is_temp = False
         # Raise exception if UV Map is missing
         uvcount = len(data.uv_layers)
-        if (uvcount < 1):
+        if uvcount < 1:
             raise Exception("Missing UV Map")
 
         uv_layer_name = data.uv_layers.active.name
@@ -743,7 +743,6 @@ class Exporter():
             # ob.NMSEntity_props
             # check to see if the mesh's entity will get the action trigger
             # data
-            # TODO: use os.path.isfile? or something
             if ('/' in ob.NMSEntity_props.name_or_path or
                     '\\' in ob.NMSEntity_props.name_or_path):
                 # in this case just set the data to be a string with a path
@@ -828,7 +827,7 @@ class Exporter():
                 ScaleZ=trans_scale[2])
             optdict['CollisionType'] = colType
 
-            if (colType == "Mesh"):
+            if colType == "Mesh":
                 # Mesh collisions will only have convex hull data.
                 # We'll give them some "fake" vertex data which consists of
                 # no actual vertex data, but an index that doesn't point to
@@ -844,16 +843,16 @@ class Exporter():
                 optdict['CHVerts'] = chverts
                 optdict['CHIndexes'] = chindexes
             # Handle Primitives
-            elif (colType == "Box"):
+            elif colType == "Box":
                 optdict['Width'] = dims[0]/factor[0]
                 optdict['Depth'] = dims[2]/factor[2]
                 optdict['Height'] = dims[1]/factor[1]
-            elif (colType == "Sphere"):
+            elif colType == "Sphere":
                 # take the minimum value to find the 'base' size (effectively)
                 optdict['Radius'] = min([0.5*dims[0]/factor[0],
                                          0.5*dims[1]/factor[1],
                                          0.5*dims[2]/factor[2]])
-            elif (colType == "Cylinder"):
+            elif colType == "Cylinder":
                 optdict['Radius'] = min([0.5*dims[0]/factor[0],
                                          0.5*dims[2]/factor[2]])
                 optdict['Height'] = dims[1]/factor[1]
@@ -1056,8 +1055,6 @@ class Exporter():
                         nodes_with_anim[name] = d
                 else:
                     print('{0} has only StillFrameData!'.format(name))
-            print(nodes_with_anim, 'nodes with anims')
-            print(action_data)
             # add all the animation data to the anim frame data for the
             # particular action
             self.anim_frame_data[anim_name] = action_data
@@ -1067,6 +1064,7 @@ class Exporter():
         # now semi-process the animation data to generate data for the
         # animation controller entity file
         if len(self.anim_frame_data) == 1:
+            print('only one!')
             # in this case we only have the idle animation.
             path = os.path.join(self.basepath, self.group_name.upper(),
                                 self.export_name.upper())
@@ -1074,6 +1072,7 @@ class Exporter():
                 Idle=TkAnimationData(
                     AnimType=list(self.anim_loops.values())[0]))
             # update the entity data directly
+            print(self.anim_controller_obj[1].Name)
             self.anim_controller_obj[1].ExtraEntityData[
                 self.anim_controller_obj[0]].append(anim_entity)
             self.anim_controller_obj[1].rebuild_entity()
