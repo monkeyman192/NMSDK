@@ -31,7 +31,7 @@ class NMSEntityProperties(bpy.types.PropertyGroup):
         name="Has custom physics?",
         description=("If true an extra panel is added to specify some specific"
                      " custom physics properties"),
-        default=True)
+        default=False)
 
 
 class EntityItem(bpy.types.PropertyGroup):
@@ -1358,7 +1358,8 @@ class NMSEntities():
         bpy.utils.register_class(NMS_GcBaseBuildingTriggerAction_Properties)
         bpy.utils.register_class(NMS_GcInteractionActivationCost_Properties)
         bpy.utils.register_class(NMS_GcDiscoveryTypes_Properties)
-        bpy.utils.register_class(NMS_GcSimpleInteractionComponentData_Properties)  # noqa
+        bpy.utils.register_class(
+            NMS_GcSimpleInteractionComponentData_Properties)
         bpy.utils.register_class(NMS_GcInventoryTechProbability_Properties)
         bpy.utils.register_class(NMS_GcCustomInventoryComponentData_Properties)
         bpy.utils.register_class(NMS_GcAISpaceshipTypes_Properties)

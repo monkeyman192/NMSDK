@@ -172,9 +172,9 @@ class _LoadAnimation(Operator):
     bl_label = "Load Animation"
 
     loadable_anim_name = EnumProperty(
-            name='Available animations',
-            description='List of all available animations for the scene',
-            items=get_loaded_anim_names)
+        name='Available animations',
+        description='List of all available animations for the scene',
+        items=get_loaded_anim_names)
 
     def execute(self, context):
         # Set the variables
@@ -196,9 +196,9 @@ class _ChangeAnimation(Operator):
     bl_label = "Change Animation"
 
     anim_names = EnumProperty(
-            name='Available animations',
-            description='List of all available animations for the scene',
-            items=get_anim_names)
+        name='Available animations',
+        description='List of all available animations for the scene',
+        items=get_anim_names)
 
     def execute(self, context):
         """Set every node in the scene to have the appropriate action.
@@ -345,10 +345,14 @@ class NMS_Export_Operator(Operator, ExportHelper):
     # ExportHelper mixin class uses this
     filename_ext = ""
 
+    settings_loaded = False
+
     def draw(self, context):
-        default_settings = context.scene.nmsdk_default_settings
-        self.export_directory = default_settings.export_directory
-        self.group_name = default_settings.group_name
+        if not self.settings_loaded:
+            default_settings = context.scene.nmsdk_default_settings
+            self.export_directory = default_settings.export_directory
+            self.group_name = default_settings.group_name
+            self.settings_loaded = True
         layout = self.layout
         layout.prop(self, 'export_directory')
         layout.prop(self, 'group_name')
