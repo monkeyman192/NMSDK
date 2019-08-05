@@ -631,7 +631,8 @@ class Export():
                                               'z': z_bounds}
 
     def process_materials(self):
-        # process the material data and gives the textures the correct paths
+        """ Process the material data and gives the textures the correct paths.
+        """
         for material in self.materials:
             if type(material) != str:
                 # in this case we are given actual material data, not just a
@@ -658,7 +659,7 @@ class Export():
                         sample['Map'] = f_name + ext.upper()
 
     def write(self):
-        # write each of the exml files.
+        """ Write all of the files required for the scene. """
         mbinc = mbinCompiler(self.TkGeometryData,
                              "{}.GEOMETRY.MBIN.PC".format(self.path))
         mbinc.serialize()

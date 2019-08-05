@@ -3,7 +3,7 @@ import os
 import sys
 from math import radians, degrees
 # blender imports
-import bpy
+import bpy  # pylint: disable=import-error
 import bmesh  # pylint: disable=import-error
 from idprop.types import IDPropertyGroup  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
@@ -1064,7 +1064,6 @@ class Exporter():
         # now semi-process the animation data to generate data for the
         # animation controller entity file
         if len(self.anim_frame_data) == 1:
-            print('only one!')
             # in this case we only have the idle animation.
             path = os.path.join(self.basepath, self.group_name.upper(),
                                 self.export_name.upper())
@@ -1072,7 +1071,6 @@ class Exporter():
                 Idle=TkAnimationData(
                     AnimType=list(self.anim_loops.values())[0]))
             # update the entity data directly
-            print(self.anim_controller_obj[1].Name)
             self.anim_controller_obj[1].ExtraEntityData[
                 self.anim_controller_obj[0]].append(anim_entity)
             self.anim_controller_obj[1].rebuild_entity()
