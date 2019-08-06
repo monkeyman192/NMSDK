@@ -95,6 +95,7 @@ class _FixActionNames(Operator):
             obj_name = obj.name
             for action in get_all_actions(obj):
                 self._correct_name(action[2], obj_name)
+                action[2].use_fake_user = True
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -260,6 +261,7 @@ class _ChangeAnimation(Operator):
                     obj.animation_data.action = None
                     for track in obj.animation_data.nla_tracks:
                         track.mute = True
+            context.scene.frame_end = 0
             return {'FINISHED'}
 
         frame_count = 0

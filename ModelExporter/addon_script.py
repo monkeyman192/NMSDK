@@ -208,7 +208,6 @@ class Exporter():
         # print(self.nodes_in_all_anims, 'nodes')
         # number of frames        (same... for now)
         self.anim_frames = self.global_scene.frame_end
-        # print(self.scene_actions)
         # let's merge the self.animation_anim_data and the
         # self.nodes_in_all_anims data:
         for key in self.animation_anim_data.keys():
