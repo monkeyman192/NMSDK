@@ -91,18 +91,23 @@ class AnimationsPanel(bpy.types.Panel):
         if not isinstance(anim_names, list):
             anim_names = anim_data.loaded_anims.to_list()
         if anim_names == ['None']:
-            layout.label(text="No loaded animations")
-            layout.operator('nmsdk._refresh_anim_list',
-                            icon='FILE_REFRESH', emboss=False)
+            row = layout.row(align=True)
+            row.alignment = 'LEFT'
+            row.label(text="No loaded animations")
+            row.operator('nmsdk._refresh_anim_list',
+                         icon='FILE_REFRESH', emboss=False, text=" ")
         else:
             try:
                 anim_choice_text = 'Current animation: {0}'.format(
                     context.scene['curr_anim'])
             except KeyError:
                 anim_choice_text = 'Select an animation'
-            layout.operator_menu_enum("nmsdk._change_animation",
-                                      "anim_names",
-                                      text=anim_choice_text)
+            row = layout.row(align=True)
+            row.alignment = 'LEFT'
+            row.operator_menu_enum("nmsdk._change_animation", "anim_names",
+                                   text=anim_choice_text)
+            row.operator('nmsdk._refresh_anim_list',
+                         icon='FILE_REFRESH', emboss=False, text=" ")
             row = layout.row()
             row.operator("nmsdk._play_animation",
                          icon='PLAY', emboss=False)
