@@ -16,6 +16,7 @@ class UpdateSettingsPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         layout.operator("nmsdk._fix_old_format")
+        layout.operator("nmsdk._fix_action_names")
 
 
 class ToolsPanel(bpy.types.Panel):

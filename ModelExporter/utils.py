@@ -1,12 +1,10 @@
 # Miscellaneous useful functions
 
-# blender imports
-import bpy
 # stdlib imports
 from array import array
 from hashlib import sha256
 # blender imports
-from mathutils import Matrix, Vector
+from mathutils import Matrix, Vector  # pylint: disable=import-error
 # Internal imports
 from ..NMS.classes import Vector4f
 
@@ -17,6 +15,11 @@ from ..NMS.classes import Vector4f
 def get_all_actions_in_scene(scene):
     """ Get a list of all action names in a scene.
     Actions of the form NAME.XYZ are considered just action NAME.
+
+    Returns
+    -------
+    actions : set
+        Set containing the names of all actions within the scene.
     """
     actions = set()
     for obj in scene.objects:
@@ -32,7 +35,7 @@ def get_all_actions_in_scene(scene):
 def get_all_actions(obj):
     """Retrieve all actions given a blender object. Includes NLA-actions
        Full credit to this code goes to misnomer on blender.stackexchange
-       (cf. https://blender.stackexchange.com/questions/14204/how-to-tell-which-object-uses-which-animation-action)
+       (cf. https://blender.stackexchange.com/questions/14204/how-to-tell-which-object-uses-which-animation-action)  # noqa
     """
     # slightly modified to return the name of the object, and the action
     if obj.animation_data:

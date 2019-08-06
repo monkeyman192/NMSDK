@@ -9,7 +9,7 @@ from bpy.types import Operator, PropertyGroup  # noqa pylint: disable=import-err
 # internal imports
 from .ModelImporter.import_scene import ImportScene
 from .ModelExporter.addon_script import Exporter
-from .ModelExporter.utils import get_all_actions_in_scene
+from .ModelExporter.utils import get_all_actions_in_scene, get_all_actions
 from .utils.settings import read_settings, write_settings
 
 
@@ -76,6 +76,29 @@ class ImportMeshOperator(Operator):
 
 
 # Private operators for internal use
+
+
+class _FixActionNames(Operator):
+    """Change the type of node an object has"""
+    bl_idname = "nmsdk._fix_action_names"
+    bl_label = "Fix any incorrect action names"
+
+    def _correct_name(self, action, obj_name):
+        """ Correct the name of an action if it needs to be... """
+        action_name = action.name.split('.')[0]
+        correct_name = '{0}.{1}'.format(action_name, obj_name)
+        if action.name != correct_name:
+            action.name = correct_name
+
+    def execute(self, context):
+        for obj in context.scene.objects:
+            obj_name = obj.name
+            for action in get_all_actions(obj):
+                self._correct_name(action[2], obj_name)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
 
 
 class _FixOldFormat(Operator):

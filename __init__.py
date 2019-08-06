@@ -9,7 +9,7 @@ from .NMSDK import ImportSceneOperator, ImportMeshOperator
 from .NMSDK import NMS_Export_Operator, NMS_Import_Operator
 # Internal operators
 from .NMSDK import (_FixOldFormat, _ToggleCollisionVisibility,
-                    _SaveDefaultSettings)
+                    _SaveDefaultSettings, _FixActionNames)
 # Settings
 from .NMSDK import NMSDKSettings, NMSDKDefaultSettings
 # Animation classes
@@ -52,6 +52,7 @@ def register():
     bpy.utils.register_class(ImportSceneOperator)
     bpy.utils.register_class(ImportMeshOperator)
     bpy.utils.register_class(_FixOldFormat)
+    bpy.utils.register_class(_FixActionNames)
     bpy.utils.register_class(_ToggleCollisionVisibility)
     bpy.utils.register_class(_SaveDefaultSettings)
     bpy.utils.register_class(_ChangeAnimation)
@@ -83,6 +84,7 @@ def unregister():
     bpy.utils.unregister_class(ImportSceneOperator)
     bpy.utils.unregister_class(ImportMeshOperator)
     bpy.utils.unregister_class(_FixOldFormat)
+    bpy.utils.unregister_class(_FixActionNames)
     bpy.utils.unregister_class(_ToggleCollisionVisibility)
     bpy.utils.unregister_class(_SaveDefaultSettings)
     bpy.utils.unregister_class(_ChangeAnimation)
