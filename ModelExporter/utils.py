@@ -1,5 +1,7 @@
 # Miscellaneous useful functions
 
+# blender imports
+import bpy
 # stdlib imports
 from array import array
 from hashlib import sha256
@@ -10,6 +12,21 @@ from ..NMS.classes import Vector4f
 
 
 # region Misc
+
+
+def get_all_actions_in_scene(scene):
+    """ Get a list of all action names in a scene.
+    Actions of the form NAME.XYZ are considered just action NAME.
+    """
+    actions = set()
+    for obj in scene.objects:
+        obj_actions = get_all_actions(obj)
+        if obj_actions:
+            for action in obj_actions:
+                # Add action name which is just the first component of the
+                # unique action name blender uses
+                actions.add(action[2].name.split('.')[0])
+    return actions
 
 
 def get_all_actions(obj):

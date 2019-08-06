@@ -14,7 +14,8 @@ from .NMSDK import (_FixOldFormat, _ToggleCollisionVisibility,
 from .NMSDK import NMSDKSettings, NMSDKDefaultSettings
 # Animation classes
 from .NMSDK import (_ChangeAnimation, _PlayAnimation, _PauseAnimation,
-                    _StopAnimation, _LoadAnimation, AnimProperties)
+                    _StopAnimation, _LoadAnimation, AnimProperties,
+                    _RefreshAnimations)
 from .ModelImporter.animation_handler import AnimationHandler
 
 customNodes = NMSNodes()
@@ -54,6 +55,7 @@ def register():
     bpy.utils.register_class(_ToggleCollisionVisibility)
     bpy.utils.register_class(_SaveDefaultSettings)
     bpy.utils.register_class(_ChangeAnimation)
+    bpy.utils.register_class(_RefreshAnimations)
     bpy.utils.register_class(_LoadAnimation)
     bpy.utils.register_class(_PlayAnimation)
     bpy.utils.register_class(_PauseAnimation)
@@ -84,6 +86,7 @@ def unregister():
     bpy.utils.unregister_class(_ToggleCollisionVisibility)
     bpy.utils.unregister_class(_SaveDefaultSettings)
     bpy.utils.unregister_class(_ChangeAnimation)
+    bpy.utils.unregister_class(_RefreshAnimations)
     bpy.utils.unregister_class(_LoadAnimation)
     bpy.utils.unregister_class(_PlayAnimation)
     bpy.utils.unregister_class(_PauseAnimation)

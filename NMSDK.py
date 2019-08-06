@@ -6,9 +6,10 @@ import bpy
 from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
 from bpy.types import Operator, PropertyGroup  # noqa pylint: disable=import-error, no-name-in-module
 
+# internal imports
 from .ModelImporter.import_scene import ImportScene
 from .ModelExporter.addon_script import Exporter
-
+from .ModelExporter.utils import get_all_actions_in_scene
 from .utils.settings import read_settings, write_settings
 
 
@@ -122,6 +123,7 @@ class _SaveDefaultSettings(Operator):
 
 
 # Animation classes and functions
+# TODO: move...
 
 def get_loaded_anim_names(self, context):
     try:
@@ -166,6 +168,25 @@ class AnimProperties(PropertyGroup):
         self.joints = list()
 
 
+class _RefreshAnimations(Operator):
+    """Load the selected animation data"""
+    bl_idname = "nmsdk._refresh_anim_list"
+    bl_label = "Refresh Animation List"
+
+    def execute(self, context):
+        # Set the variables
+        actions = get_all_actions_in_scene(context.scene)
+        if len(actions) != 0:
+            for action in actions:
+                if action not in context.scene.nmsdk_anim_data.loaded_anims:
+                    context.scene.nmsdk_anim_data.loaded_anims.append(action)
+            context.scene.nmsdk_anim_data.anims_loaded = True
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
 class _LoadAnimation(Operator):
     """Load the selected animation data"""
     bl_idname = "nmsdk._load_animation"
@@ -206,10 +227,25 @@ class _ChangeAnimation(Operator):
         action to None.
         """
         context.scene['curr_anim'] = self.anim_names
+
+        # If the selected animation is none, reset everything to base.
+        if self.anim_names == 'None':
+            for armature in bpy.data.armatures:
+                armature.pose_position = 'REST'
+            for obj in bpy.data.objects:
+                if obj.animation_data:
+                    obj.animation_data.action = None
+                    for track in obj.animation_data.nla_tracks:
+                        track.mute = True
+            return {'FINISHED'}
+
         frame_count = 0
+        for armature in bpy.data.armatures:
+            armature.pose_position = 'POSE'
+
         # Apply the action to each object
         for obj in context.scene.objects:
-            action_name = '{0}_{1}'.format(self.anim_names, obj.name)
+            action_name = '{0}.{1}'.format(self.anim_names, obj.name)
             if action_name in bpy.data.actions:
                 obj.animation_data.action = bpy.data.actions[action_name]
                 frame_count = max(frame_count,
@@ -221,12 +257,6 @@ class _ChangeAnimation(Operator):
                 except AttributeError:
                     # Some objects in the scene may not have animation data
                     continue
-        if self.anim_names == 'None':
-            for armature in bpy.data.armatures:
-                armature.pose_position = 'REST'
-        else:
-            for armature in bpy.data.armatures:
-                armature.pose_position = 'POSE'
 
         # Set the final frame count
         context.scene.frame_end = frame_count

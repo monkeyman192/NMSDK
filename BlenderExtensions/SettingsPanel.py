@@ -92,6 +92,8 @@ class AnimationsPanel(bpy.types.Panel):
             anim_names = anim_data.loaded_anims.to_list()
         if anim_names == ['None']:
             layout.label(text="No loaded animations")
+            layout.operator('nmsdk._refresh_anim_list',
+                            icon='FILE_REFRESH', emboss=False)
         else:
             try:
                 anim_choice_text = 'Current animation: {0}'.format(

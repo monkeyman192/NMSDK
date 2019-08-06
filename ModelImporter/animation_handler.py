@@ -88,7 +88,7 @@ class AnimationHandler(bpy.types.Operator):
                 continue
 
             obj.animation_data_create()
-            action_name = "{0}_{1}".format(anim_name, name)
+            action_name = "{0}.{1}".format(anim_name, name)
             obj.animation_data.action = bpy.data.actions.new(
                 name=action_name)
             # set the action to have a fake user
