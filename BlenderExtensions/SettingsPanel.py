@@ -116,6 +116,10 @@ class AnimationsPanel(bpy.types.Panel):
                          icon='PAUSE', emboss=False)
             row.operator("nmsdk._stop_animation",
                          icon='REW', emboss=False)
+            row = layout.row()
+            row.label(text="Default animation: ")
+            row.prop_menu_enum(context.scene.nmsdk_anim_data, "idle_anim",
+                               text=context.scene.nmsdk_anim_data.idle_anim)
 
 
 class SettingsPanels():

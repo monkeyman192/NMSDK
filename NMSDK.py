@@ -176,6 +176,11 @@ class AnimProperties(PropertyGroup):
         name='Has bound mesh',
         description='Whether or not the mesh of the object is bound to bones',
         default=False)
+    idle_anim = EnumProperty(
+        name='Idle animation',
+        description='Animation that is played idly',
+        items=get_anim_names)
+
     # key: name of animation
     # value: path to animation data
     loadable_anim_data = dict()
@@ -277,11 +282,8 @@ class _ChangeAnimation(Operator):
                                   obj.animation_data.action.frame_range[1])
             else:
                 # If the action doesn't exist, then the object isn't animated
-                try:
+                if obj.animation_data is not None:
                     obj.animation_data.action = None
-                except AttributeError:
-                    # Some objects in the scene may not have animation data
-                    continue
 
         # Set the final frame count
         context.scene.frame_end = frame_count
