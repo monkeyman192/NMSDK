@@ -37,14 +37,16 @@ class Export():
         Location to generate the data.
     basepath : str
         Location to generate the data.(?)
-    model : Instance of Model
+    model : nmsdk.NMS.classes.Model
         Model containing all the scene information.
-    anim_data : collections.OrderedDict (Optional)
-        Animation data.
+    anim_data : dict
+        Animation data for the scene.
+        The key corresponds to the name of the animation and the value being a
+        TkAnimMetadata object.
     descriptior: Descriptor
-        Descriptor information for the scene
+        Descriptor information for the scene.
     """
-    def __init__(self, name, directory, basepath, model, anim_data=odict(),
+    def __init__(self, name, directory, basepath, model, anim_data=dict(),
                  descriptor=None):
         # this is the name of the file
         self.name = name

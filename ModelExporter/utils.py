@@ -4,12 +4,34 @@
 from array import array
 from hashlib import sha256
 # blender imports
+import bpy  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
 # Internal imports
 from ..NMS.classes import Vector4f
 
 
 # region Misc
+
+
+def get_actions_with_name(anim_name):
+    """ Get all the actions which are part of the same animation.
+
+    Parameters
+    ----------
+    anim_name : str
+        Base name of the action.
+
+    Returns
+    -------
+    actions : list
+        List of all the actions which have an action with the name provided.
+    """
+    actions = list()
+    for action in bpy.data.actions:
+        action_name = action.name.split('.', 1)[0]
+        if action_name == anim_name:
+            actions.append(action)
+    return actions
 
 
 def get_all_actions_in_scene(scene):
