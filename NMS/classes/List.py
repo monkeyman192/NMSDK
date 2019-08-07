@@ -41,6 +41,7 @@ class List():
         self.subElements.append(element)
 
     def __len__(self):
+        # TODO: see whether self.length is needed...
         self.length = len(self.subElements)
         return self.length
 
@@ -66,6 +67,12 @@ class List():
             except TypeError:
                 data.extend(serialize(val))
         return bytes(data)
+
+    def __str__(self):
+        return 'List of containing {0} elements'.format(len(self))
+
+    def __repr__(self):
+        return str(self)
 
     def data_len(self):
         # returns the total length of the data when it would be serialized
