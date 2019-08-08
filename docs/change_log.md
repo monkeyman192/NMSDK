@@ -4,7 +4,8 @@
 
 ### Current - v0.9.14
 
- - The animation exporting system has received a major overhaul. 
+ - The animation exporting system has received a major overhaul. It is now far mor easy for each part to have mutliple animations.
+ - The Idle animation can now be set from the `Animation controls` section of the NMSDK toolbar. Any animation that isn't specified as the idle one goes in the `Anim` list in the entity file.
 
 ### Past:
 

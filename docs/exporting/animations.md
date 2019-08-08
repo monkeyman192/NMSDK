@@ -22,3 +22,13 @@ For the game to know the details of the animation(s) you added, an attached enti
 ![anim controller](../../images/anim_controller.png)
 
 It is important to note that only one associated entity file may be specified as an animation controller in each scene at a time. Specifying more that one will not raise an error, but instead, only the first will be used, and any others will be ignored.
+
+## Specifying the idle animation
+
+NMS has two types of animations; *Idle* animations, and *Anim* animations.
+The *Idle* animation doesn't require any action triggers to be called and will play while the scene is spawned (depending on the animation settings).
+The *Anim* animations however are only run when an action trigger causes them to be.
+It is only possible to have one *Idle* animation but you can have as many *Anim* animations as you like.
+
+To specify which animation is the idle animation, you simply select it from the drop down box in the `Animation Controls` section of the NMSDK toolbar.
+If you do not see your animation listed, make sure you click the refresh button as it isn't possible to have the list updated automatically whenever you add a new animation.

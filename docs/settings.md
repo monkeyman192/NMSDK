@@ -35,3 +35,5 @@ For models with less than 10 animations, all the animations will be loaded autom
 When a model with animations is loaded the list of available animations to play will be displayed in a drop-down menu, with convenient 'Play', 'Pause' and 'Stop' buttons.
 For models with extra animations to be loaded. A further drop-down menu is displayed which lists all the possible animations the scene contains and gives the option to load them one-by-one.
 NMSDK has this behaviour due to the fact that for scene with large numbers of nodes and animations, it takes prohibitively long to import all the animations (not to mention the blend file will get very large!).
+
+For models that are to be exported, this panel is useful for playing all the actions that are part of a single animation all at once, as well as being able to set the idle animation.
