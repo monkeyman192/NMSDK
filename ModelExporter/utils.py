@@ -126,35 +126,6 @@ def object_is_animated(ob):
             return False
 
 
-# !OBSOLETE
-def patterned(lst, **kwargs):
-    # this will return the values in the list in a patterned order
-    # the generator will yield the pattern name, and the entry in the list
-    patterns = dict()
-    indexes = set()
-    mapping = dict()
-    for key in kwargs:
-        patterns[key] = kwargs[key]
-        for index in kwargs[key]:
-            mapping[index] = key
-        indexes.update(set(kwargs[key]))
-    max_index = max(indexes)
-    # missing = set(range(max_index+1)) - indexes
-
-    i = 0       # current index in list
-    k = 0       # current sub-index
-    while i < len(lst):
-        try:
-            yield mapping[k], lst[i]
-        except IndexError:
-            pass
-        i += 1
-        if k < max_index:
-            k += 1
-        else:
-            k = 0
-
-
 def traverse(obj):
     # a custom generator to iterate over the tree of all the children on the
     # scene (including the Model object)
