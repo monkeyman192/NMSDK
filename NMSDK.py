@@ -167,6 +167,17 @@ def get_anim_names(self, context):
         return [('None', 'None', 'None')]
 
 
+def get_anim_names_not_none(self, context):
+    try:
+        # make a copy of the names just to be safe
+        names = list(context.scene.nmsdk_anim_data.loaded_anims)
+        if 'None' in names:
+            names.remove('None')
+        return list(tuple([name] * 3) for name in names)
+    except KeyError:
+        return [('None', 'None', 'None')]
+
+
 class AnimProperties(PropertyGroup):
     anims_loaded = BoolProperty(
         name='Animations loaded',
@@ -179,7 +190,7 @@ class AnimProperties(PropertyGroup):
     idle_anim = EnumProperty(
         name='Idle animation',
         description='Animation that is played idly',
-        items=get_anim_names)
+        items=get_anim_names_not_none)
 
     # key: name of animation
     # value: path to animation data

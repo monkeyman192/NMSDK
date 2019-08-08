@@ -195,7 +195,9 @@ class Exporter():
         for obj in self.export_scenes:
             self.anim_node_data[obj.name] = self.get_animated_children(obj)
 
-        self.scene_anim_data = process_anims(self.anim_node_data)
+        self.scene_anim_data = dict()
+        if len(bpy.data.actions) != 0:
+            self.scene_anim_data = process_anims(self.anim_node_data)
 
         # Go over each object in the list of nodes that are to be exported
         for obj in self.export_scenes:
@@ -223,7 +225,7 @@ class Exporter():
                    self.group_name,
                    self.basepath,
                    scene,
-                   self.scene_anim_data[obj.name],
+                   self.scene_anim_data.get(obj.name, dict()),
                    descriptor)
 
         self.global_scene.frame_set(0)
@@ -846,6 +848,9 @@ class Exporter():
         scene_directory : str
             Output directory for the scene files.
         """
+        # Do nothing if there are no animations
+        if len(bpy.data.actions) == 0:
+            return
         # First, check to see if there is an idle animation
         idle_anim_name = self.global_scene.nmsdk_anim_data.idle_anim
         Idle = None
