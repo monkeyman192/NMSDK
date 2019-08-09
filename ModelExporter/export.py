@@ -9,6 +9,9 @@ the 3d model created.
 __author__ = "monkeyman192"
 __credits__ = ["monkeyman192", "gregkwaste"]
 
+# Blender imports
+import bpy
+
 # stdlib imports
 import os
 import subprocess
@@ -677,16 +680,25 @@ class Export():
                 material.tree.write(
                     "{0}.MATERIAL.exml".format(os.path.join(self.path,
                                                str(material['Name']).upper())))
+        # Write the animation files
+        idle_anim = bpy.context.scene.nmsdk_anim_data.idle_anim
         if len(self.anim_data) != 0:
             if len(self.anim_data) == 1:
+                if idle_anim not in self.anim_data:
+                    raise ValueError('Specified idle anim name is somehow not '
+                                     'one of the animations that exists...')
                 # get the value and output it
-                list(self.anim_data.values())[0].tree.write(
+                self.anim_data[idle_anim].tree.write(
                     "{}.ANIM.exml".format(self.path))
             else:
                 for name in list(self.anim_data.keys()):
-                    self.anim_data[name].tree.write(
-                        os.path.join(self.anims_path,
-                                     "{}.ANIM.exml".format(name.upper())))
+                    if name != idle_anim:
+                        self.anim_data[name].tree.write(
+                            os.path.join(self.anims_path,
+                                         "{}.ANIM.exml".format(name.upper())))
+                    else:
+                        self.anim_data[idle_anim].tree.write(
+                            "{}.ANIM.exml".format(self.path))
 
     def convert_to_mbin(self):
         """ Convert all .exml file to .mbin files. """
