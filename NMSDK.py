@@ -1,8 +1,5 @@
 from bpy.props import StringProperty, BoolProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
-import bpy
-
-# ExportHelper is a helper class, defines filename and
-# invoke() function which calls the file selector.
+import bpy   # pylint: disable=import-error
 from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
 from bpy.types import Operator, PropertyGroup  # noqa pylint: disable=import-error, no-name-in-module
 

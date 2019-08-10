@@ -1,6 +1,4 @@
-import bpy
-from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
-                                NMSShaderNode, SettingsPanels)
+import bpy  # pylint: disable=import-error
 from bpy.props import PointerProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
 
 # External API operators
@@ -17,13 +15,16 @@ from .NMSDK import (_ChangeAnimation, _PlayAnimation, _PauseAnimation,
                     _StopAnimation, _LoadAnimation, AnimProperties,
                     _RefreshAnimations)
 from .ModelImporter.animation_handler import AnimationHandler
+# extensions to blender UI
+from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
+                                NMSShaderNode, SettingsPanels)
 
 customNodes = NMSNodes()
 
 bl_info = {
     "name": "No Man's Sky Development Kit",
     "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 13),
+    "version": (0, 9, 14),
     "blender": (2, 79, 0),
     "location": "File > Export",
     "description": "Create NMS scene structures and export to NMS File format",
@@ -41,7 +42,7 @@ def menu_func_export(self, context):
 
 def menu_func_import(self, context):
     self.layout.operator(NMS_Import_Operator.bl_idname,
-                         text="Import NMS SCENE.EXML")
+                         text="Import NMS SCENE")
 
 
 def register():
