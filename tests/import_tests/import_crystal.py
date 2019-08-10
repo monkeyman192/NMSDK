@@ -4,14 +4,14 @@ import os.path as op
 
 
 # Path is relative to the plugin directory
-TEST_DATA_PATH = 'tests\\import_tests\\data'
+TEST_DATA_PATH = op.join(op.dirname(__file__), 'data')
 CRYSTAL_BASE_PATH = 'MODELS\\PLANETS\\BIOMES\\COMMON\\CRYSTALS\\LARGE'
 CRYSTAL_PATH = op.join(TEST_DATA_PATH,
                        CRYSTAL_BASE_PATH,
                        'CRYSTAL_LARGE.SCENE.MBIN')
 
 
-res = bpy.ops.nmsdk.import_scene(path=op.join(os.getcwd(), CRYSTAL_PATH))
+res = bpy.ops.nmsdk.import_scene(path=CRYSTAL_PATH)
 # First, make sure that it ran
 assert res == {'FINISHED'}
 # Then, we can check that some values of the scene are correct...

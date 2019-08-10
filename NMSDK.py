@@ -409,6 +409,12 @@ class NMS_Export_Operator(Operator, ExportHelper):
                     "exported. Use this if you have accidentally added vertex "
                     "colours to a mesh and don't know how to get rid of them.",
         default=False)
+    idle_anim = StringProperty(
+        name="Idle animation name",
+        description="The name of the animation that is the idle animation.",
+        default="_FAKEVALUE_")
+    # Use a fake value which *hopefully* no-one will ever actually use for an
+    # animation name.
 
     # ExportHelper mixin class uses this
     filename_ext = ""
@@ -431,11 +437,9 @@ class NMS_Export_Operator(Operator, ExportHelper):
         keywords = self.as_keywords()
         main_exporter = Exporter(self.filepath, settings=keywords)
         status = main_exporter.state
-        self.report({'INFO'}, "Models Exported Successfully")
-        if status:
-            return {'FINISHED'}
-        else:
-            return {'CANCELLED'}
+        if status == {'FINISHED'}:
+            self.report({'INFO'}, "Models Exported Successfully")
+        return status
 
 
 class NMS_Import_Operator(Operator, ImportHelper):

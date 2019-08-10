@@ -44,8 +44,6 @@ for path in sys.path:
 # Add script path to sys.path
 scriptpath = os.path.join(os.getcwd(), 'ModelExporter')
 
-print(scriptpath)
-
 if scriptpath not in sys.path:
     sys.path.append(scriptpath)
     # print(sys.path)
@@ -852,7 +850,12 @@ class Exporter():
         if len(bpy.data.actions) == 0:
             return
         # First, check to see if there is an idle animation
-        idle_anim_name = self.global_scene.nmsdk_anim_data.idle_anim
+        if self.settings['idle_anim'] != "_FAKEVALUE_":
+            # If the script is being called from the cli.
+            # TODO: this will be improved when we improve cli functionality
+            idle_anim_name = self.settings['idle_anim']
+        else:
+            idle_anim_name = self.global_scene.nmsdk_anim_data.idle_anim
         Idle = None
         Anims = List()
         if idle_anim_name != 'None':
