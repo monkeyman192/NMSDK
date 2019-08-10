@@ -9,6 +9,9 @@ the 3d model created.
 __author__ = "monkeyman192"
 __credits__ = ["monkeyman192", "gregkwaste"]
 
+# Blender imports
+import bpy
+
 # stdlib imports
 import os
 import subprocess
@@ -37,14 +40,16 @@ class Export():
         Location to generate the data.
     basepath : str
         Location to generate the data.(?)
-    model : Instance of Model
+    model : nmsdk.NMS.classes.Model
         Model containing all the scene information.
-    anim_data : collections.OrderedDict (Optional)
-        Animation data.
+    anim_data : dict
+        Animation data for the scene.
+        The key corresponds to the name of the animation and the value being a
+        TkAnimMetadata object.
     descriptior: Descriptor
-        Descriptor information for the scene
+        Descriptor information for the scene.
     """
-    def __init__(self, name, directory, basepath, model, anim_data=odict(),
+    def __init__(self, name, directory, basepath, model, anim_data=dict(),
                  descriptor=None):
         # this is the name of the file
         self.name = name
@@ -179,7 +184,7 @@ class Export():
             os.makedirs(self.ent_path)
         if not os.path.exists(self.texture_path):
             os.makedirs(self.texture_path)
-        if not os.path.exists(self.anims_path) and len(self.anim_data) != 0:
+        if not os.path.exists(self.anims_path) and len(self.anim_data) > 1:
             os.makedirs(self.anims_path)
 
     def preprocess_streams(self):
@@ -631,7 +636,8 @@ class Export():
                                               'z': z_bounds}
 
     def process_materials(self):
-        # process the material data and gives the textures the correct paths
+        """ Process the material data and gives the textures the correct paths.
+        """
         for material in self.materials:
             if type(material) != str:
                 # in this case we are given actual material data, not just a
@@ -658,7 +664,7 @@ class Export():
                         sample['Map'] = f_name + ext.upper()
 
     def write(self):
-        # write each of the exml files.
+        """ Write all of the files required for the scene. """
         mbinc = mbinCompiler(self.TkGeometryData,
                              "{}.GEOMETRY.MBIN.PC".format(self.path))
         mbinc.serialize()
@@ -674,26 +680,40 @@ class Export():
                 material.tree.write(
                     "{0}.MATERIAL.exml".format(os.path.join(self.path,
                                                str(material['Name']).upper())))
+        # Write the animation files
+        idle_anim = bpy.context.scene.nmsdk_anim_data.idle_anim
         if len(self.anim_data) != 0:
             if len(self.anim_data) == 1:
+                if idle_anim not in self.anim_data:
+                    raise ValueError('Specified idle anim name is somehow not '
+                                     'one of the animations that exists...')
                 # get the value and output it
-                list(self.anim_data.values())[0].tree.write(
+                self.anim_data[idle_anim].tree.write(
                     "{}.ANIM.exml".format(self.path))
             else:
                 for name in list(self.anim_data.keys()):
-                    self.anim_data[name].tree.write(
-                        os.path.join(self.anims_path,
-                                     "{}.ANIM.exml".format(name.upper())))
+                    if name != idle_anim:
+                        self.anim_data[name].tree.write(
+                            os.path.join(self.anims_path,
+                                         "{}.ANIM.exml".format(name.upper())))
+                    else:
+                        self.anim_data[idle_anim].tree.write(
+                            "{}.ANIM.exml".format(self.path))
 
     def convert_to_mbin(self):
-        # passes all the files produced by
+        """ Convert all .exml file to .mbin files. """
         print('Converting .exml files to .mbin. Please wait.')
         for directory, _, files in os.walk(os.path.join(self.basepath,
                                                         self.directory)):
             for file in files:
                 location = os.path.join(directory, file)
-                if os.path.splitext(location)[1] == '.exml':
-                    retcode = subprocess.call(["MBINCompiler", location],
+                if os.path.splitext(location)[1].lower() == '.exml':
+                    # Force MBINCompiler to overwrite existing files and
+                    # ignore errors.
+                    # TODO: make this more robust and potentially allow for
+                    # some of these options to be specified on export...
+                    retcode = subprocess.call(["MBINCompiler", "-y", "-f",
+                                               location],
                                               shell=True)
                     if retcode == 0:
                         os.remove(location)

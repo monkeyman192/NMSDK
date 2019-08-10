@@ -4,7 +4,8 @@
 from array import array
 from hashlib import sha256
 # blender imports
-from mathutils import Matrix, Vector
+import bpy  # pylint: disable=import-error
+from mathutils import Matrix, Vector  # pylint: disable=import-error
 # Internal imports
 from ..NMS.classes import Vector4f
 
@@ -12,10 +13,51 @@ from ..NMS.classes import Vector4f
 # region Misc
 
 
+def get_actions_with_name(anim_name):
+    """ Get all the actions which are part of the same animation.
+
+    Parameters
+    ----------
+    anim_name : str
+        Base name of the action.
+
+    Returns
+    -------
+    actions : list
+        List of all the actions which have an action with the name provided.
+    """
+    actions = list()
+    for action in bpy.data.actions:
+        action_name = action.name.split('.', 1)[0]
+        if action_name == anim_name:
+            actions.append(action)
+    return actions
+
+
+def get_all_actions_in_scene(scene):
+    """ Get a list of all action names in a scene.
+    Actions of the form NAME.XYZ are considered just action NAME.
+
+    Returns
+    -------
+    actions : set
+        Set containing the names of all actions within the scene.
+    """
+    actions = set()
+    for obj in scene.objects:
+        obj_actions = get_all_actions(obj)
+        if obj_actions:
+            for action in obj_actions:
+                # Add action name which is just the first component of the
+                # unique action name blender uses
+                actions.add(action[2].name.split('.')[0])
+    return actions
+
+
 def get_all_actions(obj):
     """Retrieve all actions given a blender object. Includes NLA-actions
        Full credit to this code goes to misnomer on blender.stackexchange
-       (cf. https://blender.stackexchange.com/questions/14204/how-to-tell-which-object-uses-which-animation-action)
+       (cf. https://blender.stackexchange.com/questions/14204/how-to-tell-which-object-uses-which-animation-action)  # noqa
     """
     # slightly modified to return the name of the object, and the action
     if obj.animation_data:
@@ -82,35 +124,6 @@ def object_is_animated(ob):
             return object_is_animated(ob.parent)
         else:
             return False
-
-
-# !OBSOLETE
-def patterned(lst, **kwargs):
-    # this will return the values in the list in a patterned order
-    # the generator will yield the pattern name, and the entry in the list
-    patterns = dict()
-    indexes = set()
-    mapping = dict()
-    for key in kwargs:
-        patterns[key] = kwargs[key]
-        for index in kwargs[key]:
-            mapping[index] = key
-        indexes.update(set(kwargs[key]))
-    max_index = max(indexes)
-    # missing = set(range(max_index+1)) - indexes
-
-    i = 0       # current index in list
-    k = 0       # current sub-index
-    while i < len(lst):
-        try:
-            yield mapping[k], lst[i]
-        except IndexError:
-            pass
-        i += 1
-        if k < max_index:
-            k += 1
-        else:
-            k = 0
 
 
 def traverse(obj):

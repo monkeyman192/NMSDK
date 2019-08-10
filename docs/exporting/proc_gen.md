@@ -1,4 +1,4 @@
-### Creating a procedurally generate-able scene
+# Creating a procedurally generate-able scene
 
 Creating procedurally generated scenes using NMSDK is simple.
 For every scene (Ie. `Reference` node which has no *Reference Path* property set), you can specify that a scene is proc-gen by setting the *Is a proc-gen scene?* property to `True`.

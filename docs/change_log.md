@@ -2,13 +2,18 @@
 
 ## Releases:
 
-### Current - v0.9.13
+### Current - v0.9.14
+
+ - The animation exporting system has received a major overhaul. It is now far mor easy for each part to have mutliple animations.
+ - The Idle animation can now be set from the `Animation controls` section of the NMSDK toolbar. Any animation that isn't specified as the idle one goes in the `Anim` list in the entity file.
+
+### Past:
+
+#### v0.9.13 (02/08/2019)
 
  - Import process has been expanded to allow for animations to be imported. This includes both simple animations (one with just translation/rotation/scaling of nodes in the scene), as well as complex animations which involve skinned meshes and bones. Currently complex animations are still a bit broken, but hopefully they will be fixed in the future.
  To see more details on what options are available for imported animations, see [here](importing/importing.md#import_settings).
  - Tests have been added to NMSDK! This has no affect on the plugin itself, however if you clone the repo from github you will now notice a number of files from the game which are used to test the importing capabilities of NMSDK. This will be extended greatly in the future, but for now there is only the framework and a few simple tests.
-
-### Past:
 
 #### v0.9.12 (03/06/2019):
 

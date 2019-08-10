@@ -1,14 +1,12 @@
 from bpy.props import StringProperty, BoolProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
-import bpy
-
-# ExportHelper is a helper class, defines filename and
-# invoke() function which calls the file selector.
+import bpy   # pylint: disable=import-error
 from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
 from bpy.types import Operator, PropertyGroup  # noqa pylint: disable=import-error, no-name-in-module
 
+# internal imports
 from .ModelImporter.import_scene import ImportScene
 from .ModelExporter.addon_script import Exporter
-
+from .ModelExporter.utils import get_all_actions_in_scene, get_all_actions
 from .utils.settings import read_settings, write_settings
 
 
@@ -77,6 +75,30 @@ class ImportMeshOperator(Operator):
 # Private operators for internal use
 
 
+class _FixActionNames(Operator):
+    """Change the type of node an object has"""
+    bl_idname = "nmsdk._fix_action_names"
+    bl_label = "Fix any incorrect action names"
+
+    def _correct_name(self, action, obj_name):
+        """ Correct the name of an action if it needs to be... """
+        action_name = action.name.split('.')[0]
+        correct_name = '{0}.{1}'.format(action_name, obj_name)
+        if action.name != correct_name:
+            action.name = correct_name
+
+    def execute(self, context):
+        for obj in context.scene.objects:
+            obj_name = obj.name
+            for action in get_all_actions(obj):
+                self._correct_name(action[2], obj_name)
+                action[2].use_fake_user = True
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+
 class _FixOldFormat(Operator):
     """Change the type of node an object has"""
     bl_idname = "nmsdk._fix_old_format"
@@ -122,6 +144,7 @@ class _SaveDefaultSettings(Operator):
 
 
 # Animation classes and functions
+# TODO: move...
 
 def get_loaded_anim_names(self, context):
     try:
@@ -141,6 +164,17 @@ def get_anim_names(self, context):
         return [('None', 'None', 'None')]
 
 
+def get_anim_names_not_none(self, context):
+    try:
+        # make a copy of the names just to be safe
+        names = list(context.scene.nmsdk_anim_data.loaded_anims)
+        if 'None' in names:
+            names.remove('None')
+        return list(tuple([name] * 3) for name in names)
+    except KeyError:
+        return [('None', 'None', 'None')]
+
+
 class AnimProperties(PropertyGroup):
     anims_loaded = BoolProperty(
         name='Animations loaded',
@@ -150,6 +184,11 @@ class AnimProperties(PropertyGroup):
         name='Has bound mesh',
         description='Whether or not the mesh of the object is bound to bones',
         default=False)
+    idle_anim = EnumProperty(
+        name='Idle animation',
+        description='Animation that is played idly',
+        items=get_anim_names_not_none)
+
     # key: name of animation
     # value: path to animation data
     loadable_anim_data = dict()
@@ -166,15 +205,34 @@ class AnimProperties(PropertyGroup):
         self.joints = list()
 
 
+class _RefreshAnimations(Operator):
+    """Load the selected animation data"""
+    bl_idname = "nmsdk._refresh_anim_list"
+    bl_label = "Refresh Animation List"
+
+    def execute(self, context):
+        # Set the variables
+        actions = get_all_actions_in_scene(context.scene)
+        if len(actions) != 0:
+            for action in actions:
+                if action not in context.scene.nmsdk_anim_data.loaded_anims:
+                    context.scene.nmsdk_anim_data.loaded_anims.append(action)
+            context.scene.nmsdk_anim_data.anims_loaded = True
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
 class _LoadAnimation(Operator):
     """Load the selected animation data"""
     bl_idname = "nmsdk._load_animation"
     bl_label = "Load Animation"
 
     loadable_anim_name = EnumProperty(
-            name='Available animations',
-            description='List of all available animations for the scene',
-            items=get_loaded_anim_names)
+        name='Available animations',
+        description='List of all available animations for the scene',
+        items=get_loaded_anim_names)
 
     def execute(self, context):
         # Set the variables
@@ -196,9 +254,9 @@ class _ChangeAnimation(Operator):
     bl_label = "Change Animation"
 
     anim_names = EnumProperty(
-            name='Available animations',
-            description='List of all available animations for the scene',
-            items=get_anim_names)
+        name='Available animations',
+        description='List of all available animations for the scene',
+        items=get_anim_names)
 
     def execute(self, context):
         """Set every node in the scene to have the appropriate action.
@@ -206,27 +264,34 @@ class _ChangeAnimation(Operator):
         action to None.
         """
         context.scene['curr_anim'] = self.anim_names
+
+        # If the selected animation is none, reset everything to base.
+        if self.anim_names == 'None':
+            for armature in bpy.data.armatures:
+                armature.pose_position = 'REST'
+            for obj in bpy.data.objects:
+                if obj.animation_data:
+                    obj.animation_data.action = None
+                    for track in obj.animation_data.nla_tracks:
+                        track.mute = True
+            context.scene.frame_end = 0
+            return {'FINISHED'}
+
         frame_count = 0
+        for armature in bpy.data.armatures:
+            armature.pose_position = 'POSE'
+
         # Apply the action to each object
         for obj in context.scene.objects:
-            action_name = '{0}_{1}'.format(self.anim_names, obj.name)
+            action_name = '{0}.{1}'.format(self.anim_names, obj.name)
             if action_name in bpy.data.actions:
                 obj.animation_data.action = bpy.data.actions[action_name]
                 frame_count = max(frame_count,
                                   obj.animation_data.action.frame_range[1])
             else:
                 # If the action doesn't exist, then the object isn't animated
-                try:
+                if obj.animation_data is not None:
                     obj.animation_data.action = None
-                except AttributeError:
-                    # Some objects in the scene may not have animation data
-                    continue
-        if self.anim_names == 'None':
-            for armature in bpy.data.armatures:
-                armature.pose_position = 'REST'
-        else:
-            for armature in bpy.data.armatures:
-                armature.pose_position = 'POSE'
 
         # Set the final frame count
         context.scene.frame_end = frame_count
@@ -341,14 +406,24 @@ class NMS_Export_Operator(Operator, ExportHelper):
                     "exported. Use this if you have accidentally added vertex "
                     "colours to a mesh and don't know how to get rid of them.",
         default=False)
+    idle_anim = StringProperty(
+        name="Idle animation name",
+        description="The name of the animation that is the idle animation.",
+        default="_FAKEVALUE_")
+    # Use a fake value which *hopefully* no-one will ever actually use for an
+    # animation name.
 
     # ExportHelper mixin class uses this
     filename_ext = ""
 
+    settings_loaded = False
+
     def draw(self, context):
-        default_settings = context.scene.nmsdk_default_settings
-        self.export_directory = default_settings.export_directory
-        self.group_name = default_settings.group_name
+        if not self.settings_loaded:
+            default_settings = context.scene.nmsdk_default_settings
+            self.export_directory = default_settings.export_directory
+            self.group_name = default_settings.group_name
+            self.settings_loaded = True
         layout = self.layout
         layout.prop(self, 'export_directory')
         layout.prop(self, 'group_name')
@@ -359,11 +434,9 @@ class NMS_Export_Operator(Operator, ExportHelper):
         keywords = self.as_keywords()
         main_exporter = Exporter(self.filepath, settings=keywords)
         status = main_exporter.state
-        self.report({'INFO'}, "Models Exported Successfully")
-        if status:
-            return {'FINISHED'}
-        else:
-            return {'CANCELLED'}
+        if status == {'FINISHED'}:
+            self.report({'INFO'}, "Models Exported Successfully")
+        return status
 
 
 class NMS_Import_Operator(Operator, ImportHelper):

@@ -3,26 +3,23 @@ import os
 import sys
 from math import radians, degrees
 # blender imports
-import bpy
+import bpy  # pylint: disable=import-error
 import bmesh  # pylint: disable=import-error
 from idprop.types import IDPropertyGroup  # pylint: disable=import-error
 from mathutils import Matrix, Vector  # pylint: disable=import-error
 # Internal imports
-from ..utils.misc import CompareMatrices, ContinuousCompare, get_obj_name
-from .utils import (get_all_actions, apply_local_transform,
-                    transform_to_NMS_coords)
+from ..utils.misc import CompareMatrices, get_obj_name
+from .utils import apply_local_transform, transform_to_NMS_coords
+from .animations import process_anims
 from .export import Export
 from .Descriptor import Descriptor
 from ..NMS.classes import (TkMaterialData, TkMaterialFlags,
                            TkVolumeTriggerType, TkMaterialSampler,
                            TkTransformData, TkMaterialUniform,
                            TkRotationComponentData, TkPhysicsComponentData)
-# Animation objects
-from ..NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
 from ..NMS.classes import TkAnimationComponentData, TkAnimationData
-from ..NMS.classes import List, Vector4f, Quaternion
+from ..NMS.classes import List, Vector4f
 from ..NMS.classes import TkAttachmentData
-# Object Classes
 from ..NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
                            Joint)
 from ..NMS.LOOKUPS import MATERIALFLAGS
@@ -46,8 +43,6 @@ for path in sys.path:
 
 # Add script path to sys.path
 scriptpath = os.path.join(os.getcwd(), 'ModelExporter')
-
-print(scriptpath)
 
 if scriptpath not in sys.path:
     sys.path.append(scriptpath)
@@ -140,14 +135,6 @@ class Exporter():
 
         self.material_dict = {}
         self.material_ids = []
-        # big master list of all the animation data for everything (might need
-        # to be optimised at some point...)
-        self.anim_frame_data = dict()
-        # contains the structure (sort of) of all the nodes in the animation.
-        # Key is the name of the action, value is a dictionary containing names
-        # of nodes and the animation types they have.
-        self.anim_node_data = dict()
-        self.nodes_in_all_anims = list()
 
         # current number of joints. This is incremented as required.
         self.joints = 0
@@ -173,7 +160,7 @@ class Exporter():
             mpath = os.path.dirname(os.path.abspath(exportpath))
             os.chdir(mpath)
             entity.tree.write('{}.ENTITY.exml'.format(self.export_name))
-            self.state = 'FINISHED'
+            self.state = {'FINISHED'}
             return
 
         # run the program normally
@@ -189,35 +176,26 @@ class Exporter():
             self.group_name = self.export_name
 
         # pre-process the animation information.
-        # set to contain all the actions that are used in the scene
-        self.scene_actions = set()
-        # This will be a dictionary with the key being the joint name, and
-        # the data being the actions associated with it.
-        self.joint_anim_data = dict()
-        # This will be a dictionary with the key being the animation name,
-        # and the data being the actions associated with it.
-        self.animation_anim_data = dict()
+
         # Blender object that was specified as controlling the animations.
         self.anim_controller_obj = None
 
-        # Get all the animation data first, so we can decide how we deal
-        # with anims. This data can be used to determine how many
-        # animations we actually have.
-        for obj in self.export_scenes:
-            self.add_to_anim_data(obj)
-        # print(self.nodes_in_all_anims, 'nodes')
-        # number of frames        (same... for now)
-        self.anim_frames = self.global_scene.frame_end
-        # print(self.scene_actions)
-        # let's merge the self.animation_anim_data and the
-        # self.nodes_in_all_anims data:
-        for key in self.animation_anim_data.keys():
-            for node in self.nodes_in_all_anims:
-                if node not in list(x[0] for x in
-                                    self.animation_anim_data[key]):
-                    self.animation_anim_data[key].append([node, None, False])
+        # Refresh the list of animations to ensure that
+        # context.scene.nmsdk_anim_data.loaded_anims contains the list of all
+        # the actions in the scene
+        bpy.ops.nmsdk._refresh_anim_list()
 
-        self.process_anims()
+        # A dictionary to contains the names of all the nodes in a given NMS
+        # scene that either contain animation data or have a local
+        # transformation matrix that is not the identity.
+        self.anim_node_data = dict()
+        # Populate this dictionary
+        for obj in self.export_scenes:
+            self.anim_node_data[obj.name] = self.get_animated_children(obj)
+
+        self.scene_anim_data = dict()
+        if len(bpy.data.actions) != 0:
+            self.scene_anim_data = process_anims(self.anim_node_data)
 
         # Go over each object in the list of nodes that are to be exported
         for obj in self.export_scenes:
@@ -230,27 +208,27 @@ class Exporter():
                 name = get_obj_name(obj, self.export_name)
             print('Located Object for export', name)
             scene = Model(Name=name)
-            self.scene_directory = os.path.join(
+            scene_directory = os.path.join(
                 self.basepath, self.group_name, self.export_name)
             # We don't want to actually add the main object to the scene,
             # Just its children.
             for sub_obj in obj.children:
                 self.parse_object(sub_obj, scene)
-            anim = self.anim_generator()
+
+            self.generate_entity_anim_data(obj.name, scene_directory)
+
             mpath = os.path.dirname(os.path.abspath(exportpath))
             os.chdir(mpath)
             Export(name,
                    self.group_name,
                    self.basepath,
                    scene,
-                   anim,
+                   self.scene_anim_data.get(obj.name, dict()),
                    descriptor)
-
-        self.assign_anim_data()
 
         self.global_scene.frame_set(0)
 
-        self.state = 'FINISHED'
+        self.state = {'FINISHED'}
 
     def select_only(self, ob):
         # sets only the provided object to be selected
@@ -258,36 +236,17 @@ class Exporter():
             obj.select = False
         ob.select = True
 
-    def rotate_all(self, ob):
-        # this will apply the rotation transform the object, and then call this
-        # function on it's children
-        self.global_scene.objects.active = ob
-        self.select_only(ob)
-        bpy.ops.object.transform_apply(rotation=True)
-        for child in ob.children:
-            if child.name.upper() != 'ROTATION':
-                self.rotate_all(child)
-
-    def add_to_anim_data(self, ob):
-        for child in ob.children:
+    def get_animated_children(self, parent):
+        objects = list()
+        for child in parent.children:
             if (not CompareMatrices(child.matrix_local, Matrix.Identity(4),
                                     1E-6) or
                     child.animation_data is not None):
                 # we want every object that either has animation data, or has a
                 # transform that isn't the identity transform
-                if child.animation_data is not None:
-                    for name_action in get_all_actions(child):
-                        self.scene_actions.add(name_action[2])
-                        if name_action[1] not in self.animation_anim_data:
-                            self.animation_anim_data[name_action[1]] = list()
-                        self.animation_anim_data[name_action[1]].append(
-                            [name_action[0], name_action[2],
-                             child.animation_data is not None])
-                else:
-                    # this will need to be merged with the animation_anim_data
-                    # and cleaned later
-                    self.nodes_in_all_anims.append(child.name)
-            self.add_to_anim_data(child)
+                objects.append(child.name)
+            objects.extend(self.get_animated_children(child))
+        return objects
 
     def parse_material(self, ob):
         # TODO: This will all become obsolete at some point
@@ -421,128 +380,6 @@ class Exporter():
 
             return tkmatdata
 
-    def anim_generator(self):
-        """
-        TODO:
-        num_nodes will be dependent on the action. use self.anim_node_data to
-        produce the correct data (don't forget how to do it while you sleep!!)
-        """
-        # process the anim data into a TkAnimMetadata structure
-        AnimationFiles = {}
-        # action is the name of the action, as specified by the animation panel
-        for action in self.anim_frame_data:
-            # all the actual data for every node, animated otherwise
-            action_data = self.anim_frame_data[action]
-            animated_nodes_data = self.anim_node_data[action]
-            ordered_nodes = {0: [], 1: [], 2: []}
-            # list of the name of all nodes that appear in the anim file
-            active_nodes = list(action_data.keys())
-            num_nodes = len(active_nodes)
-            # populate the dictionary with the data about what nodes have what
-            # animation data (ordered_nodes)
-            for name in active_nodes:
-                for i in range(3):
-                    if i in animated_nodes_data.get(name, []):
-                        # return an empty set so the condition always returns
-                        # False
-                        ordered_nodes[i].append(name)
-            anim_type_lens = []
-            # get the number of each of the different animation type amounts
-            for i in range(3):
-                anim_type_lens.append(len(ordered_nodes[i]))
-
-            NodeData = List()
-            print("active nodes: ", active_nodes,
-                  " for action: {}".format(action))
-            # add all the other nodes that just have static info onto the list
-            for i in range(3):
-                for key in active_nodes:
-                    if key not in ordered_nodes[i]:
-                        ordered_nodes[i].append(key)
-
-            print(ordered_nodes, 'ord nodes')
-            for name in active_nodes:
-                # read from the ordered nodes data what goes in what order
-                # TODO: fix this
-                kwargs = {'Node': name[len("NMS_"):].upper(),
-                          'RotIndex': str(ordered_nodes[1].index(name)),
-                          'TransIndex': str(ordered_nodes[0].index(name)),
-                          'ScaleIndex': str(ordered_nodes[2].index(name))}
-                NodeData.append(TkAnimNodeData(**kwargs))
-            AnimFrameData = List()
-            stillRotations = List()
-            stillTranslations = List()
-            stillScales = List()
-            # non-still frame data first:
-            for frame in range(self.anim_frames):
-                Rotations = List()
-                Translations = List()
-                Scales = List()
-                # the active nodes will be in the same order as the ordered
-                # list because we constructed it that way only iterate over the
-                # active nodes iterate over the anim_type_lens list:
-                for i in range(3):
-                    for j in range(anim_type_lens[i]):
-                        # get the name from the ordered_nodes dict
-                        node = ordered_nodes[i][j]
-                        # now assign the data on this frame
-                        if i == 0:
-                            trans = action_data[node][frame][0]
-                            Translations.append(Vector4f(x=trans.x,
-                                                         y=trans.y,
-                                                         z=trans.z,
-                                                         t=1.0))
-                        elif i == 1:
-                            rot = action_data[node][frame][1]
-                            Rotations.append(Quaternion(x=rot.x,
-                                                        y=rot.y,
-                                                        z=rot.z,
-                                                        w=rot.w))
-                        elif i == 2:
-                            scale = action_data[node][frame][2]
-                            Scales.append(Vector4f(x=scale.x,
-                                                   y=scale.y,
-                                                   z=scale.z,
-                                                   t=1.0))
-                FrameData = TkAnimNodeFrameData(Rotations=Rotations,
-                                                Translations=Translations,
-                                                Scales=Scales)
-                AnimFrameData.append(FrameData)
-            # now, the still frame data is what's left...
-            for i in range(3):
-                for j in range(anim_type_lens[i], len(active_nodes)):
-                    node = ordered_nodes[i][j]
-                    if i == 0:
-                        trans = action_data[node][0][0]
-                        stillTranslations.append(Vector4f(x=trans.x,
-                                                          y=trans.y,
-                                                          z=trans.z,
-                                                          t=1.0))
-                    elif i == 1:
-                        rot = action_data[node][0][1]
-                        stillRotations.append(Quaternion(x=rot.x,
-                                                         y=rot.y,
-                                                         z=rot.z,
-                                                         w=rot.w))
-                    elif i == 2:
-                        scale = action_data[node][0][2]
-                        stillScales.append(Vector4f(x=scale.x,
-                                                    y=scale.y,
-                                                    z=scale.z,
-                                                    t=1.0))
-            StillFrameData = TkAnimNodeFrameData(
-                Rotations=stillRotations,
-                Translations=stillTranslations,
-                Scales=stillScales)
-
-            AnimationFiles[action] = TkAnimMetadata(
-                FrameCount=str(self.anim_frames),
-                NodeCount=str(num_nodes),
-                NodeData=NodeData,
-                AnimFrameData=AnimFrameData,
-                StillFrameData=StillFrameData)
-        return AnimationFiles
-
     def descriptor_generator(self, obj):
         """ Generate a descriptor for the specified object."""
 
@@ -615,7 +452,7 @@ class Exporter():
         data_is_temp = False
         # Raise exception if UV Map is missing
         uvcount = len(data.uv_layers)
-        if (uvcount < 1):
+        if uvcount < 1:
             raise Exception("Missing UV Map")
 
         uv_layer_name = data.uv_layers.active.name
@@ -743,7 +580,6 @@ class Exporter():
             # ob.NMSEntity_props
             # check to see if the mesh's entity will get the action trigger
             # data
-            # TODO: use os.path.isfile? or something
             if ('/' in ob.NMSEntity_props.name_or_path or
                     '\\' in ob.NMSEntity_props.name_or_path):
                 # in this case just set the data to be a string with a path
@@ -828,7 +664,7 @@ class Exporter():
                 ScaleZ=trans_scale[2])
             optdict['CollisionType'] = colType
 
-            if (colType == "Mesh"):
+            if colType == "Mesh":
                 # Mesh collisions will only have convex hull data.
                 # We'll give them some "fake" vertex data which consists of
                 # no actual vertex data, but an index that doesn't point to
@@ -844,16 +680,16 @@ class Exporter():
                 optdict['CHVerts'] = chverts
                 optdict['CHIndexes'] = chindexes
             # Handle Primitives
-            elif (colType == "Box"):
+            elif colType == "Box":
                 optdict['Width'] = dims[0]/factor[0]
                 optdict['Depth'] = dims[2]/factor[2]
                 optdict['Height'] = dims[1]/factor[1]
-            elif (colType == "Sphere"):
+            elif colType == "Sphere":
                 # take the minimum value to find the 'base' size (effectively)
                 optdict['Radius'] = min([0.5*dims[0]/factor[0],
                                          0.5*dims[1]/factor[1],
                                          0.5*dims[2]/factor[2]])
-            elif (colType == "Cylinder"):
+            elif colType == "Cylinder":
                 optdict['Radius'] = min([0.5*dims[0]/factor[0],
                                          0.5*dims[2]/factor[2]])
                 optdict['Height'] = dims[1]/factor[1]
@@ -998,102 +834,50 @@ class Exporter():
         for child in ob.children:
             self.parse_object(child, newob)
 
-    def process_anims(self):
-        # get all the data. We will then consider number of actions globally
-        # and process the entity stuff accordingly
-        self.anim_loops = dict()
-        for anim_name in self.animation_anim_data:
-            print("processing anim {}".format(anim_name))
-            action_data = dict()
-            # This will be a dictionary of names. The keys are the names, the
-            # values are sets of indices indicating what component changes in
-            # the animation.
-            nodes_with_anim = dict()
-            # 0 = translation, 1 = rotation, 2 = scale
-            for jnt_action in self.animation_anim_data[anim_name]:
-                try:
-                    # set the actions of each joint (with this action) to be
-                    # the current active one
-                    self.global_scene.objects[
-                        jnt_action[0]].animation_data.action = jnt_action[1]
-                except:
-                    pass
-                # Initialise an empty list for the data to be put into with the
-                # requisite key.
-                action_data[jnt_action[0]] = list()
-                # set whether or not the animation is to loop
-                self.anim_loops[anim_name] = self.global_scene.objects[
-                    jnt_action[0]].NMSAnimation_props.anim_loops_choice
+    def generate_entity_anim_data(self, scene_name, scene_directory):
+        """ From the generated animation data for this scene, create the
+        information for the animation controller so it can be written to the
+        entity file later.
 
-            # Let's hope none of the anims have different amounts of frames...
-            # Should be easy to fix though... later...
-            for frame in range(self.anim_frames):
-                # need to change the frame of the scene to appropriate one
-                self.global_scene.frame_set(frame)
-                # now need to re-get the data
-                for jnt_action in self.animation_anim_data[anim_name]:
-                    # for nodes with anim data, get every frame of data,
-                    # otherwise just get the first frame of data
-                    # (StillFrameData)
-                    if jnt_action[2] or (not jnt_action[2] and frame == 0):
-                        # name of the joint that is animated
-                        name = jnt_action[0]
-                        ob = self.global_scene.objects[name]
-                        # ob.matrix_local.decompose()
-                        trans, rot_q, scale = transform_to_NMS_coords(ob)
-                        # this is the anim_data that will be processed later
-                        action_data[name].append((trans, rot_q, scale))
-            """
-            Now let's do some post-processing of the action data.
-            We only want nodes that action have an animation that changes, so
-            we'll get a list of names that change as well as their indexes that
-            change
-            """
-            for name in action_data:
-                if len(action_data[name]) != 1:
-                    d = ContinuousCompare(action_data[name], 1E-6)
-                    if d != set():
-                        nodes_with_anim[name] = d
-                else:
-                    print('{0} has only StillFrameData!'.format(name))
-            print(nodes_with_anim, 'nodes with anims')
-            print(action_data)
-            # add all the animation data to the anim frame data for the
-            # particular action
-            self.anim_frame_data[anim_name] = action_data
-            self.anim_node_data[anim_name] = nodes_with_anim
-
-    def assign_anim_data(self):
-        # now semi-process the animation data to generate data for the
-        # animation controller entity file
-        if len(self.anim_frame_data) == 1:
-            # in this case we only have the idle animation.
+        Parameters
+        ----------
+        scene_name : str
+            Name of the scene that contains the animations.
+        scene_directory : str
+            Output directory for the scene files.
+        """
+        # Do nothing if there are no animations
+        if len(bpy.data.actions) == 0:
+            return
+        # First, check to see if there is an idle animation
+        if self.settings['idle_anim'] != "_FAKEVALUE_":
+            # If the script is being called from the cli.
+            # TODO: this will be improved when we improve cli functionality
+            idle_anim_name = self.settings['idle_anim']
+        else:
+            idle_anim_name = self.global_scene.nmsdk_anim_data.idle_anim
+        Idle = None
+        Anims = List()
+        if idle_anim_name != 'None':
             path = os.path.join(self.basepath, self.group_name.upper(),
                                 self.export_name.upper())
-            anim_entity = TkAnimationComponentData(
-                Idle=TkAnimationData(
-                    AnimType=list(self.anim_loops.values())[0]))
-            # update the entity data directly
-            self.anim_controller_obj[1].ExtraEntityData[
-                self.anim_controller_obj[0]].append(anim_entity)
-            self.anim_controller_obj[1].rebuild_entity()
-        elif len(self.anim_frame_data) > 1:
-            # in this case all the anims are not idle ones, and we need some
-            # kind of real data
-            Anims = List()
+            Idle = TkAnimationData()
+        for anim_name in self.global_scene.nmsdk_anim_data.loaded_anims:
+            if anim_name == 'None' or anim_name == idle_anim_name:
+                continue
+            # For every other anim, we want to construct the paths to be in the
+            # anims folder.
             path = os.path.join(self.basepath, self.group_name.upper(),
                                 'ANIMS')
-            for action in self.anim_frame_data:
-                name = action
-                AnimationData = TkAnimationData(
-                    Anim=name,
-                    Filename=os.path.join(path,
-                                          "{}.ANIM.MBIN".format(name.upper())),
-                    FlagsActive=True)
-                Anims.append(AnimationData)
-            anim_entity = TkAnimationComponentData(Idle=TkAnimationData(),
-                                                   Anims=Anims)
-            # Update the entity data directly
-            self.anim_controller_obj[1].ExtraEntityData[
-                self.anim_controller_obj[0]].append(anim_entity)
-            self.anim_controller_obj[1].rebuild_entity()
+            AnimationData = TkAnimationData(
+                Anim=anim_name,
+                Filename=os.path.join(
+                    path, "{}.ANIM.MBIN".format(anim_name.upper())))
+            Anims.append(AnimationData)
+
+        # construct the entity data
+        anim_entity = TkAnimationComponentData(Idle=Idle, Anims=Anims)
+        # update the entity data directly
+        self.anim_controller_obj[1].ExtraEntityData[
+            self.anim_controller_obj[0]].append(anim_entity)
+        self.anim_controller_obj[1].rebuild_entity()

@@ -1,6 +1,4 @@
-import bpy
-from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
-                                NMSShaderNode, SettingsPanels)
+import bpy  # pylint: disable=import-error
 from bpy.props import PointerProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
 
 # External API operators
@@ -9,20 +7,24 @@ from .NMSDK import ImportSceneOperator, ImportMeshOperator
 from .NMSDK import NMS_Export_Operator, NMS_Import_Operator
 # Internal operators
 from .NMSDK import (_FixOldFormat, _ToggleCollisionVisibility,
-                    _SaveDefaultSettings)
+                    _SaveDefaultSettings, _FixActionNames)
 # Settings
 from .NMSDK import NMSDKSettings, NMSDKDefaultSettings
 # Animation classes
 from .NMSDK import (_ChangeAnimation, _PlayAnimation, _PauseAnimation,
-                    _StopAnimation, _LoadAnimation, AnimProperties)
+                    _StopAnimation, _LoadAnimation, AnimProperties,
+                    _RefreshAnimations)
 from .ModelImporter.animation_handler import AnimationHandler
+# extensions to blender UI
+from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
+                                NMSShaderNode, SettingsPanels)
 
 customNodes = NMSNodes()
 
 bl_info = {
     "name": "No Man's Sky Development Kit",
     "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 13),
+    "version": (0, 9, 14),
     "blender": (2, 79, 0),
     "location": "File > Export",
     "description": "Create NMS scene structures and export to NMS File format",
@@ -40,7 +42,7 @@ def menu_func_export(self, context):
 
 def menu_func_import(self, context):
     self.layout.operator(NMS_Import_Operator.bl_idname,
-                         text="Import NMS SCENE.EXML")
+                         text="Import NMS SCENE")
 
 
 def register():
@@ -51,9 +53,11 @@ def register():
     bpy.utils.register_class(ImportSceneOperator)
     bpy.utils.register_class(ImportMeshOperator)
     bpy.utils.register_class(_FixOldFormat)
+    bpy.utils.register_class(_FixActionNames)
     bpy.utils.register_class(_ToggleCollisionVisibility)
     bpy.utils.register_class(_SaveDefaultSettings)
     bpy.utils.register_class(_ChangeAnimation)
+    bpy.utils.register_class(_RefreshAnimations)
     bpy.utils.register_class(_LoadAnimation)
     bpy.utils.register_class(_PlayAnimation)
     bpy.utils.register_class(_PauseAnimation)
@@ -81,9 +85,11 @@ def unregister():
     bpy.utils.unregister_class(ImportSceneOperator)
     bpy.utils.unregister_class(ImportMeshOperator)
     bpy.utils.unregister_class(_FixOldFormat)
+    bpy.utils.unregister_class(_FixActionNames)
     bpy.utils.unregister_class(_ToggleCollisionVisibility)
     bpy.utils.unregister_class(_SaveDefaultSettings)
     bpy.utils.unregister_class(_ChangeAnimation)
+    bpy.utils.unregister_class(_RefreshAnimations)
     bpy.utils.unregister_class(_LoadAnimation)
     bpy.utils.unregister_class(_PlayAnimation)
     bpy.utils.unregister_class(_PauseAnimation)

@@ -16,6 +16,7 @@ class UpdateSettingsPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         layout.operator("nmsdk._fix_old_format")
+        layout.operator("nmsdk._fix_action_names")
 
 
 class ToolsPanel(bpy.types.Panel):
@@ -91,16 +92,23 @@ class AnimationsPanel(bpy.types.Panel):
         if not isinstance(anim_names, list):
             anim_names = anim_data.loaded_anims.to_list()
         if anim_names == ['None']:
-            layout.label(text="No loaded animations")
+            row = layout.row(align=True)
+            row.alignment = 'LEFT'
+            row.label(text="No loaded animations")
+            row.operator('nmsdk._refresh_anim_list',
+                         icon='FILE_REFRESH', emboss=False, text=" ")
         else:
             try:
                 anim_choice_text = 'Current animation: {0}'.format(
                     context.scene['curr_anim'])
             except KeyError:
                 anim_choice_text = 'Select an animation'
-            layout.operator_menu_enum("nmsdk._change_animation",
-                                      "anim_names",
-                                      text=anim_choice_text)
+            row = layout.row(align=True)
+            row.alignment = 'LEFT'
+            row.operator_menu_enum("nmsdk._change_animation", "anim_names",
+                                   text=anim_choice_text)
+            row.operator('nmsdk._refresh_anim_list',
+                         icon='FILE_REFRESH', emboss=False, text=" ")
             row = layout.row()
             row.operator("nmsdk._play_animation",
                          icon='PLAY', emboss=False)
@@ -108,6 +116,10 @@ class AnimationsPanel(bpy.types.Panel):
                          icon='PAUSE', emboss=False)
             row.operator("nmsdk._stop_animation",
                          icon='REW', emboss=False)
+            row = layout.row()
+            row.label(text="Idle animation: ")
+            row.prop_menu_enum(context.scene.nmsdk_anim_data, "idle_anim",
+                               text=context.scene.nmsdk_anim_data.idle_anim)
 
 
 class SettingsPanels():

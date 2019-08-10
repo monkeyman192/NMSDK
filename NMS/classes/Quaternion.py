@@ -14,3 +14,12 @@ class Quaternion(Struct):
         self.data['z'] = kwargs.get('z', 0.0)
         self.data['w'] = kwargs.get('w', 0.0)
         """ End of the struct contents"""
+
+    def __str__(self):
+        return 'Quaternion({0}, {1}, {2}, {3})'.format(self.data['x'],
+                                                       self.data['y'],
+                                                       self.data['z'],
+                                                       self.data['w'])
+
+    def __repr__(self):
+        return str(self)

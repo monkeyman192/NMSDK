@@ -22,7 +22,8 @@ If you are using vanilla materials or a material you have already created/export
 
 ## Locator Node
 
-A `Locator` node is used to create something at a particular point in space. Whether it me a place to group objects, or a location at which an interaction will occur at.
+A `Locator` node is used to create something at a particular point in space. Whether it me a place to group objects, or a location at which an interaction will occur at.  
+It is **highly recommended** that you use a `Locator` type node to handle interactions, instead of using entity files attached to a mesh node. This allows for more precise localisation of the interaction, as well as being able to safely and easily decouple the interaction location from any animated meshes. Not doing so can cause the camera to move wildly during an interaction.
 
 - **Requires Entity** : `bool`
 
@@ -98,4 +99,4 @@ The field of view of the light source. Values can range from 0 to 360 (degrees).
 
 ## Joint Node
 
-A `Joint` node is used for animation data. This is currently not working right now but it has no further properties that need to be set to use it.
+A `Joint` node is used for animations involving bones and meshes with weight bindings. Currently the ability to export scenes with these types of animations is not possible but it will hopefully come in the future, so stay tuned!

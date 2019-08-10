@@ -2,6 +2,7 @@
 
 from .Struct import Struct
 from .List import List
+from .TkAnimationGameData import TkAnimationGameData
 
 
 class TkAnimationData(Struct):
@@ -19,12 +20,16 @@ class TkAnimationData(Struct):
         self.data['Priority'] = kwargs.get('Priority', 0)
         self.data['LoopOffsetMin'] = kwargs.get('LoopOffsetMin', 0)
         self.data['LoopOffsetMax'] = kwargs.get('LoopOffsetMax', 0)
-        self.data['ControlDelay'] = kwargs.get('ControlDelay', 0)
-        self.data['ControlSpeed'] = kwargs.get('ControlSpeed', 1)
-        self.data['ControlActionFrame'] = kwargs.get('ControlActionFrame', -1)
+        self.data['Delay'] = kwargs.get('Delay', 0)
+        self.data['Speed'] = kwargs.get('Speed', 1)
+        self.data['ActionFrameStart'] = kwargs.get('ActionFrameStart', 0)
+        self.data['ActionFrame'] = kwargs.get('ActionFrame', -1)
         self.data['ControlCreatureSize'] = kwargs.get('ControlCreatureSize',
                                                       'AllSizes')
-        self.data['FlagsAdditive'] = kwargs.get('FlagsAdditive', 'False')
-        self.data['FlagsMirrored'] = kwargs.get('FlagsMirrored', 'False')
-        self.data['FlagsActive'] = kwargs.get('FlagsActive', 'True')
+        self.data['Additive'] = kwargs.get('Additive', 'False')
+        self.data['Mirrored'] = kwargs.get('Mirrored', 'False')
+        self.data['Active'] = kwargs.get('Active', 'True')
+        self.data['AdditiveBaseAnim'] = kwargs.get('AdditiveBaseAnim', '')
+        self.data['AdditiveBaseFrame'] = kwargs.get('AdditiveBaseFrame', 0)
+        self.data['GameData'] = kwargs.get('GameData', TkAnimationGameData())
         """ End of the struct contents"""
