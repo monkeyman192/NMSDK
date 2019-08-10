@@ -87,6 +87,10 @@
                 </li>
                 <li class="">
                     
+    <a class="" href="../exporting/animations/">Adding Animations</a>
+                </li>
+                <li class="">
+                    
     <a class="" href="../exporting/proc_gen/">Making a proc-gen scene</a>
                 </li>
                 <li class="">
@@ -156,13 +160,18 @@
               
                 <h1 id="nmsdk-changelog">NMSDK Changelog</h1>
 <h2 id="releases">Releases:</h2>
-<h3 id="current-v0913">Current - v0.9.13</h3>
+<h3 id="current-v0914">Current - v0.9.14</h3>
+<ul>
+<li>The animation exporting system has received a major overhaul. It is now far mor easy for each part to have mutliple animations.</li>
+<li>The Idle animation can now be set from the <code>Animation controls</code> section of the NMSDK toolbar. Any animation that isn't specified as the idle one goes in the <code>Anim</code> list in the entity file.</li>
+</ul>
+<h3 id="past">Past:</h3>
+<h4 id="v0913-02082019">v0.9.13 (02/08/2019)</h4>
 <ul>
 <li>Import process has been expanded to allow for animations to be imported. This includes both simple animations (one with just translation/rotation/scaling of nodes in the scene), as well as complex animations which involve skinned meshes and bones. Currently complex animations are still a bit broken, but hopefully they will be fixed in the future.
  To see more details on what options are available for imported animations, see <a href="../importing/importing/#import_settings">here</a>.</li>
 <li>Tests have been added to NMSDK! This has no affect on the plugin itself, however if you clone the repo from github you will now notice a number of files from the game which are used to test the importing capabilities of NMSDK. This will be extended greatly in the future, but for now there is only the framework and a few simple tests.</li>
 </ul>
-<h3 id="past">Past:</h3>
 <h4 id="v0912-03062019">v0.9.12 (03/06/2019):</h4>
 <ul>
 <li>Add support for importing <code>Box</code>, <code>Cylinder</code> and <code>Sphere</code> type primitive collisions.</li>

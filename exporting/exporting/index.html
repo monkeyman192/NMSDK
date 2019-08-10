@@ -105,6 +105,10 @@
                 </li>
                 <li class="">
                     
+    <a class="" href="../animations/">Adding Animations</a>
+                </li>
+                <li class="">
+                    
     <a class="" href="../proc_gen/">Making a proc-gen scene</a>
                 </li>
                 <li class="">
@@ -185,8 +189,8 @@ To allow for flexibility, <code>Reference</code> nodes can be given two importan
 <p><code>Scene name</code> is used to specify the name of the exported sub-scene.
 This is the name of the scene that any child objects will be exported in.</p>
 <p>To illustrate how the parameters work consider the following two images.</p>
-<p><img alt="sub ref example 1" src="../../images/sub_ref_example1.png" />
-<img alt="sub ref example 2" src="../../images/sub_ref_example2.png" /></p>
+<p><img alt="sub ref example 1" src="../../images/sub_ref_example1.png" /></p>
+<p><img alt="sub ref example 2" src="../../images/sub_ref_example2.png" /></p>
 <p>In the first image we can see that the object is a reference to a scene that already exists in the NMS game files.
 In this case the scene will simply contain a <code>REFERENCE</code> node with the <code>SCENEGRAPH</code> property being the path to the specified scene.</p>
 <p>In the second image we can see that the object has no reference path, but instead has a <code>Scene name</code>.
@@ -200,14 +204,14 @@ These each have their own various uses and if you are familiar with NMS scenes i
 <li>Only objects that are the children of a <code>Reference</code> node will be exported.</li>
 <li>Mesh collisions should be used sparingly. They take up more computational power and may cause your model to slow down the game. If you must use mesh collisions be sure to use very low poly models (in the 100's of verts, max). It is preferrential to use primitive type collision objects when possible.</li>
 <li>When exporting an object it may be exported with edges and faces messed up. This happens when the mesh is improperly triangulated. Whilst NMSDK should triangulate a mesh properly it sometimes doesn't work as well as it should.
-You can see the issue in the following two images (c/o Krem):
-<img alt="bad export blender" src="../../images/bad_export_blender.png" />
-<img alt="bad export" src="../../images/bad_export.png" />
-As we can see, the orange region doesn't look the same in the model viewer as it does in blender before export.
-To fix the issue, we can select the mesh in blender, change to <code>EDIT</code> mode, then select <code>Mesh</code> &gt; <code>Faces</code> &gt; <code>Triangulate Faces</code> (see image below)
-<img alt="triangulate" src="../../images/triangulate.png" />
-On re-export the issue should be fixed.</li>
+You can see the issue in the following two images (c/o Krem):</li>
 </ul>
+<p><img alt="bad export blender" src="../../images/bad_export_blender.png" /></p>
+<p><img alt="bad export" src="../../images/bad_export.png" /></p>
+<p>As we can see, the orange region doesn't look the same in the model viewer as it does in blender before export.
+To fix the issue, we can select the mesh in blender, change to <code>EDIT</code> mode, then select <code>Mesh</code> &gt; <code>Faces</code> &gt; <code>Triangulate Faces</code> (see image below)</p>
+<p><img alt="triangulate" src="../../images/triangulate.png" /></p>
+<p>On re-export the issue should be fixed.</p>
               
             </div>
           </div>

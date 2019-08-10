@@ -111,6 +111,10 @@
                 </li>
                 <li class="">
                     
+    <a class="" href="../animations/">Adding Animations</a>
+                </li>
+                <li class="">
+                    
     <a class="" href="../proc_gen/">Making a proc-gen scene</a>
                 </li>
                 <li class="">
@@ -187,7 +191,8 @@ Selecting this will add an entity panel (see the page on <a href="../entities/">
 If you are using vanilla materials or a material you have already created/exported, then you can speed up the export process by simply setting this value to the path of the material file.</p>
 <hr />
 <h2 id="locator-node">Locator Node</h2>
-<p>A <code>Locator</code> node is used to create something at a particular point in space. Whether it me a place to group objects, or a location at which an interaction will occur at.</p>
+<p>A <code>Locator</code> node is used to create something at a particular point in space. Whether it me a place to group objects, or a location at which an interaction will occur at.<br />
+It is <strong>highly recommended</strong> that you use a <code>Locator</code> type node to handle interactions, instead of using entity files attached to a mesh node. This allows for more precise localisation of the interaction, as well as being able to safely and easily decouple the interaction location from any animated meshes. Not doing so can cause the camera to move wildly during an interaction.</p>
 <ul>
 <li><strong>Requires Entity</strong> : <code>bool</code></li>
 </ul>
@@ -247,7 +252,7 @@ Note that NMSDK will construct the objects' name to be of the form <code>_&lt;pr
 <p>The field of view of the light source. Values can range from 0 to 360 (degrees).</p>
 <hr />
 <h2 id="joint-node">Joint Node</h2>
-<p>A <code>Joint</code> node is used for animation data. This is currently not working right now but it has no further properties that need to be set to use it.</p>
+<p>A <code>Joint</code> node is used for animations involving bones and meshes with weight bindings. Currently the ability to export scenes with these types of animations is not possible but it will hopefully come in the future, so stay tuned!</p>
               
             </div>
           </div>

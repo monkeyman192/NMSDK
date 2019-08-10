@@ -8,7 +8,7 @@
   
   
   <link rel="shortcut icon" href="../../img/favicon.ico">
-  <title>Adding Entities - NMSDK</title>
+  <title>Adding Animations - NMSDK</title>
   <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
 
   <link rel="stylesheet" href="../../css/theme.css" type="text/css" />
@@ -17,8 +17,8 @@
   
   <script>
     // Current page data
-    var mkdocs_page_name = "Adding Entities";
-    var mkdocs_page_input_path = "exporting/entities.md";
+    var mkdocs_page_name = "Adding Animations";
+    var mkdocs_page_input_path = "exporting/animations.md";
     var mkdocs_page_url = null;
   </script>
   
@@ -81,19 +81,29 @@
                     
     <a class="" href="../node_docs/">Node type guide</a>
                 </li>
+                <li class="">
+                    
+    <a class="" href="../entities/">Adding Entities</a>
+                </li>
                 <li class=" current">
                     
-    <a class="current" href="./">Adding Entities</a>
+    <a class="current" href="./">Adding Animations</a>
     <ul class="subnav">
             
-    <li class="toctree-l3"><a href="#adding-entities">Adding entities</a></li>
+    <li class="toctree-l3"><a href="#exporting-animated-scenes">Exporting animated scenes</a></li>
+    
+        <ul>
+        
+            <li><a class="toctree-l4" href="#adding-animations">Adding animations</a></li>
+        
+            <li><a class="toctree-l4" href="#chosing-an-animation-handler">Chosing an animation handler</a></li>
+        
+            <li><a class="toctree-l4" href="#specifying-the-idle-animation">Specifying the idle animation</a></li>
+        
+        </ul>
     
 
     </ul>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../animations/">Adding Animations</a>
                 </li>
                 <li class="">
                     
@@ -146,7 +156,7 @@
         
       
     
-    <li>Adding Entities</li>
+    <li>Adding Animations</li>
     <li class="wy-breadcrumbs-aside">
       
     </li>
@@ -156,8 +166,27 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="adding-entities">Adding entities</h1>
-<p>Coming soon!</p>
+                <h1 id="exporting-animated-scenes">Exporting animated scenes</h1>
+<p>NMSDK is able to handle scene with animations, allowing your creations to be more than just static objects, but beautiful animated constructions!</p>
+<h2 id="adding-animations">Adding animations</h2>
+<p>In blender, animations are known as <em>actions</em>. Each <em>action</em> contains the information about the rotation, translation and scale of the object on any given frame. You may specify this data by generating f-curves, or by simply inserting keyframes with the object in specific locations.
+To add an action open the "Dope sheet" view and set the mode as "Action Editor". In this view you can add new actions.</p>
+<p>To allow for maximum flexibility of animations in regards to exporting, it is very importantant that actions are named in a specific way.</p>
+<p><strong>ALL</strong> actions that are to be exported with NMSDK <strong>MUST</strong> have the format <code>&lt;action_name&gt;.&lt;object name&gt;</code>.
+So for example, if you want to have an animation in the scene called <code>WALK</code>, and two objects called <code>LEFT_LEG</code> and <code>RIGHT_LEG</code>, you would create actions called <code>WALK.LEFT_LEG</code> and <code>WALK.RIGHT_LEG</code> respectively.</p>
+<p>It is very important if you have multiple animations per object that you give each action a fake user (Press the "F" button next to the name of the action in the list). This way the data block is saved.
+It is also recommended that each action is stashed so that it is is stored in the NLA tracks for the object. This <em>shouldn't</em> affect the resulting animations, however it keeps the actions stored nicely in the NLA tracks.</p>
+<h2 id="chosing-an-animation-handler">Chosing an animation handler</h2>
+<p>For the game to know the details of the animation(s) you added, an attached entity file <strong>MUST</strong> be specified as an entity controller.</p>
+<p><img alt="anim controller" src="../../images/anim_controller.png" /></p>
+<p>It is important to note that only one associated entity file may be specified as an animation controller in each scene at a time. Specifying more that one will not raise an error, but instead, only the first will be used, and any others will be ignored.</p>
+<h2 id="specifying-the-idle-animation">Specifying the idle animation</h2>
+<p>NMS has two types of animations; <em>Idle</em> animations, and <em>Anim</em> animations.
+The <em>Idle</em> animation doesn't require any action triggers to be called and will play while the scene is spawned (depending on the animation settings).
+The <em>Anim</em> animations however are only run when an action trigger causes them to be.
+It is only possible to have one <em>Idle</em> animation but you can have as many <em>Anim</em> animations as you like.</p>
+<p>To specify which animation is the idle animation, you simply select it from the drop down box in the <code>Animation Controls</code> section of the NMSDK toolbar.
+If you do not see your animation listed, make sure you click the refresh button as it isn't possible to have the list updated automatically whenever you add a new animation.</p>
               
             </div>
           </div>
@@ -165,10 +194,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../animations/" class="btn btn-neutral float-right" title="Adding Animations">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../proc_gen/" class="btn btn-neutral float-right" title="Making a proc-gen scene">Next <span class="icon icon-circle-arrow-right"></span></a>
       
       
-        <a href="../node_docs/" class="btn btn-neutral" title="Node type guide"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../entities/" class="btn btn-neutral" title="Adding Entities"><span class="icon icon-circle-arrow-left"></span> Previous</a>
       
     </div>
   
@@ -194,10 +223,10 @@
     <span class="rst-current-version" data-toggle="rst-current-version">
       
       
-        <span><a href="../node_docs/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+        <span><a href="../entities/" style="color: #fcfcfc;">&laquo; Previous</a></span>
       
       
-        <span style="margin-left: 15px"><a href="../animations/" style="color: #fcfcfc">Next &raquo;</a></span>
+        <span style="margin-left: 15px"><a href="../proc_gen/" style="color: #fcfcfc">Next &raquo;</a></span>
       
     </span>
 </div>
