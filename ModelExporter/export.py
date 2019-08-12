@@ -30,6 +30,15 @@ from .utils import nmsHash, traverse
 
 
 class Export():
+    # TODO: restructure the arguments to be:
+    #
+    # *export_directory - absolute or relative path to where the data should be
+    # produced.
+    # *scene_directory - a path made up of two components; the sub-directory
+    # name relative to the PCBANKS folder, and the sub-folder telative to that
+    # (the "group name").
+    # *scene_name - The name of the scene file itself (and other files with
+    # automatically generated names)
     """ Export the data provided by blender to .mbin files.
 
     Parameters

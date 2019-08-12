@@ -29,26 +29,6 @@ from .ActionTriggerParser import ParseNodes
 ROT_X_MAT = Matrix.Rotation(radians(-90), 4, 'X')
 
 
-# Attempt to find 'blender.exe path'
-
-# TODO: do we need any of this??
-
-for path in sys.path:
-    if os.path.isdir(path):
-        if 'ModelExporter' in os.listdir(path):
-            print("Found ModelExporter at: ", path)
-            os.chdir(path)
-            break
-
-
-# Add script path to sys.path
-scriptpath = os.path.join(os.getcwd(), 'ModelExporter')
-
-if scriptpath not in sys.path:
-    sys.path.append(scriptpath)
-    # print(sys.path)
-
-
 def triangulate_mesh(mesh):
     """ Triangule the provided mesh.
 
@@ -121,7 +101,7 @@ class Exporter():
         # set the frame to be the first one, just in case an export has already
         # been run
         self.global_scene.frame_set(0)
-        self.export_name = os.path.basename(exportpath)
+        self.export_dir, self.export_fname = os.path.split(exportpath)
         self.settings = settings
 
         # self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
@@ -157,9 +137,7 @@ class Exporter():
             entitydata = ParseNodes()
             entity = TkAttachmentData(Components=List(entitydata))
             entity.make_elements(main=True)
-            mpath = os.path.dirname(os.path.abspath(exportpath))
-            os.chdir(mpath)
-            entity.tree.write('{}.ENTITY.exml'.format(self.export_name))
+            entity.tree.write('{}.ENTITY.exml'.format(exportpath))
             self.state = {'FINISHED'}
             return
 
@@ -173,7 +151,7 @@ class Exporter():
         if self.settings['group_name'] != '':
             self.group_name = self.settings['group_name']
         else:
-            self.group_name = self.export_name
+            self.group_name = self.export_fname
 
         # pre-process the animation information.
 
@@ -205,11 +183,11 @@ class Exporter():
                 descriptor = self.descriptor_generator(obj)
             name = obj.NMSReference_props.scene_name
             if name == '':
-                name = get_obj_name(obj, self.export_name)
+                name = get_obj_name(obj, self.export_fname)
             print('Located Object for export', name)
             scene = Model(Name=name)
             scene_directory = os.path.join(
-                self.basepath, self.group_name, self.export_name)
+                self.basepath, self.group_name, self.export_fname)
             # We don't want to actually add the main object to the scene,
             # Just its children.
             for sub_obj in obj.children:
@@ -412,7 +390,7 @@ class Exporter():
                 # this will add a Node_Data object and return it
                 p = child.NMSDescriptor_props.proc_prefix
                 prefix = '_{0}_'.format(p.strip('_')).upper()
-                name = get_obj_name(child, self.export_name)
+                name = get_obj_name(child, self.export_fname)
                 if not name.startswith(prefix):
                     # If the name doesn't start with the prefix
                     child.NMSNode_props.override_name = "{0}{1}".format(
@@ -424,7 +402,7 @@ class Exporter():
         descriptor_recurse(obj, descriptor_struct)
 
         # Get the objects name. We do this again now in case it has changed
-        name = get_obj_name(obj, self.export_name)
+        name = get_obj_name(obj, self.export_fname)
         # Give the descriptor its path
         descriptor_struct.path = os.path.join(self.basepath, self.group_name,
                                               name).upper()
@@ -860,7 +838,7 @@ class Exporter():
         Anims = List()
         if idle_anim_name != 'None':
             path = os.path.join(self.basepath, self.group_name.upper(),
-                                self.export_name.upper())
+                                self.export_fname.upper())
             Idle = TkAnimationData()
         for anim_name in self.global_scene.nmsdk_anim_data.loaded_anims:
             if anim_name == 'None' or anim_name == idle_anim_name:

@@ -72,6 +72,17 @@ class ImportMeshOperator(Operator):
         return importer.state
 
 
+class ExportSceneOperator(Operator):
+    """ Export the current scene to a SCENE.MBIN file and associated geometry,
+    animation, entity and other files.
+    """
+    bl_idname = "nmsdk.export_scene"
+    bl_label = "Export to NMS scene"
+
+    def execute(self, context):
+        return {'FINISHED'}
+
+
 # Private operators for internal use
 
 
@@ -387,7 +398,8 @@ class NMS_Export_Operator(Operator, ExportHelper):
 
     export_directory = StringProperty(
         name="Export Directory",
-        description="The base path under which all models will be exported.",
+        description="The base path relative to the PCBANKS folder under which "
+                    "all models will be exported.",
         default="CUSTOMMODELS")
     group_name = StringProperty(
         name="Group Name",
