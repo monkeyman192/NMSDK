@@ -1,3 +1,4 @@
-from .CustomPanels import NMSPanels
-from .CustomNodes import NMSNodes
-from .EntityPanels import NMSEntities
+from .NMSObjectsPanels import NMSPanels  # noqa
+from .CustomNodes import NMSNodes  # noqa
+from .EntityPanels import NMSEntities  # noqa
+from .SettingsPanel import SettingsPanels  # noqa

@@ -51,6 +51,13 @@ Temporary Items
 classes/__pycache__/*
 classes/*.pyc
 __pycache__/
-*.blend
-*.blend1
 textures/*
+
+# blender file backups
+*.blend1
+
+# vscode files
+.vscode/
+
+# We only want to store .mbin files, any exml files generated during testing should be ignored...
+*.EXML

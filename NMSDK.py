@@ -1,43 +1,572 @@
-bl_info = {  
- "name": "NMS Model Toolkit",  
- "author": "gregkwaste, monkeyman192",  
- "version": (0, 9),
- "blender": (2, 7, 0),  
- "location": "File > Export",  
- "description": "Exports to NMS File format",  
- "warning": "",
- "wiki_url": "",  
- "tracker_url": "",  
- "category": "Export"} 
+# stdlib imports
+import os.path as op
 
-import bpy
-from BlenderExtensions import *
-from addon_script import NMS_Export_Operator
+from bpy.props import StringProperty, BoolProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
+import bpy   # pylint: disable=import-error
+from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
+from bpy.types import Operator, PropertyGroup  # noqa pylint: disable=import-error, no-name-in-module
 
-customNodes = NMSNodes()
-
-# Only needed if you want to add into a dynamic menu
-def menu_func_export(self, context):
-    self.layout.operator(NMS_Export_Operator.bl_idname, text="Export to NMS XML Format ")
-
-def register():
-    bpy.utils.register_class(NMS_Export_Operator)
-    bpy.types.INFO_MT_file_export.append(menu_func_export)
-    NMSPanels.register()
-    customNodes.register()
-    NMSEntities.register()
+# internal imports
+from .ModelImporter.import_scene import ImportScene
+from .ModelExporter.addon_script import Exporter
+from .ModelExporter.utils import get_all_actions_in_scene, get_all_actions
+from .utils.settings import read_settings, write_settings
 
 
-def unregister():
-    bpy.utils.unregister_class(NMS_Export_Operator)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export)
-    NMSPanels.unregister()
-    customNodes.unregister()
-    NMSEntities.unregister()
+# Operators to be used for the public API
 
 
-if __name__ == "__main__":
-    register()
+class ImportSceneOperator(Operator):
+    """ Import an entire scene into the current blender context."""
+    bl_idname = "nmsdk.import_scene"
+    bl_label = "Import NMS Scene file"
 
-    # test call
-    bpy.ops.export_mesh.nms(filepath="J:\\Installs\\Steam\\steamapps\\common\\No Man's Sky\\GAMEDATA\\PCBANKS\\CUBE_ODD")
+    path = StringProperty(default="")
+
+    clear_scene = BoolProperty(
+        name='Clear scene',
+        description='Whether or not to clear the currently exiting scene in '
+                    'blender.',
+        default=True)
+
+    draw_hulls = BoolProperty(
+        name='Draw bounded hulls',
+        description='Whether or not to draw the points that make up the '
+                    'bounded hulls of the materials. This is only for research'
+                    '/debugging, so can safely be left as False.',
+        default=False)
+    import_collisions = BoolProperty(
+        name='Import collisions',
+        description='Whether or not to import the collision objects.',
+        default=True)
+    show_collisions = BoolProperty(
+        name='Draw collisions',
+        description='Whether or not to draw the collision objects.',
+        default=False)
+    import_bones = BoolProperty(
+        name='Import bones',
+        description="Whether or not to import the models' bones",
+        default=False)
+    load_anims = BoolProperty(
+        name='Load all animations',
+        description='Whether or not to load all the animation data initially',
+        default=True)
+
+    def execute(self, context):
+        keywords = self.as_keywords()
+        importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict(),
+                               settings=keywords)
+        importer.render_scene()
+        return importer.state
+
+
+class ImportMeshOperator(Operator):
+    """ Import one or more individual meshes from a single scene into the
+    current blender context. """
+    bl_idname = "nmsdk.import_mesh"
+    bl_label = "Import NMS meshes"
+
+    path = StringProperty(default="")
+    mesh_id = StringProperty(default="")
+
+    def execute(self, context):
+        importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict())
+        importer.render_mesh(str(self.mesh_id))
+        return importer.state
+
+
+class ExportSceneOperator(Operator):
+    """ Export the current scene to a SCENE.MBIN file and associated geometry,
+    animation, entity and other files.
+    """
+    bl_idname = "nmsdk.export_scene"
+    bl_label = "Export to NMS scene"
+
+    output_directory = StringProperty(
+        name="Output Directory",
+        description="The directory the exported data is to be placed in.")
+    export_directory = StringProperty(
+        name="Export Directory",
+        description="The base path relative to the PCBANKS folder under which "
+                    "all models will be exported.",
+        default="CUSTOMMODELS")
+    group_name = StringProperty(
+        name="Group Name",
+        description="Group name so that models that all belong in the same "
+                    "folder are placed there (path becomes "
+                    "group_name/scene_name).")
+    scene_name = StringProperty(
+        name="Scene Name",
+        description="Name of the scene to be exported.")
+    AT_only = BoolProperty(
+        name="ActionTriggers Only",
+        description="If this box is ticked, all the action trigger data will "
+                    "be exported directly to an ENTITY file in the specified "
+                    "location with the project name. Anything else in the "
+                    "project is ignored",
+        default=False)
+    no_vert_colours = BoolProperty(
+        name="Don't export vertex colours",
+        description="Ticking this box will force vertex colours to not be "
+                    "exported. Use this if you have accidentally added vertex "
+                    "colours to a mesh and don't know how to get rid of them.",
+        default=False)
+    idle_anim = StringProperty(
+        name="Idle animation name",
+        description="The name of the animation that is the idle animation.")
+
+    def execute(self, context):
+        keywords = self.as_keywords()
+        keywords.pop('output_directory')
+        keywords.pop('export_directory')
+        keywords.pop('group_name')
+        keywords.pop('scene_name')
+        main_exporter = Exporter(self.output_directory, self.export_directory,
+                                 self.group_name, self.scene_name, keywords)
+        status = main_exporter.state
+        if status == {'FINISHED'}:
+            self.report({'INFO'}, "Models Exported Successfully")
+        return status
+
+
+# Private operators for internal use
+
+
+class _FixActionNames(Operator):
+    """Change the type of node an object has"""
+    bl_idname = "nmsdk._fix_action_names"
+    bl_label = "Fix any incorrect action names"
+
+    def _correct_name(self, action, obj_name):
+        """ Correct the name of an action if it needs to be... """
+        action_name = action.name.split('.')[0]
+        correct_name = '{0}.{1}'.format(action_name, obj_name)
+        if action.name != correct_name:
+            action.name = correct_name
+
+    def execute(self, context):
+        for obj in context.scene.objects:
+            obj_name = obj.name
+            for action in get_all_actions(obj):
+                self._correct_name(action[2], obj_name)
+                action[2].use_fake_user = True
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+
+class _FixOldFormat(Operator):
+    """Change the type of node an object has"""
+    bl_idname = "nmsdk._fix_old_format"
+    bl_label = "Change NMS Node type"
+
+    def execute(self, context):
+        try:
+            context.scene.objects[
+                'NMS_SCENE'].NMSNode_props.node_types = 'Reference'
+            return {'FINISHED'}
+        except KeyError:
+            return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+
+class _ToggleCollisionVisibility(Operator):
+    """Toggle whether the collision objects are visible or not"""
+    bl_idname = "nmsdk._toggle_collision_visibility"
+    bl_label = "Toggle collision visibility"
+
+    def execute(self, context):
+        nmsdk_settings = context.scene.nmsdk_settings
+        nmsdk_settings.toggle_collision_visibility()
+        # For every collision object in the scene, set its visibility to the
+        # value specified by the `show_collisions` button.
+        for obj in bpy.context.scene.objects:
+            if obj.NMSNode_props.node_types == 'Collision':
+                obj.hide = not nmsdk_settings.show_collisions
+        return {'FINISHED'}
+
+
+class _SaveDefaultSettings(Operator):
+    """Save any default settings"""
+    bl_idname = "nmsdk._save_default_settings"
+    bl_label = "Save Settings"
+
+    def execute(self, context):
+        default_settings = context.scene.nmsdk_default_settings
+        default_settings.save()
+        return {'FINISHED'}
+
+
+# Animation classes and functions
+# TODO: move...
+
+def get_loaded_anim_names(self, context):
+    try:
+        names = context.scene.nmsdk_anim_data.loadable_anim_data.keys()
+        # Only show the names of animations that haven't been loaded
+        return list(tuple([name] * 3) for name in names if name not in
+                    context.scene.nmsdk_anim_data.loaded_anims)
+    except KeyError:
+        return [('None', 'None', 'None')]
+
+
+def get_anim_names(self, context):
+    try:
+        names = context.scene.nmsdk_anim_data.loaded_anims
+        return list(tuple([name] * 3) for name in names)
+    except KeyError:
+        return [('None', 'None', 'None')]
+
+
+def get_anim_names_not_none(self, context):
+    try:
+        # make a copy of the names just to be safe
+        names = list(context.scene.nmsdk_anim_data.loaded_anims)
+        if 'None' in names:
+            names.remove('None')
+        return list(tuple([name] * 3) for name in names)
+    except KeyError:
+        return [('None', 'None', 'None')]
+
+
+class AnimProperties(PropertyGroup):
+    anims_loaded = BoolProperty(
+        name='Animations loaded',
+        description='Whether the animations are loaded or not',
+        default=True)
+    has_bound_mesh = BoolProperty(
+        name='Has bound mesh',
+        description='Whether or not the mesh of the object is bound to bones',
+        default=False)
+    idle_anim = EnumProperty(
+        name='Idle animation',
+        description='Animation that is played idly',
+        items=get_anim_names_not_none)
+
+    # key: name of animation
+    # value: path to animation data
+    loadable_anim_data = dict()
+    # names of loaded animations. Instantiate with the default 'None'
+    loaded_anims = ['None']
+    # List of joint names
+    joints = list()
+
+    def reset(self):
+        """ Reset all the values back to their original ones. """
+        self.anims_loaded = False
+        self.loadable_anim_data = dict()
+        self.loaded_anims = ['None']
+        self.joints = list()
+
+
+class _RefreshAnimations(Operator):
+    """Load the selected animation data"""
+    bl_idname = "nmsdk._refresh_anim_list"
+    bl_label = "Refresh Animation List"
+
+    def execute(self, context):
+        # Set the variables
+        actions = get_all_actions_in_scene(context.scene)
+        if len(actions) != 0:
+            for action in actions:
+                if action not in context.scene.nmsdk_anim_data.loaded_anims:
+                    context.scene.nmsdk_anim_data.loaded_anims.append(action)
+            context.scene.nmsdk_anim_data.anims_loaded = True
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class _LoadAnimation(Operator):
+    """Load the selected animation data"""
+    bl_idname = "nmsdk._load_animation"
+    bl_label = "Load Animation"
+
+    loadable_anim_name = EnumProperty(
+        name='Available animations',
+        description='List of all available animations for the scene',
+        items=get_loaded_anim_names)
+
+    def execute(self, context):
+        # Set the variables
+        loadable_anim_names = context.scene.nmsdk_anim_data.loadable_anim_data
+        anim_name = self.loadable_anim_name
+        anim_data = loadable_anim_names.pop(anim_name)
+        bpy.ops.nmsdk.animation_handler(
+            anim_name=anim_name,
+            anim_path=anim_data['Filename'])
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class _ChangeAnimation(Operator):
+    """Change the currently selected animation"""
+    bl_idname = "nmsdk._change_animation"
+    bl_label = "Change Animation"
+
+    anim_names = EnumProperty(
+        name='Available animations',
+        description='List of all available animations for the scene',
+        items=get_anim_names)
+
+    def execute(self, context):
+        """Set every node in the scene to have the appropriate action.
+        If the node is not animated in the current animation then set its
+        action to None.
+        """
+        context.scene['curr_anim'] = self.anim_names
+
+        # If the selected animation is none, reset everything to base.
+        if self.anim_names == 'None':
+            for armature in bpy.data.armatures:
+                armature.pose_position = 'REST'
+            for obj in bpy.data.objects:
+                if obj.animation_data:
+                    obj.animation_data.action = None
+                    for track in obj.animation_data.nla_tracks:
+                        track.mute = True
+            context.scene.frame_end = 0
+            return {'FINISHED'}
+
+        frame_count = 0
+        for armature in bpy.data.armatures:
+            armature.pose_position = 'POSE'
+
+        # Apply the action to each object
+        for obj in context.scene.objects:
+            action_name = '{0}.{1}'.format(self.anim_names, obj.name)
+            if action_name in bpy.data.actions:
+                obj.animation_data.action = bpy.data.actions[action_name]
+                frame_count = max(frame_count,
+                                  obj.animation_data.action.frame_range[1])
+            else:
+                # If the action doesn't exist, then the object isn't animated
+                if obj.animation_data is not None:
+                    obj.animation_data.action = None
+
+        # Set the final frame count
+        context.scene.frame_end = frame_count
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class _PlayAnimation(Operator):
+    """Play the currently selected animation"""
+    bl_idname = "nmsdk._play_animation"
+    bl_label = "Play"
+
+    def execute(self, context):
+        bpy.ops.screen.animation_play()
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class _PauseAnimation(Operator):
+    """Pause the currently playing animation"""
+    bl_idname = "nmsdk._pause_animation"
+    bl_label = "Pause"
+
+    def execute(self, context):
+        bpy.ops.screen.animation_cancel(restore_frame=False)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class _StopAnimation(Operator):
+    """Stop the currently selected animation"""
+    bl_idname = "nmsdk._stop_animation"
+    bl_label = "Stop"
+
+    def execute(self, context):
+        bpy.ops.screen.animation_cancel()
+        bpy.ops.screen.frame_jump(end=False)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+# Settings classes
+
+
+class NMSDKSettings(PropertyGroup):
+    show_collisions = BoolProperty(
+        name='Draw collisions',
+        description='Whether or not to draw the collision objects.',
+        default=False)
+
+    def toggle_collision_visibility(self):
+        """ Toggle the collision visibility state. """
+        self.show_collisions = not self.show_collisions
+
+
+class NMSDKDefaultSettings(PropertyGroup):
+
+    default_settings = read_settings()
+
+    export_directory = StringProperty(
+        name="Export Directory",
+        description="The base path under which all models will be exported.",
+        default=default_settings['export_directory'])
+    group_name = StringProperty(
+        name="Group Name",
+        description="Group name so that models that all belong in the same "
+                    "folder are placed there (path becomes group_name/name)",
+        default=default_settings['group_name'])
+
+    def save(self):
+        """ Save the current settings. """
+        settings = {'export_directory': self.export_directory,
+                    'group_name': self.group_name}
+        write_settings(settings)
+
+
+# Operators to be added to the blender UI for various tasks
+
+
+class NMS_Export_Operator(Operator, ExportHelper):
+    """Export scene to NMS compatible files"""
+    # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "export_mesh.nms"
+    bl_label = "Export to NMS XML Format"
+
+    export_directory = StringProperty(
+        name="Export Directory",
+        description="The base path relative to the PCBANKS folder under which "
+                    "all models will be exported.",
+        default="CUSTOMMODELS")
+    group_name = StringProperty(
+        name="Group Name",
+        description="Group name so that models that all belong in the same "
+                    "folder are placed there (path becomes group_name/name)")
+    AT_only = BoolProperty(
+        name="ActionTriggers Only",
+        description="If this box is ticked, all the action trigger data will "
+                    "be exported directly to an ENTITY file in the specified "
+                    "location with the project name. Anything else in the "
+                    "project is ignored",
+        default=False)
+    no_vert_colours = BoolProperty(
+        name="Don't export vertex colours",
+        description="Ticking this box will force vertex colours to not be "
+                    "exported. Use this if you have accidentally added vertex "
+                    "colours to a mesh and don't know how to get rid of them.",
+        default=False)
+    idle_anim = StringProperty(
+        name="Idle animation name",
+        description="The name of the animation that is the idle animation.")
+
+    # ExportHelper mixin class uses this
+    filename_ext = ""
+
+    settings_loaded = False
+
+    def draw(self, context):
+        if not self.settings_loaded:
+            default_settings = context.scene.nmsdk_default_settings
+            self.export_directory = default_settings.export_directory
+            self.group_name = default_settings.group_name
+            self.settings_loaded = True
+        layout = self.layout
+        layout.prop(self, 'export_directory')
+        layout.prop(self, 'group_name')
+        layout.prop(self, 'AT_only')
+        layout.prop(self, 'no_vert_colours')
+
+    def execute(self, context):
+        keywords = self.as_keywords()
+        # Split the filepath provided as the final part is the name of the file
+        export_path, scene_name = op.split(self.filepath)
+        keywords.pop('export_directory')
+        keywords.pop('group_name')
+        main_exporter = Exporter(export_path, self.export_directory,
+                                 self.group_name, scene_name, keywords)
+        status = main_exporter.state
+        if status == {'FINISHED'}:
+            self.report({'INFO'}, "Models Exported Successfully")
+        return status
+
+
+class NMS_Import_Operator(Operator, ImportHelper):
+    """Import NMS Scene files"""
+    # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "import_mesh.nms"
+    bl_label = "Import from SCENE.EXML"
+
+    # ExportHelper mixin class uses this
+    filename_ext = ".EXML"
+
+    clear_scene = BoolProperty(
+        name='Clear scene',
+        description='Whether or not to clear the currently exiting scene in '
+                    'blender.',
+        default=True)
+
+    draw_hulls = BoolProperty(
+        name='Draw bounded hulls',
+        description='Whether or not to draw the points that make up the '
+                    'bounded hulls of the materials. This is only for research'
+                    '/debugging, so can safely be left as False.',
+        default=False)
+    import_collisions = BoolProperty(
+        name='Import collisions',
+        description='Whether or not to import the collision objects.',
+        default=True)
+    show_collisions = BoolProperty(
+        name='Draw collisions',
+        description='Whether or not to draw the collision objects.',
+        default=False)
+    import_bones = BoolProperty(
+        name='Import bones',
+        description="Whether or not to import the models' bones",
+        default=False)
+    load_anims = BoolProperty(
+        name='Load all animations',
+        description='Whether or not to load all the animation data initially',
+        default=True)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, 'draw_hulls')
+        layout.prop(self, 'clear_scene')
+        coll_box = layout.box()
+        coll_box.label('Collisions')
+        coll_box.prop(self, 'import_collisions')
+        coll_box.prop(self, 'show_collisions')
+        animation_box = layout.box()
+        animation_box.label('Animation')
+        animation_box.prop(self, 'import_bones')
+        animation_box.prop(self, 'load_anims')
+
+    def execute(self, context):
+        keywords = self.as_keywords()
+        # set the state of the show_collisions button from the value specified
+        # when the import occurs
+        context.scene.nmsdk_settings.show_collisions = self.show_collisions
+        # Reset the animation data
+        context.scene.nmsdk_anim_data.reset()
+        fdir = self.properties.filepath
+        context.scene['_anim_names'] = ['None']
+        print(fdir)
+        importer = ImportScene(fdir, parent_obj=None, ref_scenes=dict(),
+                               settings=keywords)
+        importer.render_scene()
+        status = importer.state
+        self.report({'INFO'}, "Models Imported Successfully")
+        print('Scene imported!')
+        if status:
+            return {'FINISHED'}
+        else:
+            return {'CANCELLED'}
