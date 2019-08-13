@@ -122,8 +122,7 @@ class ExportSceneOperator(Operator):
         keywords.pop('group_name')
         keywords.pop('scene_name')
         main_exporter = Exporter(self.output_directory, self.export_directory,
-                                 self.group_name, self.scene_name,
-                                 settings=keywords)
+                                 self.group_name, self.scene_name, keywords)
         status = main_exporter.state
         if status == {'FINISHED'}:
             self.report({'INFO'}, "Models Exported Successfully")
@@ -493,8 +492,7 @@ class NMS_Export_Operator(Operator, ExportHelper):
         keywords.pop('export_directory')
         keywords.pop('group_name')
         main_exporter = Exporter(export_path, self.export_directory,
-                                 self.group_name, scene_name,
-                                 settings=keywords)
+                                 self.group_name, scene_name, keywords)
         status = main_exporter.state
         if status == {'FINISHED'}:
             self.report({'INFO'}, "Models Exported Successfully")

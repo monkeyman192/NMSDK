@@ -24,12 +24,12 @@ customNodes = NMSNodes()
 bl_info = {
     "name": "No Man's Sky Development Kit",
     "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 14),
+    "version": (0, 9, 15),
     "blender": (2, 79, 0),
     "location": "File > Export",
     "description": "Create NMS scene structures and export to NMS File format",
     "warning": "",
-    "wiki_url": "https://github.com/monkeyman192/NMSDK/wiki",
+    "wiki_url": "https://monkeyman192.github.io/NMSDK/",
     "tracker_url": "https://github.com/monkeyman192/NMSDK/issues",
     "category": "Import-Export"}
 
