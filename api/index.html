@@ -113,6 +113,8 @@
     
         <ul>
         
+            <li><a class="toctree-l3" href="#exporting-data-from-blender">Exporting data from Blender</a></li>
+        
             <li><a class="toctree-l3" href="#importing-data-into-blender">Importing data into Blender</a></li>
         
         </ul>
@@ -159,25 +161,92 @@
             <div class="section">
               
                 <h1 id="api-guide">API guide</h1>
-<p>Due to how Blender handles adding and registering functions that can be publically used, all public API functions are located within the <code>bpy.ops</code> namespace.
+<p>Due to how Blender handles adding and registering functions that can be publically used, all public API functions are located within the <code>bpy.ops.nmsdk</code> namespace.
 All operators <strong>MUST</strong> also be called with keyword arguments (see examples)</p>
-<h2 id="importing-data-into-blender">Importing data into Blender</h2>
-<h4 id="bpyopsnmsdkimport_scenepath">bpy.ops.nmsdk.import_scene(path)</h4>
+<h2 id="exporting-data-from-blender">Exporting data from Blender</h2>
+<h3 id="bpyopsnmsdkexport_sceneparameters"><strong>bpy.ops.nmsdk.export_scene(**parameters)</strong></h3>
+<p>Export the entire current blender file.</p>
 <p><strong>Parameters</strong>:<br />
-    path : string<br />
-        - The complete file path to a <code>SCENE.MBIN</code> or <code>SCENE.EXML</code> file to be loaded into blender.</p>
+<em>output_directory</em> : string  </p>
+<blockquote>
+<p>The full path of the directory the data is to be exported to. All subsequent folders will reside within this one.
+<em>export_directory</em> : string<br />
+The name of the path you want the data to be relative to the <code>PCBANKS</code> folder within the games' files.<br />
+<em>Default</em>: <code>'CUSTOMMODELS'</code>.</p>
+</blockquote>
+<p><em>group_name</em> : string  </p>
+<blockquote>
+<p>Name of the sub-folder which the scene will be placed in. This can be used to group multiple exports all into the same folder.<br />
+<em>Default</em>: <code>scene_name</code>.</p>
+</blockquote>
+<p><em>scene_name</em> : string  </p>
+<blockquote>
+<p>Name of the scene being exported. Many files will use this as the main component of their filename.<br />
+<em>Default</em>: The name of the scene object (Ie. the object in the scene that is an empty reference node).</p>
+</blockquote>
+<p><em>AT_only</em> : boolean  </p>
+<blockquote>
+<p>Whether or not to export just the action triggers in the scene.<br />
+<em>Default</em>: <code>False</code>.</p>
+</blockquote>
+<p><em>no_vert_colours</em> : boolean  </p>
+<blockquote>
+<p>Whether or not the vertex colours should be exported. Generally models won't have vertex colouring unless you add it manually.<br />
+<em>Default</em>: <code>False</code>.</p>
+</blockquote>
+<p><em>idle_anim</em> : string  </p>
+<blockquote>
+<p>The name of the idle animation. If the scene contains no animations then this is not needed. If the scene is animated however this <strong>MUST</strong> be provided.<br />
+<em>Default</em>: <code>''</code>.  </p>
+</blockquote>
+<p><strong>Notes</strong>:<br />
+    This calls the same function as is used when operating NMSDK visually with blender, but with a slightly different call signature to allow exactness.<br />
+    As this call is a blender operator, the scene itself must be loaded by an instance of blender.  </p>
+<p><strong>Example</strong>:  </p>
+<pre><code class="python"># First, you need to have to have loaded the blender file with blender
+# Let's say we have blender file with a scene node in it called 'NEWMODEL'
+# In blender, you can then call the operator as follows:
+bpy.ops.nmsdk.export_scene(output_directory='C:\\OUTPUT_PATH', 
+                           export_directory='CUSTOMMODELS',
+                           group_name='TESTMODEL')
+# In this example the files will be produced in the directory
+# C:\OUTPUT_PATH\CUSTOMMODELS\TESTMODEL\
+# with files such as 'NEWMODEL.SCENE.MBIN', etc.
+
+# If we want to be extra-specific, or overwrite the name in the blender file we can:
+bpy.ops.nmsdk.export_scene(output_directory='C:\\OUTPUT_PATH', 
+                           export_directory='CUSTOMMODELS',
+                           group_name='TESTMODEL',
+                           scene_name='SOMETHINGELSE')
+# Where we will now get the files output in the same folder as before, but as a scene called 'SOMETHINGELSE.SCENE.MBIN', etc
+</code></pre>
+
+<hr />
+<h2 id="importing-data-into-blender">Importing data into Blender</h2>
+<h3 id="bpyopsnmsdkimport_scenepath"><strong>bpy.ops.nmsdk.import_scene(path)</strong></h3>
+<p>Import a complete NMS scene into blender.</p>
+<p><strong>Parameters</strong>:<br />
+<em>path</em> : string  </p>
+<blockquote>
+<p>The complete file path to a <code>SCENE.MBIN</code> or <code>SCENE.EXML</code> file to be loaded into blender.</p>
+</blockquote>
 <p><strong>Notes</strong>:<br />
     The entire scene will be loaded into the active scene in blender.</p>
 <p><strong>Example</strong>:</p>
 <pre><code class="python">bpy.ops.nmsdk.import_scene(path='C:\\NMS-1.77\\MODELS\\PLANETS\\BIOMES\\COMMON\\CRYSTALS\\LARGE\\CRYSTAL_LARGE.SCENE.MBIN')
 </code></pre>
 
-<h4 id="bpyopsnmsdkimport_meshpath-mesh_id">bpy.ops.nmsdk.import_mesh(path, mesh_id)</h4>
+<h3 id="bpyopsnmsdkimport_meshpath-mesh_id"><strong>bpy.ops.nmsdk.import_mesh(path, mesh_id)</strong></h3>
+<p>Import part of a scene specified by the id of a mesh node in the scene file.</p>
 <p><strong>Parameters</strong>:<br />
-<em>path</em> : string<br />
-        - The complete file path to a <code>SCENE.MBIN</code> or <code>SCENE.EXML</code> file to be loaded into blender.<br />
-<em>mesh_id</em> : string<br />
-        - The <code>Name</code> of the <code>TkSceneNodeData</code> in the Scene being loaded. </p>
+<em>path</em> : string</p>
+<blockquote>
+<p>The complete file path to a <code>SCENE.MBIN</code> or <code>SCENE.EXML</code> file to be loaded into blender.</p>
+</blockquote>
+<p><em>mesh_id</em> : string</p>
+<blockquote>
+<p>The <code>Name</code> of the <code>TkSceneNodeData</code> in the Scene being loaded.</p>
+</blockquote>
 <p><strong>Notes</strong>:<br />
     Only this object will be loaded. None of the children will be.</p>
 <p><strong>Example</strong>:</p>
