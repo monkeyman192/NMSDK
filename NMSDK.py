@@ -1,3 +1,6 @@
+# stdlib imports
+import os.path as op
+
 from bpy.props import StringProperty, BoolProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
 import bpy   # pylint: disable=import-error
 from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
@@ -70,6 +73,60 @@ class ImportMeshOperator(Operator):
         importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict())
         importer.render_mesh(str(self.mesh_id))
         return importer.state
+
+
+class ExportSceneOperator(Operator):
+    """ Export the current scene to a SCENE.MBIN file and associated geometry,
+    animation, entity and other files.
+    """
+    bl_idname = "nmsdk.export_scene"
+    bl_label = "Export to NMS scene"
+
+    output_directory = StringProperty(
+        name="Output Directory",
+        description="The directory the exported data is to be placed in.")
+    export_directory = StringProperty(
+        name="Export Directory",
+        description="The base path relative to the PCBANKS folder under which "
+                    "all models will be exported.",
+        default="CUSTOMMODELS")
+    group_name = StringProperty(
+        name="Group Name",
+        description="Group name so that models that all belong in the same "
+                    "folder are placed there (path becomes "
+                    "group_name/scene_name).")
+    scene_name = StringProperty(
+        name="Scene Name",
+        description="Name of the scene to be exported.")
+    AT_only = BoolProperty(
+        name="ActionTriggers Only",
+        description="If this box is ticked, all the action trigger data will "
+                    "be exported directly to an ENTITY file in the specified "
+                    "location with the project name. Anything else in the "
+                    "project is ignored",
+        default=False)
+    no_vert_colours = BoolProperty(
+        name="Don't export vertex colours",
+        description="Ticking this box will force vertex colours to not be "
+                    "exported. Use this if you have accidentally added vertex "
+                    "colours to a mesh and don't know how to get rid of them.",
+        default=False)
+    idle_anim = StringProperty(
+        name="Idle animation name",
+        description="The name of the animation that is the idle animation.")
+
+    def execute(self, context):
+        keywords = self.as_keywords()
+        keywords.pop('output_directory')
+        keywords.pop('export_directory')
+        keywords.pop('group_name')
+        keywords.pop('scene_name')
+        main_exporter = Exporter(self.output_directory, self.export_directory,
+                                 self.group_name, self.scene_name, keywords)
+        status = main_exporter.state
+        if status == {'FINISHED'}:
+            self.report({'INFO'}, "Models Exported Successfully")
+        return status
 
 
 # Private operators for internal use
@@ -387,7 +444,8 @@ class NMS_Export_Operator(Operator, ExportHelper):
 
     export_directory = StringProperty(
         name="Export Directory",
-        description="The base path under which all models will be exported.",
+        description="The base path relative to the PCBANKS folder under which "
+                    "all models will be exported.",
         default="CUSTOMMODELS")
     group_name = StringProperty(
         name="Group Name",
@@ -408,10 +466,7 @@ class NMS_Export_Operator(Operator, ExportHelper):
         default=False)
     idle_anim = StringProperty(
         name="Idle animation name",
-        description="The name of the animation that is the idle animation.",
-        default="_FAKEVALUE_")
-    # Use a fake value which *hopefully* no-one will ever actually use for an
-    # animation name.
+        description="The name of the animation that is the idle animation.")
 
     # ExportHelper mixin class uses this
     filename_ext = ""
@@ -432,7 +487,12 @@ class NMS_Export_Operator(Operator, ExportHelper):
 
     def execute(self, context):
         keywords = self.as_keywords()
-        main_exporter = Exporter(self.filepath, settings=keywords)
+        # Split the filepath provided as the final part is the name of the file
+        export_path, scene_name = op.split(self.filepath)
+        keywords.pop('export_directory')
+        keywords.pop('group_name')
+        main_exporter = Exporter(export_path, self.export_directory,
+                                 self.group_name, scene_name, keywords)
         status = main_exporter.state
         if status == {'FINISHED'}:
             self.report({'INFO'}, "Models Exported Successfully")

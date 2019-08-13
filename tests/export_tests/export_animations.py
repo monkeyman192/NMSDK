@@ -10,14 +10,17 @@ import struct
 
 
 with tempfile.TemporaryDirectory() as tempdir:
-    export_path = op.join(tempdir, 'CUSTOMMODELS')
-    res = bpy.ops.export_mesh.nms(export_directory=export_path,
-                                  group_name='ANIM_TEST',
-                                  idle_anim='IDLE')
+    res = bpy.ops.nmsdk.export_scene(output_directory=tempdir,
+                                     export_directory='CUSTOMMODELS',
+                                     group_name='ANIM_TEST',
+                                     idle_anim='IDLE')
     assert res == {'FINISHED'}
+
+    export_path = op.join(tempdir, 'CUSTOMMODELS')
 
     # Check the other animation also
     anim_path = op.join(export_path, 'ANIM_TEST', 'ANIMS', 'OSC.ANIM.MBIN')
+    assert bpy.context.scene.nmsdk_anim_data.idle_anim == 'IDLE'
     with open(anim_path, 'rb') as f:
         f.seek(0x60)
         # The very first value in an animation file is the number of frames
@@ -45,4 +48,4 @@ with tempfile.TemporaryDirectory() as tempdir:
         jump = struct.unpack('<I', f.read(0x4))[0]
         f.seek(jump - 0x4, 1)
         f.seek(0x10, 1)
-        # assert f.read(0xC) == b'CUSTOMMODELS'
+        assert f.read(0xC) == b'CUSTOMMODELS'

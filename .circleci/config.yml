@@ -77,11 +77,11 @@ workflows:
                     - build-docs
                 filters:
                     branches:
-                        only: Experimental
+                        only: master
             - build-addon
             - release-addon:
                 requires:
                     - build-addon
                 filters:
                     branches:
-                        only: Experimental
+                        only: master
