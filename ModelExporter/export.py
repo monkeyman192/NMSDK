@@ -30,25 +30,19 @@ from .utils import nmsHash, traverse
 
 
 class Export():
-    # TODO: restructure the arguments to be:
-    #
-    # *export_directory - absolute or relative path to where the data should be
-    # produced.
-    # *scene_directory - a path made up of two components; the sub-directory
-    # name relative to the PCBANKS folder, and the sub-folder telative to that
-    # (the "group name").
-    # *scene_name - The name of the scene file itself (and other files with
-    # automatically generated names)
     """ Export the data provided by blender to .mbin files.
 
     Parameters
     ----------
-    name : str
-        Base filename.
-    directory : str
-        Location to generate the data.
-    basepath : str
-        Location to generate the data.(?)
+    export_directory : str
+        Absolute or relative path to where the data should be produced.
+    scene_directory : str
+        A path made up of two components; the sub-directory name relative to
+        the PCBANKS folder, and the sub-folder relative to that (the "group
+        name").
+    scene_name : str
+        The name of the scene file itself (and other files with automatically
+        generated names)
     model : nmsdk.NMS.classes.Model
         Model containing all the scene information.
     anim_data : dict
@@ -58,21 +52,17 @@ class Export():
     descriptior: Descriptor
         Descriptor information for the scene.
     """
-    def __init__(self, name, directory, basepath, model, anim_data=dict(),
-                 descriptor=None):
-        # this is the name of the file
-        self.name = name
-        # the path that the file is supposed to be located at
-        self.directory = directory
-        self.basepath = basepath
+    def __init__(self, export_directory, scene_directory, scene_name, model,
+                 anim_data=dict(), descriptor=None):
+        self.export_directory = export_directory
+        self.scene_directory = scene_directory.upper()
+        self.scene_name = scene_name.upper()
         # this is the main model file for the entire scene.
         self.Model = model
         self.Model.check_vert_colours()
         # animation data (defaults to None)
         self.anim_data = anim_data
         self.descriptor = descriptor
-
-        self.fix_names()
 
         # assign each of the input streams to a variable
         self.mesh_metadata = odict()
@@ -127,12 +117,19 @@ class Export():
         self.num_mesh_objs = len(self.Model.Meshes)
 
         # generate some variables relating to the paths
-        self.path = os.path.join(self.basepath, self.directory, self.name)
-        self.texture_path = os.path.join(self.path, 'TEXTURES')
-        self.anims_path = os.path.join(self.basepath, self.directory, 'ANIMS')
+        self.basepath = os.path.join(self.export_directory,
+                                     self.scene_directory)
+        self.texture_path = os.path.join(self.basepath, self.scene_name,
+                                         'TEXTURES')
+        self.anims_path = os.path.join(self.basepath, 'ANIMS')
         # path location of the entity folder. Calling makedirs of this will
         # ensure all the folders are made in one go
-        self.ent_path = os.path.join(self.path, 'ENTITIES')
+        self.ent_path = os.path.join(self.basepath, self.scene_name,
+                                     'ENTITIES')
+        # The name of the scene relative to the PCBANKS folder
+        self.rel_named_path = os.path.join(self.scene_directory,
+                                           self.scene_name)
+        self.abs_name_path = os.path.join(self.basepath, self.scene_name)
 
         self.create_paths()
 
@@ -140,7 +137,8 @@ class Export():
         self.GeometryData = odict()
 
         self.geometry_stream = StreamData(
-            '{}.GEOMETRY.DATA.MBIN.PC'.format(self.path))
+            '{}.GEOMETRY.DATA.MBIN.PC'.format(os.path.join(self.basepath,
+                                                           self.scene_name)))
 
         # generate the geometry stream data now
         self.serialize_data()
@@ -244,11 +242,6 @@ class Export():
             self.i_stream_lens[name] = len(self.index_stream[name])
             self.v_stream_lens[name] = len(self.vertex_stream[name])
             self.ch_stream_lens[name] = len(self.chvertex_stream[name])
-
-    def fix_names(self):
-        # just make sure that the name and path is all in uppercase
-        self.name = self.name.upper()
-        self.directory = self.directory.upper()
 
     def serialize_data(self):
         """
@@ -444,15 +437,20 @@ class Export():
                             print('material name: {}'.format(mat_name))
 
                             data['MATERIAL'] = os.path.join(
-                                self.path, mat_name.upper()) + '.MATERIAL.MBIN'
+                                self.rel_named_path,
+                                mat_name.upper()) + '.MATERIAL.MBIN'
                         else:
                             data['MATERIAL'] = ''
                     else:
                         data['MATERIAL'] = mesh_obj.Material
                     if obj.HasAttachment:
                         if obj.EntityData is not None:
-                            ent_path = os.path.join(
-                                self.ent_path, str(obj.EntityPath).upper())
+                            if not obj._entity_path_is_abs:
+                                ent_path = os.path.join(self.rel_named_path,
+                                                        'ENTITIES',
+                                                        obj.EntityPath.upper())
+                            else:
+                                ent_path = obj.EntityPath.upper()
                             data['ATTACHMENT'] = '{}.ENTITY.MBIN'.format(
                                 ent_path)
                             # also need to generate the entity data
@@ -462,7 +460,9 @@ class Export():
                             # also write the entity file now too as we don't
                             # need to do anything else to it
                             AttachmentData.tree.write(
-                                "{}.ENTITY.exml".format(ent_path))
+                                "{}.ENTITY.exml".format(
+                                    os.path.join(self.export_directory,
+                                                 ent_path)))
                         else:
                             data['ATTACHMENT'] = obj.EntityPath
                     # enerate the mesh metadata for the geometry file:
@@ -478,13 +478,17 @@ class Export():
                         'BATCHCOUNT']
                 else:
                     # We need to rename the mesh collision objects
-                    obj.Name = self.path
+                    obj.Name = self.rel_named_path
             else:
                 if obj._Type == 'LOCATOR':
                     if obj.HasAttachment:
                         if obj.EntityData is not None:
-                            ent_path = os.path.join(
-                                self.ent_path, str(obj.EntityPath).upper())
+                            if not obj._entity_path_is_abs:
+                                ent_path = os.path.join(self.rel_named_path,
+                                                        'ENTITIES',
+                                                        obj.EntityPath.upper())
+                            else:
+                                ent_path = obj.EntityPath.upper()
                             data = {'ATTACHMENT':
                                     '{}.ENTITY.MBIN'.format(ent_path)}
                             # also need to generate the entity data
@@ -494,13 +498,15 @@ class Export():
                             # also write the entity file now too as we don't
                             # need to do anything else to it
                             AttachmentData.tree.write(
-                                "{}.ENTITY.exml".format(ent_path))
+                                "{}.ENTITY.exml".format(
+                                    os.path.join(self.export_directory,
+                                                 ent_path)))
                         else:
                             data = {'ATTACHMENT': obj.EntityPath}
                     else:
                         data = None
                 elif obj._Type == 'COLLISION':
-                    obj.Name = self.path
+                    obj.Name = self.rel_named_path
                     if obj.CType == 'Box':
                         data = {'WIDTH': obj.Width, 'HEIGHT': obj.Height,
                                 'DEPTH': obj.Depth}
@@ -509,8 +515,8 @@ class Export():
                     elif obj.CType == 'Capsule' or obj.CType == 'Cylinder':
                         data = {'RADIUS': obj.Radius, 'HEIGHT': obj.Height}
                 elif obj._Type == 'MODEL':
-                    obj.Name = self.path
-                    data = {'GEOMETRY': str(self.path) + ".GEOMETRY.MBIN"}
+                    obj.Name = self.rel_named_path
+                    data = {'GEOMETRY': self.rel_named_path + ".GEOMETRY.MBIN"}
                 elif obj._Type in ['REFERENCE', 'LIGHT', 'JOINT']:
                     data = None
             obj.create_attributes(data)
@@ -675,9 +681,10 @@ class Export():
     def write(self):
         """ Write all of the files required for the scene. """
         mbinc = mbinCompiler(self.TkGeometryData,
-                             "{}.GEOMETRY.MBIN.PC".format(self.path))
+                             "{}.GEOMETRY.MBIN.PC".format(self.abs_name_path))
         mbinc.serialize()
-        self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(self.path))
+        self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(
+            self.abs_name_path))
         # Build all the descriptor exml data
         if self.descriptor is not None:
             descriptor = self.descriptor.to_exml()
@@ -687,8 +694,8 @@ class Export():
         for material in self.materials:
             if type(material) != str:
                 material.tree.write(
-                    "{0}.MATERIAL.exml".format(os.path.join(self.path,
-                                               str(material['Name']).upper())))
+                    "{0}.MATERIAL.exml".format(os.path.join(
+                        self.abs_name_path, str(material['Name']).upper())))
         # Write the animation files
         idle_anim = bpy.context.scene.nmsdk_anim_data.idle_anim
         if len(self.anim_data) != 0:
@@ -698,7 +705,7 @@ class Export():
                                      'one of the animations that exists...')
                 # get the value and output it
                 self.anim_data[idle_anim].tree.write(
-                    "{}.ANIM.exml".format(self.path))
+                    "{}.ANIM.exml".format(self.abs_name_path))
             else:
                 for name in list(self.anim_data.keys()):
                     if name != idle_anim:
@@ -707,13 +714,12 @@ class Export():
                                          "{}.ANIM.exml".format(name.upper())))
                     else:
                         self.anim_data[idle_anim].tree.write(
-                            "{}.ANIM.exml".format(self.path))
+                            "{}.ANIM.exml".format(self.abs_name_path))
 
     def convert_to_mbin(self):
         """ Convert all .exml file to .mbin files. """
         print('Converting .exml files to .mbin. Please wait.')
-        for directory, _, files in os.walk(os.path.join(self.basepath,
-                                                        self.directory)):
+        for directory, _, files in os.walk(self.basepath):
             for file in files:
                 location = os.path.join(directory, file)
                 if os.path.splitext(location)[1].lower() == '.exml':

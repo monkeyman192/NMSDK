@@ -2,7 +2,7 @@ import bpy  # pylint: disable=import-error
 from bpy.props import PointerProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
 
 # External API operators
-from .NMSDK import ImportSceneOperator, ImportMeshOperator
+from .NMSDK import ImportSceneOperator, ImportMeshOperator, ExportSceneOperator
 # Main IO operators
 from .NMSDK import NMS_Export_Operator, NMS_Import_Operator
 # Internal operators
@@ -52,6 +52,7 @@ def register():
     bpy.utils.register_class(NMSDKDefaultSettings)
     bpy.utils.register_class(ImportSceneOperator)
     bpy.utils.register_class(ImportMeshOperator)
+    bpy.utils.register_class(ExportSceneOperator)
     bpy.utils.register_class(_FixOldFormat)
     bpy.utils.register_class(_FixActionNames)
     bpy.utils.register_class(_ToggleCollisionVisibility)
@@ -84,6 +85,7 @@ def unregister():
     bpy.utils.unregister_class(NMSDKDefaultSettings)
     bpy.utils.unregister_class(ImportSceneOperator)
     bpy.utils.unregister_class(ImportMeshOperator)
+    bpy.utils.unregister_class(ExportSceneOperator)
     bpy.utils.unregister_class(_FixOldFormat)
     bpy.utils.unregister_class(_FixActionNames)
     bpy.utils.unregister_class(_ToggleCollisionVisibility)

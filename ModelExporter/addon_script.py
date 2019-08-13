@@ -1,6 +1,5 @@
 # stdlib imports
-import os
-import sys
+import os.path as op
 from math import radians, degrees
 # blender imports
 import bpy  # pylint: disable=import-error
@@ -94,22 +93,39 @@ def generate_hull(mesh, determine_indexes=False):
 
 
 class Exporter():
-    # class to contain all the exporting functions
+    """
+    The main function which handles reading all the information about
+    objects in the scene and delegates the conversion of this data to the
+    export.py script among others.
 
-    def __init__(self, exportpath, settings):
+    Parameters
+    ----------
+    output_directory : str
+        The absolute path to the location that all data will be exported
+        to.
+    export_directory : str
+        The name of the folder(s) relative to the PCBANKS folder which the data
+        will be placed inside.
+    group_name : str
+        This is the subfolder(s) which indicate the location the scene
+        file should be located relative to `export_directory`.
+    scene_name : str
+        The name the exported scene will have.
+    settings : dict
+        A dictionary containing a number of settings from the export
+        helper.
+    """
+
+    def __init__(self, output_directory, export_directory='CUSTOMMODELS',
+                 group_name='', scene_name='', settings=dict()):
         self.global_scene = bpy.context.scene
         # set the frame to be the first one, just in case an export has already
         # been run
         self.global_scene.frame_set(0)
-        self.export_dir, self.export_fname = os.path.split(exportpath)
+        self.output_directory = output_directory
+        self.export_dir = export_directory
+        self.export_fname = scene_name
         self.settings = settings
-
-        # self.blend_to_NMS_mat = Matrix.Rotation(radians(-90), 4, 'X')
-        """self.blend_to_NMS_mat = Matrix()
-        self.blend_to_NMS_mat[0] = Vector((1.0, 0.0, 0.0, 0.0))
-        self.blend_to_NMS_mat[1] = Vector((0.0, 0.0, 1.0, 0.0))
-        self.blend_to_NMS_mat[2] = Vector((0.0, -1.0, 0.0, 0.0))
-        self.blend_to_NMS_mat[3] = Vector((0.0, 0.0, 0.0, 1.0))"""
 
         self.state = None
 
@@ -137,21 +153,18 @@ class Exporter():
             entitydata = ParseNodes()
             entity = TkAttachmentData(Components=List(entitydata))
             entity.make_elements(main=True)
-            entity.tree.write('{}.ENTITY.exml'.format(exportpath))
+            entity.tree.write('{}.ENTITY.exml'.format(
+                op.join(self.output_directory, self.export_dir, group_name,
+                        scene_name)))
             self.state = {'FINISHED'}
             return
 
         # run the program normally
-        # get the base path as specified
-        if self.settings['export_directory'] != '':
-            self.basepath = self.settings['export_directory']
-        else:
-            self.basepath = 'CUSTOMMODELS'
         # if there is a name for the group, use it.
-        if self.settings['group_name'] != '':
-            self.group_name = self.settings['group_name']
+        if group_name != '':
+            self.group_name = group_name.upper()
         else:
-            self.group_name = self.export_fname
+            self.group_name = self.export_fname.upper()
 
         # pre-process the animation information.
 
@@ -184,22 +197,20 @@ class Exporter():
             name = obj.NMSReference_props.scene_name
             if name == '':
                 name = get_obj_name(obj, self.export_fname)
+            self.scene_directory = op.join(self.export_dir,
+                                           self.group_name)
             print('Located Object for export', name)
             scene = Model(Name=name)
-            scene_directory = os.path.join(
-                self.basepath, self.group_name, self.export_fname)
             # We don't want to actually add the main object to the scene,
             # Just its children.
             for sub_obj in obj.children:
                 self.parse_object(sub_obj, scene)
 
-            self.generate_entity_anim_data(obj.name, scene_directory)
+            self.generate_entity_anim_data(obj.name)
 
-            mpath = os.path.dirname(os.path.abspath(exportpath))
-            os.chdir(mpath)
-            Export(name,
-                   self.group_name,
-                   self.basepath,
+            Export(self.output_directory,
+                   self.scene_directory,
+                   name,
                    scene,
                    self.scene_anim_data.get(obj.name, dict()),
                    descriptor)
@@ -293,7 +304,7 @@ class Exporter():
                 if not tex.type == 'IMAGE':
                     raise Exception("Missing Image in Texture: " + tex.name)
 
-                texpath = os.path.join(proj_path, tex.image.filepath[2:])
+                texpath = op.join(proj_path, tex.image.filepath[2:])
             print(texpath)
             sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath,
                                       IsSRGB=True)
@@ -314,7 +325,7 @@ class Exporter():
                 if not tex.type == 'IMAGE':
                     raise Exception("Missing Image in Texture: " + tex.name)
 
-                texpath = os.path.join(proj_path, tex.image.filepath[2:])
+                texpath = op.join(proj_path, tex.image.filepath[2:])
 
             sampl = TkMaterialSampler(Name="gMasksMap", Map=texpath,
                                       IsSRGB=False)
@@ -332,7 +343,7 @@ class Exporter():
                 if not tex.type == 'IMAGE':
                     raise Exception("Missing Image in Texture: " + tex.name)
 
-                texpath = os.path.join(proj_path, tex.image.filepath[2:])
+                texpath = op.join(proj_path, tex.image.filepath[2:])
 
             sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath,
                                       IsSRGB=False)
@@ -404,8 +415,7 @@ class Exporter():
         # Get the objects name. We do this again now in case it has changed
         name = get_obj_name(obj, self.export_fname)
         # Give the descriptor its path
-        descriptor_struct.path = os.path.join(self.basepath, self.group_name,
-                                              name).upper()
+        descriptor_struct.path = op.join(self.scene_directory, name).upper()
 
         return descriptor_struct
 
@@ -751,7 +761,7 @@ class Exporter():
                 # But if not, just use the node name.
                 if name == '':
                     name = get_obj_name(ob, None)
-                scenegraph = os.path.join(self.basepath, self.group_name, name)
+                scenegraph = op.join(self.scene_directory, name)
                 scenegraph += '.SCENE.MBIN'
                 scenegraph = scenegraph.upper()
 
@@ -812,7 +822,7 @@ class Exporter():
         for child in ob.children:
             self.parse_object(child, newob)
 
-    def generate_entity_anim_data(self, scene_name, scene_directory):
+    def generate_entity_anim_data(self, scene_name):
         """ From the generated animation data for this scene, create the
         information for the animation controller so it can be written to the
         entity file later.
@@ -821,36 +831,31 @@ class Exporter():
         ----------
         scene_name : str
             Name of the scene that contains the animations.
-        scene_directory : str
-            Output directory for the scene files.
         """
         # Do nothing if there are no animations
         if len(bpy.data.actions) == 0:
             return
         # First, check to see if there is an idle animation
-        if self.settings['idle_anim'] != "_FAKEVALUE_":
+        if self.settings['idle_anim'] != "":
             # If the script is being called from the cli.
-            # TODO: this will be improved when we improve cli functionality
-            idle_anim_name = self.settings['idle_anim']
-        else:
-            idle_anim_name = self.global_scene.nmsdk_anim_data.idle_anim
+            self.global_scene.nmsdk_anim_data.idle_anim = self.settings[
+                'idle_anim']
+        idle_anim_name = self.global_scene.nmsdk_anim_data.idle_anim
         Idle = None
         Anims = List()
         if idle_anim_name != 'None':
-            path = os.path.join(self.basepath, self.group_name.upper(),
-                                self.export_fname.upper())
             Idle = TkAnimationData()
         for anim_name in self.global_scene.nmsdk_anim_data.loaded_anims:
             if anim_name == 'None' or anim_name == idle_anim_name:
                 continue
             # For every other anim, we want to construct the paths to be in the
             # anims folder.
-            path = os.path.join(self.basepath, self.group_name.upper(),
-                                'ANIMS')
+            path = op.join(self.scene_directory, 'ANIMS')
             AnimationData = TkAnimationData(
                 Anim=anim_name,
-                Filename=os.path.join(
-                    path, "{}.ANIM.MBIN".format(anim_name.upper())))
+                Filename=op.join(
+                    path,
+                    "{}.ANIM.MBIN".format(anim_name.upper())))
             Anims.append(AnimationData)
 
         # construct the entity data

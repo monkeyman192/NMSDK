@@ -66,6 +66,7 @@ class Object():
             # this will be the path or name of the file. If just name it will
             # need to be processed later...
             self.EntityPath = self.ExtraEntityData
+            self._entity_path_is_abs = True
         else:
             try:
                 self.EntityData = dict()
@@ -82,6 +83,7 @@ class Object():
                 # set the entity data to be None
                 self.EntityData = None
                 self.EntityPath = ''
+            self._entity_path_is_abs = False
 
         # list of provided data streams (only applicable to Mesh type Objects)
         self.provided_streams = set()
