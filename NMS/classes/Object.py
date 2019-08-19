@@ -2,6 +2,8 @@
 # Each object in blender will be passed into this class. Any children are added
 # as child objects.
 
+from zlib import crc32
+
 from .TkSceneNodeData import TkSceneNodeData
 from .TkSceneNodeAttributeData import TkSceneNodeAttributeData
 from .TkTransformData import TkTransformData
@@ -154,6 +156,7 @@ class Object():
             self.Child_Nodes = None
 
         self.NodeData = TkSceneNodeData(Name=self.Name,
+                                        NameHash=self.NameHash,
                                         Type=self._Type,
                                         Transform=self.Transform,
                                         Attributes=self.Attributes,
@@ -173,6 +176,13 @@ class Object():
             self.EntityData[entityname] = List(TkPhysicsComponentData())
             for entity in self.ExtraEntityData[entityname]:
                 self.EntityData[entityname].append(entity)
+
+    @property
+    def NameHash(self):
+        """ Returns the nameHash value for the object. """
+        byte_name = bytes(self.Name, encoding='utf-8')
+        # do bit operation to ensure it's always unsigned
+        return crc32(byte_name) & 0xFFFFFFFF
 
 
 class Locator(Object):

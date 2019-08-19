@@ -12,6 +12,7 @@ class TkSceneNodeData(Struct):
 
         """ Contents of the struct """
         self.data['Name'] = String(kwargs.get('Name', ""), 0x80)
+        self.data['NameHash'] = kwargs.get('NameHash', 0)
         self.data['Type'] = String(kwargs.get('Type', 'MODEL'), 0x10)
         self.data['Transform'] = kwargs.get('Transform', TkTransformData())
         self.data['Attributes'] = kwargs.get('Attributes', List())
