@@ -106,6 +106,8 @@ def read_entity(fname):
                 if struct_name == 'cTkAnimationComponentData':
                     has_anims = True
                     break
+                # Read the SubGUID but ignore it...
+                SubGUID = f.read(0x8)
         # If no animation data is found, return.
         if not has_anims:
             return anim_data

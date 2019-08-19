@@ -4,11 +4,6 @@ import tempfile
 import struct
 
 
-# TODO: This script will fail at the moment due to the calling of exporting
-# from the command line not being mature enough. This will come in a future
-# update.
-
-
 with tempfile.TemporaryDirectory() as tempdir:
     res = bpy.ops.nmsdk.export_scene(output_directory=tempdir,
                                      export_directory='CUSTOMMODELS',
