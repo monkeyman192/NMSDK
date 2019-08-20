@@ -4,11 +4,6 @@ import tempfile
 import struct
 
 
-# TODO: This script will fail at the moment due to the calling of exporting
-# from the command line not being mature enough. This will come in a future
-# update.
-
-
 with tempfile.TemporaryDirectory() as tempdir:
     res = bpy.ops.nmsdk.export_scene(output_directory=tempdir,
                                      export_directory='CUSTOMMODELS',
@@ -49,3 +44,10 @@ with tempfile.TemporaryDirectory() as tempdir:
         f.seek(jump - 0x4, 1)
         f.seek(0x10, 1)
         assert f.read(0xC) == b'CUSTOMMODELS'
+
+    # Do some checks on the scene file.
+    scene = op.join(export_path, 'ANIM_TEST', 'ANIM_TEST.SCENE.MBIN')
+    with open(scene, 'rb') as f:
+        f.seek(0xE0)
+        # Check the hash of the model name
+        assert struct.unpack('<I', f.read(0x4))[0] == 0x6C3A12AE
