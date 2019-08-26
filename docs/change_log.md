@@ -2,11 +2,20 @@
 
 ## Releases:
 
-### Current - v0.9.15
+### Current - v0.9.17
 
- - Mostly internal updates. Made some changes to the internal API and added a new public function for exporting models via the command line. More information can be found on the [API guide](api.md) page.
+ - Fixed the issue where adding the addon from a zip file wouldn't actually add it to blender.
+ - NMSDK can now also be run on blender on linux, however MBINCompiler doesn't work on this platform so it has limited uses...
 
 ### Past:
+
+### v0.9.16 (20/08/2019)
+
+ - Quick fix to implement compatibility with new Beyond-style scenes.
+
+### v0.9.15 (13/08/2019)
+
+ - Mostly internal updates. Made some changes to the internal API and added a new public function for exporting models via the command line. More information can be found on the [API guide](api.md) page.
 
 ### v0.9.14 (10/08/2019)
 
