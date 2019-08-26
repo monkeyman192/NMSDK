@@ -3,9 +3,19 @@
 import json
 import os.path as op
 import os
+from platform import system as os_name
 
 
-SETTINGS_DIR = op.join(os.getenv('APPDATA'), 'NMSDK')
+_os_name = os_name()
+if _os_name == 'Windows':
+    SETTINGS_DIR = op.join(os.getenv('APPDATA'), 'NMSDK')
+elif _os_name == 'Linux':
+    SETTINGS_DIR = op.expanduser('~/NMSDK')
+elif _os_name == 'Darwin':
+    # UNTESTED!
+    SETTINGS_DIR = op.join(op.expanduser('~'), 'Library', 'NMSDK')
+else:
+    raise ValueError('Current operating system is not supported sorry!')
 SETTINGS_FNAME = 'settings.json'
 
 DEFAULT_SETTINGS = {'export_directory': 'CUSTOMMODELS',
