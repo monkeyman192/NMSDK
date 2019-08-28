@@ -2,6 +2,10 @@
 
 Installing NMSDK is very easy. Head to the [NMSDK Release page](https://github.com/monkeyman192/NMSDK/releases) on GitHub and download the most recently released version.
 
+If you have had a previous version of NMSDK installed it is recommended that you remove it.
+Generally the addons will be installed at `%APPDATA%\Blender Foundation\Blender\2.79\scripts\addons`. If you go to this location and there is an `nmsdk` folder. Delete it after removing the addon from within blender, then follow the following steps.
+Removing the old version is particularly important if you had a very old version (pre-proper versioning), as there have been many internal changes to NMSDK since then and the old files will clash, causing odd issues.
+
 Open Blender and open the user settings (Ctrl + Alt + U) (or `File` > `User Preferences...`), and select `Install Add-on from File...` (it is at the bottom left of the window).
 Select the `.zip` file you just downloaded and blender should install it without any errors.
 
