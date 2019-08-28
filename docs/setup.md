@@ -15,10 +15,11 @@ To make exporting easier, NMSDK will automatically convert all produced `.exml` 
 
 #### Blender
 
-NMSDK requires a version of blender greater than or equal to 2.79.
-This is due to the model importer component to need a shader node that only exists with Blender 2.79 and above.
+NMSDK requires a version of blender greater than or equal to 2.79b.
+This is due to the model importer component to need a shader node that only exists with Blender 2.79b and above.
 
 NMSDK has not been tested for blender 2.80, however it is likely to not work, and support for 2.80 will not come until 2.80 is out of beta and is the latest official release.
+If you wish to still use blender 2.80, it is recommended that you install a portable blender 2.79b version from [here](https://sourceforge.net/projects/portableapps/files/Blender%20Portable/)
 
 #### MBINCompiler
 
