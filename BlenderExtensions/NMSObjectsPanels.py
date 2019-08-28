@@ -106,6 +106,10 @@ class NMSReferenceProperties(bpy.types.PropertyGroup):
         description="If checked, then a new panel will appear that can be "
                     "used to describe the proc-gen nature of the scene",
         default=False)
+    has_been_imported = BoolProperty(
+        name="Has been imported?",
+        description="Whether or not the scene is one that has been imported.",
+        default=False)
 
 
 class NMSCollisionProperties(bpy.types.PropertyGroup):
