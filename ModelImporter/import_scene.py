@@ -873,14 +873,17 @@ class ImportScene():
                 mask_texture.image = img
                 mask_texture.location = (-600, 0)
                 mask_texture.color_space = 'NONE'
+                lfRoughness = None
+                separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
+                separate_rgb.location = (-400, 0)
+                links.new(separate_rgb.inputs['Image'],
+                          mask_texture.outputs['Color'])
                 if 43 not in mat_data['Flags']:
                     # #ifndef _F44_IMPOSTER
                     if 24 in mat_data['Flags']:
                         # #ifdef _F25_ROUGHNESS_MASK
                         # lfRoughness = 1 - lMasks.g
                         # RGB separation node
-                        separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
-                        separate_rgb.location = (-400, 0)
                         # subtract the green channel from 1:
                         sub_1 = nodes.new(type="ShaderNodeMath")
                         sub_1.operation = 'SUBTRACT'
@@ -888,8 +891,6 @@ class ImportScene():
                         sub_1.inputs[0].default_value = 1.0
                         lfRoughness = sub_1.outputs['Value']
                         # link them up
-                        links.new(separate_rgb.inputs['Image'],
-                                  mask_texture.outputs['Color'])
                         links.new(sub_1.inputs[1], separate_rgb.outputs['G'])
                     else:
                         roughness_value = nodes.new(type='ShaderNodeValue')
@@ -902,6 +903,12 @@ class ImportScene():
                         'gMaterialParamsVec4'][0]
                     links.new(mult_param_x.inputs[0], lfRoughness)
                     lfRoughness = mult_param_x.outputs['Value']
+                if lfRoughness is None:
+                    roughness_node = nodes.new(type="ShaderNodeValue")
+                    # Set the default value from the uniforms
+                    roughness_node.outputs[0].default_value = uniforms[
+                        'gMaterialParamsVec4'][0]
+                    lfRoughness = roughness_node.outputs['Value']
                 links.new(principled_BSDF.inputs['Roughness'],
                           lfRoughness)
 
