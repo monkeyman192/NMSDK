@@ -32,7 +32,7 @@ DATA_PATH_MAP = {'Rotation': 'rotation_quaternion',
                  'Scale': 'scale'}
 
 TYPE_MAP = {'MESH': 'Mesh', 'LOCATOR': 'Locator', 'REFERENCE': 'Reference',
-            'JOINT': 'Joint'}
+            'JOINT': 'Joint', 'LIGHT': 'Light'}
 
 
 class ImportScene():
@@ -318,6 +318,8 @@ class ImportScene():
                         self._add_mesh_collision_to_scene(obj)
                     else:
                         self._add_primitive_collision_to_scene(obj)
+            elif obj.Type == 'LIGHT':
+                self._add_light_to_scene(obj)
         if self.mesh_binding_data is not None:
             self._add_armature_to_scene()
             armature = bpy.data.armatures[self.scene_basename]
@@ -487,6 +489,58 @@ class ImportScene():
             else:
                 print("The reference node {0} has a reference to a path "
                       "that doesn't exist ({1})".format(name, ref_scene_path))
+
+    def _add_light_to_scene(self, scene_node, standalone=False):
+        """ Adds the given light node to the Blender scene. """
+        name = scene_node.Name
+
+        # Create a new light instance
+        light = bpy.data.lamps.new(name, 'POINT')
+
+        # Apply a number of settings relating to the light
+        light.color = (float(scene_node.Attribute('COL_R')),
+                       float(scene_node.Attribute('COL_G')),
+                       float(scene_node.Attribute('COL_B')))
+        light.use_nodes = True
+
+        light_obj = bpy.data.objects.new(name, light)
+        light_obj.NMSNode_props.node_types = TYPE_MAP[scene_node.Type]
+
+        # get transform and apply
+        transform = scene_node.Transform['Trans']
+        light_obj.location = Vector(transform)
+        # get rotation and apply
+        rotation = scene_node.Transform['Rot']
+        light_obj.rotation_mode = 'ZXY'
+        light_obj.rotation_euler = rotation
+        # get scale and apply
+        scale = scene_node.Transform['Scale']
+        light_obj.scale = Vector(scale)
+
+        self.local_objects[scene_node] = light_obj
+
+        if not standalone:
+            if self.parent_obj is not None and scene_node.parent.Name is None:
+                # Direct child of the reference node
+                light_obj.parent = self.parent_obj
+                self.ref_scenes[self.scene_name].append(light_obj)
+            elif scene_node.parent.Name is not None:
+                # Other child
+                light_obj.parent = self.local_objects[scene_node.parent]
+            else:
+                # Direct child of loaded scene
+                light_obj.parent = self.local_objects[self.scene_basename]
+        else:
+            light_obj.matrix_world = ROT_MATRIX * light_obj.matrix_world
+
+        # Set the rotation mode to be in quaternions so that anims work
+        # correctly
+        light_obj.rotation_mode = 'QUATERNION'
+
+        # link the object then update the scene so that the above transforms
+        # can be applied before we do the NMS -> blender scene rotation
+        self.scn.objects.link(light_obj)
+        self.scn.update()
 
     def _add_mesh_collision_to_scene(self, scene_node):
         """ Adds the given collision node to the Blender scene. """
