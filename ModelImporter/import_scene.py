@@ -694,16 +694,6 @@ class ImportScene():
                 colour_loops[idx].color = (colour[0]/255,
                                            colour[1]/255,
                                            colour[2]/255)
-        # Some debugging info
-        """
-        print(name)
-        if 5 in scene_node.verts.keys():
-            print('blend indices')
-            print(scene_node.verts[5])
-        if 6 in scene_node.verts.keys():
-            print('blend weight')
-            print(scene_node.verts[6])
-        """
 
         # Add vertexes to mesh groups
         if self.mesh_binding_data is not None:
@@ -765,6 +755,10 @@ class ImportScene():
             bpy.data.materials.remove(mat)
         for img in bpy.data.images:
             bpy.data.images.remove(img)
+        # Remove any previously existing actions:
+        for act in bpy.data.actions:
+            bpy.data.actions.remove(act)
+        self.scn.nmsdk_anim_data.reset()
 
     def _compose_matrix(self, trans, rotation, scale):
         """ Create a 4x4 matrix representation of the objects transform. """

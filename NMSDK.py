@@ -257,13 +257,14 @@ class AnimProperties(PropertyGroup):
     def reset(self):
         """ Reset all the values back to their original ones. """
         self.anims_loaded = False
-        self.loadable_anim_data = dict()
-        self.loaded_anims = ['None']
-        self.joints = list()
+        self.loadable_anim_data.clear()
+        self.loaded_anims.clear()
+        self.loaded_anims.extend(['None'])
+        self.joints.clear()
 
 
 class _RefreshAnimations(Operator):
-    """Load the selected animation data"""
+    """Refresh the animation data"""
     bl_idname = "nmsdk._refresh_anim_list"
     bl_label = "Refresh Animation List"
 
