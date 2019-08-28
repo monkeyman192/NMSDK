@@ -190,15 +190,15 @@ class Exporter():
 
         # Go over each object in the list of nodes that are to be exported
         for obj in self.export_scenes:
-            # First, sort out any descriptors
-            descriptor = None
-            if obj.NMSReference_props.is_proc:
-                descriptor = self.descriptor_generator(obj)
             name = obj.NMSReference_props.scene_name
             if name == '':
                 name = get_obj_name(obj, self.export_fname)
             self.scene_directory = op.join(self.export_dir,
                                            self.group_name)
+            # Sort out any descriptors
+            descriptor = None
+            if obj.NMSReference_props.is_proc:
+                descriptor = self.descriptor_generator(obj)
             print('Located Object for export', name)
             scene = Model(Name=name)
             # We don't want to actually add the main object to the scene,
@@ -225,6 +225,7 @@ class Exporter():
             obj.select = False
         ob.select = True
 
+    # TODO: I thought this was fixed so this function was no longer needed...
     def get_animated_children(self, parent):
         objects = list()
         for child in parent.children:
