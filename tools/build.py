@@ -24,4 +24,4 @@ with tempfile.TemporaryDirectory() as tempdir:
             shutil.copytree(src, dst)
         else:
             shutil.copy(src, dst)
-    shutil.make_archive(zip_dst, 'zip', nmsdk_src)
+    shutil.make_archive(zip_dst, 'zip', tempdir)
