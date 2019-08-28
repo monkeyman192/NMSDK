@@ -1,3 +1,16 @@
+bl_info = {
+    "name": "No Man's Sky Development Kit",
+    "author": "gregkwaste, monkeyman192",
+    "version": (0, 9, 17),
+    "blender": (2, 79, 0),
+    "location": "File > Export",
+    "description": "Create NMS scene structures and export to NMS File format",
+    "warning": "",
+    "wiki_url": "https://monkeyman192.github.io/NMSDK/",
+    "tracker_url": "https://github.com/monkeyman192/NMSDK/issues",
+    "category": "Import-Export"}
+
+
 import bpy  # pylint: disable=import-error
 from bpy.props import PointerProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
 
@@ -20,18 +33,6 @@ from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
                                 NMSShaderNode, SettingsPanels)
 
 customNodes = NMSNodes()
-
-bl_info = {
-    "name": "No Man's Sky Development Kit",
-    "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 16),
-    "blender": (2, 79, 0),
-    "location": "File > Export",
-    "description": "Create NMS scene structures and export to NMS File format",
-    "warning": "",
-    "wiki_url": "https://monkeyman192.github.io/NMSDK/",
-    "tracker_url": "https://github.com/monkeyman192/NMSDK/issues",
-    "category": "Import-Export"}
 
 
 # Only needed if you want to add into a dynamic menu
@@ -108,3 +109,7 @@ def unregister():
     customNodes.unregister()
     NMSEntities.unregister()
     SettingsPanels.unregister()
+
+
+if __name__ == '__main__':
+    register()

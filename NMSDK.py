@@ -535,7 +535,7 @@ class NMS_Import_Operator(Operator, ImportHelper):
     load_anims = BoolProperty(
         name='Load all animations',
         description='Whether or not to load all the animation data initially',
-        default=True)
+        default=False)
 
     def draw(self, context):
         layout = self.layout

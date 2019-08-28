@@ -111,6 +111,7 @@ class ImportScene():
         # This list of joints is used to add all the bones if needed
         self.joints = list()
         self.skinned_meshes = list()
+        self.mesh_binding_data = None
         # inverse bind matrices are the global transforms of the joints parent
         self.inv_bind_matrices = dict()
         # bind matrices are the local transforms of the intial states of the
@@ -185,8 +186,6 @@ class ImportScene():
 
         if self.settings['import_bones']:
             self.mesh_binding_data = read_mesh_binding_data(self.geometry_file)
-        else:
-            self.mesh_binding_data = None
 
         self.scn.nmsdk_anim_data.has_bound_mesh = (
             self.mesh_binding_data is not None)
