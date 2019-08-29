@@ -224,19 +224,22 @@ class ImportScene():
         # Update the global animation data dictionary
         _loadable_anim_data.update(local_anims)
 
-        if self.settings['load_anims']:
-            load_anims = True
-        else:
-            # TODO: don't hardcode this value...
-            if len(_loadable_anim_data) < 10:
+        if self.settings['max_anims'] != 0:
+            load_anims = False
+        elif self.settings['max_anims'] != -1:
+            if len(_loadable_anim_data) < self.settings['max_anims']:
                 load_anims = True
             else:
                 print('Warning! Too many animations detected!')
                 load_anims = False
+        else:
+            load_anims = True
 
         self._fix_anim_data(local_anims, mod_dir)
 
-        self.scn.nmsdk_anim_data.anims_loaded = load_anims
+        if not self.scn.nmsdk_anim_data.anims_loaded:
+            # Only update the value if going from False -> True
+            self.scn.nmsdk_anim_data.anims_loaded = load_anims
 
         if load_anims:
             for anim_name, anim_data in local_anims.items():
@@ -583,6 +586,7 @@ class ImportScene():
 
         self.scn.objects.link(bh_obj)
         self.local_objects[scene_node] = bh_obj
+        bh_obj.hide_render = True
 
     def _add_primitive_collision_to_scene(self, scene_node):
         name = scene_node.Name + '_COLL'
@@ -651,6 +655,7 @@ class ImportScene():
 
         self.scn.objects.link(coll_obj)
         self.local_objects[scene_node] = coll_obj
+        coll_obj.hide_render = True
 
     def _add_existing_to_scene(self):
         # existing is a list of child objects to the reference

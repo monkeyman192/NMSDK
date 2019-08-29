@@ -1,7 +1,8 @@
 # stdlib imports
 import os.path as op
 
-from bpy.props import StringProperty, BoolProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
+from bpy.props import (StringProperty, BoolProperty, EnumProperty,  # noqa pylint: disable=import-error, no-name-in-module
+                       IntProperty)
 import bpy   # pylint: disable=import-error
 from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
 from bpy.types import Operator, PropertyGroup  # noqa pylint: disable=import-error, no-name-in-module
@@ -43,14 +44,16 @@ class ImportSceneOperator(Operator):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    # Animation related properties
     import_bones = BoolProperty(
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
-    load_anims = BoolProperty(
-        name='Load all animations',
-        description='Whether or not to load all the animation data initially',
-        default=True)
+    max_anims = IntProperty(
+        name='Max loaded animations',
+        description='Maximum number of animations to load',
+        default=10,
+        soft_min=-1)
 
     def execute(self, context):
         keywords = self.as_keywords()
@@ -529,14 +532,18 @@ class NMS_Import_Operator(Operator, ImportHelper):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    # Animation related properties
     import_bones = BoolProperty(
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
-    load_anims = BoolProperty(
-        name='Load all animations',
-        description='Whether or not to load all the animation data initially',
-        default=False)
+    max_anims = IntProperty(
+        name='Max loaded animations',
+        description='Maximum number of animations to load. To Disable loading '
+                    'animations set this to 0, or to force loading all set '
+                    'this to -1',
+        default=10,
+        soft_min=-1)
 
     def draw(self, context):
         layout = self.layout
@@ -549,7 +556,7 @@ class NMS_Import_Operator(Operator, ImportHelper):
         animation_box = layout.box()
         animation_box.label('Animation')
         animation_box.prop(self, 'import_bones')
-        animation_box.prop(self, 'load_anims')
+        animation_box.prop(self, 'max_anims')
 
     def execute(self, context):
         keywords = self.as_keywords()
