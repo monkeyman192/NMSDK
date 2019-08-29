@@ -203,6 +203,45 @@ class _SaveDefaultSettings(Operator):
         return {'FINISHED'}
 
 
+class _GetPCBANKSFolder(Operator):
+    """Create a popup to get the PCBANKS folder location"""
+    # Code modified from https://blender.stackexchange.com/a/126596
+    bl_idname = "nmsdk._find_pcbanks"
+    bl_label = "Specify PCBANKS location"
+
+    # Define this to tell 'fileselect_add' that we want a directoy
+    directory = bpy.props.StringProperty(
+        name="PCBANKS path",
+        description="Location of the PCBANKS folder")
+
+    def execute(self, context):
+        # Set the PCBANKS_directory value
+        context.scene.nmsdk_default_settings.PCBANKS_directory = self.directory
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        # Open browser, take reference to 'self' read the path to selected
+        # file, put path in predetermined self fields.
+        # See: https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add  # noqa
+        context.window_manager.fileselect_add(self)
+        # Tells Blender to hang on for the slow user input
+        return {'RUNNING_MODAL'}
+
+
+class _RemovePCBANKSFolder(Operator):
+    """Reset the PCBANKS folder location."""
+    bl_idname = "nmsdk._remove_pcbanks"
+    bl_label = "Remove PCBANKS location"
+
+    def execute(self, context):
+        # Set the PCBANKS_directory as blank
+        context.scene.nmsdk_default_settings.PCBANKS_directory = ""
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+
 # Animation classes and functions
 # TODO: move...
 
@@ -429,6 +468,10 @@ class NMSDKDefaultSettings(PropertyGroup):
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)",
         default=default_settings['group_name'])
+    PCBANKS_directory = StringProperty(
+        name="PCBANKS directory",
+        description="Path to the PCBANKS folder",
+        default="")
 
     def save(self):
         """ Save the current settings. """

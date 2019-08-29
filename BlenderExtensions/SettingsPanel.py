@@ -62,6 +62,13 @@ class DefaultsPanel(bpy.types.Panel):
         layout = self.layout
         layout.prop(default_settings, 'export_directory')
         layout.prop(default_settings, 'group_name')
+        row = layout.split(percentage=0.85, align=True)
+        row.alignment = 'LEFT'
+        row.operator("nmsdk._find_pcbanks", icon='ZOOM_ALL',
+                     text='PCBANKS location')
+        row.separator()
+        row.operator('nmsdk._remove_pcbanks',
+                     icon='X', emboss=False, text=" ")
         layout.operator("nmsdk._save_default_settings", icon='SAVE_PREFS',
                         text='Save settings')
 
