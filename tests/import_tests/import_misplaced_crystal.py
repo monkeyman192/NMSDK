@@ -1,14 +1,23 @@
 import bpy
 import os.path as op
 
+""" This is the same test as the test for importing a crystal but with a
+different path. """
+
 
 # Path is relative to the plugin directory
 TEST_DATA_PATH = op.join(op.dirname(__file__), 'data')
 CRYSTAL_BASE_PATH = 'MODELS\\PLANETS\\BIOMES\\COMMON\\CRYSTALS\\LARGE'
 CRYSTAL_PATH = op.join(TEST_DATA_PATH,
+                       'NEW',           # Effective PCBANKS folder
                        CRYSTAL_BASE_PATH,
                        'CRYSTAL_LARGE.SCENE.MBIN')
 
+
+# First, set the "PCBANKS" folder:
+# We need to set this manually as we cannot invoke the operator (I don't think?
+# to get it to be specified using the button in the settings panel...)
+bpy.context.scene.nmsdk_default_settings.PCBANKS_directory = TEST_DATA_PATH
 
 res = bpy.ops.nmsdk.import_scene(path=CRYSTAL_PATH)
 # First, make sure that it ran

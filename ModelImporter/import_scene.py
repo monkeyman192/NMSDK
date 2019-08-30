@@ -58,6 +58,7 @@ class ImportScene():
         # scene_basename is the final component of the scene path.
         # Ie. the file name without the extension
         self.scene_basename, ftype = op.splitext(self.scene_basename)
+        self.PCBANKS_dir = get_NMS_dir(self.local_directory)
 
         # Determine the type of file provided and get the exml and mbin file
         # paths for that file.
@@ -138,10 +139,15 @@ class ImportScene():
         # remove the name of the top level object
         self.scene_node_data.info['Name'] = None
         self.geometry_file = op.join(
+            self.PCBANKS_dir,
+            self.scene_node_data.Attribute('GEOMETRY') + '.PC')
+        """
+        self.geometry_file = op.join(
             self.local_directory,
             op.relpath(
                 self.scene_node_data.Attribute('GEOMETRY'),
                 self.directory) + '.PC')
+        """
         self.geometry_stream_file = self.geometry_file.replace('GEOMETRY',
                                                                'GEOMETRY.DATA')
 
@@ -206,11 +212,10 @@ class ImportScene():
         # animations have an entity associated.)
         if len(self.entities) == 0:
             return
-        mod_dir = get_NMS_dir(self.local_directory)
         # Iterate over the entity files to collate all the animation data
         local_anims = dict()
         for entity in self.entities:
-            entity_path = op.join(mod_dir, entity)
+            entity_path = op.join(self.PCBANKS_dir, entity)
             local_anims.update(read_entity(entity_path))
         if len(local_anims) == 0:
             # If there are no animations added by this scene just return to
@@ -235,7 +240,7 @@ class ImportScene():
         else:
             load_anims = True
 
-        self._fix_anim_data(local_anims, mod_dir)
+        self._fix_anim_data(local_anims, self.PCBANKS_dir)
 
         if not self.scn.nmsdk_anim_data.anims_loaded:
             # Only update the value if going from False -> True
@@ -423,8 +428,8 @@ class ImportScene():
             self.scn.objects.active = empty_obj
             bpy.ops.object.mode_set(mode='OBJECT')
             # check if the scene is proc-gen
-            descriptor_name = op.basename(self.scene_name) + '.DESCRIPTOR.MBIN'
-            if op.exists(op.join(self.local_directory, descriptor_name)):
+            descriptor_name = self.scene_name + '.DESCRIPTOR.MBIN'
+            if op.exists(op.join(self.PCBANKS_dir, descriptor_name)):
                 empty_obj.NMSReference_props.is_proc = True
             self.local_objects[scene_node] = empty_obj
             return
@@ -478,10 +483,9 @@ class ImportScene():
         self.scn.update()
 
         if scene_node.Type == 'REFERENCE':
-            mod_dir = get_NMS_dir(self.local_directory)
             empty_obj.NMSReference_props.reference_path = scene_node.Attribute(
                 'SCENEGRAPH')
-            ref_scene_path = op.join(mod_dir,
+            ref_scene_path = op.join(self.PCBANKS_dir,
                                      scene_node.Attribute('SCENEGRAPH'))
             if op.exists(ref_scene_path):
                 print('loading referenced scene: {0}'.format(ref_scene_path))
@@ -1213,13 +1217,12 @@ class ImportScene():
 
     def _get_path(self, fpath):
         try:
-            return op.normpath(
-                op.join(self.local_directory,
-                        op.relpath(fpath, self.directory)))
+            return op.join(self.PCBANKS_dir, fpath)
         except ValueError:
             return None
 
     def _load_bounded_hulls(self):
+        """ Load the bounded hull data. """
         with open(self.geometry_file, 'rb') as f:
             f.seek(0x130)
             list_offset, list_count = read_list_header(f)

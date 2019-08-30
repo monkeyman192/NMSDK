@@ -8,6 +8,8 @@ PLUGIN_PATH = os.getcwd()
 TESTS_PATH = 'tests\\import_tests'
 
 CRYSTAL_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH, 'import_crystal.py')
+MISPLACED_CRYSTAL_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH,
+                                      'import_misplaced_crystal.py')
 BAD_IMPORT_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH, 'import_bad.py')
 SMALLPROPA_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH, 'import_smallpropa.py')
 
@@ -26,6 +28,12 @@ def run_test(test_path):
 def test_import_crystal():
     # Test the importing of a model with mesh collisions
     run_test(CRYSTAL_TEST_PATH)
+
+
+def test_import_misplaced_crystal():
+    # Test the importing of a crystal model which is in a different folder
+    # to the rest of its data by using the PCBANKS_directory setting.
+    run_test(MISPLACED_CRYSTAL_TEST_PATH)
 
 
 def test_import_smallpropa():
