@@ -9,6 +9,8 @@
  - The setting for indicating what the maximum number of animations has been changed. Now you can specify the value as a number, with `-1` being load all, `0` load none, and any positive number being the maximum number of animations to load.
  - Fixed a few other small errors that could occur in weird cases such as for some descriptors.
 
+**NOTE**: This is the final Blender 2.79 compatible release. All future releases will be for Blender 2.80 and above.
+
 ### Past:
 
 ### v0.9.17 (28/08/2019)
