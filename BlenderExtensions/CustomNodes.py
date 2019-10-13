@@ -61,7 +61,7 @@ class NMS_WarpAction(Node, NMSATNode):
     bl_label = 'Warp Action Node'
     bl_icon = 'SOUND'
 
-    WarpType = EnumProperty(
+    WarpType: EnumProperty(
         name='Warp Type',
         description='Type of warp required.',
         items=[("BlackHole", "BlackHole", "Blackhole warp")])
@@ -82,12 +82,12 @@ class NMS_PlayAudioAction(Node, NMSATNode):
     bl_label = 'Play Audio Action Node'
     bl_icon = 'SOUND'
 
-    Sound = StringProperty(
+    Sound: StringProperty(
         name='Sound Name',
         description='Name of the sound from the game files you wish to play.')
-    UseOcclusion = BoolProperty(name='Use Occlusion',
-                                description='Whether or not to use occlusion.')
-    OcclusionRadius = FloatProperty(
+    UseOcclusion: BoolProperty(name='Use Occlusion',
+                               description='Whether or not to use occlusion.')
+    OcclusionRadius: FloatProperty(
         name='Occlusion Radius',
         description='Radius of occlusion zone if used')
 
@@ -109,7 +109,7 @@ class NMS_PlayAnimAction(Node, NMSATNode):
     bl_label = 'Play Anim Action Node'
     bl_icon = 'SOUND'
 
-    Anim = StringProperty(
+    Anim: StringProperty(
         name='Anim Name',
         description='Name of the anim from the game files you wish to play.')
 
@@ -129,13 +129,13 @@ class NMS_GoToStateAction(Node, NMSATNode):
     bl_label = 'Go To State Action Node'
     bl_icon = 'SOUND'
 
-    State = StringProperty(
+    State: StringProperty(
         name='Action State Name',
         description='Name of the action state you wish to go to.')
-    Broadcast = BoolProperty(
+    Broadcast: BoolProperty(
         name='Broadcast',
         description='Whether or not to broadcast action to another scene.')
-    BroadcastLevel = EnumProperty(
+    BroadcastLevel: EnumProperty(
         name='Broadcast Levels',
         description='The level at which to broadcast an action.',
         items=[("Scene", "Scene", "Broadcast to Scene"),
@@ -160,12 +160,12 @@ class NMS_CameraShakeAction(Node, NMSATNode):
     bl_label = 'Camera Shake Action Node'
     bl_icon = 'SOUND'
 
-    Shake = StringProperty(name='Shake ID',
-                           description='ID for type of camera shake')
-    FalloffMin = FloatProperty(name='Falloff Min',
-                                    description='Camera shake falloff min.')
-    FalloffMax = FloatProperty(name='FalloffMax',
-                                    description='Camera shake falloff max.')
+    Shake: StringProperty(name='Shake ID',
+                          description='ID for type of camera shake')
+    FalloffMin: FloatProperty(name='Falloff Min',
+                              description='Camera shake falloff min.')
+    FalloffMax: FloatProperty(name='FalloffMax',
+                              description='Camera shake falloff max.')
 
     def init(self, context):
         self.inputs.new('NMSSocket', "Trigger")
@@ -185,12 +185,12 @@ class NMS_PainAction(Node, NMSATNode):
     bl_label = 'Pain Action Node'
     bl_icon = 'SOUND'
 
-    Damage = StringProperty(name='Damage ID',
-                            description='ID for type of damage.')
-    Radius = FloatProperty(name='Radius',
-                           description='Distance at which to inflict PAIN')
-    AffectsPlayer = BoolProperty(name='Affects Player',
-                                 description='Whether to affect player.')
+    Damage: StringProperty(name='Damage ID',
+                           description='ID for type of damage.')
+    Radius: FloatProperty(name='Radius',
+                          description='Distance at which to inflict PAIN')
+    AffectsPlayer: BoolProperty(name='Affects Player',
+                                description='Whether to affect player.')
 
     def init(self, context):
         self.inputs.new('NMSSocket', "Trigger")
@@ -210,25 +210,25 @@ class NMS_NodeActivationAction(Node, NMSATNode):
     bl_label = 'Node Activation Action Node'
     bl_icon = 'SOUND'
 
-    NodeActiveState = EnumProperty(
+    NodeActiveState: EnumProperty(
         name='Node Active State Values',
         description='Node activation states',
         items=[("Activate", "Activate", "Enable a scene node"),
                ("Deactivate", "Deactivate", "Disable a scene node"),
                ("Toggle", "Toggle", "Toggle a scene node")])
-    Name = StringProperty(name='Node name',
-                          description='Name of scene node you wish to affect.')
-    SceneToAdd = StringProperty(
+    Name: StringProperty(name='Node name',
+                         description='Name of scene node you wish to affect.')
+    SceneToAdd: StringProperty(
         name='Scene to add',
         description='Name of scene node you wish to add.')
-    IncludePhysics = BoolProperty(name='Include physics',
+    IncludePhysics: BoolProperty(name='Include physics',
+                                 description='Unclear effects.')
+    NotifyNPC: BoolProperty(name='Notify NPC',
+                            description='Unclear effects.')
+    UseMasterModel: BoolProperty(name='Use master model',
+                                 description='Unclear effects.')
+    RestartEmitters: BoolProperty(name='Restart emitters',
                                   description='Unclear effects.')
-    NotifyNPC = BoolProperty(name='Notify NPC',
-                             description='Unclear effects.')
-    UseMasterModel = BoolProperty(name='Use master model',
-                                  description='Unclear effects.')
-    RestartEmitters = BoolProperty(name='Restart emitters',
-                                   description='Unclear effects.')
 
     def init(self, context):
         self.inputs.new('NMSSocket', "Trigger")
@@ -252,7 +252,7 @@ class NMS_RewardAction(Node, NMSATNode):
     bl_label = 'Reward Action Node'
     bl_icon = 'SOUND'
 
-    Reward = StringProperty(
+    Reward: StringProperty(
         name='Reward ID',
         description='ID of the reward from REWARDTABLE.MBIN.')
 
@@ -272,7 +272,7 @@ class NMS_SpawnAction(Node, NMSATNode):
     bl_label = 'Spawn Action Node'
     bl_icon = 'SOUND'
 
-    Event = StringProperty(
+    Event: StringProperty(
         name='Event ID',
         description='ID of the event from the game files you wish to spawn.')
 
@@ -292,8 +292,8 @@ class NMS_DestroyAction(Node, NMSATNode):
     bl_label = 'Destroy Action Node'
     bl_icon = 'SOUND'
 
-    DestroyAll = BoolProperty(name='Destroy All',
-                              description='Unclear effects.')
+    DestroyAll: BoolProperty(name='Destroy All',
+                             description='Unclear effects.')
 
     def init(self, context):
         self.inputs.new('NMSSocket', "Trigger")
@@ -311,14 +311,14 @@ class NMS_ParticleAction(Node, NMSATNode):
     bl_label = 'Particle Action Node'
     bl_icon = 'SOUND'
 
-    Effect = StringProperty(
+    Effect: StringProperty(
         name='Effect ID',
         description='ID of the effect from the game files you wish to appear.')
-    Joint = StringProperty(
+    Joint: StringProperty(
         name='Joint name',
         description=('Name of the locator scene node where you wish the '
                      'effect to appear at.'))
-    Exact = BoolProperty(
+    Exact: BoolProperty(
         name='Exact',
         description=('Possibly whether or not for effect to appear exactly on '
                      'joint'))
@@ -341,7 +341,7 @@ class NMS_DisplayText(Node, NMSATNode):
     bl_label = 'Display Text Node'
     bl_icon = 'SOUND'
 
-    HUDTextDisplayTypeValues = EnumProperty(
+    HUDTextDisplayTypeValues: EnumProperty(
         name='HUD Display Text Values',
         description='HUD Display Text Types',
         items=[("Full", "Full", "[Discovery style text display?]"),
@@ -349,12 +349,12 @@ class NMS_DisplayText(Node, NMSATNode):
                ("EyeLevel", "EyeLevel", "[Uncertain.]"),
                ("Prompt", "Prompt", "[Uncertain.]"),
                ("Tooltip", "Tooltip", "Lower right hand corner tooltips.")])
-    Title = StringProperty(name='Title text',
-                           description='Title text to display.')
-    Subtitle1 = StringProperty(name='Subtitle 1 text',
-                               description='Subtitle text to display.')
-    Subtitle2 = StringProperty(name='Subtitle 2 text',
-                               description='Subtitle text to display.')
+    Title: StringProperty(name='Title text',
+                          description='Title text to display.')
+    Subtitle1: StringProperty(name='Subtitle 1 text',
+                              description='Subtitle text to display.')
+    Subtitle2: StringProperty(name='Subtitle 2 text',
+                              description='Subtitle text to display.')
 
     def init(self, context):
         self.inputs.new('NMSSocket', "Trigger")
@@ -378,7 +378,7 @@ class NMS_PlayerNearbyEvent(Node, NMSATNode):
     bl_label = 'Player Nearby Trigger Node'
     bl_icon = 'SOUND'
 
-    RequirePlayerAction = EnumProperty(
+    RequirePlayerAction: EnumProperty(
         name='Require Player Action',
         description='State player must be in to cause trigger to occur',
         items=[("None", "None", "No special state"),
@@ -388,30 +388,30 @@ class NMS_PlayerNearbyEvent(Node, NMSATNode):
                ("On Foot Outside", "OnFootOutside", ("Player must be on foot "
                                                      "and outside")),
                ("Upload", "Upload", "Triggered if player is uploading (?)")])
-    Distance = FloatProperty(
+    Distance: FloatProperty(
         name="Distance",
         description="Distance from object to cause trigger")
-    Angle = FloatProperty(
+    Angle: FloatProperty(
         name="Angle",
         description="Angle within which the trigger area is effective")
-    AnglePlayerRelative = BoolProperty(
+    AnglePlayerRelative: BoolProperty(
         name="Angle Player Relative",
         description="Angle is relative to player?")
-    AngleOffset = FloatProperty(
+    AngleOffset: FloatProperty(
         name="Angle Offset",
         description="Offset of chosen angle...?")
-    AngleReflected = BoolProperty(
+    AngleReflected: BoolProperty(
         name="Angle Reflected",
         description="Reflection of chosen angle...?")
-    AngleMinDistance = FloatProperty(
+    AngleMinDistance: FloatProperty(
         name="Angle Min Distance",
         description="Minimum distance to chosen angle...?")
-    DistanceCheckTypeValues = EnumProperty(
+    DistanceCheckTypeValues: EnumProperty(
         name='Distance Check Type',
         description='Distance Check Types',
         items=[("Radius", "Radius", "Radius distance check"),
                ("BoundingBox", "BoundingBox", "BoundingBox distance check")])
-    Inverse = BoolProperty(
+    Inverse: BoolProperty(
         name="Inverse",
         description="Invert the distance check.")
 
@@ -440,15 +440,15 @@ class NMS_BeenShotEvent(Node, NMSATNode):
     bl_label = 'Been Shot Trigger Node'
     bl_icon = 'SOUND'
 
-    ShotBy = EnumProperty(
+    ShotBy: EnumProperty(
         name='Been shot by',
         description='What the object has to be shot by to trigger the action',
         items=[("Player", "Player", "The player"),
                ("Anything", "Anything", "Anything")])
-    DamageThreshold = IntProperty(
+    DamageThreshold: IntProperty(
         name="Damage Threshold",
         description="Amount of damage given before action will be triggered")
-    HealthThreshold = FloatProperty(
+    HealthThreshold: FloatProperty(
         name="Health Threshold",
         description="Health value at which action will be triggered (?)")
 
@@ -471,8 +471,8 @@ class NMS_StateTimeEvent(Node, NMSATNode):
     bl_label = 'State Time Trigger Node'
     bl_icon = 'SOUND'
 
-    Time = FloatProperty(name="Seconds",
-                         description="Seconds to wait for setting off trigger")
+    Time: FloatProperty(name="Seconds",
+                        description="Seconds to wait for setting off trigger")
 
     def init(self, context):
         self.inputs.new('NMSJoinSocket', "From Node")
@@ -491,13 +491,13 @@ class NMS_AnimFrameEvent(Node, NMSATNode):
     bl_label = 'Anim Frame Trigger Node'
     bl_icon = 'SOUND'
 
-    Anim = StringProperty(
+    Anim: StringProperty(
         name='Anim Name',
         description='Name of anim from game files you wish to activate.')
-    FrameStart = IntProperty(
+    FrameStart: IntProperty(
         name="Frame Start",
         description="The frame on which to trigger actions.")
-    StartFromEnd = BoolProperty(
+    StartFromEnd: BoolProperty(
         name='Start From End',
         description='Whether or not to count frames from end of anim[?]')
 

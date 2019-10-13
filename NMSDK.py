@@ -22,34 +22,34 @@ class ImportSceneOperator(Operator):
     bl_idname = "nmsdk.import_scene"
     bl_label = "Import NMS Scene file"
 
-    path = StringProperty(default="")
+    path: StringProperty(default="")
 
-    clear_scene = BoolProperty(
+    clear_scene: BoolProperty(
         name='Clear scene',
         description='Whether or not to clear the currently exiting scene in '
                     'blender.',
         default=True)
 
-    draw_hulls = BoolProperty(
+    draw_hulls: BoolProperty(
         name='Draw bounded hulls',
         description='Whether or not to draw the points that make up the '
                     'bounded hulls of the materials. This is only for research'
                     '/debugging, so can safely be left as False.',
         default=False)
-    import_collisions = BoolProperty(
+    import_collisions: BoolProperty(
         name='Import collisions',
         description='Whether or not to import the collision objects.',
         default=True)
-    show_collisions = BoolProperty(
+    show_collisions: BoolProperty(
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
     # Animation related properties
-    import_bones = BoolProperty(
+    import_bones: BoolProperty(
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
-    max_anims = IntProperty(
+    max_anims: IntProperty(
         name='Max loaded animations',
         description='Maximum number of animations to load',
         default=10,
@@ -69,8 +69,8 @@ class ImportMeshOperator(Operator):
     bl_idname = "nmsdk.import_mesh"
     bl_label = "Import NMS meshes"
 
-    path = StringProperty(default="")
-    mesh_id = StringProperty(default="")
+    path: StringProperty(default="")
+    mesh_id: StringProperty(default="")
 
     def execute(self, context):
         importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict())
@@ -85,36 +85,36 @@ class ExportSceneOperator(Operator):
     bl_idname = "nmsdk.export_scene"
     bl_label = "Export to NMS scene"
 
-    output_directory = StringProperty(
+    output_directory: StringProperty(
         name="Output Directory",
         description="The directory the exported data is to be placed in.")
-    export_directory = StringProperty(
+    export_directory: StringProperty(
         name="Export Directory",
         description="The base path relative to the PCBANKS folder under which "
                     "all models will be exported.",
         default="CUSTOMMODELS")
-    group_name = StringProperty(
+    group_name: StringProperty(
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes "
                     "group_name/scene_name).")
-    scene_name = StringProperty(
+    scene_name: StringProperty(
         name="Scene Name",
         description="Name of the scene to be exported.")
-    AT_only = BoolProperty(
+    AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
                     "be exported directly to an ENTITY file in the specified "
                     "location with the project name. Anything else in the "
                     "project is ignored",
         default=False)
-    no_vert_colours = BoolProperty(
+    no_vert_colours: BoolProperty(
         name="Don't export vertex colours",
         description="Ticking this box will force vertex colours to not be "
                     "exported. Use this if you have accidentally added vertex "
                     "colours to a mesh and don't know how to get rid of them.",
         default=False)
-    idle_anim = StringProperty(
+    idle_anim: StringProperty(
         name="Idle animation name",
         description="The name of the animation that is the idle animation.")
 
@@ -210,7 +210,7 @@ class _GetPCBANKSFolder(Operator):
     bl_label = "Specify PCBANKS location"
 
     # Define this to tell 'fileselect_add' that we want a directoy
-    directory = bpy.props.StringProperty(
+    directory: StringProperty(
         name="PCBANKS path",
         description="Location of the PCBANKS folder")
 
@@ -275,15 +275,15 @@ def get_anim_names_not_none(self, context):
 
 
 class AnimProperties(PropertyGroup):
-    anims_loaded = BoolProperty(
+    anims_loaded: BoolProperty(
         name='Animations loaded',
         description='Whether the animations are loaded or not',
         default=True)
-    has_bound_mesh = BoolProperty(
+    has_bound_mesh: BoolProperty(
         name='Has bound mesh',
         description='Whether or not the mesh of the object is bound to bones',
         default=False)
-    idle_anim = EnumProperty(
+    idle_anim: EnumProperty(
         name='Idle animation',
         description='Animation that is played idly',
         items=get_anim_names_not_none)
@@ -329,7 +329,7 @@ class _LoadAnimation(Operator):
     bl_idname = "nmsdk._load_animation"
     bl_label = "Load Animation"
 
-    loadable_anim_name = EnumProperty(
+    loadable_anim_name: EnumProperty(
         name='Available animations',
         description='List of all available animations for the scene',
         items=get_loaded_anim_names)
@@ -353,7 +353,7 @@ class _ChangeAnimation(Operator):
     bl_idname = "nmsdk._change_animation"
     bl_label = "Change Animation"
 
-    anim_names = EnumProperty(
+    anim_names: EnumProperty(
         name='Available animations',
         description='List of all available animations for the scene',
         items=get_anim_names)
@@ -445,7 +445,7 @@ class _StopAnimation(Operator):
 
 
 class NMSDKSettings(PropertyGroup):
-    show_collisions = BoolProperty(
+    show_collisions: BoolProperty(
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
@@ -459,16 +459,16 @@ class NMSDKDefaultSettings(PropertyGroup):
 
     default_settings = read_settings()
 
-    export_directory = StringProperty(
+    export_directory: StringProperty(
         name="Export Directory",
         description="The base path under which all models will be exported.",
         default=default_settings['export_directory'])
-    group_name = StringProperty(
+    group_name: StringProperty(
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)",
         default=default_settings['group_name'])
-    PCBANKS_directory = StringProperty(
+    PCBANKS_directory: StringProperty(
         name="PCBANKS directory",
         description="Path to the PCBANKS folder",
         default="")
@@ -489,29 +489,29 @@ class NMS_Export_Operator(Operator, ExportHelper):
     bl_idname = "export_mesh.nms"
     bl_label = "Export to NMS XML Format"
 
-    export_directory = StringProperty(
+    export_directory: StringProperty(
         name="Export Directory",
         description="The base path relative to the PCBANKS folder under which "
                     "all models will be exported.",
         default="CUSTOMMODELS")
-    group_name = StringProperty(
+    group_name: StringProperty(
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)")
-    AT_only = BoolProperty(
+    AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
                     "be exported directly to an ENTITY file in the specified "
                     "location with the project name. Anything else in the "
                     "project is ignored",
         default=False)
-    no_vert_colours = BoolProperty(
+    no_vert_colours: BoolProperty(
         name="Don't export vertex colours",
         description="Ticking this box will force vertex colours to not be "
                     "exported. Use this if you have accidentally added vertex "
                     "colours to a mesh and don't know how to get rid of them.",
         default=False)
-    idle_anim = StringProperty(
+    idle_anim: StringProperty(
         name="Idle animation name",
         description="The name of the animation that is the idle animation.")
 
@@ -555,32 +555,32 @@ class NMS_Import_Operator(Operator, ImportHelper):
     # ExportHelper mixin class uses this
     filename_ext = ".EXML"
 
-    clear_scene = BoolProperty(
+    clear_scene: BoolProperty(
         name='Clear scene',
         description='Whether or not to clear the currently exiting scene in '
                     'blender.',
         default=True)
 
-    draw_hulls = BoolProperty(
+    draw_hulls: BoolProperty(
         name='Draw bounded hulls',
         description='Whether or not to draw the points that make up the '
                     'bounded hulls of the materials. This is only for research'
                     '/debugging, so can safely be left as False.',
         default=False)
-    import_collisions = BoolProperty(
+    import_collisions: BoolProperty(
         name='Import collisions',
         description='Whether or not to import the collision objects.',
         default=True)
-    show_collisions = BoolProperty(
+    show_collisions: BoolProperty(
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
     # Animation related properties
-    import_bones = BoolProperty(
+    import_bones: BoolProperty(
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
-    max_anims = IntProperty(
+    max_anims: IntProperty(
         name='Max loaded animations',
         description='Maximum number of animations to load. To Disable loading '
                     'animations set this to 0, or to force loading all set '

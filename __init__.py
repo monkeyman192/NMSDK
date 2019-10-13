@@ -1,8 +1,8 @@
 bl_info = {
     "name": "No Man's Sky Development Kit",
     "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 18),
-    "blender": (2, 79, 0),
+    "version": (0, 9, 19),
+    "blender": (2, 80, 0),
     "location": "File > Export",
     "description": "Create NMS scene structures and export to NMS File format",
     "warning": "",
@@ -12,6 +12,7 @@ bl_info = {
 
 
 import bpy  # pylint: disable=import-error
+from bpy.utils import register_class, unregister_class  # noqa pylint: disable=import-error, no-name-in-module
 from bpy.props import PointerProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
 
 # External API operators
@@ -31,7 +32,9 @@ from .NMSDK import (_ChangeAnimation, _PlayAnimation, _PauseAnimation,
 from .ModelImporter.animation_handler import AnimationHandler
 # extensions to blender UI
 from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
-                                NMSShaderNode, SettingsPanels)
+                                SettingsPanels)  # , NMSShaderNode)
+# Note: The NMSShaderNode is broken for 2.8. This needs a lot of work anyway
+# and isn't being used so we'll just not load it for now...
 
 customNodes = NMSNodes()
 
@@ -47,70 +50,55 @@ def menu_func_import(self, context):
                          text="Import NMS SCENE")
 
 
+classes = (NMS_Export_Operator,
+           NMS_Import_Operator,
+           NMSDKSettings,
+           NMSDKDefaultSettings,
+           ImportSceneOperator,
+           ImportMeshOperator,
+           ExportSceneOperator,
+           _FixOldFormat,
+           _FixActionNames,
+           _GetPCBANKSFolder,
+           _RemovePCBANKSFolder,
+           _ToggleCollisionVisibility,
+           _SaveDefaultSettings,
+           _ChangeAnimation,
+           _RefreshAnimations,
+           _LoadAnimation,
+           _PlayAnimation,
+           _PauseAnimation,
+           _StopAnimation,
+           AnimationHandler,
+           AnimProperties)
+
+
 def register():
-    bpy.utils.register_class(NMS_Export_Operator)
-    bpy.utils.register_class(NMS_Import_Operator)
-    bpy.utils.register_class(NMSDKSettings)
-    bpy.utils.register_class(NMSDKDefaultSettings)
-    bpy.utils.register_class(ImportSceneOperator)
-    bpy.utils.register_class(ImportMeshOperator)
-    bpy.utils.register_class(ExportSceneOperator)
-    bpy.utils.register_class(_FixOldFormat)
-    bpy.utils.register_class(_FixActionNames)
-    bpy.utils.register_class(_GetPCBANKSFolder)
-    bpy.utils.register_class(_RemovePCBANKSFolder)
-    bpy.utils.register_class(_ToggleCollisionVisibility)
-    bpy.utils.register_class(_SaveDefaultSettings)
-    bpy.utils.register_class(_ChangeAnimation)
-    bpy.utils.register_class(_RefreshAnimations)
-    bpy.utils.register_class(_LoadAnimation)
-    bpy.utils.register_class(_PlayAnimation)
-    bpy.utils.register_class(_PauseAnimation)
-    bpy.utils.register_class(_StopAnimation)
-    bpy.utils.register_class(AnimationHandler)
-    bpy.utils.register_class(AnimProperties)
-    bpy.types.Scene.nmsdk_settings = PointerProperty(type=NMSDKSettings)
-    bpy.types.Scene.nmsdk_default_settings = PointerProperty(
+    for cls in classes:
+        register_class(cls)
+    bpy.types.Scene.nmsdk_settings: PointerProperty(type=NMSDKSettings)
+    bpy.types.Scene.nmsdk_default_settings: PointerProperty(
         type=NMSDKDefaultSettings)
-    bpy.types.Scene.nmsdk_anim_data = PointerProperty(type=AnimProperties)
-    bpy.types.INFO_MT_file_export.append(menu_func_export)
-    bpy.types.INFO_MT_file_import.append(menu_func_import)
+    bpy.types.Scene.nmsdk_anim_data: PointerProperty(type=AnimProperties)
+    bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
+    bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     NMSPanels.register()
-    NMSShaderNode.register()
+    # NMSShaderNode.register()
     customNodes.register()
     NMSEntities.register()
     SettingsPanels.register()
 
 
 def unregister():
-    bpy.utils.unregister_class(NMS_Export_Operator)
-    bpy.utils.unregister_class(NMS_Import_Operator)
-    bpy.utils.unregister_class(NMSDKSettings)
-    bpy.utils.unregister_class(NMSDKDefaultSettings)
-    bpy.utils.unregister_class(ImportSceneOperator)
-    bpy.utils.unregister_class(ImportMeshOperator)
-    bpy.utils.unregister_class(ExportSceneOperator)
-    bpy.utils.unregister_class(_FixOldFormat)
-    bpy.utils.unregister_class(_FixActionNames)
-    bpy.utils.unregister_class(_GetPCBANKSFolder)
-    bpy.utils.unregister_class(_RemovePCBANKSFolder)
-    bpy.utils.unregister_class(_ToggleCollisionVisibility)
-    bpy.utils.unregister_class(_SaveDefaultSettings)
-    bpy.utils.unregister_class(_ChangeAnimation)
-    bpy.utils.unregister_class(_RefreshAnimations)
-    bpy.utils.unregister_class(_LoadAnimation)
-    bpy.utils.unregister_class(_PlayAnimation)
-    bpy.utils.unregister_class(_PauseAnimation)
-    bpy.utils.unregister_class(_StopAnimation)
-    bpy.utils.unregister_class(AnimationHandler)
-    bpy.utils.unregister_class(AnimProperties)
+    for cls in reversed(classes):
+        unregister_class(cls)
     del bpy.types.Scene.nmsdk_settings
     del bpy.types.Scene.nmsdk_default_settings
     del bpy.types.Scene.anim_data
-    bpy.types.INFO_MT_file_export.remove(menu_func_export)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
     NMSPanels.unregister()
-    NMSShaderNode.unregister()
+    # NMSShaderNode.unregister()
     customNodes.unregister()
     NMSEntities.unregister()
     SettingsPanels.unregister()

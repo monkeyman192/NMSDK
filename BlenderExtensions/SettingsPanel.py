@@ -1,11 +1,12 @@
 import bpy
+from bpy.utils import register_class, unregister_class
 
 
 class UpdateSettingsPanel(bpy.types.Panel):
     bl_idname = 'UpdateSettingsPanel'
     bl_label = 'Update Tools'
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
     bl_category = 'NMSDK'
     bl_context = 'objectmode'
 
@@ -23,7 +24,7 @@ class ToolsPanel(bpy.types.Panel):
     bl_idname = 'ToolsPanel'
     bl_label = 'Scene Tools'
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
     bl_category = 'NMSDK'
     bl_context = 'objectmode'
 
@@ -49,7 +50,7 @@ class DefaultsPanel(bpy.types.Panel):
     bl_idname = 'DefaultsPanel'
     bl_label = 'Default Values'
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
     bl_category = 'NMSDK'
     bl_context = 'objectmode'
 
@@ -77,7 +78,7 @@ class AnimationsPanel(bpy.types.Panel):
     bl_idname = 'AnimationsPanel'
     bl_label = 'Animation controls'
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
     bl_category = 'NMSDK'
     bl_context = 'objectmode'
 
@@ -129,20 +130,22 @@ class AnimationsPanel(bpy.types.Panel):
                                text=context.scene.nmsdk_anim_data.idle_anim)
 
 
+classes = (UpdateSettingsPanel,
+           ToolsPanel,
+           DefaultsPanel,
+           AnimationsPanel)
+
+
 class SettingsPanels():
 
     @staticmethod
     def register():
         # Register panels
-        bpy.utils.register_class(UpdateSettingsPanel)
-        bpy.utils.register_class(ToolsPanel)
-        bpy.utils.register_class(DefaultsPanel)
-        bpy.utils.register_class(AnimationsPanel)
+        for cls in classes:
+            register_class(cls)
 
     @staticmethod
     def unregister():
         # Unregister panels
-        bpy.utils.unregister_class(UpdateSettingsPanel)
-        bpy.utils.unregister_class(ToolsPanel)
-        bpy.utils.unregister_class(DefaultsPanel)
-        bpy.utils.unregister_class(AnimationsPanel)
+        for cls in reversed(classes):
+            unregister_class(cls)

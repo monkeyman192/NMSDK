@@ -32,8 +32,8 @@ class AnimationHandler(bpy.types.Operator):
     bl_idname = "nmsdk.animation_handler"
     bl_label = "Main operator to handle loading of animations for NMSDK"
 
-    anim_name = StringProperty(default="")
-    anim_path = StringProperty(default="")
+    anim_name: StringProperty(default="")
+    anim_path: StringProperty(default="")
 
     def execute(self, context):
         print('Adding {0}'.format(self.anim_name))

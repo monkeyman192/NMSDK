@@ -1,6 +1,7 @@
 # All the custom panels and properties for all the different object types
 
 import bpy
+from bpy.utils import register_class, unregister_class
 from bpy.props import (StringProperty, BoolProperty, EnumProperty,  # noqa pylint: disable=import-error, no-name-in-module
                        FloatProperty, IntVectorProperty)
 from ..utils.misc import getParentRefScene
@@ -10,7 +11,7 @@ from ..utils.misc import getParentRefScene
 
 class NMSNodeProperties(bpy.types.PropertyGroup):
     """ Properties for the NMS Nodes """
-    node_types = EnumProperty(
+    node_types: EnumProperty(
         name="Node Types",
         description="Select what type of Node this will be",
         items=[("Mesh", "Mesh", "Standard mesh for visible objects."),
@@ -28,7 +29,7 @@ class NMSNodeProperties(bpy.types.PropertyGroup):
                 "Light that will emit light of a certain colour."),
                ("None", "None",
                 "Object that will not be exported.")])
-    override_name = StringProperty(
+    override_name: StringProperty(
         name="Override name",
         description=("A name to be used to override the name given from "
                      "blender. This should be used with caution and sparingly."
@@ -37,13 +38,13 @@ class NMSNodeProperties(bpy.types.PropertyGroup):
 
 
 class NMSMeshProperties(bpy.types.PropertyGroup):
-    has_entity = BoolProperty(
+    has_entity: BoolProperty(
         name="Requires Entity",
         description="Whether or not the mesh requires an entity file. "
                     "Not all meshes require an entity file. Read the detailed "
                     "guidelines in the readme for more details.",
         default=False)
-    material_path = StringProperty(
+    material_path: StringProperty(
         name="Material",
         description="(Optional) Path to material mbin file to use instead "
                     "of automatical exporting material attached to this mesh.")
@@ -58,26 +59,26 @@ class NMSMaterialProperties(bpy.types.PropertyGroup):
 
 
 class NMSLightProperties(bpy.types.PropertyGroup):
-    intensity_value = FloatProperty(name="Intensity",
-                                    description="Intensity of the light.")
-    FOV_value = FloatProperty(
+    intensity_value: FloatProperty(name="Intensity",
+                                   description="Intensity of the light.")
+    FOV_value: FloatProperty(
         name="FOV", description="Field of View of the lightsource.",
         default=360, min=0, max=360)
 
 
 class NMSAnimationProperties(bpy.types.PropertyGroup):
-    anim_name = StringProperty(
+    anim_name: StringProperty(
         name="Animation Name",
         description="Name of the animation. All animations with the same "
                     "name here will be combined into one.")
-    anim_loops_choice = EnumProperty(
+    anim_loops_choice: EnumProperty(
         name="Animation Type", description="Type of animation",
         items=[("OneShot", "OneShot", "Animation runs once (per trigger)"),
                ("Loop", "Loop", "Animation loops continuously")])
 
 
 class NMSLocatorProperties(bpy.types.PropertyGroup):
-    has_entity = BoolProperty(
+    has_entity: BoolProperty(
         name="Requires Entity",
         description="Whether or not the mesh requires an entity file. Not "
                     "all meshes require an entity file. Read the detailed "
@@ -86,41 +87,41 @@ class NMSLocatorProperties(bpy.types.PropertyGroup):
 
 
 class NMSRotationProperties(bpy.types.PropertyGroup):
-    speed = FloatProperty(
+    speed: FloatProperty(
         name="Speed",
         description="Speed of the rotation around the specified axis.")
 
 
 class NMSReferenceProperties(bpy.types.PropertyGroup):
-    reference_path = StringProperty(
+    reference_path: StringProperty(
         name="Reference Path",
         description="Path to scene to be referenced at this location.")
-    ref_path = StringProperty(
+    ref_path: StringProperty(
         name="Reference Path (internal)",
         description="Internal use only reference path variable.")
-    scene_name = StringProperty(
+    scene_name: StringProperty(
         name="Scene name",
         description="Name of the scene for exporting purposes.")
-    is_proc = BoolProperty(
+    is_proc: BoolProperty(
         name="Is a proc-gen scene?",
         description="If checked, then a new panel will appear that can be "
                     "used to describe the proc-gen nature of the scene",
         default=False)
-    has_been_imported = BoolProperty(
+    has_been_imported: BoolProperty(
         name="Has been imported?",
         description="Whether or not the scene is one that has been imported.",
         default=False)
 
 
 class NMSCollisionProperties(bpy.types.PropertyGroup):
-    collision_types = EnumProperty(
+    collision_types: EnumProperty(
         name="Collision Types",
         description="Type of collision to be used",
         items=[("Mesh", "Mesh", "Mesh Collision"),
                ("Box", "Box", "Box (rectangular prism collision"),
                ("Sphere", "Sphere", "Spherical collision"),
                ("Cylinder", "Cylinder", "Cylindrical collision")])
-    transform_type = EnumProperty(
+    transform_type: EnumProperty(
         name="Scale Transform",
         description="Whether or not to use the transform data, or the "
                     "dimensions of the primitive",
@@ -131,7 +132,7 @@ class NMSCollisionProperties(bpy.types.PropertyGroup):
 
 
 class NMSDescriptorProperties(bpy.types.PropertyGroup):
-    choice_types = EnumProperty(
+    choice_types: EnumProperty(
         name="Proc type",
         description="Whether or not to have the model always eselected, or "
                     "randomly selected.",
@@ -139,7 +140,7 @@ class NMSDescriptorProperties(bpy.types.PropertyGroup):
                                     "parents are rendered)"),
                ("Random", "Random", "Node is randomly selected out of all "
                                     "others in the same hierarchy")])
-    proc_prefix = StringProperty(
+    proc_prefix: StringProperty(
         name="Proc prefix",
         description="The prefix to put in front of the part name to indicate "
                     "what procedural rule to be grouped with.")
@@ -400,20 +401,34 @@ class NMSDescriptorPropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSDescriptor_props, "proc_prefix")
 
 
+classes = (NMSNodeProperties,
+           NMSMeshProperties,
+           NMSMaterialProperties,
+           NMSReferenceProperties,
+           NMSLocatorProperties,
+           NMSLightProperties,
+           NMSRotationProperties,
+           NMSAnimationProperties,
+           NMSCollisionProperties,
+           NMSDescriptorProperties)
+panel_classes = (NMSNodePropertyPanel,
+                 NMSMeshPropertyPanel,
+                 NMSMaterialPropertyPanel,
+                 NMSReferencePropertyPanel,
+                 NMSLocatorPropertyPanel,
+                 NMSRotationPropertyPanel,
+                 NMSLightPropertyPanel,
+                 NMSAnimationPropertyPanel,
+                 NMSCollisionPropertyPanel,
+                 NMSDescriptorPropertyPanel)
+
+
 class NMSPanels():
     @staticmethod
     def register():
         # register the properties
-        bpy.utils.register_class(NMSNodeProperties)
-        bpy.utils.register_class(NMSMeshProperties)
-        bpy.utils.register_class(NMSMaterialProperties)
-        bpy.utils.register_class(NMSReferenceProperties)
-        bpy.utils.register_class(NMSLocatorProperties)
-        bpy.utils.register_class(NMSLightProperties)
-        bpy.utils.register_class(NMSRotationProperties)
-        bpy.utils.register_class(NMSAnimationProperties)
-        bpy.utils.register_class(NMSCollisionProperties)
-        bpy.utils.register_class(NMSDescriptorProperties)
+        for cls in classes:
+            register_class(cls)
         # link the properties with the objects' internal variables
         bpy.types.Object.NMSNode_props = bpy.props.PointerProperty(
             type=NMSNodeProperties)
@@ -436,30 +451,14 @@ class NMSPanels():
         bpy.types.Object.NMSDescriptor_props = bpy.props.PointerProperty(
             type=NMSDescriptorProperties)
         # register the panels
-        bpy.utils.register_class(NMSNodePropertyPanel)
-        bpy.utils.register_class(NMSMeshPropertyPanel)
-        bpy.utils.register_class(NMSMaterialPropertyPanel)
-        bpy.utils.register_class(NMSReferencePropertyPanel)
-        bpy.utils.register_class(NMSLocatorPropertyPanel)
-        bpy.utils.register_class(NMSRotationPropertyPanel)
-        bpy.utils.register_class(NMSLightPropertyPanel)
-        bpy.utils.register_class(NMSAnimationPropertyPanel)
-        bpy.utils.register_class(NMSCollisionPropertyPanel)
-        bpy.utils.register_class(NMSDescriptorPropertyPanel)
+        for cls in panel_classes:
+            register_class(cls)
 
     @staticmethod
     def unregister():
         # unregister the property classes
-        bpy.utils.unregister_class(NMSNodeProperties)
-        bpy.utils.unregister_class(NMSMeshProperties)
-        bpy.utils.unregister_class(NMSMaterialProperties)
-        bpy.utils.unregister_class(NMSRotationProperties)
-        bpy.utils.unregister_class(NMSReferenceProperties)
-        bpy.utils.unregister_class(NMSLocatorProperties)
-        bpy.utils.unregister_class(NMSLightProperties)
-        bpy.utils.unregister_class(NMSAnimationProperties)
-        bpy.utils.unregister_class(NMSCollisionProperties)
-        bpy.utils.unregister_class(NMSDescriptorProperties)
+        for cls in reversed(classes):
+            unregister_class(cls)
         # delete the properties from the objects
         del bpy.types.Object.NMSNode_props
         del bpy.types.Object.NMSMesh_props
@@ -472,13 +471,5 @@ class NMSPanels():
         del bpy.types.Object.NMSCollision_props
         del bpy.types.Object.NMSDescriptor_props
         # unregister the panels
-        bpy.utils.unregister_class(NMSNodePropertyPanel)
-        bpy.utils.unregister_class(NMSMeshPropertyPanel)
-        bpy.utils.unregister_class(NMSMaterialPropertyPanel)
-        bpy.utils.unregister_class(NMSReferencePropertyPanel)
-        bpy.utils.unregister_class(NMSLocatorPropertyPanel)
-        bpy.utils.unregister_class(NMSRotationPropertyPanel)
-        bpy.utils.unregister_class(NMSLightPropertyPanel)
-        bpy.utils.unregister_class(NMSAnimationPropertyPanel)
-        bpy.utils.unregister_class(NMSCollisionPropertyPanel)
-        bpy.utils.unregister_class(NMSDescriptorPropertyPanel)
+        for cls in reversed(panel_classes):
+            unregister_class(cls)
