@@ -37,9 +37,13 @@ If collisions are imported, specify whether they should be drawn intially. This 
 Whether or not to import the bones for models that have them. This is useful if you are importing models to animate yourself as they are already rigged.
 This functionality is still reasonably broken so do not expect good results if this is enabled.
 
-#### Load all animations
+#### Max loaded animations
 
-Whether to load all the animations, irrespective of how many there are.
-This setting should only be enabled if you know that the number of animations is low. For the player model there are over 300 animations to load so it takes an extremely long time to load all of them.
-By default NMSDK will not load any animations if the scene contains more than 10 in total to ensure that scenes can be loaded faster.
+Specify the maximum number of animations to be imported.  
+The default is set to 10 as you generally don't want to be importing many more than this as it can take a while.  
+To disable importing any animations set this value to `0`.  
+To force all animations to load (generally **not** recommended), set the value to `-1`.  
+Otherwise, set the value to a positive integer.
+
+Keep in mind that for the player model there are over 300 animations to load so it takes an extremely long time to load all of them.
 For more on loading animations after the scene has been loaded, see [here](../settings.md#animation_controls).

@@ -690,7 +690,7 @@ class Export():
             descriptor = self.descriptor.to_exml()
             descriptor.make_elements(main=True)
             descriptor.tree.write(
-                "{}.DESCRIPTOR.exml".format(self.descriptor.path))
+                "{}.DESCRIPTOR.exml".format(self.abs_name_path))
         for material in self.materials:
             if type(material) != str:
                 material.tree.write(

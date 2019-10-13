@@ -27,6 +27,9 @@ The current default values that can be set are:
 
 The above two settings mean that your exported filepath will be `<Export Directory>/<Group Name>`.
 
+ - PCBANKS location:
+  The location of the PCBANKS folder. This only needs to be set for importing scenes that do not lie in an unpacked directory with all the other geometry etc files. **[Not saved]**
+
 ## Animation controls:
 
 This section provides a number of controls relating to animation playback and loading.

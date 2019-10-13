@@ -1,7 +1,8 @@
 # stdlib imports
 import os.path as op
 
-from bpy.props import StringProperty, BoolProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
+from bpy.props import (StringProperty, BoolProperty, EnumProperty,  # noqa pylint: disable=import-error, no-name-in-module
+                       IntProperty)
 import bpy   # pylint: disable=import-error
 from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
 from bpy.types import Operator, PropertyGroup  # noqa pylint: disable=import-error, no-name-in-module
@@ -43,14 +44,16 @@ class ImportSceneOperator(Operator):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    # Animation related properties
     import_bones = BoolProperty(
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
-    load_anims = BoolProperty(
-        name='Load all animations',
-        description='Whether or not to load all the animation data initially',
-        default=True)
+    max_anims = IntProperty(
+        name='Max loaded animations',
+        description='Maximum number of animations to load',
+        default=10,
+        soft_min=-1)
 
     def execute(self, context):
         keywords = self.as_keywords()
@@ -198,6 +201,45 @@ class _SaveDefaultSettings(Operator):
         default_settings = context.scene.nmsdk_default_settings
         default_settings.save()
         return {'FINISHED'}
+
+
+class _GetPCBANKSFolder(Operator):
+    """Create a popup to get the PCBANKS folder location"""
+    # Code modified from https://blender.stackexchange.com/a/126596
+    bl_idname = "nmsdk._find_pcbanks"
+    bl_label = "Specify PCBANKS location"
+
+    # Define this to tell 'fileselect_add' that we want a directoy
+    directory = bpy.props.StringProperty(
+        name="PCBANKS path",
+        description="Location of the PCBANKS folder")
+
+    def execute(self, context):
+        # Set the PCBANKS_directory value
+        context.scene.nmsdk_default_settings.PCBANKS_directory = self.directory
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        # Open browser, take reference to 'self' read the path to selected
+        # file, put path in predetermined self fields.
+        # See: https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add  # noqa
+        context.window_manager.fileselect_add(self)
+        # Tells Blender to hang on for the slow user input
+        return {'RUNNING_MODAL'}
+
+
+class _RemovePCBANKSFolder(Operator):
+    """Reset the PCBANKS folder location."""
+    bl_idname = "nmsdk._remove_pcbanks"
+    bl_label = "Remove PCBANKS location"
+
+    def execute(self, context):
+        # Set the PCBANKS_directory as blank
+        context.scene.nmsdk_default_settings.PCBANKS_directory = ""
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
 
 
 # Animation classes and functions
@@ -426,6 +468,10 @@ class NMSDKDefaultSettings(PropertyGroup):
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)",
         default=default_settings['group_name'])
+    PCBANKS_directory = StringProperty(
+        name="PCBANKS directory",
+        description="Path to the PCBANKS folder",
+        default="")
 
     def save(self):
         """ Save the current settings. """
@@ -529,14 +575,18 @@ class NMS_Import_Operator(Operator, ImportHelper):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    # Animation related properties
     import_bones = BoolProperty(
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
-    load_anims = BoolProperty(
-        name='Load all animations',
-        description='Whether or not to load all the animation data initially',
-        default=False)
+    max_anims = IntProperty(
+        name='Max loaded animations',
+        description='Maximum number of animations to load. To Disable loading '
+                    'animations set this to 0, or to force loading all set '
+                    'this to -1',
+        default=10,
+        soft_min=-1)
 
     def draw(self, context):
         layout = self.layout
@@ -549,7 +599,7 @@ class NMS_Import_Operator(Operator, ImportHelper):
         animation_box = layout.box()
         animation_box.label('Animation')
         animation_box.prop(self, 'import_bones')
-        animation_box.prop(self, 'load_anims')
+        animation_box.prop(self, 'max_anims')
 
     def execute(self, context):
         keywords = self.as_keywords()

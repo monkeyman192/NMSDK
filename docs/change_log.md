@@ -2,12 +2,21 @@
 
 ## Releases:
 
-### Current - v0.9.17
+### Current - v0.9.18
+
+ - Added the ability to import lighting. The current brightness setting is set at 1/100 of the value in the scene. This may change if better settings/node setup is found.
+ - An option has been added to specify a custom location for the PCBANKS folder in case the scene file isn't located in the same folder as the unpacked data. The scene file *should* still line in a proper relative directory structure however.
+ - The setting for indicating what the maximum number of animations has been changed. Now you can specify the value as a number, with `-1` being load all, `0` load none, and any positive number being the maximum number of animations to load.
+ - Fixed a few other small errors that could occur in weird cases such as for some descriptors.
+
+**NOTE**: This is the final Blender 2.79 compatible release. All future releases will be for Blender 2.80 and above.
+
+### Past:
+
+### v0.9.17 (28/08/2019)
 
  - Fixed the issue where adding the addon from a zip file wouldn't actually add it to blender.
  - NMSDK can now also be run on blender on linux, however MBINCompiler doesn't work on this platform so it has limited uses...
-
-### Past:
 
 ### v0.9.16 (20/08/2019)
 

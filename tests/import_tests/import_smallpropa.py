@@ -1,5 +1,4 @@
 import bpy
-import os
 import os.path as op
 
 
@@ -11,6 +10,12 @@ PROP_PATH = op.join(TEST_DATA_PATH,
                     'SMALLPROPA.SCENE.MBIN')
 
 
+# First, try import the scene without any animations
+res = bpy.ops.nmsdk.import_scene(path=PROP_PATH, max_anims=0)
+assert res == {'FINISHED'}
+assert len(bpy.data.actions) == 0
+
+# Now, try import with animations
 res = bpy.ops.nmsdk.import_scene(path=PROP_PATH)
 # First, make sure that it ran
 assert res == {'FINISHED'}
