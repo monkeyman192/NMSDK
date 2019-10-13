@@ -183,10 +183,13 @@ This is enabled by default, however these collisions are not drawn (see next opt
 <h4 id="import-bones">Import bones</h4>
 <p>Whether or not to import the bones for models that have them. This is useful if you are importing models to animate yourself as they are already rigged.
 This functionality is still reasonably broken so do not expect good results if this is enabled.</p>
-<h4 id="load-all-animations">Load all animations</h4>
-<p>Whether to load all the animations, irrespective of how many there are.
-This setting should only be enabled if you know that the number of animations is low. For the player model there are over 300 animations to load so it takes an extremely long time to load all of them.
-By default NMSDK will not load any animations if the scene contains more than 10 in total to ensure that scenes can be loaded faster.
+<h4 id="max-loaded-animations">Max loaded animations</h4>
+<p>Specify the maximum number of animations to be imported.<br />
+The default is set to 10 as you generally don't want to be importing many more than this as it can take a while.<br />
+To disable importing any animations set this value to <code>0</code>.<br />
+To force all animations to load (generally <strong>not</strong> recommended), set the value to <code>-1</code>.<br />
+Otherwise, set the value to a positive integer.</p>
+<p>Keep in mind that for the player model there are over 300 animations to load so it takes an extremely long time to load all of them.
 For more on loading animations after the scene has been loaded, see <a href="../../settings/#animation_controls">here</a>.</p>
               
             </div>
