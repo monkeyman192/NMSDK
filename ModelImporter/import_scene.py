@@ -78,6 +78,7 @@ class ImportScene():
         self.parent_obj = parent_obj
         self.ref_scenes = ref_scenes
         self.settings = settings
+        self.dep_graph = bpy.context.evaluated_depsgraph_get()
         # When scenes contain reference nodes there can be clashes with names.
         # To ensure correct parenting of objects in blender, we will keep track
         # of what objects exist within a scene as there will be no name clashes
@@ -333,7 +334,8 @@ class ImportScene():
         if self.mesh_binding_data is not None:
             self._add_armature_to_scene()
             armature = bpy.data.armatures[self.scene_basename]
-            self.scn.objects.active = bpy.data.objects['Armature']
+            bpy.context.view_layer.objects.active = bpy.data.objects[
+                'Armature']
             # Set the mode as edit mode so we can make edit_bones
             bpy.ops.object.mode_set(mode='EDIT')
             for joint in self.joints:
@@ -355,7 +357,7 @@ class ImportScene():
         """ Each joint will be added as an armature. """
         armature = bpy.data.armatures.new(self.scene_basename)
         obj = bpy.data.objects.new('Armature', armature)
-        self.scn.objects.link(obj)
+        self.scn.collection.objects.link(obj)
         obj.parent = self.local_objects[self.scene_basename]
 
     def _add_bone_to_scene(self, scene_node, armature):
@@ -426,8 +428,8 @@ class ImportScene():
                                              empty_mesh)
             empty_obj.NMSNode_props.node_types = 'Reference'
             empty_obj.matrix_world = ROT_MATRIX
-            self.scn.objects.link(empty_obj)
-            self.scn.objects.active = empty_obj
+            self.scn.collection.objects.link(empty_obj)
+            bpy.context.view_layer.objects.active = empty_obj
             bpy.ops.object.mode_set(mode='OBJECT')
             # check if the scene is proc-gen
             descriptor_name = self.scene_name + '.DESCRIPTOR.MBIN'
@@ -481,8 +483,8 @@ class ImportScene():
 
         # link the object then update the scene so that the above transforms
         # can be applied before we do the NMS -> blender scene rotation
-        self.scn.objects.link(empty_obj)
-        self.scn.update()
+        self.scn.collection.objects.link(empty_obj)
+        self.dep_graph.update()
 
         if scene_node.Type == 'REFERENCE':
             empty_obj.NMSReference_props.reference_path = scene_node.Attribute(
@@ -504,7 +506,7 @@ class ImportScene():
         name = scene_node.Name
 
         # Create a new light instance
-        light = bpy.data.lamps.new(name, 'POINT')
+        light = bpy.data.lights.new(name, 'POINT')
 
         # Apply a number of settings relating to the light
         light.color = (float(scene_node.Attribute('COL_R')),
@@ -551,8 +553,8 @@ class ImportScene():
 
         # link the object then update the scene so that the above transforms
         # can be applied before we do the NMS -> blender scene rotation
-        self.scn.objects.link(light_obj)
-        self.scn.update()
+        self.scn.collection.objects.link(light_obj)
+        self.dep_graph.update()
 
     def _add_mesh_collision_to_scene(self, scene_node):
         """ Adds the given collision node to the Blender scene. """
@@ -589,12 +591,13 @@ class ImportScene():
             # Direct child of loaded scene
             bh_obj.parent = self.local_objects[self.scene_basename]
 
+        self.scn.collection.objects.link(bh_obj)
+        self.local_objects[scene_node] = bh_obj
+
         if not self.settings['show_collisions']:
             # Only draw the collisions if they are wanted
-            bh_obj.hide = True
-
-        self.scn.objects.link(bh_obj)
-        self.local_objects[scene_node] = bh_obj
+            bh_obj.hide_set(True)
+        # Never show the object in the render.
         bh_obj.hide_render = True
 
     def _add_primitive_collision_to_scene(self, scene_node):
@@ -658,12 +661,13 @@ class ImportScene():
             # Direct child of loaded scene
             coll_obj.parent = self.local_objects[self.scene_basename]
 
+        self.scn.collection.objects.link(coll_obj)
+        self.local_objects[scene_node] = coll_obj
+
         if not self.settings['show_collisions']:
             # Only draw the collisions if they are wanted
-            coll_obj.hide = True
-
-        self.scn.objects.link(coll_obj)
-        self.local_objects[scene_node] = coll_obj
+            coll_obj.hide_set(True)
+        # never show the object in the render
         coll_obj.hide_render = True
 
     def _add_existing_to_scene(self):
@@ -673,7 +677,7 @@ class ImportScene():
         for obj in existing:
             new_obj = obj.copy()
             new_obj.parent = self.parent_obj
-            self.scn.objects.link(new_obj)
+            self.scn.collection.objects.link(new_obj)
 
     def _add_mesh_to_scene(self, scene_node, standalone=False):
         """ Adds the given scene node data to the Blender scene.
@@ -733,16 +737,16 @@ class ImportScene():
 
         # link the object then update the scene so that the above transforms
         # can be applied before we do the NMS -> blender scene rotation
-        self.scn.objects.link(mesh_obj)
-        self.scn.update()
+        self.scn.collection.objects.link(mesh_obj)
+        self.dep_graph.update()
 
         # ensure the newly created object is the active one in the scene
-        self.scn.objects.active = mesh_obj
+        bpy.context.view_layer.objects.active = mesh_obj
         mesh = mesh_obj.data
         # Add UV's
         bpy.ops.object.mode_set(mode='EDIT')
-        if not mesh.uv_textures:
-            mesh.uv_textures.new()
+        if not mesh.uv_layers:
+            mesh.uv_layers.new()
         bpy.ops.object.mode_set(mode='OBJECT')
 
         uvs = scene_node.verts[UVS]
@@ -805,10 +809,11 @@ class ImportScene():
             mesh = bpy.data.meshes.new(name)
             mesh.from_pydata(scene_node.bounded_hull, [], [])
             bh_obj = bpy.data.objects.new(name, mesh)
-            # Don't show the bounded hull
-            bh_obj.hide = True
             bh_obj.parent = mesh_obj
-            self.scn.objects.link(bh_obj)
+            self.scn.collection.objects.link(bh_obj)
+            # Don't show the bounded hull
+            bh_obj.hide_set(True)
+            bh_obj.hide_render = True
 
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """

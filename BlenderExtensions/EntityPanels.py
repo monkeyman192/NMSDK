@@ -37,12 +37,12 @@ class NMSEntityProperties(bpy.types.PropertyGroup):
 
 class EntityItem(bpy.types.PropertyGroup):
     # very simple property group to contain the names
-    name = bpy.props.StringProperty(name="Struct Name")
+    name: StringProperty(name="Struct Name")
 
 
 def ListProperty(type_):
     # this will return a CollectionProperty with type type_
-    return bpy.props.CollectionProperty(type=type_)
+    return CollectionProperty(type=type_)
 
 
 """ Custom physics panel properties """
@@ -262,7 +262,7 @@ class NMS_GcDestructableComponentData_Properties(bpy.types.PropertyGroup):
     LootReward: StringProperty(name="LootReward", maxlen=0x10)
     LootRewardAmountMin: IntProperty(name="LootRewardAmountMin", default=0)
     LootRewardAmountMax: IntProperty(name="LootRewardAmountMax", default=0)
-    GivesSubstances = CollectionProperty(type=NMS_GcSubstanceAmount_Properties)
+    GivesSubstances: CollectionProperty(type=NMS_GcSubstanceAmount_Properties)
     StatsToTrack: PointerProperty(type=NMS_GcStatsEnum_Properties)
     GivesReward: StringProperty(name="GivesReward", maxlen=0x10)
     HardModeSubstanceMultiplier: FloatProperty(
@@ -298,7 +298,7 @@ class NMS_NMSString0x10_Properties(bpy.types.PropertyGroup):
 class NMS_GcInteractionActivationCost_Properties(bpy.types.PropertyGroup):
     """ Properties for GcInteractionActivationCost """
     SubstanceId: StringProperty(name="SubstanceId")
-    AltIds = CollectionProperty(type=NMS_NMSString0x10_Properties)
+    AltIds: CollectionProperty(type=NMS_NMSString0x10_Properties)
     Cost: IntProperty(name="Cost")
     Repeat: BoolProperty(name="Repeat")
     RequiredTech: StringProperty(name="RequiredTech")
@@ -375,7 +375,7 @@ class NMS_GcSimpleInteractionComponentData_Properties(bpy.types.PropertyGroup):
     ScanType: StringProperty(name="ScanType")
     ScanData: StringProperty(name="ScanData")
     ScanIcon: PointerProperty(type=NMS_GcDiscoveryTypes_Properties)
-    BaseBuildingTriggerActions = CollectionProperty(
+    BaseBuildingTriggerActions: CollectionProperty(
         type=NMS_GcBaseBuildingTriggerAction_Properties)
 
 
@@ -394,7 +394,7 @@ class NMS_GcInventoryTechProbability_Properties(bpy.types.PropertyGroup):
 class NMS_GcCustomInventoryComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for GcCustomInventoryComponentData """
     Size: StringProperty(name="Size")
-    DesiredTechs = CollectionProperty(
+    DesiredTechs: CollectionProperty(
         type=NMS_GcInventoryTechProbability_Properties)
     Cool: BoolProperty(name="Cool")
 
@@ -451,7 +451,7 @@ class NMS_TkAudioComponentData_Properties(bpy.types.PropertyGroup):
     """ Properties for TkAudioComponentData """
     Ambient: StringProperty(name="Ambient")
     MaxDistance: IntProperty(name="MaxDistance")
-    AnimTriggers = CollectionProperty(type=NMS_TkAudioAnimTrigger_Properties)
+    AnimTriggers: CollectionProperty(type=NMS_TkAudioAnimTrigger_Properties)
 
 
 # GcEncyclopediaComponentData related properties
@@ -664,13 +664,13 @@ class NMS_GcInteractionComponentData_Properties(bpy.types.PropertyGroup):
         type=NMS_GcInteractionType_Properties)
     SecondaryActivationCost: PointerProperty(
         type=NMS_GcInteractionActivationCost_Properties)
-    EventRenderers = CollectionProperty(
+    EventRenderers: CollectionProperty(
         type=NMS_TkModelRendererData_Properties)
     SecondaryCameraTransitionTime: FloatProperty(
         name="SecondaryCameraTransitionTime")
     DoInteractionsInOrder: BoolProperty(name="DoInteractionsInOrder")
     DepthOfField: PointerProperty(type=NMS_GcInteractionDof_Properties)
-    PuzzleMissionOverrideTable = CollectionProperty(
+    PuzzleMissionOverrideTable: CollectionProperty(
         type=NMS_GcAlienPuzzleMissionOverride_Properties)
 
 
@@ -774,10 +774,10 @@ class RowGen():
             j += 1
 
 
-class NMSPhysicsPropertyPanel(bpy.types.Panel):
+class NMSDK_PT_NMSPhysicsPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "Physics Properties"
-    bl_idname = "OBJECT_PT_physics_properties"
+    bl_idname = "NMSDK_PT_NMSPhysicsPropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -799,8 +799,8 @@ class NMSPhysicsPropertyPanel(bpy.types.Panel):
 
 # this is the main class that contains all the information... It's going to be
 # BIG with all the structs in it...
-class DATA_PT_entities(bpy.types.Panel):
-    bl_idname = "OBJECT_PT_entity_menu"
+class NMSDK_PT_EntityPanel(bpy.types.Panel):
+    bl_idname = "NMSDK_PT_EntityPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -1379,6 +1379,9 @@ classes = (NMS_TkTextureResource_Properties,
            NMSEntityProperties,
            NMSPhysicsProperties)
 
+panel_classes = (NMSDK_PT_NMSPhysicsPropertyPanel,
+                 NMSDK_PT_EntityPanel)
+
 
 class NMSEntities():
     """ Class to contain all the registration information to be called from the
@@ -1411,8 +1414,8 @@ class NMSEntities():
         bpy.types.Object.NMSPhysics_props = PointerProperty(type=NMSPhysicsProperties)  # noqa
 
         # register the panels
-        register_class(NMSPhysicsPropertyPanel)
-        register_class(DATA_PT_entities)
+        for cls in panel_classes:
+            register_class(cls)
 
     @staticmethod
     def unregister():
@@ -1439,5 +1442,5 @@ class NMSEntities():
         del bpy.types.Object.NMSPhysics_props
 
         # unregister the panels
-        unregister_class(NMSPhysicsPropertyPanel)
-        unregister_class(DATA_PT_entities)
+        for cls in reversed(panel_classes):
+            register_class(cls)

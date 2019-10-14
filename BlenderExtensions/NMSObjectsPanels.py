@@ -51,7 +51,7 @@ class NMSMeshProperties(bpy.types.PropertyGroup):
 
 
 class NMSMaterialProperties(bpy.types.PropertyGroup):
-    material_additions = IntVectorProperty(
+    material_additions: IntVectorProperty(
         name="Force material properties",
         description="List of flags to be added (use int prefix). Ie. "
                     "'_F14_UVSCROLL' == 14",
@@ -149,10 +149,10 @@ class NMSDescriptorProperties(bpy.types.PropertyGroup):
 """ Various panels for each of the property types """
 
 
-class NMSNodePropertyPanel(bpy.types.Panel):
+class NMSDK_PT_NodePropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Node Properties"
-    bl_idname = "OBJECT_PT_node_properties"
+    bl_idname = "NMSDK_PT_NodePropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -174,10 +174,10 @@ class NMSNodePropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSNode_props, "node_types", expand=True)
 
 
-class NMSReferencePropertyPanel(bpy.types.Panel):
+class NMSDK_PT_ReferencePropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Reference Properties"
-    bl_idname = "OBJECT_PT_reference_properties"
+    bl_idname = "NMSDK_PT_ReferencePropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -200,10 +200,10 @@ class NMSReferencePropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSReference_props, "is_proc")
 
 
-class NMSMaterialPropertyPanel(bpy.types.Panel):
+class NMSDK_PT_MaterialPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Material Properties"
-    bl_idname = "MATERIAL_PT_material_properties"
+    bl_idname = "NMSDK_PT_MaterialPropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "material"
@@ -223,10 +223,10 @@ class NMSMaterialPropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSMaterial_props, "material_additions")
 
 
-class NMSMeshPropertyPanel(bpy.types.Panel):
+class NMSDK_PT_MeshPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Mesh Properties"
-    bl_idname = "OBJECT_PT_mesh_properties"
+    bl_idname = "NMSDK_PT_MeshPropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -248,10 +248,10 @@ class NMSMeshPropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSMesh_props, "material_path")
 
 
-class NMSAnimationPropertyPanel(bpy.types.Panel):
+class NMSDK_PT_AnimationPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Animation Properties"
-    bl_idname = "OBJECT_PT_animation_properties"
+    bl_idname = "NMSDK_PT_AnimationPropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -276,10 +276,10 @@ class NMSAnimationPropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSAnimation_props, "anim_loops_choice", expand=True)
 
 
-class NMSLocatorPropertyPanel(bpy.types.Panel):
+class NMSDK_PT_LocatorPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Locator Properties"
-    bl_idname = "OBJECT_PT_locator_properties"
+    bl_idname = "NMSDK_PT_LocatorPropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -299,10 +299,10 @@ class NMSLocatorPropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSLocator_props, "has_entity")
 
 
-class NMSRotationPropertyPanel(bpy.types.Panel):
+class NMSDK_PT_RotationPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Rotation Properties"
-    bl_idname = "OBJECT_PT_rotation_properties"
+    bl_idname = "NMSDK_PT_RotationPropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -322,10 +322,10 @@ class NMSRotationPropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSRotation_props, "speed")
 
 
-class NMSLightPropertyPanel(bpy.types.Panel):
+class NMSDK_PT_LightPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Light Properties"
-    bl_idname = "OBJECT_PT_light_properties"
+    bl_idname = "NMSDK_PT_LightPropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -347,10 +347,10 @@ class NMSLightPropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSLight_props, "FOV_value")
 
 
-class NMSCollisionPropertyPanel(bpy.types.Panel):
+class NMSDK_PT_CollisionPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Collision Properties"
-    bl_idname = "OBJECT_PT_collision_properties"
+    bl_idname = "NMSDK_PT_CollisionPropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -372,10 +372,10 @@ class NMSCollisionPropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSCollision_props, "transform_type", expand=True)
 
 
-class NMSDescriptorPropertyPanel(bpy.types.Panel):
+class NMSDK_PT_DescriptorPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Descriptor Properties"
-    bl_idname = "OBJECT_PT_descriptor_properties"
+    bl_idname = "NMSDK_PT_DescriptorPropertyPanel"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -411,16 +411,16 @@ classes = (NMSNodeProperties,
            NMSAnimationProperties,
            NMSCollisionProperties,
            NMSDescriptorProperties)
-panel_classes = (NMSNodePropertyPanel,
-                 NMSMeshPropertyPanel,
-                 NMSMaterialPropertyPanel,
-                 NMSReferencePropertyPanel,
-                 NMSLocatorPropertyPanel,
-                 NMSRotationPropertyPanel,
-                 NMSLightPropertyPanel,
-                 NMSAnimationPropertyPanel,
-                 NMSCollisionPropertyPanel,
-                 NMSDescriptorPropertyPanel)
+panel_classes = (NMSDK_PT_NodePropertyPanel,
+                 NMSDK_PT_MeshPropertyPanel,
+                 NMSDK_PT_MaterialPropertyPanel,
+                 NMSDK_PT_ReferencePropertyPanel,
+                 NMSDK_PT_LocatorPropertyPanel,
+                 NMSDK_PT_RotationPropertyPanel,
+                 NMSDK_PT_LightPropertyPanel,
+                 NMSDK_PT_AnimationPropertyPanel,
+                 NMSDK_PT_CollisionPropertyPanel,
+                 NMSDK_PT_DescriptorPropertyPanel)
 
 
 class NMSPanels():

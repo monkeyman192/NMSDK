@@ -26,7 +26,7 @@ class NMSSocket(NodeSocket):
     bl_label = 'NMS Trigger Socket'
 
     def draw(self, context, layout, node, text):
-        layout.label(text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (1.0, 0.0, 1.0, 0.75)
@@ -39,7 +39,7 @@ class NMSJoinSocket(NodeSocket):
     bl_label = 'NMS Joiner Socket'
 
     def draw(self, context, layout, node, text):
-        layout.label(text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)

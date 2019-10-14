@@ -593,11 +593,11 @@ class NMS_Import_Operator(Operator, ImportHelper):
         layout.prop(self, 'draw_hulls')
         layout.prop(self, 'clear_scene')
         coll_box = layout.box()
-        coll_box.label('Collisions')
+        coll_box.label(text='Collisions')
         coll_box.prop(self, 'import_collisions')
         coll_box.prop(self, 'show_collisions')
         animation_box = layout.box()
-        animation_box.label('Animation')
+        animation_box.label(text='Animation')
         animation_box.prop(self, 'import_bones')
         animation_box.prop(self, 'max_anims')
 

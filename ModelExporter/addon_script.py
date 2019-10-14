@@ -422,7 +422,7 @@ class Exporter():
 
     # Main Mesh parser
     def mesh_parser(self, ob):
-        self.global_scene.objects.active = ob
+        bpy.context.view_layer.objects.active = ob
         # Lists
         indexes = []
         verts = []

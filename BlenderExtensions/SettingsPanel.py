@@ -2,8 +2,8 @@ import bpy
 from bpy.utils import register_class, unregister_class
 
 
-class UpdateSettingsPanel(bpy.types.Panel):
-    bl_idname = 'UpdateSettingsPanel'
+class NMSDK_PT_UpdateSettingsPanel(bpy.types.Panel):
+    bl_idname = 'NMSDK_PT_UpdateSettingsPanel'
     bl_label = 'Update Tools'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -20,8 +20,8 @@ class UpdateSettingsPanel(bpy.types.Panel):
         layout.operator("nmsdk._fix_action_names")
 
 
-class ToolsPanel(bpy.types.Panel):
-    bl_idname = 'ToolsPanel'
+class NMSDK_PT_ToolsPanel(bpy.types.Panel):
+    bl_idname = 'NMSDK_PT_ToolsPanel'
     bl_label = 'Scene Tools'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -46,8 +46,8 @@ class ToolsPanel(bpy.types.Panel):
                         icon=icon, text=label)
 
 
-class DefaultsPanel(bpy.types.Panel):
-    bl_idname = 'DefaultsPanel'
+class NMSDK_PT_DefaultsPanel(bpy.types.Panel):
+    bl_idname = 'NMSDK_PT_DefaultsPanel'
     bl_label = 'Default Values'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -74,8 +74,8 @@ class DefaultsPanel(bpy.types.Panel):
                         text='Save settings')
 
 
-class AnimationsPanel(bpy.types.Panel):
-    bl_idname = 'AnimationsPanel'
+class NMSDK_PT_AnimationsPanel(bpy.types.Panel):
+    bl_idname = 'NMSDK_PT_AnimationsPanel'
     bl_label = 'Animation controls'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -130,10 +130,10 @@ class AnimationsPanel(bpy.types.Panel):
                                text=context.scene.nmsdk_anim_data.idle_anim)
 
 
-classes = (UpdateSettingsPanel,
-           ToolsPanel,
-           DefaultsPanel,
-           AnimationsPanel)
+classes = (NMSDK_PT_UpdateSettingsPanel,
+           NMSDK_PT_ToolsPanel,
+           NMSDK_PT_DefaultsPanel,
+           NMSDK_PT_AnimationsPanel)
 
 
 class SettingsPanels():

@@ -76,10 +76,10 @@ classes = (NMS_Export_Operator,
 def register():
     for cls in classes:
         register_class(cls)
-    bpy.types.Scene.nmsdk_settings: PointerProperty(type=NMSDKSettings)
-    bpy.types.Scene.nmsdk_default_settings: PointerProperty(
+    bpy.types.Scene.nmsdk_settings = PointerProperty(type=NMSDKSettings)
+    bpy.types.Scene.nmsdk_default_settings = PointerProperty(
         type=NMSDKDefaultSettings)
-    bpy.types.Scene.nmsdk_anim_data: PointerProperty(type=AnimProperties)
+    bpy.types.Scene.nmsdk_anim_data = PointerProperty(type=AnimProperties)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     NMSPanels.register()

@@ -108,7 +108,6 @@ def create_material_node(mat_path, material_cache):
             mask_texture.name = mask_texture.label = 'Texture Image - Mask'
             mask_texture.image = img
             mask_texture.location = (-600, 0)
-            mask_texture.color_space = 'NONE'
             if 43 not in mat_data['Flags']:
                 # #ifndef _F44_IMPOSTER
                 if 24 in mat_data['Flags']:
@@ -160,7 +159,6 @@ def create_material_node(mat_path, material_cache):
             normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
             normal_texture.image = img
             normal_texture.location = (-600, -300)
-            normal_texture.color_space = 'NONE'
             # separate xyz then recombine
             normal_sep_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
             normal_sep_xyz.location = (-400, -300)
@@ -193,7 +191,7 @@ def create_material_node(mat_path, material_cache):
                 normal_scale.scale = (scale, scale, scale)
                 tex_coord = nodes.new(type='ShaderNodeTexCoord')
                 tex_coord.location = (-1200, -300)
-                tex_coord.object = bpy.context.scene.objects.active
+                tex_coord.object = bpy.context.active_object
                 links.new(normal_scale.inputs['Vector'],
                           tex_coord.outputs['Generated'])
                 links.new(normal_texture.inputs['Vector'],
