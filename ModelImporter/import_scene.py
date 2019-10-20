@@ -123,7 +123,7 @@ class ImportScene():
         self.bind_matrices = dict()
 
         # change to render with cycles
-        self.scn.render.engine = 'CYCLES'
+        self.scn.render.engine = 'BLENDER_EEVEE'
 
         if not op.exists(exml_fpath):
             retcode = subprocess.call(["MBINCompiler", '-q', fpath],
@@ -820,7 +820,7 @@ class ImportScene():
         """ Remove any existing data in the blender scene. """
         for obj in bpy.data.objects:
             # Don't remove the camera or lamp objects
-            if obj.name not in ['Camera', 'Lamp']:
+            if obj.name not in ['Camera', 'Light']:
                 print('removing {0}'.format(obj.name))
                 bpy.data.objects.remove(obj)
         for mesh in bpy.data.meshes:

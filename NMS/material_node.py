@@ -104,18 +104,22 @@ def create_material_node(mat_path, material_cache):
             _path = realize_path(tex_path)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
+                img.colorspace_settings.name = 'XYZ'
             mask_texture = nodes.new(type='ShaderNodeTexImage')
             mask_texture.name = mask_texture.label = 'Texture Image - Mask'
             mask_texture.image = img
             mask_texture.location = (-600, 0)
+            lfRoughness = None
+            # RGB separation node
+            separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
+            separate_rgb.location = (-400, 0)
+            links.new(separate_rgb.inputs['Image'],
+                      mask_texture.outputs['Color'])
             if 43 not in mat_data['Flags']:
                 # #ifndef _F44_IMPOSTER
                 if 24 in mat_data['Flags']:
                     # #ifdef _F25_ROUGHNESS_MASK
                     # lfRoughness = 1 - lMasks.g
-                    # RGB separation node
-                    separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
-                    separate_rgb.location = (-400, 0)
                     # subtract the green channel from 1:
                     sub_1 = nodes.new(type="ShaderNodeMath")
                     sub_1.operation = 'SUBTRACT'
@@ -123,8 +127,6 @@ def create_material_node(mat_path, material_cache):
                     sub_1.inputs[0].default_value = 1.0
                     lfRoughness = sub_1.outputs['Value']
                     # link them up
-                    links.new(separate_rgb.inputs['Image'],
-                              mask_texture.outputs['Color'])
                     links.new(sub_1.inputs[1], separate_rgb.outputs['G'])
                 else:
                     roughness_value = nodes.new(type='ShaderNodeValue')
@@ -137,11 +139,14 @@ def create_material_node(mat_path, material_cache):
                     'gMaterialParamsVec4'][0]
                 links.new(mult_param_x.inputs[0], lfRoughness)
                 lfRoughness = mult_param_x.outputs['Value']
-            links.new(principled_BSDF.inputs['Roughness'],
-                      lfRoughness)
+            if lfRoughness is not None:
+                links.new(principled_BSDF.inputs['Roughness'],
+                          lfRoughness)
+            # If the roughness wasn't ever defined then the default value is 1
+            # which is what blender has as the default anyway
 
             # gMaterialParamsVec4.x
-            # from shader: #ifdef _F40_SUBSURFACE_MASK
+            # #ifdef _F40_SUBSURFACE_MASK
             if 39 in mat_data['Flags']:
                 links.new(principled_BSDF.inputs['Subsurface'],
                           separate_rgb.outputs['R'])
@@ -155,6 +160,7 @@ def create_material_node(mat_path, material_cache):
             _path = realize_path(tex_path)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
+                img.colorspace_settings.name = 'XYZ'
             normal_texture = nodes.new(type='ShaderNodeTexImage')
             normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
             normal_texture.image = img
