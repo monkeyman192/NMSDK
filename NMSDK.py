@@ -188,7 +188,7 @@ class _ToggleCollisionVisibility(Operator):
         # value specified by the `show_collisions` button.
         for obj in bpy.context.scene.objects:
             if obj.NMSNode_props.node_types == 'Collision':
-                obj.hide = not nmsdk_settings.show_collisions
+                obj.hide_set(not nmsdk_settings.show_collisions)
         return {'FINISHED'}
 
 

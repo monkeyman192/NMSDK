@@ -765,7 +765,8 @@ class ImportScene():
                 colour = colours[loop.vertex_index]
                 colour_loops[idx].color = (colour[0]/255,
                                            colour[1]/255,
-                                           colour[2]/255)
+                                           colour[2]/255,
+                                           0)
 
         # Add vertexes to mesh groups
         if self.mesh_binding_data is not None:

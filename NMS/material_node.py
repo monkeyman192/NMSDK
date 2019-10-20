@@ -266,8 +266,10 @@ def create_material_node(mat_path, material_cache):
               FRAGMENT_COLOUR0)
 
     # link some nodes up according to the uberfragment.bin shader
-    if 6 in mat_data['Flags']:
-        mat.use_shadeless = True
+    # TODO: fix this at some point...
+    # see https://blender.stackexchange.com/questions/21533/totally-white-shadeless-material-in-cycles
+    # if 6 in mat_data['Flags']:
+    #    mat.use_shadeless = True
     material_cache[mat_path] = mat
 
     return mat

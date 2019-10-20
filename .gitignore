@@ -61,3 +61,6 @@ textures/*
 
 # We only want to store .mbin files, any exml files generated during testing should be ignored...
 *.EXML
+
+# pytest cache files
+.pytest_cache/
