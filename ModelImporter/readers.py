@@ -3,7 +3,8 @@ from collections import namedtuple
 
 # TODO: move to the serialization folder?
 
-from ..serialization.utils import read_list_header, read_string, bytes_to_quat  # noqa pylint: disable=relative-beyond-top-level
+from ..serialization.utils import (read_list_header, read_string, # noqa pylint: disable=relative-beyond-top-level
+                                   bytes_to_quat, read_bool)
 from ..serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL  # noqa pylint: disable=relative-beyond-top-level
 
@@ -138,6 +139,11 @@ def read_material(fname):
         f.seek(0x60)
         # get name
         data['Name'] = read_string(f, 0x80)
+        # get class
+        data['Class'] = read_string(f, 0x20)
+        # get whether it casts a shadow
+        f.seek(0xA4 + 0x60)
+        data['CastShadow'] = read_bool(f)
         # get material flags
         data['Flags'] = list()
         f.seek(0x208)

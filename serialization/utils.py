@@ -178,6 +178,11 @@ def read_string(data, length):
     return string.decode()
 
 
+def read_bool(data):
+    """ Read a single boolean value. """
+    return unpack('?', data.read(1))[0]
+
+
 def serialize(x):
     """ Generic serialization function. Attempts to return the bytes
     representation of the object. """

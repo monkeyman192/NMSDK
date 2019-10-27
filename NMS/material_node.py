@@ -24,6 +24,12 @@ def create_material_node(mat_path, material_cache):
 
     # Since we are using cycles we want to have node-based materials
     mat.use_nodes = True
+
+    # Add some material settings:
+    CastShadow = mat_data['CastShadow']
+    if CastShadow:
+        mat.shadow_method = 'OPAQUE'
+
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     # clear any existing nodes just to be safe.
@@ -39,8 +45,10 @@ def create_material_node(mat_path, material_cache):
     # Set up some constants
     if 61 in mat_data['Flags']:
         kfAlphaThreshold = 0.1
+        kfAlphaThresholdMax = 0.5
     elif 10 in mat_data['Flags']:
         kfAlphaThreshold = 0.45
+        kfAlphaThresholdMax = 0.8
     else:
         kfAlphaThreshold = 0.0001
 
@@ -51,6 +59,9 @@ def create_material_node(mat_path, material_cache):
         rgb_input.outputs[0].default_value[2] = uniforms['gMaterialColourVec4'][2]  # noqa
         rgb_input.outputs[0].default_value[3] = uniforms['gMaterialColourVec4'][3]  # noqa
         lColourVec4 = rgb_input.outputs['Color']
+
+    # TODO: restructure all this to be as similar to the actual shaders as
+    # possible
 
     # create the diffuse, mask and normal nodes and give them their images
     for tex_type, tex_path in mat_data['Samplers'].items():
@@ -108,7 +119,7 @@ def create_material_node(mat_path, material_cache):
             mask_texture = nodes.new(type='ShaderNodeTexImage')
             mask_texture.name = mask_texture.label = 'Texture Image - Mask'
             mask_texture.image = img
-            mask_texture.location = (-600, 0)
+            mask_texture.location = (-700, 0)
             lfRoughness = None
             # RGB separation node
             separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
@@ -164,7 +175,7 @@ def create_material_node(mat_path, material_cache):
             normal_texture = nodes.new(type='ShaderNodeTexImage')
             normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
             normal_texture.image = img
-            normal_texture.location = (-600, -300)
+            normal_texture.location = (-700, -300)
             # separate xyz then recombine
             normal_sep_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
             normal_sep_xyz.location = (-400, -300)
@@ -231,11 +242,27 @@ def create_material_node(mat_path, material_cache):
             discard_node = nodes.new(type="ShaderNodeMath")
             discard_node.operation = 'LESS_THAN'
             discard_node.inputs[1].default_value = kfAlphaThreshold
+            lColourVec4_a = diffuse_texture.outputs['Alpha']
 
-            links.new(discard_node.inputs[0],
-                      diffuse_texture.outputs['Alpha'])
-            links.new(alpha_mix.inputs['Fac'],
-                      discard_node.outputs['Value'])
+            links.new(discard_node.inputs[0], lColourVec4_a)
+            lColourVec4_a = discard_node.outputs['Value']
+
+            if 10 in mat_data['Flags']:
+                clamp_node = create_clamp_group_node(nodes)
+                clamp_node.location = (500, -300)
+                # For some unknown reason if I don't access this value before
+                # writing it blender crashes... ???
+                clamp_node.inputs['Minimum'].default_value
+                clamp_node.inputs['Minimum'].default_value = kfAlphaThreshold
+                clamp_node.inputs['Maximum'].default_value = kfAlphaThresholdMax  # noqa
+
+                links.new(clamp_node.inputs[0], lColourVec4_a)
+                lColourVec4_a = clamp_node.outputs[0]
+
+            links.new(alpha_mix.inputs['Fac'], lColourVec4_a)
+            # If the material has any transparency we want to specify this in
+            # the material
+            mat.blend_method = 'BLEND'
         else:
             # if there isn't we will use the material colour as the base
             # colour of the transparency shader
@@ -279,3 +306,38 @@ def create_material_node(mat_path, material_cache):
     material_cache[mat_path] = mat
 
     return mat
+
+
+def create_clamp_group_node(nodes):
+    groupnode = nodes.new('ShaderNodeGroup')
+    groupnode.node_tree = bpy.data.node_groups.new('ClampGroup',
+                                                   'ShaderNodeTree')
+    group_input = groupnode.node_tree.nodes.new('NodeGroupInput')
+    # For some weir
+    group_input.outputs.new('float', 'Value')
+    group_input.outputs.new('float', 'Minimum')
+    group_input.outputs.new('float', 'Maximum')
+    group_input.location = (-300, 0)
+    group_output = groupnode.node_tree.nodes.new('NodeGroupOutput')
+    group_output.inputs.new('float', 'Value')
+    group_output.location = (300, 0)
+    clamp_max = groupnode.node_tree.nodes.new(type="ShaderNodeMath")
+    clamp_max.operation = 'MAXIMUM'
+    clamp_max.location = (-100, 0)
+    clamp_min = groupnode.node_tree.nodes.new(type="ShaderNodeMath")
+    clamp_min.operation = 'MINIMUM'
+    clamp_min.location = (100, 0)
+    # link everything up
+    groupnode.node_tree.links.new(clamp_max.inputs[0],
+                                  group_input.outputs[0])
+    groupnode.node_tree.links.new(clamp_max.inputs[1],
+                                  group_input.outputs[1])
+    groupnode.node_tree.links.new(clamp_min.inputs[1],
+                                  group_input.outputs[2])
+    groupnode.node_tree.links.new(clamp_min.inputs[0],
+                                  clamp_max.outputs[0])
+    groupnode.node_tree.links.new(group_output.inputs[0],
+                                  clamp_max.outputs[0])
+    groupnode.node_tree.inputs[1].name = 'Minimum'
+    groupnode.node_tree.inputs[2].name = 'Maximum'
+    return groupnode
