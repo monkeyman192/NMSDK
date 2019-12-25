@@ -1,11 +1,11 @@
 # stdlib imports
 import os.path as op
 
-from bpy.props import (StringProperty, BoolProperty, EnumProperty,  # noqa pylint: disable=import-error, no-name-in-module
-                       IntProperty)
-import bpy   # pylint: disable=import-error
-from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
-from bpy.types import Operator, PropertyGroup  # noqa pylint: disable=import-error, no-name-in-module
+# Blender imports
+from bpy.props import (StringProperty, BoolProperty, EnumProperty, IntProperty)
+import bpy
+from bpy_extras.io_utils import ExportHelper, ImportHelper
+from bpy.types import Operator, PropertyGroup
 
 # internal imports
 from .ModelImporter.import_scene import ImportScene

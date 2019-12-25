@@ -3,10 +3,10 @@
 # Heavy WIP!!!
 
 import bpy
-from bpy.props import BoolProperty  # noqa pylint: disable=import-error, no-name-in-module
-from nodeitems_utils import (NodeItem, register_node_categories,  # noqa pylint: disable=import-error, no-name-in-module
+from bpy.props import BoolProperty
+from nodeitems_utils import (NodeItem, register_node_categories,
                              unregister_node_categories)
-from nodeitems_builtins import ShaderNewNodeCategory  # noqa pylint: disable=import-error, no-name-in-module
+from nodeitems_builtins import ShaderNewNodeCategory
 # TODO: replace above import with `ShaderNodeCategory` maybe?
 
 
@@ -24,7 +24,7 @@ class NMSShader(bpy.types.NodeCustomGroup):
     # TODO: Not needed?
     # Return the list of valid operators
     def operators(self, context):
-        _ = context.space_data.edit_tree
+        context.space_data.edit_tree
         list = [('_F01_DIFFUSEMAP', 'Diffuse Map', 'Diffuse Map'),
                 ('_F03_NORMALMAP', 'Normal Map', 'Normal Map'),
                 ('_F21_VERTEXCOLOUR', 'Vertex Colour', 'Vertex Colour'),

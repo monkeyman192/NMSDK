@@ -2,10 +2,10 @@
 import os.path as op
 from math import radians, degrees
 # blender imports
-import bpy  # pylint: disable=import-error
-import bmesh  # pylint: disable=import-error
-from idprop.types import IDPropertyGroup  # pylint: disable=import-error
-from mathutils import Matrix, Vector  # pylint: disable=import-error
+import bpy
+import bmesh
+from idprop.types import IDPropertyGroup
+from mathutils import Matrix, Vector
 # Internal imports
 from ..utils.misc import CompareMatrices, get_obj_name
 from .utils import apply_local_transform, transform_to_NMS_coords

@@ -6,10 +6,9 @@ from math import radians
 import subprocess
 
 # Blender imports
-import bpy  # pylint: disable=import-error
-import bmesh  # pylint: disable=import-error
-from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
-from bpy.props import EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
+import bpy
+import bmesh
+from mathutils import Matrix, Vector, Quaternion
 
 # Internal imports
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level

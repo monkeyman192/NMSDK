@@ -4,8 +4,8 @@
 from array import array
 from hashlib import sha256
 # blender imports
-import bpy  # pylint: disable=import-error
-from mathutils import Matrix, Vector  # pylint: disable=import-error
+import bpy
+from mathutils import Matrix, Vector
 # Internal imports
 from ..NMS.classes import Vector4f
 

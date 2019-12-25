@@ -11,9 +11,9 @@ bl_info = {
     "category": "Import-Export"}
 
 
-import bpy  # pylint: disable=import-error
-from bpy.utils import register_class, unregister_class  # noqa pylint: disable=import-error, no-name-in-module
-from bpy.props import PointerProperty, EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
+import bpy
+from bpy.utils import register_class, unregister_class
+from bpy.props import PointerProperty
 
 # External API operators
 from .NMSDK import ImportSceneOperator, ImportMeshOperator, ExportSceneOperator

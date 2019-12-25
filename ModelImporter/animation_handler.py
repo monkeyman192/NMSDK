@@ -3,9 +3,9 @@ from collections import OrderedDict as odict
 from collections import namedtuple
 
 # Blender imports
-import bpy  # pylint: disable=import-error
-from bpy.props import StringProperty, BoolProperty  # noqa pylint: disable=import-error, no-name-in-module
-from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
+import bpy
+from bpy.props import StringProperty
+from mathutils import Vector, Quaternion
 
 # Internal imports
 from .readers import read_entity, read_anim  # noqa pylint: disable=relative-beyond-top-level

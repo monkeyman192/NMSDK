@@ -2,7 +2,7 @@
 
 import bpy
 from bpy.utils import register_class, unregister_class
-from bpy.props import (StringProperty, BoolProperty, EnumProperty,  # noqa pylint: disable=import-error, no-name-in-module
+from bpy.props import (StringProperty, BoolProperty, EnumProperty,
                        FloatProperty, IntVectorProperty)
 from ..utils.misc import getParentRefScene
 

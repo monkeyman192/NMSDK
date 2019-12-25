@@ -1,6 +1,6 @@
 import os.path as op
 from pathlib import Path
-import bpy  # pylint: disable=import-error
+import bpy
 
 
 def get_NMS_dir(fpath):
