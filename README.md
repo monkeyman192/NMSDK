@@ -1,9 +1,10 @@
 ![NMSDK](docs/images/nmsdk_splash.png)
 
 # NMS Custom Model Importer (NMSDK)
-## Experimental branch
 
 NMSDK is a blender plugin designed to allow models to be added to No Man's Sky, as well as to load models from the games' data.
+
+For full documentation such as installation instructions, API details and details on various functions see the NMSDK website here: https://monkeyman192.github.io/NMSDK/
 
 ### Installing NMSDK
 
