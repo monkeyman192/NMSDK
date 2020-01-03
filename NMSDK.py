@@ -136,7 +136,7 @@ class ExportSceneOperator(Operator):
 
 
 class _FixActionNames(Operator):
-    """Change the type of node an object has"""
+    """Fix any incorrect action names."""
     bl_idname = "nmsdk._fix_action_names"
     bl_label = "Fix any incorrect action names"
 
@@ -200,11 +200,14 @@ class _SaveDefaultSettings(Operator):
     def execute(self, context):
         default_settings = context.scene.nmsdk_default_settings
         default_settings.save()
+        # TODO: spawn a new thread which can display this then un-display it
+        # after some time...
+        # bpy.types.WorkSpace.status_text_set(text="Settings saved")
         return {'FINISHED'}
 
 
 class _GetPCBANKSFolder(Operator):
-    """Create a popup to get the PCBANKS folder location"""
+    """Select the PCBANKS folder location"""
     # Code modified from https://blender.stackexchange.com/a/126596
     bl_idname = "nmsdk._find_pcbanks"
     bl_label = "Specify PCBANKS location"
@@ -222,7 +225,9 @@ class _GetPCBANKSFolder(Operator):
     def invoke(self, context, event):
         # Open browser, take reference to 'self' read the path to selected
         # file, put path in predetermined self fields.
-        # See: https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add  # noqa
+        # See:
+        # https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add
+        self.directory = context.scene.nmsdk_default_settings.PCBANKS_directory
         context.window_manager.fileselect_add(self)
         # Tells Blender to hang on for the slow user input
         return {'RUNNING_MODAL'}
@@ -342,6 +347,8 @@ class _LoadAnimation(Operator):
         bpy.ops.nmsdk.animation_handler(
             anim_name=anim_name,
             anim_path=anim_data['Filename'])
+        # Set the current animation as the one we just selected
+        bpy.ops.nmsdk._change_animation(anim_names=anim_name)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -462,21 +469,22 @@ class NMSDKDefaultSettings(PropertyGroup):
     export_directory: StringProperty(
         name="Export Directory",
         description="The base path under which all models will be exported.",
-        default=default_settings['export_directory'])
+        default=default_settings.get('export_directory', ""))
     group_name: StringProperty(
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)",
-        default=default_settings['group_name'])
+        default=default_settings.get('group_name', ""))
     PCBANKS_directory: StringProperty(
         name="PCBANKS directory",
         description="Path to the PCBANKS folder",
-        default="")
+        default=default_settings.get('PCBANKS_directory', ""))
 
     def save(self):
         """ Save the current settings. """
         settings = {'export_directory': self.export_directory,
-                    'group_name': self.group_name}
+                    'group_name': self.group_name,
+                    'PCBANKS_directory': self.PCBANKS_directory}
         write_settings(settings)
 
 

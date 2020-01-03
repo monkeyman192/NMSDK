@@ -426,6 +426,8 @@ class ImportScene():
             empty_obj = bpy.data.objects.new(self.scene_basename,
                                              empty_mesh)
             empty_obj.NMSNode_props.node_types = 'Reference'
+            empty_obj.NMSReference_props.reference_path = (
+                self.scene_name + '.SCENE.MBIN')
             empty_obj.matrix_world = ROT_MATRIX
             self.scn.collection.objects.link(empty_obj)
             bpy.context.view_layer.objects.active = empty_obj
@@ -936,7 +938,8 @@ class ImportScene():
                     # remove it from the list so that it isn't loaded
                     if anim_name in _loadable_anim_data:
                         del _loadable_anim_data[anim_name]
-                        del local_anims[anim_name]
+                        if anim_name in local_anims:
+                            del local_anims[anim_name]
             else:
                 fpath = op.join(mod_dir, anim_data['Filename'])
                 _loadable_anim_data[anim_name]['Filename'] = fpath

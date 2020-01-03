@@ -1,7 +1,6 @@
 # Quaternion struct
 
 from .Struct import Struct
-from ...serialization.formats import write_int_2_10_10_10_rev
 
 
 class Quaternion(Struct):

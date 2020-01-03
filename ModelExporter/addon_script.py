@@ -450,7 +450,7 @@ class Exporter():
         try:
             data.calc_tangents(uvmap=uv_layer_name)
         except RuntimeError:
-            data = ob.to_mesh(self.global_scene, False, 'PREVIEW')
+            data = ob.to_mesh(preserve_all_data_layers=True)
             data_is_temp = True
             triangulate_mesh(data)
             data.calc_tangents(uvmap=uv_layer_name)

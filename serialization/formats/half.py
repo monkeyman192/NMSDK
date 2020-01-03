@@ -89,4 +89,3 @@ def _float_from_unsigned16(n):
         else:
             return float('nan')
     return (-1)**sign * (1 + fraction / 2**10) * 2**(exp - 15)
-

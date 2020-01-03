@@ -38,10 +38,10 @@ class NMSDK_PT_ToolsPanel(bpy.types.Panel):
         layout = self.layout
         if coll_visibility:
             label = "Collisions: Visible"
-            icon = "VISIBLE_IPO_ON"
+            icon = "HIDE_ON"
         else:
             label = "Collisions: Not Visible"
-            icon = "VISIBLE_IPO_OFF"
+            icon = "HIDE_OFF"
         layout.operator("nmsdk._toggle_collision_visibility",
                         icon=icon, text=label)
 
@@ -63,14 +63,17 @@ class NMSDK_PT_DefaultsPanel(bpy.types.Panel):
         layout = self.layout
         layout.prop(default_settings, 'export_directory')
         layout.prop(default_settings, 'group_name')
-        row = layout.split(percentage=0.85, align=True)
+        row = layout.split(factor=0.85, align=True)
         row.alignment = 'LEFT'
         row.operator("nmsdk._find_pcbanks", icon='ZOOM_ALL',
                      text='PCBANKS location')
         row.separator()
         row.operator('nmsdk._remove_pcbanks',
                      icon='X', emboss=False, text=" ")
-        layout.operator("nmsdk._save_default_settings", icon='SAVE_PREFS',
+        _dir = context.scene.nmsdk_default_settings.PCBANKS_directory
+        if _dir != "":
+            layout.label(text=_dir)
+        layout.operator("nmsdk._save_default_settings", icon='FILE_TICK',
                         text='Save settings')
 
 
