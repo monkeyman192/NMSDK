@@ -808,8 +808,11 @@ class NMSDK_PT_EntityPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if (context.object.NMSMesh_props.has_entity or
-                context.object.NMSLocator_props.has_entity):
+        node_type = context.object.NMSNode_props.node_types
+        mesh_has_entity = context.object.NMSMesh_props.has_entity
+        loc_has_entity = context.object.NMSLocator_props.has_entity
+        if ((node_type == 'Mesh' and mesh_has_entity) or
+                (node_type == 'Locator' and loc_has_entity)):
             return True
         else:
             return False
