@@ -15,7 +15,6 @@ from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pyli
                                      bytes_to_int_2_10_10_10_rev)
 from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.material_node import create_material_node  # noqa pylint: disable=relative-beyond-top-level
 from .readers import (read_metadata, read_gstream, read_anim, read_entity,  # noqa pylint: disable=relative-beyond-top-level
                       read_mesh_binding_data)
@@ -559,7 +558,7 @@ class ImportScene():
 
     def _add_mesh_collision_to_scene(self, scene_node):
         """ Adds the given collision node to the Blender scene. """
-        name = scene_node.Name + '_COLL'
+        name = op.basename(scene_node.Name) + '_COLL'
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(scene_node.bounded_hull,
                          scene_node.edges,
@@ -602,7 +601,7 @@ class ImportScene():
         bh_obj.hide_render = True
 
     def _add_primitive_collision_to_scene(self, scene_node):
-        name = scene_node.Name + '_COLL'
+        name = op.basename(scene_node.Name) + '_COLL'
         mesh = bpy.data.meshes.new(name)
         coll_type = scene_node.Attribute('TYPE')
         bm = bmesh.new()
