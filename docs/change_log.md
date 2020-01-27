@@ -5,6 +5,8 @@
 ### Current - v0.9.19
 
  - Added support for blender 2.80. Note that this plugin is **not** backward compatible, so it is not compatible with 2.79 as it is not worth the effort to make it compatible with both versions and maintain it.
+ - Fixed a small bug [#62](https://github.com/monkeyman192/NMSDK/issues/62).
+ - Fixed some small bugs with the shader loading.
 
 ### Past:
 
