@@ -217,6 +217,8 @@ class _GetPCBANKSFolder(Operator):
         name="PCBANKS path",
         description="Location of the PCBANKS folder")
 
+    filter_folder: BoolProperty(default=True, options={'HIDDEN'})
+
     def execute(self, context):
         # Set the PCBANKS_directory value
         context.scene.nmsdk_default_settings.PCBANKS_directory = self.directory
@@ -241,6 +243,46 @@ class _RemovePCBANKSFolder(Operator):
     def execute(self, context):
         # Set the PCBANKS_directory as blank
         context.scene.nmsdk_default_settings.PCBANKS_directory = ""
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+
+class _GetMBINCompilerLocation(Operator):
+    """Select the MBINCompiler executable location"""
+    # Code modified from https://blender.stackexchange.com/a/126596
+    bl_idname = "nmsdk._find_mbincompiler"
+    bl_label = "Specify MBINCompiler location"
+
+    filepath: StringProperty(
+        name="MBINCompiler Location",
+        description="Location of the MBINCompiler executable")
+
+    def execute(self, context):
+        # Set the PCBANKS_directory value
+        context.scene.nmsdk_default_settings.MBINCompiler_location = self.filepath  # noqa
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        # Open browser, take reference to 'self' read the path to selected
+        # file, put path in predetermined self fields.
+        # See:
+        # https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add
+        self.directory = context.scene.nmsdk_default_settings.MBINCompiler_location  # noqa
+        context.window_manager.fileselect_add(self)
+        # Tells Blender to hang on for the slow user input
+        return {'RUNNING_MODAL'}
+
+
+class _RemoveMBINCompilerLocation(Operator):
+    """Reset the PCBANKS folder location."""
+    bl_idname = "nmsdk._remove_mbincompiler"
+    bl_label = "Remove MBINCompiler location"
+
+    def execute(self, context):
+        # Set the PCBANKS_directory as blank
+        context.scene.nmsdk_default_settings.MBINCompiler_location = ""
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -479,6 +521,10 @@ class NMSDKDefaultSettings(PropertyGroup):
         name="PCBANKS directory",
         description="Path to the PCBANKS folder",
         default=default_settings.get('PCBANKS_directory', ""))
+    MBINCompiler_location: StringProperty(
+        name="MBINCompiler location",
+        description="Path to the Mbincompiler executable",
+        default=default_settings.get('MBINCompiler_location', ""))
 
     def save(self):
         """ Save the current settings. """
@@ -562,6 +608,9 @@ class NMS_Import_Operator(Operator, ImportHelper):
 
     # ExportHelper mixin class uses this
     filename_ext = ".EXML"
+    filter_glob: StringProperty(
+        default="*.scene.exml;*.SCENE.EXML;*.scene.mbin;*.SCENE.MBIN",
+        options={"HIDDEN"})
 
     clear_scene: BoolProperty(
         name='Clear scene',

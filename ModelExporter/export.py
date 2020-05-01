@@ -727,9 +727,9 @@ class Export():
                     # ignore errors.
                     # TODO: make this more robust and potentially allow for
                     # some of these options to be specified on export...
-                    retcode = subprocess.call(["MBINCompiler", "-y", "-f",
-                                               location],
-                                              shell=True)
+                    retcode = subprocess.call(
+                        ["MBINCompiler", "-y", "-f", "-Q", location],
+                        shell=True)
                     if retcode == 0:
                         os.remove(location)
                     else:

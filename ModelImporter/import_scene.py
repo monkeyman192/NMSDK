@@ -139,16 +139,18 @@ class ImportScene():
         self.directory = op.dirname(self.scene_node_data.Name)
         # remove the name of the top level object
         self.scene_node_data.info['Name'] = None
-        self.geometry_file = op.join(
-            self.PCBANKS_dir,
-            self.scene_node_data.Attribute('GEOMETRY') + '.PC')
-        """
+        # Try and find the geometry file locally.
         self.geometry_file = op.join(
             self.local_directory,
             op.relpath(
                 self.scene_node_data.Attribute('GEOMETRY'),
                 self.directory) + '.PC')
-        """
+        # If this fails, try find it under the PCBANKS folder.
+        if not op.exists(self.geometry_file):
+            self.geometry_file = op.join(
+                self.PCBANKS_dir,
+                self.scene_node_data.Attribute('GEOMETRY') + '.PC')
+
         self.geometry_stream_file = self.geometry_file.replace('GEOMETRY',
                                                                'GEOMETRY.DATA')
 

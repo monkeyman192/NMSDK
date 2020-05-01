@@ -22,7 +22,8 @@ from .NMSDK import NMS_Export_Operator, NMS_Import_Operator
 # Internal operators
 from .NMSDK import (_FixOldFormat, _ToggleCollisionVisibility,
                     _SaveDefaultSettings, _FixActionNames, _GetPCBANKSFolder,
-                    _RemovePCBANKSFolder)
+                    _RemovePCBANKSFolder, _GetMBINCompilerLocation,
+                    _RemoveMBINCompilerLocation)
 # Settings
 from .NMSDK import NMSDKSettings, NMSDKDefaultSettings
 # Animation classes
@@ -61,6 +62,8 @@ classes = (NMS_Export_Operator,
            _FixActionNames,
            _GetPCBANKSFolder,
            _RemovePCBANKSFolder,
+           _GetMBINCompilerLocation,
+           _RemoveMBINCompilerLocation,
            _ToggleCollisionVisibility,
            _SaveDefaultSettings,
            _ChangeAnimation,

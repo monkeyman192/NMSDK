@@ -8,8 +8,7 @@ from bpy.props import StringProperty
 from mathutils import Vector, Quaternion
 
 # Internal imports
-from .readers import read_entity, read_anim  # noqa pylint: disable=relative-beyond-top-level
-from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
+from .readers import read_anim  # pylint: disable=relative-beyond-top-level
 
 
 DATA_PATH_MAP = {'Rotation': 'rotation_quaternion',
