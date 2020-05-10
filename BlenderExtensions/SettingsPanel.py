@@ -80,7 +80,7 @@ class NMSDK_PT_DefaultsPanel(bpy.types.Panel):
         row.separator()
         row.operator('nmsdk._remove_mbincompiler',
                      icon='X', emboss=False, text=" ")
-        _dir = context.scene.nmsdk_default_settings.MBINCompiler_location
+        _dir = context.scene.nmsdk_default_settings.MBINCompiler_path
         if _dir != "":
             layout.label(text=_dir)
         layout.operator("nmsdk._save_default_settings", icon='FILE_TICK',

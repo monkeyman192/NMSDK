@@ -725,11 +725,9 @@ class Export():
                 if os.path.splitext(location)[1].lower() == '.exml':
                     # Force MBINCompiler to overwrite existing files and
                     # ignore errors.
-                    # TODO: make this more robust and potentially allow for
-                    # some of these options to be specified on export...
+                    mbincompiler_path = bpy.context.scene.nmsdk_default_settings.MBINCompiler_path  # noqa
                     retcode = subprocess.call(
-                        ["MBINCompiler", "-y", "-f", "-Q", location],
-                        shell=True)
+                        [mbincompiler_path, "-y", "-f", "-Q", location])
                     if retcode == 0:
                         os.remove(location)
                     else:

@@ -30,7 +30,7 @@ def get_NMS_dir(fpath):
                 return str(parent)
 
 
-def get_MBINCompiler_location():
+def get_MBINCompiler_path():
     """ Return the location of the MBINCompiler exe if it is registered on the
     path. """
     _path = ''

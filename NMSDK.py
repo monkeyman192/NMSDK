@@ -12,6 +12,7 @@ from .ModelImporter.import_scene import ImportScene
 from .ModelExporter.addon_script import Exporter
 from .ModelExporter.utils import get_all_actions_in_scene, get_all_actions
 from .utils.settings import read_settings, write_settings
+from .BlenderExtensions.UIWidgets import ShowMessageBox
 
 
 # Operators to be used for the public API
@@ -261,7 +262,7 @@ class _GetMBINCompilerLocation(Operator):
 
     def execute(self, context):
         # Set the PCBANKS_directory value
-        context.scene.nmsdk_default_settings.MBINCompiler_location = self.filepath  # noqa
+        context.scene.nmsdk_default_settings.MBINCompiler_path = self.filepath
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -269,7 +270,7 @@ class _GetMBINCompilerLocation(Operator):
         # file, put path in predetermined self fields.
         # See:
         # https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add
-        self.directory = context.scene.nmsdk_default_settings.MBINCompiler_location  # noqa
+        self.directory = context.scene.nmsdk_default_settings.MBINCompiler_path
         context.window_manager.fileselect_add(self)
         # Tells Blender to hang on for the slow user input
         return {'RUNNING_MODAL'}
@@ -282,7 +283,7 @@ class _RemoveMBINCompilerLocation(Operator):
 
     def execute(self, context):
         # Set the PCBANKS_directory as blank
-        context.scene.nmsdk_default_settings.MBINCompiler_location = ""
+        context.scene.nmsdk_default_settings.MBINCompiler_path = ""
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -521,10 +522,10 @@ class NMSDKDefaultSettings(PropertyGroup):
         name="PCBANKS directory",
         description="Path to the PCBANKS folder",
         default=default_settings.get('PCBANKS_directory', ""))
-    MBINCompiler_location: StringProperty(
+    MBINCompiler_path: StringProperty(
         name="MBINCompiler location",
         description="Path to the Mbincompiler executable",
-        default=default_settings.get('MBINCompiler_location', ""))
+        default=default_settings.get('MBINCompiler_path', ""))
 
     def save(self):
         """ Save the current settings. """
@@ -592,6 +593,11 @@ class NMS_Export_Operator(Operator, ExportHelper):
         export_path, scene_name = op.split(self.filepath)
         keywords.pop('export_directory')
         keywords.pop('group_name')
+        if not bpy.context.scene.nmsdk_default_settings.MBINCompiler_path:
+            ShowMessageBox("No MBINCompiler specified or found", "Error",
+                           'ERROR')
+            print("[ERROR]: No MBINCompiler specified or found")
+            return {'CANCELLED'}
         main_exporter = Exporter(export_path, self.export_directory,
                                  self.group_name, scene_name, keywords)
         status = main_exporter.state
@@ -668,6 +674,11 @@ class NMS_Import_Operator(Operator, ImportHelper):
         fdir = self.properties.filepath
         context.scene['_anim_names'] = ['None']
         print(fdir)
+        if not bpy.context.scene.nmsdk_default_settings.MBINCompiler_path:
+            ShowMessageBox("No MBINCompiler specified or found", "Error",
+                           'ERROR')
+            print("[ERROR]: No MBINCompiler specified or found")
+            return {'CANCELLED'}
         importer = ImportScene(fdir, parent_obj=None, ref_scenes=dict(),
                                settings=keywords)
         importer.render_scene()

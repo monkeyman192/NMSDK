@@ -7,7 +7,7 @@ import os
 from platform import system as os_name
 
 # local imports
-from .io import get_MBINCompiler_location  # noqa
+from .io import get_MBINCompiler_path  # noqa
 
 
 _os_name = os_name()
@@ -24,7 +24,7 @@ SETTINGS_FNAME = 'settings.json'
 
 DEFAULT_SETTINGS = {'export_directory': 'CUSTOMMODELS',
                     'group_name': '',
-                    'MBINCompiler_location': get_MBINCompiler_location()}
+                    'MBINCompiler_path': get_MBINCompiler_path()}
 
 
 def read_settings():

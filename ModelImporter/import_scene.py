@@ -124,8 +124,9 @@ class ImportScene():
         self.scn.render.engine = 'BLENDER_EEVEE'
 
         if not op.exists(exml_fpath):
-            retcode = subprocess.call(["MBINCompiler", '-q', fpath],
-                                      shell=True)
+            retcode = subprocess.call(
+                [self.scn.nmsdk_default_settings.MBINCompiler_path, "-q", "-Q",
+                 fpath])
             if retcode != 0:
                 print('MBINCompiler failed to run. Please ensure it is '
                       'registered on the path.')

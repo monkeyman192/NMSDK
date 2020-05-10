@@ -1,4 +1,5 @@
 import bpy
+from mathutils import Vector
 
 import os.path as op
 
@@ -205,7 +206,7 @@ def create_material_node(mat_path, material_cache):
                 normal_scale = nodes.new(type='ShaderNodeMapping')
                 normal_scale.location = (-1000, -300)
                 scale = uniforms['gCustomParams01Vec4'][2]
-                normal_scale.scale = (scale, scale, scale)
+                normal_scale.inputs['Scale'].default_value = Vector((scale, scale, scale))  # noqa
                 tex_coord = nodes.new(type='ShaderNodeTexCoord')
                 tex_coord.location = (-1200, -300)
                 tex_coord.object = bpy.context.active_object
