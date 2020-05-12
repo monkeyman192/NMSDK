@@ -249,16 +249,14 @@ def create_material_node(mat_path, material_cache):
             lColourVec4_a = discard_node.outputs['Value']
 
             if 10 in mat_data['Flags']:
-                clamp_node = create_clamp_group_node(nodes)
+                clamp_node = nodes.new(type='ShaderNodeClamp')
+                clamp_node.clamp_type = 'RANGE'
                 clamp_node.location = (500, -300)
-                # For some unknown reason if I don't access this value before
-                # writing it blender crashes... ???
-                clamp_node.inputs['Minimum'].default_value
-                clamp_node.inputs['Minimum'].default_value = kfAlphaThreshold
-                clamp_node.inputs['Maximum'].default_value = kfAlphaThresholdMax  # noqa
+                clamp_node.inputs['Min'].default_value = kfAlphaThreshold
+                clamp_node.inputs['Max'].default_value = kfAlphaThresholdMax
 
-                links.new(clamp_node.inputs[0], lColourVec4_a)
-                lColourVec4_a = clamp_node.outputs[0]
+                links.new(clamp_node.inputs['Value'], lColourVec4_a)
+                lColourVec4_a = clamp_node.outputs['Result']
 
             links.new(alpha_mix.inputs['Fac'], lColourVec4_a)
             # If the material has any transparency we want to specify this in
@@ -307,38 +305,3 @@ def create_material_node(mat_path, material_cache):
     material_cache[mat_path] = mat
 
     return mat
-
-
-def create_clamp_group_node(nodes):
-    groupnode = nodes.new('ShaderNodeGroup')
-    groupnode.node_tree = bpy.data.node_groups.new('ClampGroup',
-                                                   'ShaderNodeTree')
-    group_input = groupnode.node_tree.nodes.new('NodeGroupInput')
-    # For some weir
-    group_input.outputs.new('float', 'Value')
-    group_input.outputs.new('float', 'Minimum')
-    group_input.outputs.new('float', 'Maximum')
-    group_input.location = (-300, 0)
-    group_output = groupnode.node_tree.nodes.new('NodeGroupOutput')
-    group_output.inputs.new('float', 'Value')
-    group_output.location = (300, 0)
-    clamp_max = groupnode.node_tree.nodes.new(type="ShaderNodeMath")
-    clamp_max.operation = 'MAXIMUM'
-    clamp_max.location = (-100, 0)
-    clamp_min = groupnode.node_tree.nodes.new(type="ShaderNodeMath")
-    clamp_min.operation = 'MINIMUM'
-    clamp_min.location = (100, 0)
-    # link everything up
-    groupnode.node_tree.links.new(clamp_max.inputs[0],
-                                  group_input.outputs[0])
-    groupnode.node_tree.links.new(clamp_max.inputs[1],
-                                  group_input.outputs[1])
-    groupnode.node_tree.links.new(clamp_min.inputs[1],
-                                  group_input.outputs[2])
-    groupnode.node_tree.links.new(clamp_min.inputs[0],
-                                  clamp_max.outputs[0])
-    groupnode.node_tree.links.new(group_output.inputs[0],
-                                  clamp_max.outputs[0])
-    groupnode.node_tree.inputs[1].name = 'Minimum'
-    groupnode.node_tree.inputs[2].name = 'Maximum'
-    return groupnode
