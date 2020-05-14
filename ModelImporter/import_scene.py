@@ -73,6 +73,11 @@ class ImportScene():
         else:
             raise TypeError('Selected file is of the wrong format.')
 
+        # Annoyingly, some nodes may have the same name. As we traverse the
+        # tree in order we should be able to just have the index stored here
+        # and increment as needed.
+        self.name_clash_orders = dict()
+
         self.parent_obj = parent_obj
         self.ref_scenes = ref_scenes
         self.settings = settings
@@ -160,23 +165,23 @@ class ImportScene():
             # Check to see if we have any mesh collision data
             f.seek(0x6C)
             self.CollisionIndexCount = struct.unpack('<I', f.read(0x4))[0]
+            # Determine if the index data is 16bit or 32 bit (2 or 4 bytes)
+            f.seek(0x68)
+            self.Indices16Bit = bool(struct.unpack('<I', f.read(0x4))[0])
+            f.seek(0x180)
+            list_offset, _ = read_list_header(f)
+            f.seek(list_offset, 1)
+            if self.Indices16Bit:
+                fmt = 'H'
+                self.index_stride = 2
+            else:
+                fmt = 'I'
+                self.index_stride = 4
             if self.CollisionIndexCount != 0:
-                # Determine if the index data is 16bit or 32 bit (2 or 4 bytes)
-                f.seek(0x68)
-                self.Indices16Bit = bool(struct.unpack('<I', f.read(0x4))[0])
-                f.seek(0x180)
-                list_offset, _ = read_list_header(f)
-                f.seek(list_offset, 1)
-                if self.Indices16Bit:
-                    fmt = 'H'
-                    mult = 2
-                else:
-                    fmt = 'I'
-                    mult = 4
                 # Read all the mesh index data into a single list
                 self.mesh_indexes = struct.unpack(
                     '<' + fmt * self.CollisionIndexCount,
-                    f.read(self.CollisionIndexCount * mult))
+                    f.read(self.CollisionIndexCount * self.index_stride))
             else:
                 self.mesh_indexes = list()
 
@@ -292,7 +297,7 @@ class ImportScene():
         """Render the specified mesh in the blender view. """
         obj = self.scene_node_data.get(mesh_ID)
         if obj.Type == 'MESH':
-            obj.metadata = self.mesh_metadata.get(mesh_ID.upper())
+            obj.metadata = self._handle_duplicate_mesh_names(mesh_ID.upper())
             self.load_mesh(obj)
             self._add_mesh_to_scene(obj, standalone=True)
         elif obj.Type == 'LOCATOR' or obj.Type == 'JOINT':
@@ -317,7 +322,14 @@ class ImportScene():
                     self.scn.nmsdk_anim_data.joints.append(obj.Name)
         for obj in self.scene_node_data.iter():
             if obj.Type == 'MESH':
-                obj.metadata = self.mesh_metadata.get(obj.Name.upper())
+                if obj.Name.upper() in self.mesh_metadata:
+                    obj.metadata = self._handle_duplicate_mesh_names(
+                        obj.Name.upper())
+                else:
+                    print('Failed to load {0}. Please make sure your scene '
+                          'file and geometry data are the same '
+                          'versions.'.format(obj.Name))
+                    continue
                 self.load_mesh(obj)
                 self._add_mesh_to_scene(obj)
             elif (obj.Type == 'LOCATOR' or obj.Type == 'JOINT'
@@ -866,7 +878,8 @@ class ImportScene():
             err = ("An error has ocurred. Here is the object information:\n" +
                    "Mesh name: {0}\n".format(mesh.Name) +
                    "Mesh indexes: {0}\n".format(idx_count) +
-                   "Mesh metadata: {0}\n".format(mesh.metadata))
+                   "Mesh metadata: {0}\n".format(mesh.metadata) +
+                   "In geomtry file: {0}".format(self.geometry_file))
             raise ValueError(err)
         with open(self.geometry_stream_file, 'rb') as f:
             f.seek(mesh.metadata.idx_off)
@@ -962,6 +975,33 @@ class ImportScene():
         except ValueError:
             return None
 
+    def _handle_duplicate_mesh_names(self, node_name):
+        """ Very rarely, multiple nodes in a scene can have the same name
+        differing only by case. In this case we cannot simply do a look up
+        of the mesh metadata as there will be multiple values for the metadata.
+        We have to crossreference the metadata to the SceneNodeData and see
+        which matches.
+
+        Parameters:
+        -----------
+        node_name : str
+            The UPPER-ified node name.
+
+        Returns:
+        --------
+        mesh_metadata : namedTuple
+            The appropriate mesh metadata for the scene node.
+        """
+        mesh_metadata = self.mesh_metadata.get(node_name)
+        if isinstance(mesh_metadata, list):
+            if node_name not in self.name_clash_orders:
+                self.name_clash_orders[node_name] = 0
+            else:
+                self.name_clash_orders[node_name] += 1
+            return mesh_metadata[self.name_clash_orders[node_name]]
+        else:
+            return mesh_metadata
+
     def _load_bounded_hulls(self):
         """ Load the bounded hull data. """
         with open(self.geometry_file, 'rb') as f:
@@ -974,7 +1014,6 @@ class ImportScene():
                 f.seek(0x4, 1)
 
     def _load_mesh(self, mesh):
-        # TODO: remove??? I don't think this does anything any more...
         """ Load the mesh data from the geometry stream file."""
         mesh.raw_verts, mesh.raw_idxs = read_gstream(self.geometry_stream_file,
                                                      mesh.metadata)

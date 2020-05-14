@@ -246,7 +246,13 @@ def read_metadata(fname):
             gstream_info = namedtuple('gstream_info',
                                       ['vert_size', 'vert_off',
                                        'idx_size', 'idx_off'])
-            data[string] = gstream_info(vert_size, vert_off, idx_size, idx_off)
+            if string not in data:
+                data[string] = gstream_info(vert_size, vert_off, idx_size,
+                                            idx_off)
+            else:
+                data[string] = [data[string]]
+                data[string].append(gstream_info(vert_size, vert_off, idx_size,
+                                                 idx_off))
     return data
 
 
