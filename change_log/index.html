@@ -7,13 +7,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   
+  
   <link rel="shortcut icon" href="../img/favicon.ico">
   <title>Change log - NMSDK</title>
-  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
-  <link rel="stylesheet" href="../css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../css/theme_extra.css" type="text/css" />
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  <link rel="stylesheet" href="../css/theme.css" />
+  <link rel="stylesheet" href="../css/theme_extra.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" />
   
   <script>
     // Current page data
@@ -24,7 +25,7 @@
   
   <script src="../js/jquery-2.1.1.min.js" defer></script>
   <script src="../js/modernizr-2.8.3.min.js" defer></script>
-  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
   <script>hljs.initHighlightingOnLoad();</script> 
   
 </head>
@@ -35,6 +36,7 @@
 
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
         <a href=".." class="icon icon-home"> NMSDK</a>
         <div role="search">
@@ -45,90 +47,80 @@
       </div>
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-	<ul class="current">
-	  
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="..">Home</a>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="../setup/">Setup</a>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <span class="caption-text">Importing a Scene</span>
-    <ul class="subnav">
-                <li class="">
-                    
-    <a class="" href="../importing/importing/">Importing</a>
-                </li>
-    </ul>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <span class="caption-text">Exporting a Scene</span>
-    <ul class="subnav">
-                <li class="">
-                    
-    <a class="" href="../exporting/exporting/">Setting up</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/node_docs/">Node type guide</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/entities/">Adding Entities</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/animations/">Adding Animations</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/proc_gen/">Making a proc-gen scene</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/action_triggers/">Creating Action Triggers</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/shader_nodes/">Shader Setup</a>
-                </li>
-    </ul>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="../api/">API guide</a>
-	    </li>
-          
-            <li class="toctree-l1 current">
-		
-    <a class="current" href="./">Change log</a>
-    <ul class="subnav">
-            
-    <li class="toctree-l2"><a href="#nmsdk-changelog">NMSDK Changelog</a></li>
-    
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../setup/">Setup</a>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">Importing a Scene</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../importing/importing/">Importing</a>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">Exporting a Scene</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/exporting/">Setting up</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/node_docs/">Node type guide</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/entities/">Adding Entities</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/animations/">Adding Animations</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/proc_gen/">Making a proc-gen scene</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/action_triggers/">Creating Action Triggers</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/shader_nodes/">Shader Setup</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../api/">API guide</a>
+                    </li>
+                </ul>
+                <ul class="current">
+                    <li class="toctree-l1 current"><a class="reference internal current" href="./">Change log</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#releases">Releases:</a>
         <ul>
-        
-            <li><a class="toctree-l3" href="#releases">Releases:</a></li>
-        
+    <li class="toctree-l3"><a class="reference internal" href="#current-v0920">Current - v0.9.20</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#past">Past:</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#v0919-01112019">v0.9.19 (01/11/2019)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#v0918-13102019">v0.9.18  (13/10/2019)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#v0917-28082019">v0.9.17 (28/08/2019)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#v0916-20082019">v0.9.16 (20/08/2019)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#v0915-13082019">v0.9.15 (13/08/2019)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#v0914-10082019">v0.9.14 (10/08/2019)</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#v0913-02082019">v0.9.13 (02/08/2019)</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#v0912-03062019">v0.9.12 (03/06/2019):</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#v0911-25052019">v0.9.11 (25/05/2019):</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#v0910-24052019">v0.9.10 (24/05/2019):</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#v099-23052019">v0.9.9 (23/05/2019):</a>
+    </li>
         </ul>
-    
-
+    </li>
+        </ul>
+    </li>
     </ul>
-	    </li>
-          
-        </ul>
+                    </li>
+                </ul>
       </div>
-      &nbsp;
+    </div>
     </nav>
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
@@ -153,6 +145,7 @@
       
     </li>
   </ul>
+  
   <hr/>
 </div>
           <div role="main">
@@ -160,7 +153,21 @@
               
                 <h1 id="nmsdk-changelog">NMSDK Changelog</h1>
 <h2 id="releases">Releases:</h2>
-<h3 id="current-v0918">Current - v0.9.18</h3>
+<h3 id="current-v0920">Current - v0.9.20</h3>
+<ul>
+<li>Release for Blender 2.82 (maybe 2.83? It is untested...). I don't think it will be compatible with 2.80 as I think there were some API changes between 2.80 and 2.82.</li>
+<li>Fixed tests to be able to run better/easier.</li>
+<li>Added an option to select the MBINCompiler.exe to use when importing/exporting scenes. If you have MBINCompiler registered to your path then this will be picked up automatically.</li>
+<li>Fixed an issue where some scenes were unable to be imported due to a number of reasons <a href="https://github.com/monkeyman192/NMSDK/issues/64">#64</a> and <a href="https://github.com/monkeyman192/NMSDK/issues/66">#66</a>.</li>
+<li>Fixed a small bug <a href="https://github.com/monkeyman192/NMSDK/issues/62">#62</a>.</li>
+<li>Collision node names are now shorter and more managable.</li>
+</ul>
+<h3 id="past">Past:</h3>
+<h3 id="v0919-01112019">v0.9.19 (01/11/2019)</h3>
+<p>This was a beta release for blender 2.80 update compatibility checking.
+ - Added support for blender 2.80. Note that this plugin is <strong>not</strong> backward compatible, so it is not compatible with 2.79 as it is not worth the effort to make it compatible with both versions and maintain it.
+ - Fixed some small bugs with the shader loading.</p>
+<h3 id="v0918-13102019">v0.9.18  (13/10/2019)</h3>
 <ul>
 <li>Added the ability to import lighting. The current brightness setting is set at 1/100 of the value in the scene. This may change if better settings/node setup is found.</li>
 <li>An option has been added to specify a custom location for the PCBANKS folder in case the scene file isn't located in the same folder as the unpacked data. The scene file <em>should</em> still line in a proper relative directory structure however.</li>
@@ -168,7 +175,6 @@
 <li>Fixed a few other small errors that could occur in weird cases such as for some descriptors.</li>
 </ul>
 <p><strong>NOTE</strong>: This is the final Blender 2.79 compatible release. All future releases will be for Blender 2.80 and above.</p>
-<h3 id="past">Past:</h3>
 <h3 id="v0917-28082019">v0.9.17 (28/08/2019)</h3>
 <ul>
 <li>Fixed the issue where adding the addon from a zip file wouldn't actually add it to blender.</li>
@@ -236,7 +242,7 @@ Currently if you wish to export a mesh type collision, you need to apply the sca
     
   </div>
 
-  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
 </footer>
       
         </div>
@@ -246,7 +252,7 @@ Currently if you wish to export a mesh type collision, you need to apply the sca
 
   </div>
 
-  <div class="rst-versions" role="note" style="cursor: pointer">
+  <div class="rst-versions" role="note" aria-label="versions">
     <span class="rst-current-version" data-toggle="rst-current-version">
       
       
@@ -258,6 +264,11 @@ Currently if you wish to export a mesh type collision, you need to apply the sca
     <script>var base_url = '..';</script>
     <script src="../js/theme.js" defer></script>
       <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
 
 </body>
 </html>

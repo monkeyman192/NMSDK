@@ -7,13 +7,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   
+  
   <link rel="shortcut icon" href="../img/favicon.ico">
   <title>Setup - NMSDK</title>
-  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
-  <link rel="stylesheet" href="../css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../css/theme_extra.css" type="text/css" />
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  <link rel="stylesheet" href="../css/theme.css" />
+  <link rel="stylesheet" href="../css/theme_extra.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" />
   
   <script>
     // Current page data
@@ -24,7 +25,7 @@
   
   <script src="../js/jquery-2.1.1.min.js" defer></script>
   <script src="../js/modernizr-2.8.3.min.js" defer></script>
-  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
   <script>hljs.initHighlightingOnLoad();</script> 
   
 </head>
@@ -35,6 +36,7 @@
 
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
         <a href=".." class="icon icon-home"> NMSDK</a>
         <div role="search">
@@ -45,90 +47,56 @@
       </div>
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-	<ul class="current">
-	  
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="..">Home</a>
-	    </li>
-          
-            <li class="toctree-l1 current">
-		
-    <a class="current" href="./">Setup</a>
-    <ul class="subnav">
-            
-    <li class="toctree-l2"><a href="#installing-nmsdk">Installing NMSDK</a></li>
-    
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                    </li>
+                </ul>
+                <ul class="current">
+                    <li class="toctree-l1 current"><a class="reference internal current" href="./">Setup</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a>
         <ul>
-        
-            <li><a class="toctree-l3" href="#prerequisites">Prerequisites</a></li>
-        
+    <li class="toctree-l3"><a class="reference internal" href="#blender">Blender</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#mbincompiler">MBINCompiler</a>
+    </li>
         </ul>
-    
-
+    </li>
     </ul>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <span class="caption-text">Importing a Scene</span>
-    <ul class="subnav">
-                <li class="">
-                    
-    <a class="" href="../importing/importing/">Importing</a>
-                </li>
-    </ul>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <span class="caption-text">Exporting a Scene</span>
-    <ul class="subnav">
-                <li class="">
-                    
-    <a class="" href="../exporting/exporting/">Setting up</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/node_docs/">Node type guide</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/entities/">Adding Entities</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/animations/">Adding Animations</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/proc_gen/">Making a proc-gen scene</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/action_triggers/">Creating Action Triggers</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../exporting/shader_nodes/">Shader Setup</a>
-                </li>
-    </ul>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="../api/">API guide</a>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="../change_log/">Change log</a>
-	    </li>
-          
-        </ul>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">Importing a Scene</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../importing/importing/">Importing</a>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">Exporting a Scene</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/exporting/">Setting up</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/node_docs/">Node type guide</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/entities/">Adding Entities</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/animations/">Adding Animations</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/proc_gen/">Making a proc-gen scene</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/action_triggers/">Creating Action Triggers</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../exporting/shader_nodes/">Shader Setup</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../api/">API guide</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../change_log/">Change log</a>
+                    </li>
+                </ul>
       </div>
-      &nbsp;
+    </div>
     </nav>
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
@@ -153,6 +121,7 @@
       
     </li>
   </ul>
+  
   <hr/>
 </div>
           <div role="main">
@@ -161,25 +130,21 @@
                 <h2 id="installing-nmsdk">Installing NMSDK</h2>
 <p>Installing NMSDK is very easy. Head to the <a href="https://github.com/monkeyman192/NMSDK/releases">NMSDK Release page</a> on GitHub and download the most recently released version.</p>
 <p>If you have had a previous version of NMSDK installed it is recommended that you remove it.
-Generally the addons will be installed at <code>%APPDATA%\Blender Foundation\Blender\2.79\scripts\addons</code>. If you go to this location and there is an <code>nmsdk</code> folder. Delete it after removing the addon from within blender, then follow the following steps.
+Generally the addons will be installed at <code>%APPDATA%\Blender Foundation\Blender\2.80\scripts\addons</code>. If you go to this location and there is an <code>nmsdk</code> folder. Delete it after removing the addon from within blender, then follow the following steps.
 Removing the old version is particularly important if you had a very old version (pre-proper versioning), as there have been many internal changes to NMSDK since then and the old files will clash, causing odd issues.</p>
-<p>Open Blender and open the user settings (Ctrl + Alt + U) (or <code>File</code> &gt; <code>User Preferences...</code>), and select <code>Install Add-on from File...</code> (it is at the bottom left of the window).
+<p>Open Blender and open the preferences window (<code>Edit</code> &gt; <code>Preferences...</code>), and select <code>Install...</code> (it is at the top right of the window).
 Select the <code>.zip</code> file you just downloaded and blender should install it without any errors.</p>
 <p>To make exporting easier, NMSDK will automatically convert all produced <code>.exml</code> files to <code>.mbin</code> files. For this to work, <em>MBINCompiler</em> is required. See below for instructions on downloading and installing the latest version.</p>
 <h3 id="prerequisites">Prerequisites</h3>
 <h4 id="blender">Blender</h4>
-<p>NMSDK requires a version of blender greater than or equal to 2.79b.
-This is due to the model importer component to need a shader node that only exists with Blender 2.79b and above.</p>
-<p>NMSDK has not been tested for blender 2.80, however it is likely to not work, and support for 2.80 will not come until 2.80 is out of beta and is the latest official release.
-If you wish to still use blender 2.80, it is recommended that you install a portable blender 2.79b version from <a href="https://sourceforge.net/projects/portableapps/files/Blender%20Portable/">here</a></p>
+<p>NMSDK requires a version of blender greater than or equal to 2.80.</p>
 <h4 id="mbincompiler">MBINCompiler</h4>
 <p>For NMSDK to work, it requires <a href="https://github.com/monkeyman192/MBINCompiler">MBINCompiler</a>
 to generate the <em>.mbin</em> files that are read by the game.
 The easiest way to have <em>MBINCompiler</em> set up is to download the most recent
 release and register <em>MBINCompiler</em> to the path so that it can be picked up
 anywhere by Blender.
-If you already have a version of <em>MBINCompiler</em> on your computer, ensure it is
-version <strong>v1.78.0-pre1</strong> or above. This can be found on the <a href="https://github.com/monkeyman192/MBINCompiler/releases">MBINCompiler releases</a> page.</p>
+The most recent release of <em>MBINCompiler</em> can be found on the <a href="https://github.com/monkeyman192/MBINCompiler/releases">MBINCompiler releases</a> page.</p>
 <p>For NMSDK to be able to use <em>MBINCompiler</em>, the program needs to be registered to the path so that it can be called from anywhere on your computer.
 Open the folder containing the <code>MBINCompiler.exe</code> you just downloaded, open this folder in command line, then enter <code>MBINCompiler.exe register</code>.
 This will add the folder the <code>.exe</code> is in to the system path, allowing NMSDK to be able to access the program from anywhere.</p>
@@ -205,7 +170,7 @@ This will add the folder the <code>.exe</code> is in to the system path, allowin
     
   </div>
 
-  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
 </footer>
       
         </div>
@@ -215,7 +180,7 @@ This will add the folder the <code>.exe</code> is in to the system path, allowin
 
   </div>
 
-  <div class="rst-versions" role="note" style="cursor: pointer">
+  <div class="rst-versions" role="note" aria-label="versions">
     <span class="rst-current-version" data-toggle="rst-current-version">
       
       
@@ -229,6 +194,11 @@ This will add the folder the <code>.exe</code> is in to the system path, allowin
     <script>var base_url = '..';</script>
     <script src="../js/theme.js" defer></script>
       <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
 
 </body>
 </html>

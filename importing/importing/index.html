@@ -7,13 +7,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   
+  
   <link rel="shortcut icon" href="../../img/favicon.ico">
   <title>Importing - NMSDK</title>
-  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
-  <link rel="stylesheet" href="../../css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../../css/theme_extra.css" type="text/css" />
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  <link rel="stylesheet" href="../../css/theme.css" />
+  <link rel="stylesheet" href="../../css/theme_extra.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" />
   
   <script>
     // Current page data
@@ -24,7 +25,7 @@
   
   <script src="../../js/jquery-2.1.1.min.js" defer></script>
   <script src="../../js/modernizr-2.8.3.min.js" defer></script>
-  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
   <script>hljs.initHighlightingOnLoad();</script> 
   
 </head>
@@ -35,6 +36,7 @@
 
     
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
         <a href="../.." class="icon icon-home"> NMSDK</a>
         <div role="search">
@@ -45,90 +47,64 @@
       </div>
 
       <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-	<ul class="current">
-	  
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="../..">Home</a>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="../../setup/">Setup</a>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <span class="caption-text">Importing a Scene</span>
-    <ul class="subnav">
-                <li class=" current">
-                    
-    <a class="current" href="./">Importing</a>
-    <ul class="subnav">
-            
-    <li class="toctree-l3"><a href="#importing-models-into-blender">Importing models into Blender</a></li>
-    
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../..">Home</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../setup/">Setup</a>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">Importing a Scene</span></p>
+                <ul class="current">
+                    <li class="toctree-l1 current"><a class="reference internal current" href="./">Importing</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#import-settings">Import settings</a>
         <ul>
-        
-            <li><a class="toctree-l4" href="#import-settings">Import settings</a></li>
-        
+    <li class="toctree-l3"><a class="reference internal" href="#draw-bounded-hulls">Draw bounded hulls</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#clear-scene">Clear scene</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#import-collisions">Import collisions</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#draw-collisions">Draw collisions</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#import-bones">Import bones</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#max-loaded-animations">Max loaded animations</a>
+    </li>
         </ul>
-    
-
+    </li>
     </ul>
-                </li>
-    </ul>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <span class="caption-text">Exporting a Scene</span>
-    <ul class="subnav">
-                <li class="">
-                    
-    <a class="" href="../../exporting/exporting/">Setting up</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../../exporting/node_docs/">Node type guide</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../../exporting/entities/">Adding Entities</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../../exporting/animations/">Adding Animations</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../../exporting/proc_gen/">Making a proc-gen scene</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../../exporting/action_triggers/">Creating Action Triggers</a>
-                </li>
-                <li class="">
-                    
-    <a class="" href="../../exporting/shader_nodes/">Shader Setup</a>
-                </li>
-    </ul>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="../../api/">API guide</a>
-	    </li>
-          
-            <li class="toctree-l1">
-		
-    <a class="" href="../../change_log/">Change log</a>
-	    </li>
-          
-        </ul>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">Exporting a Scene</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/exporting/">Setting up</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/node_docs/">Node type guide</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/entities/">Adding Entities</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/animations/">Adding Animations</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/proc_gen/">Making a proc-gen scene</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/action_triggers/">Creating Action Triggers</a>
+                    </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/shader_nodes/">Shader Setup</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../api/">API guide</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../change_log/">Change log</a>
+                    </li>
+                </ul>
       </div>
-      &nbsp;
+    </div>
     </nav>
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
@@ -157,6 +133,7 @@
       
     </li>
   </ul>
+  
   <hr/>
 </div>
           <div role="main">
@@ -166,6 +143,7 @@
 <p>NMSDK is capable of importing NMS <em>SCENE</em> files and loading the models.</p>
 <p>At the moment the functionality is still in beta and has many issues, primarily due to the custom shader setup used by NMS.</p>
 <p>Importing scenes from the game is simple. An option can be found in the <code>Import</code> drop-down menu found by selecting <code>File</code> &gt; <code>Import</code></p>
+<p>Note: The format the scene is imported in as isn't guaranteed to be perfectly exportable (sorry!). This functionality will come in the future.</p>
 <p><img alt="importing" src="../../images/import.png" /></p>
 <p>This will open up a file selection dialog which lets you select the scene you wish to import.
 Keep in mind that at the moment NMSDK will import <strong>all</strong> of the components of a scene including ones that are referenced by the scene. So for a large scene such as the freighter scene it may actually take a minute or two to load all the data.</p>
@@ -213,7 +191,7 @@ For more on loading animations after the scene has been loaded, see <a href="../
     
   </div>
 
-  Built with <a href="http://www.mkdocs.org">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
 </footer>
       
         </div>
@@ -223,7 +201,7 @@ For more on loading animations after the scene has been loaded, see <a href="../
 
   </div>
 
-  <div class="rst-versions" role="note" style="cursor: pointer">
+  <div class="rst-versions" role="note" aria-label="versions">
     <span class="rst-current-version" data-toggle="rst-current-version">
       
       
@@ -237,6 +215,11 @@ For more on loading animations after the scene has been loaded, see <a href="../
     <script>var base_url = '../..';</script>
     <script src="../../js/theme.js" defer></script>
       <script src="../../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
 
 </body>
 </html>
