@@ -2,13 +2,22 @@
 
 ## Releases:
 
-### Current - v0.9.19
+### Current - v0.9.20
 
- - Added support for blender 2.80. Note that this plugin is **not** backward compatible, so it is not compatible with 2.79 as it is not worth the effort to make it compatible with both versions and maintain it.
+ - Release for Blender 2.82 (maybe 2.83? It is untested...). I don't think it will be compatible with 2.80 as I think there were some API changes between 2.80 and 2.82.
+ - Fixed tests to be able to run better/easier.
+ - Added an option to select the MBINCompiler.exe to use when importing/exporting scenes. If you have MBINCompiler registered to your path then this will be picked up automatically.
+ - Fixed an issue where some scenes were unable to be imported due to a number of reasons [#64](https://github.com/monkeyman192/NMSDK/issues/64) and [#66](https://github.com/monkeyman192/NMSDK/issues/66).
  - Fixed a small bug [#62](https://github.com/monkeyman192/NMSDK/issues/62).
- - Fixed some small bugs with the shader loading.
+ - Collision node names are now shorter and more managable.
 
 ### Past:
+
+### v0.9.19 (01/11/2019)
+
+This was a beta release for blender 2.80 update compatibility checking.
+ - Added support for blender 2.80. Note that this plugin is **not** backward compatible, so it is not compatible with 2.79 as it is not worth the effort to make it compatible with both versions and maintain it.
+ - Fixed some small bugs with the shader loading.
 
 ### v0.9.18  (13/10/2019)
 

@@ -30,6 +30,8 @@ Note that `<Export Directory>` should be the path relative to the PCBANKS folder
 
  - PCBANKS location:
   The location of the PCBANKS folder. This only needs to be set for importing scenes that do not lie in an unpacked directory with all the other geometry etc files.
+ - MBINCompiler location:
+  The location of the MBINCompiler executable to be used to import and export scene files. If you have registered MBINCompiler to your system path then the location will be picked up automatically. If not, you will get a message when attempting to import or export something that you need to set the path.
 
 ## Animation controls:
 
