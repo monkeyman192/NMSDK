@@ -1,9 +1,13 @@
 """ Module to handle loading and writing the default NMSDK settings file. """
 
+# stdlib imports
 import json
 import os.path as op
 import os
 from platform import system as os_name
+
+# local imports
+from .io import get_MBINCompiler_path  # noqa
 
 
 _os_name = os_name()
@@ -19,7 +23,8 @@ else:
 SETTINGS_FNAME = 'settings.json'
 
 DEFAULT_SETTINGS = {'export_directory': 'CUSTOMMODELS',
-                    'group_name': ''}
+                    'group_name': '',
+                    'MBINCompiler_path': get_MBINCompiler_path()}
 
 
 def read_settings():
@@ -27,7 +32,12 @@ def read_settings():
     if not op.exists(op.join(SETTINGS_DIR, SETTINGS_FNAME)):
         return DEFAULT_SETTINGS
     with open(op.join(SETTINGS_DIR, SETTINGS_FNAME), 'r') as f:
-        return json.load(f)
+        data = json.load(f)
+        # Update the settings with any default settings
+        for key, value in DEFAULT_SETTINGS.items():
+            if key not in data:
+                data[key] = value
+        return data
 
 
 def write_settings(settings):

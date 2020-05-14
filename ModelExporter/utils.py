@@ -4,8 +4,8 @@
 from array import array
 from hashlib import sha256
 # blender imports
-import bpy  # pylint: disable=import-error
-from mathutils import Matrix, Vector  # pylint: disable=import-error
+import bpy
+from mathutils import Matrix, Vector
 # Internal imports
 from ..NMS.classes import Vector4f
 
@@ -102,7 +102,7 @@ def movetoindex(lst, i, index):
 def nmsHash(data):
     """
     Lazy hash function for mesh data
-    This is simply the last 16 hexadecimal degits of a sha256 hash
+    This is simply the last 16 hexadecimal digits of a sha256 hash
     """
     if isinstance(data, list):
         d = array('f')
@@ -111,19 +111,6 @@ def nmsHash(data):
     else:
         d = data
     return int(sha256(d).hexdigest()[-16:], 16)
-
-
-def object_is_animated(ob):
-    # this will check a blender object to see if it's parent has any anim data
-    # (and it's parent recursively)
-    if ob.animation_data is not None:
-        # in this case just return true that the object has animation data
-        return True
-    else:
-        if ob.parent is not None:
-            return object_is_animated(ob.parent)
-        else:
-            return False
 
 
 def traverse(obj):
@@ -160,9 +147,9 @@ def apply_local_transform(rotmat, data, normalize=True, use_norm_mat=False):
         norm_mat = rotmat.inverted().transposed()
     for i in range(len(data)):
         if use_norm_mat:
-            _data = norm_mat * Vector((data[i]))
+            _data = norm_mat @ Vector((data[i]))
         else:
-            _data = rotmat * Vector((data[i]))
+            _data = rotmat @ Vector((data[i]))
         if normalize:
             _data.normalize()
         data[i] = (_data[0], _data[1], _data[2], 1.0)
@@ -282,4 +269,4 @@ def transform_to_NMS_coords(ob):
     Minv[2] = Vector((0.0, 1.0, 0.0, 0.0))
     Minv[3] = Vector((0.0, 0.0, 0.0, 1.0))
 
-    return (M*ob.matrix_local*Minv).decompose()
+    return (M @ ob.matrix_local @ Minv).decompose()

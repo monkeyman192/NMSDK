@@ -6,17 +6,15 @@ from math import radians
 import subprocess
 
 # Blender imports
-import bpy  # pylint: disable=import-error
-import bmesh  # pylint: disable=import-error
-from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
-from bpy.props import EnumProperty  # noqa pylint: disable=import-error, no-name-in-module
+import bpy
+import bmesh
+from mathutils import Matrix, Vector, Quaternion
 
 # Internal imports
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
                                      bytes_to_int_2_10_10_10_rev)
 from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.material_node import create_material_node  # noqa pylint: disable=relative-beyond-top-level
 from .readers import (read_metadata, read_gstream, read_anim, read_entity,  # noqa pylint: disable=relative-beyond-top-level
                       read_mesh_binding_data)
@@ -75,9 +73,15 @@ class ImportScene():
         else:
             raise TypeError('Selected file is of the wrong format.')
 
+        # Annoyingly, some nodes may have the same name. As we traverse the
+        # tree in order we should be able to just have the index stored here
+        # and increment as needed.
+        self.name_clash_orders = dict()
+
         self.parent_obj = parent_obj
         self.ref_scenes = ref_scenes
         self.settings = settings
+        self.dep_graph = bpy.context.evaluated_depsgraph_get()
         # When scenes contain reference nodes there can be clashes with names.
         # To ensure correct parenting of objects in blender, we will keep track
         # of what objects exist within a scene as there will be no name clashes
@@ -122,11 +126,12 @@ class ImportScene():
         self.bind_matrices = dict()
 
         # change to render with cycles
-        self.scn.render.engine = 'CYCLES'
+        self.scn.render.engine = 'BLENDER_EEVEE'
 
         if not op.exists(exml_fpath):
-            retcode = subprocess.call(["MBINCompiler", '-q', fpath],
-                                      shell=True)
+            retcode = subprocess.call(
+                [self.scn.nmsdk_default_settings.MBINCompiler_path, "-q", "-Q",
+                 fpath])
             if retcode != 0:
                 print('MBINCompiler failed to run. Please ensure it is '
                       'registered on the path.')
@@ -140,16 +145,18 @@ class ImportScene():
         self.directory = op.dirname(self.scene_node_data.Name)
         # remove the name of the top level object
         self.scene_node_data.info['Name'] = None
-        self.geometry_file = op.join(
-            self.PCBANKS_dir,
-            self.scene_node_data.Attribute('GEOMETRY') + '.PC')
-        """
+        # Try and find the geometry file locally.
         self.geometry_file = op.join(
             self.local_directory,
             op.relpath(
                 self.scene_node_data.Attribute('GEOMETRY'),
                 self.directory) + '.PC')
-        """
+        # If this fails, try find it under the PCBANKS folder.
+        if not op.exists(self.geometry_file):
+            self.geometry_file = op.join(
+                self.PCBANKS_dir,
+                self.scene_node_data.Attribute('GEOMETRY') + '.PC')
+
         self.geometry_stream_file = self.geometry_file.replace('GEOMETRY',
                                                                'GEOMETRY.DATA')
 
@@ -158,23 +165,23 @@ class ImportScene():
             # Check to see if we have any mesh collision data
             f.seek(0x6C)
             self.CollisionIndexCount = struct.unpack('<I', f.read(0x4))[0]
+            # Determine if the index data is 16bit or 32 bit (2 or 4 bytes)
+            f.seek(0x68)
+            self.Indices16Bit = bool(struct.unpack('<I', f.read(0x4))[0])
+            f.seek(0x180)
+            list_offset, _ = read_list_header(f)
+            f.seek(list_offset, 1)
+            if self.Indices16Bit:
+                fmt = 'H'
+                self.index_stride = 2
+            else:
+                fmt = 'I'
+                self.index_stride = 4
             if self.CollisionIndexCount != 0:
-                # Determine if the index data is 16bit or 32 bit (2 or 4 bytes)
-                f.seek(0x68)
-                self.Indices16Bit = bool(struct.unpack('<I', f.read(0x4))[0])
-                f.seek(0x180)
-                list_offset, _ = read_list_header(f)
-                f.seek(list_offset, 1)
-                if self.Indices16Bit:
-                    fmt = 'H'
-                    mult = 2
-                else:
-                    fmt = 'I'
-                    mult = 4
                 # Read all the mesh index data into a single list
                 self.mesh_indexes = struct.unpack(
                     '<' + fmt * self.CollisionIndexCount,
-                    f.read(self.CollisionIndexCount * mult))
+                    f.read(self.CollisionIndexCount * self.index_stride))
             else:
                 self.mesh_indexes = list()
 
@@ -290,7 +297,7 @@ class ImportScene():
         """Render the specified mesh in the blender view. """
         obj = self.scene_node_data.get(mesh_ID)
         if obj.Type == 'MESH':
-            obj.metadata = self.mesh_metadata.get(mesh_ID.upper())
+            obj.metadata = self._handle_duplicate_mesh_names(mesh_ID.upper())
             self.load_mesh(obj)
             self._add_mesh_to_scene(obj, standalone=True)
         elif obj.Type == 'LOCATOR' or obj.Type == 'JOINT':
@@ -315,7 +322,14 @@ class ImportScene():
                     self.scn.nmsdk_anim_data.joints.append(obj.Name)
         for obj in self.scene_node_data.iter():
             if obj.Type == 'MESH':
-                obj.metadata = self.mesh_metadata.get(obj.Name.upper())
+                if obj.Name.upper() in self.mesh_metadata:
+                    obj.metadata = self._handle_duplicate_mesh_names(
+                        obj.Name.upper())
+                else:
+                    print('Failed to load {0}. Please make sure your scene '
+                          'file and geometry data are the same '
+                          'versions.'.format(obj.Name))
+                    continue
                 self.load_mesh(obj)
                 self._add_mesh_to_scene(obj)
             elif (obj.Type == 'LOCATOR' or obj.Type == 'JOINT'
@@ -333,7 +347,8 @@ class ImportScene():
         if self.mesh_binding_data is not None:
             self._add_armature_to_scene()
             armature = bpy.data.armatures[self.scene_basename]
-            self.scn.objects.active = bpy.data.objects['Armature']
+            bpy.context.view_layer.objects.active = bpy.data.objects[
+                'Armature']
             # Set the mode as edit mode so we can make edit_bones
             bpy.ops.object.mode_set(mode='EDIT')
             for joint in self.joints:
@@ -355,7 +370,7 @@ class ImportScene():
         """ Each joint will be added as an armature. """
         armature = bpy.data.armatures.new(self.scene_basename)
         obj = bpy.data.objects.new('Armature', armature)
-        self.scn.objects.link(obj)
+        self.scn.collection.objects.link(obj)
         obj.parent = self.local_objects[self.scene_basename]
 
     def _add_bone_to_scene(self, scene_node, armature):
@@ -425,9 +440,11 @@ class ImportScene():
             empty_obj = bpy.data.objects.new(self.scene_basename,
                                              empty_mesh)
             empty_obj.NMSNode_props.node_types = 'Reference'
+            empty_obj.NMSReference_props.reference_path = (
+                self.scene_name + '.SCENE.MBIN')
             empty_obj.matrix_world = ROT_MATRIX
-            self.scn.objects.link(empty_obj)
-            self.scn.objects.active = empty_obj
+            self.scn.collection.objects.link(empty_obj)
+            bpy.context.view_layer.objects.active = empty_obj
             bpy.ops.object.mode_set(mode='OBJECT')
             # check if the scene is proc-gen
             descriptor_name = self.scene_name + '.DESCRIPTOR.MBIN'
@@ -481,8 +498,8 @@ class ImportScene():
 
         # link the object then update the scene so that the above transforms
         # can be applied before we do the NMS -> blender scene rotation
-        self.scn.objects.link(empty_obj)
-        self.scn.update()
+        self.scn.collection.objects.link(empty_obj)
+        self.dep_graph.update()
 
         if scene_node.Type == 'REFERENCE':
             empty_obj.NMSReference_props.reference_path = scene_node.Attribute(
@@ -504,7 +521,7 @@ class ImportScene():
         name = scene_node.Name
 
         # Create a new light instance
-        light = bpy.data.lamps.new(name, 'POINT')
+        light = bpy.data.lights.new(name, 'POINT')
 
         # Apply a number of settings relating to the light
         light.color = (float(scene_node.Attribute('COL_R')),
@@ -551,12 +568,12 @@ class ImportScene():
 
         # link the object then update the scene so that the above transforms
         # can be applied before we do the NMS -> blender scene rotation
-        self.scn.objects.link(light_obj)
-        self.scn.update()
+        self.scn.collection.objects.link(light_obj)
+        self.dep_graph.update()
 
     def _add_mesh_collision_to_scene(self, scene_node):
         """ Adds the given collision node to the Blender scene. """
-        name = scene_node.Name + '_COLL'
+        name = op.basename(scene_node.Name) + '_COLL'
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(scene_node.bounded_hull,
                          scene_node.edges,
@@ -589,16 +606,17 @@ class ImportScene():
             # Direct child of loaded scene
             bh_obj.parent = self.local_objects[self.scene_basename]
 
+        self.scn.collection.objects.link(bh_obj)
+        self.local_objects[scene_node] = bh_obj
+
         if not self.settings['show_collisions']:
             # Only draw the collisions if they are wanted
-            bh_obj.hide = True
-
-        self.scn.objects.link(bh_obj)
-        self.local_objects[scene_node] = bh_obj
+            bh_obj.hide_set(True)
+        # Never show the object in the render.
         bh_obj.hide_render = True
 
     def _add_primitive_collision_to_scene(self, scene_node):
-        name = scene_node.Name + '_COLL'
+        name = op.basename(scene_node.Name) + '_COLL'
         mesh = bpy.data.meshes.new(name)
         coll_type = scene_node.Attribute('TYPE')
         bm = bmesh.new()
@@ -658,12 +676,13 @@ class ImportScene():
             # Direct child of loaded scene
             coll_obj.parent = self.local_objects[self.scene_basename]
 
+        self.scn.collection.objects.link(coll_obj)
+        self.local_objects[scene_node] = coll_obj
+
         if not self.settings['show_collisions']:
             # Only draw the collisions if they are wanted
-            coll_obj.hide = True
-
-        self.scn.objects.link(coll_obj)
-        self.local_objects[scene_node] = coll_obj
+            coll_obj.hide_set(True)
+        # never show the object in the render
         coll_obj.hide_render = True
 
     def _add_existing_to_scene(self):
@@ -673,7 +692,7 @@ class ImportScene():
         for obj in existing:
             new_obj = obj.copy()
             new_obj.parent = self.parent_obj
-            self.scn.objects.link(new_obj)
+            self.scn.collection.objects.link(new_obj)
 
     def _add_mesh_to_scene(self, scene_node, standalone=False):
         """ Adds the given scene node data to the Blender scene.
@@ -733,16 +752,16 @@ class ImportScene():
 
         # link the object then update the scene so that the above transforms
         # can be applied before we do the NMS -> blender scene rotation
-        self.scn.objects.link(mesh_obj)
-        self.scn.update()
+        self.scn.collection.objects.link(mesh_obj)
+        self.dep_graph.update()
 
         # ensure the newly created object is the active one in the scene
-        self.scn.objects.active = mesh_obj
+        bpy.context.view_layer.objects.active = mesh_obj
         mesh = mesh_obj.data
         # Add UV's
         bpy.ops.object.mode_set(mode='EDIT')
-        if not mesh.uv_textures:
-            mesh.uv_textures.new()
+        if not mesh.uv_layers:
+            mesh.uv_layers.new()
         bpy.ops.object.mode_set(mode='OBJECT')
 
         uvs = scene_node.verts[UVS]
@@ -761,7 +780,8 @@ class ImportScene():
                 colour = colours[loop.vertex_index]
                 colour_loops[idx].color = (colour[0]/255,
                                            colour[1]/255,
-                                           colour[2]/255)
+                                           colour[2]/255,
+                                           0)
 
         # Add vertexes to mesh groups
         if self.mesh_binding_data is not None:
@@ -805,16 +825,17 @@ class ImportScene():
             mesh = bpy.data.meshes.new(name)
             mesh.from_pydata(scene_node.bounded_hull, [], [])
             bh_obj = bpy.data.objects.new(name, mesh)
-            # Don't show the bounded hull
-            bh_obj.hide = True
             bh_obj.parent = mesh_obj
-            self.scn.objects.link(bh_obj)
+            self.scn.collection.objects.link(bh_obj)
+            # Don't show the bounded hull
+            bh_obj.hide_set(True)
+            bh_obj.hide_render = True
 
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """
         for obj in bpy.data.objects:
             # Don't remove the camera or lamp objects
-            if obj.name not in ['Camera', 'Lamp']:
+            if obj.name not in ['Camera', 'Light']:
                 print('removing {0}'.format(obj.name))
                 bpy.data.objects.remove(obj)
         for mesh in bpy.data.meshes:
@@ -857,7 +878,8 @@ class ImportScene():
             err = ("An error has ocurred. Here is the object information:\n" +
                    "Mesh name: {0}\n".format(mesh.Name) +
                    "Mesh indexes: {0}\n".format(idx_count) +
-                   "Mesh metadata: {0}\n".format(mesh.metadata))
+                   "Mesh metadata: {0}\n".format(mesh.metadata) +
+                   "In geomtry file: {0}".format(self.geometry_file))
             raise ValueError(err)
         with open(self.geometry_stream_file, 'rb') as f:
             f.seek(mesh.metadata.idx_off)
@@ -931,7 +953,8 @@ class ImportScene():
                     # remove it from the list so that it isn't loaded
                     if anim_name in _loadable_anim_data:
                         del _loadable_anim_data[anim_name]
-                        del local_anims[anim_name]
+                        if anim_name in local_anims:
+                            del local_anims[anim_name]
             else:
                 fpath = op.join(mod_dir, anim_data['Filename'])
                 _loadable_anim_data[anim_name]['Filename'] = fpath
@@ -952,6 +975,33 @@ class ImportScene():
         except ValueError:
             return None
 
+    def _handle_duplicate_mesh_names(self, node_name):
+        """ Very rarely, multiple nodes in a scene can have the same name
+        differing only by case. In this case we cannot simply do a look up
+        of the mesh metadata as there will be multiple values for the metadata.
+        We have to crossreference the metadata to the SceneNodeData and see
+        which matches.
+
+        Parameters:
+        -----------
+        node_name : str
+            The UPPER-ified node name.
+
+        Returns:
+        --------
+        mesh_metadata : namedTuple
+            The appropriate mesh metadata for the scene node.
+        """
+        mesh_metadata = self.mesh_metadata.get(node_name)
+        if isinstance(mesh_metadata, list):
+            if node_name not in self.name_clash_orders:
+                self.name_clash_orders[node_name] = 0
+            else:
+                self.name_clash_orders[node_name] += 1
+            return mesh_metadata[self.name_clash_orders[node_name]]
+        else:
+            return mesh_metadata
+
     def _load_bounded_hulls(self):
         """ Load the bounded hull data. """
         with open(self.geometry_file, 'rb') as f:
@@ -964,7 +1014,6 @@ class ImportScene():
                 f.seek(0x4, 1)
 
     def _load_mesh(self, mesh):
-        # TODO: remove??? I don't think this does anything any more...
         """ Load the mesh data from the geometry stream file."""
         mesh.raw_verts, mesh.raw_idxs = read_gstream(self.geometry_stream_file,
                                                      mesh.metadata)

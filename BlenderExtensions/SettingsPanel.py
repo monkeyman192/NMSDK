@@ -1,11 +1,12 @@
 import bpy
+from bpy.utils import register_class, unregister_class
 
 
-class UpdateSettingsPanel(bpy.types.Panel):
-    bl_idname = 'UpdateSettingsPanel'
+class NMSDK_PT_UpdateSettingsPanel(bpy.types.Panel):
+    bl_idname = 'NMSDK_PT_UpdateSettingsPanel'
     bl_label = 'Update Tools'
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
     bl_category = 'NMSDK'
     bl_context = 'objectmode'
 
@@ -19,11 +20,11 @@ class UpdateSettingsPanel(bpy.types.Panel):
         layout.operator("nmsdk._fix_action_names")
 
 
-class ToolsPanel(bpy.types.Panel):
-    bl_idname = 'ToolsPanel'
+class NMSDK_PT_ToolsPanel(bpy.types.Panel):
+    bl_idname = 'NMSDK_PT_ToolsPanel'
     bl_label = 'Scene Tools'
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
     bl_category = 'NMSDK'
     bl_context = 'objectmode'
 
@@ -37,19 +38,19 @@ class ToolsPanel(bpy.types.Panel):
         layout = self.layout
         if coll_visibility:
             label = "Collisions: Visible"
-            icon = "VISIBLE_IPO_ON"
+            icon = "HIDE_ON"
         else:
             label = "Collisions: Not Visible"
-            icon = "VISIBLE_IPO_OFF"
+            icon = "HIDE_OFF"
         layout.operator("nmsdk._toggle_collision_visibility",
                         icon=icon, text=label)
 
 
-class DefaultsPanel(bpy.types.Panel):
-    bl_idname = 'DefaultsPanel'
+class NMSDK_PT_DefaultsPanel(bpy.types.Panel):
+    bl_idname = 'NMSDK_PT_DefaultsPanel'
     bl_label = 'Default Values'
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
     bl_category = 'NMSDK'
     bl_context = 'objectmode'
 
@@ -62,22 +63,35 @@ class DefaultsPanel(bpy.types.Panel):
         layout = self.layout
         layout.prop(default_settings, 'export_directory')
         layout.prop(default_settings, 'group_name')
-        row = layout.split(percentage=0.85, align=True)
+        row = layout.split(factor=0.85, align=True)
         row.alignment = 'LEFT'
         row.operator("nmsdk._find_pcbanks", icon='ZOOM_ALL',
                      text='PCBANKS location')
         row.separator()
         row.operator('nmsdk._remove_pcbanks',
                      icon='X', emboss=False, text=" ")
-        layout.operator("nmsdk._save_default_settings", icon='SAVE_PREFS',
+        _dir = context.scene.nmsdk_default_settings.PCBANKS_directory
+        if _dir != "":
+            layout.label(text=_dir)
+        row = layout.split(factor=0.85, align=True)
+        row.alignment = 'LEFT'
+        row.operator("nmsdk._find_mbincompiler", icon='ZOOM_ALL',
+                     text='MBINCompiler location')
+        row.separator()
+        row.operator('nmsdk._remove_mbincompiler',
+                     icon='X', emboss=False, text=" ")
+        _dir = context.scene.nmsdk_default_settings.MBINCompiler_path
+        if _dir != "":
+            layout.label(text=_dir)
+        layout.operator("nmsdk._save_default_settings", icon='FILE_TICK',
                         text='Save settings')
 
 
-class AnimationsPanel(bpy.types.Panel):
-    bl_idname = 'AnimationsPanel'
+class NMSDK_PT_AnimationsPanel(bpy.types.Panel):
+    bl_idname = 'NMSDK_PT_AnimationsPanel'
     bl_label = 'Animation controls'
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
     bl_category = 'NMSDK'
     bl_context = 'objectmode'
 
@@ -129,20 +143,22 @@ class AnimationsPanel(bpy.types.Panel):
                                text=context.scene.nmsdk_anim_data.idle_anim)
 
 
+classes = (NMSDK_PT_UpdateSettingsPanel,
+           NMSDK_PT_ToolsPanel,
+           NMSDK_PT_DefaultsPanel,
+           NMSDK_PT_AnimationsPanel)
+
+
 class SettingsPanels():
 
     @staticmethod
     def register():
         # Register panels
-        bpy.utils.register_class(UpdateSettingsPanel)
-        bpy.utils.register_class(ToolsPanel)
-        bpy.utils.register_class(DefaultsPanel)
-        bpy.utils.register_class(AnimationsPanel)
+        for cls in classes:
+            register_class(cls)
 
     @staticmethod
     def unregister():
         # Unregister panels
-        bpy.utils.unregister_class(UpdateSettingsPanel)
-        bpy.utils.unregister_class(ToolsPanel)
-        bpy.utils.unregister_class(DefaultsPanel)
-        bpy.utils.unregister_class(AnimationsPanel)
+        for cls in reversed(classes):
+            unregister_class(cls)

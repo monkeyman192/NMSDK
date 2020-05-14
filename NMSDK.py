@@ -1,17 +1,18 @@
 # stdlib imports
 import os.path as op
 
-from bpy.props import (StringProperty, BoolProperty, EnumProperty,  # noqa pylint: disable=import-error, no-name-in-module
-                       IntProperty)
-import bpy   # pylint: disable=import-error
-from bpy_extras.io_utils import ExportHelper, ImportHelper  # noqa pylint: disable=import-error
-from bpy.types import Operator, PropertyGroup  # noqa pylint: disable=import-error, no-name-in-module
+# Blender imports
+from bpy.props import (StringProperty, BoolProperty, EnumProperty, IntProperty)
+import bpy
+from bpy_extras.io_utils import ExportHelper, ImportHelper
+from bpy.types import Operator, PropertyGroup
 
 # internal imports
 from .ModelImporter.import_scene import ImportScene
 from .ModelExporter.addon_script import Exporter
 from .ModelExporter.utils import get_all_actions_in_scene, get_all_actions
 from .utils.settings import read_settings, write_settings
+from .BlenderExtensions.UIWidgets import ShowMessageBox
 
 
 # Operators to be used for the public API
@@ -22,34 +23,34 @@ class ImportSceneOperator(Operator):
     bl_idname = "nmsdk.import_scene"
     bl_label = "Import NMS Scene file"
 
-    path = StringProperty(default="")
+    path: StringProperty(default="")
 
-    clear_scene = BoolProperty(
+    clear_scene: BoolProperty(
         name='Clear scene',
         description='Whether or not to clear the currently exiting scene in '
                     'blender.',
         default=True)
 
-    draw_hulls = BoolProperty(
+    draw_hulls: BoolProperty(
         name='Draw bounded hulls',
         description='Whether or not to draw the points that make up the '
                     'bounded hulls of the materials. This is only for research'
                     '/debugging, so can safely be left as False.',
         default=False)
-    import_collisions = BoolProperty(
+    import_collisions: BoolProperty(
         name='Import collisions',
         description='Whether or not to import the collision objects.',
         default=True)
-    show_collisions = BoolProperty(
+    show_collisions: BoolProperty(
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
     # Animation related properties
-    import_bones = BoolProperty(
+    import_bones: BoolProperty(
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
-    max_anims = IntProperty(
+    max_anims: IntProperty(
         name='Max loaded animations',
         description='Maximum number of animations to load',
         default=10,
@@ -69,8 +70,8 @@ class ImportMeshOperator(Operator):
     bl_idname = "nmsdk.import_mesh"
     bl_label = "Import NMS meshes"
 
-    path = StringProperty(default="")
-    mesh_id = StringProperty(default="")
+    path: StringProperty(default="")
+    mesh_id: StringProperty(default="")
 
     def execute(self, context):
         importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict())
@@ -85,36 +86,36 @@ class ExportSceneOperator(Operator):
     bl_idname = "nmsdk.export_scene"
     bl_label = "Export to NMS scene"
 
-    output_directory = StringProperty(
+    output_directory: StringProperty(
         name="Output Directory",
         description="The directory the exported data is to be placed in.")
-    export_directory = StringProperty(
+    export_directory: StringProperty(
         name="Export Directory",
         description="The base path relative to the PCBANKS folder under which "
                     "all models will be exported.",
         default="CUSTOMMODELS")
-    group_name = StringProperty(
+    group_name: StringProperty(
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes "
                     "group_name/scene_name).")
-    scene_name = StringProperty(
+    scene_name: StringProperty(
         name="Scene Name",
         description="Name of the scene to be exported.")
-    AT_only = BoolProperty(
+    AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
                     "be exported directly to an ENTITY file in the specified "
                     "location with the project name. Anything else in the "
                     "project is ignored",
         default=False)
-    no_vert_colours = BoolProperty(
+    no_vert_colours: BoolProperty(
         name="Don't export vertex colours",
         description="Ticking this box will force vertex colours to not be "
                     "exported. Use this if you have accidentally added vertex "
                     "colours to a mesh and don't know how to get rid of them.",
         default=False)
-    idle_anim = StringProperty(
+    idle_anim: StringProperty(
         name="Idle animation name",
         description="The name of the animation that is the idle animation.")
 
@@ -136,7 +137,7 @@ class ExportSceneOperator(Operator):
 
 
 class _FixActionNames(Operator):
-    """Change the type of node an object has"""
+    """Fix any incorrect action names."""
     bl_idname = "nmsdk._fix_action_names"
     bl_label = "Fix any incorrect action names"
 
@@ -188,7 +189,7 @@ class _ToggleCollisionVisibility(Operator):
         # value specified by the `show_collisions` button.
         for obj in bpy.context.scene.objects:
             if obj.NMSNode_props.node_types == 'Collision':
-                obj.hide = not nmsdk_settings.show_collisions
+                obj.hide_set(not nmsdk_settings.show_collisions)
         return {'FINISHED'}
 
 
@@ -200,19 +201,24 @@ class _SaveDefaultSettings(Operator):
     def execute(self, context):
         default_settings = context.scene.nmsdk_default_settings
         default_settings.save()
+        # TODO: spawn a new thread which can display this then un-display it
+        # after some time...
+        # bpy.types.WorkSpace.status_text_set(text="Settings saved")
         return {'FINISHED'}
 
 
 class _GetPCBANKSFolder(Operator):
-    """Create a popup to get the PCBANKS folder location"""
+    """Select the PCBANKS folder location"""
     # Code modified from https://blender.stackexchange.com/a/126596
     bl_idname = "nmsdk._find_pcbanks"
     bl_label = "Specify PCBANKS location"
 
     # Define this to tell 'fileselect_add' that we want a directoy
-    directory = bpy.props.StringProperty(
+    directory: StringProperty(
         name="PCBANKS path",
         description="Location of the PCBANKS folder")
+
+    filter_folder: BoolProperty(default=True, options={'HIDDEN'})
 
     def execute(self, context):
         # Set the PCBANKS_directory value
@@ -222,7 +228,9 @@ class _GetPCBANKSFolder(Operator):
     def invoke(self, context, event):
         # Open browser, take reference to 'self' read the path to selected
         # file, put path in predetermined self fields.
-        # See: https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add  # noqa
+        # See:
+        # https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add
+        self.directory = context.scene.nmsdk_default_settings.PCBANKS_directory
         context.window_manager.fileselect_add(self)
         # Tells Blender to hang on for the slow user input
         return {'RUNNING_MODAL'}
@@ -236,6 +244,46 @@ class _RemovePCBANKSFolder(Operator):
     def execute(self, context):
         # Set the PCBANKS_directory as blank
         context.scene.nmsdk_default_settings.PCBANKS_directory = ""
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+
+class _GetMBINCompilerLocation(Operator):
+    """Select the MBINCompiler executable location"""
+    # Code modified from https://blender.stackexchange.com/a/126596
+    bl_idname = "nmsdk._find_mbincompiler"
+    bl_label = "Specify MBINCompiler location"
+
+    filepath: StringProperty(
+        name="MBINCompiler Location",
+        description="Location of the MBINCompiler executable")
+
+    def execute(self, context):
+        # Set the PCBANKS_directory value
+        context.scene.nmsdk_default_settings.MBINCompiler_path = self.filepath
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        # Open browser, take reference to 'self' read the path to selected
+        # file, put path in predetermined self fields.
+        # See:
+        # https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add
+        self.directory = context.scene.nmsdk_default_settings.MBINCompiler_path
+        context.window_manager.fileselect_add(self)
+        # Tells Blender to hang on for the slow user input
+        return {'RUNNING_MODAL'}
+
+
+class _RemoveMBINCompilerLocation(Operator):
+    """Reset the PCBANKS folder location."""
+    bl_idname = "nmsdk._remove_mbincompiler"
+    bl_label = "Remove MBINCompiler location"
+
+    def execute(self, context):
+        # Set the PCBANKS_directory as blank
+        context.scene.nmsdk_default_settings.MBINCompiler_path = ""
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -275,15 +323,15 @@ def get_anim_names_not_none(self, context):
 
 
 class AnimProperties(PropertyGroup):
-    anims_loaded = BoolProperty(
+    anims_loaded: BoolProperty(
         name='Animations loaded',
         description='Whether the animations are loaded or not',
         default=True)
-    has_bound_mesh = BoolProperty(
+    has_bound_mesh: BoolProperty(
         name='Has bound mesh',
         description='Whether or not the mesh of the object is bound to bones',
         default=False)
-    idle_anim = EnumProperty(
+    idle_anim: EnumProperty(
         name='Idle animation',
         description='Animation that is played idly',
         items=get_anim_names_not_none)
@@ -329,7 +377,7 @@ class _LoadAnimation(Operator):
     bl_idname = "nmsdk._load_animation"
     bl_label = "Load Animation"
 
-    loadable_anim_name = EnumProperty(
+    loadable_anim_name: EnumProperty(
         name='Available animations',
         description='List of all available animations for the scene',
         items=get_loaded_anim_names)
@@ -342,6 +390,8 @@ class _LoadAnimation(Operator):
         bpy.ops.nmsdk.animation_handler(
             anim_name=anim_name,
             anim_path=anim_data['Filename'])
+        # Set the current animation as the one we just selected
+        bpy.ops.nmsdk._change_animation(anim_names=anim_name)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -353,7 +403,7 @@ class _ChangeAnimation(Operator):
     bl_idname = "nmsdk._change_animation"
     bl_label = "Change Animation"
 
-    anim_names = EnumProperty(
+    anim_names: EnumProperty(
         name='Available animations',
         description='List of all available animations for the scene',
         items=get_anim_names)
@@ -445,7 +495,7 @@ class _StopAnimation(Operator):
 
 
 class NMSDKSettings(PropertyGroup):
-    show_collisions = BoolProperty(
+    show_collisions: BoolProperty(
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
@@ -459,24 +509,29 @@ class NMSDKDefaultSettings(PropertyGroup):
 
     default_settings = read_settings()
 
-    export_directory = StringProperty(
+    export_directory: StringProperty(
         name="Export Directory",
         description="The base path under which all models will be exported.",
-        default=default_settings['export_directory'])
-    group_name = StringProperty(
+        default=default_settings.get('export_directory', ""))
+    group_name: StringProperty(
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)",
-        default=default_settings['group_name'])
-    PCBANKS_directory = StringProperty(
+        default=default_settings.get('group_name', ""))
+    PCBANKS_directory: StringProperty(
         name="PCBANKS directory",
         description="Path to the PCBANKS folder",
-        default="")
+        default=default_settings.get('PCBANKS_directory', ""))
+    MBINCompiler_path: StringProperty(
+        name="MBINCompiler location",
+        description="Path to the Mbincompiler executable",
+        default=default_settings.get('MBINCompiler_path', ""))
 
     def save(self):
         """ Save the current settings. """
         settings = {'export_directory': self.export_directory,
-                    'group_name': self.group_name}
+                    'group_name': self.group_name,
+                    'PCBANKS_directory': self.PCBANKS_directory}
         write_settings(settings)
 
 
@@ -489,29 +544,29 @@ class NMS_Export_Operator(Operator, ExportHelper):
     bl_idname = "export_mesh.nms"
     bl_label = "Export to NMS XML Format"
 
-    export_directory = StringProperty(
+    export_directory: StringProperty(
         name="Export Directory",
         description="The base path relative to the PCBANKS folder under which "
                     "all models will be exported.",
         default="CUSTOMMODELS")
-    group_name = StringProperty(
+    group_name: StringProperty(
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)")
-    AT_only = BoolProperty(
+    AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
                     "be exported directly to an ENTITY file in the specified "
                     "location with the project name. Anything else in the "
                     "project is ignored",
         default=False)
-    no_vert_colours = BoolProperty(
+    no_vert_colours: BoolProperty(
         name="Don't export vertex colours",
         description="Ticking this box will force vertex colours to not be "
                     "exported. Use this if you have accidentally added vertex "
                     "colours to a mesh and don't know how to get rid of them.",
         default=False)
-    idle_anim = StringProperty(
+    idle_anim: StringProperty(
         name="Idle animation name",
         description="The name of the animation that is the idle animation.")
 
@@ -538,6 +593,11 @@ class NMS_Export_Operator(Operator, ExportHelper):
         export_path, scene_name = op.split(self.filepath)
         keywords.pop('export_directory')
         keywords.pop('group_name')
+        if not bpy.context.scene.nmsdk_default_settings.MBINCompiler_path:
+            ShowMessageBox("No MBINCompiler specified or found", "Error",
+                           'ERROR')
+            print("[ERROR]: No MBINCompiler specified or found")
+            return {'CANCELLED'}
         main_exporter = Exporter(export_path, self.export_directory,
                                  self.group_name, scene_name, keywords)
         status = main_exporter.state
@@ -554,33 +614,36 @@ class NMS_Import_Operator(Operator, ImportHelper):
 
     # ExportHelper mixin class uses this
     filename_ext = ".EXML"
+    filter_glob: StringProperty(
+        default="*.scene.exml;*.SCENE.EXML;*.scene.mbin;*.SCENE.MBIN",
+        options={"HIDDEN"})
 
-    clear_scene = BoolProperty(
+    clear_scene: BoolProperty(
         name='Clear scene',
         description='Whether or not to clear the currently exiting scene in '
                     'blender.',
         default=True)
 
-    draw_hulls = BoolProperty(
+    draw_hulls: BoolProperty(
         name='Draw bounded hulls',
         description='Whether or not to draw the points that make up the '
                     'bounded hulls of the materials. This is only for research'
                     '/debugging, so can safely be left as False.',
         default=False)
-    import_collisions = BoolProperty(
+    import_collisions: BoolProperty(
         name='Import collisions',
         description='Whether or not to import the collision objects.',
         default=True)
-    show_collisions = BoolProperty(
+    show_collisions: BoolProperty(
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
     # Animation related properties
-    import_bones = BoolProperty(
+    import_bones: BoolProperty(
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
-    max_anims = IntProperty(
+    max_anims: IntProperty(
         name='Max loaded animations',
         description='Maximum number of animations to load. To Disable loading '
                     'animations set this to 0, or to force loading all set '
@@ -593,11 +656,11 @@ class NMS_Import_Operator(Operator, ImportHelper):
         layout.prop(self, 'draw_hulls')
         layout.prop(self, 'clear_scene')
         coll_box = layout.box()
-        coll_box.label('Collisions')
+        coll_box.label(text='Collisions')
         coll_box.prop(self, 'import_collisions')
         coll_box.prop(self, 'show_collisions')
         animation_box = layout.box()
-        animation_box.label('Animation')
+        animation_box.label(text='Animation')
         animation_box.prop(self, 'import_bones')
         animation_box.prop(self, 'max_anims')
 
@@ -611,6 +674,11 @@ class NMS_Import_Operator(Operator, ImportHelper):
         fdir = self.properties.filepath
         context.scene['_anim_names'] = ['None']
         print(fdir)
+        if not bpy.context.scene.nmsdk_default_settings.MBINCompiler_path:
+            ShowMessageBox("No MBINCompiler specified or found", "Error",
+                           'ERROR')
+            print("[ERROR]: No MBINCompiler specified or found")
+            return {'CANCELLED'}
         importer = ImportScene(fdir, parent_obj=None, ref_scenes=dict(),
                                settings=keywords)
         importer.render_scene()

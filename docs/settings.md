@@ -26,9 +26,12 @@ The current default values that can be set are:
   This is the name of the subfolder of the Export Directory where the scene and all other files will be written to. If this is empty it will default to the name of the scene.
 
 The above two settings mean that your exported filepath will be `<Export Directory>/<Group Name>`.
+Note that `<Export Directory>` should be the path relative to the PCBANKS folder you want your model to be. So for example if you wanted the full path of the scene file to be (relative to the PCBANKS folder) `USERNAMESMODELS/TESTMODELS/CUBETEST/ROTATINGCUBE.SCENE.MBIN`, then you would set `Export Directory` as `USERNAMESMODELS/TESTMODELS`, `Group Name` as `CUBETEST`, and the name of the `NMS_SCENE` reference node as `ROTATINGCUBE`.
 
  - PCBANKS location:
-  The location of the PCBANKS folder. This only needs to be set for importing scenes that do not lie in an unpacked directory with all the other geometry etc files. **[Not saved]**
+  The location of the PCBANKS folder. This only needs to be set for importing scenes that do not lie in an unpacked directory with all the other geometry etc files.
+ - MBINCompiler location:
+  The location of the MBINCompiler executable to be used to import and export scene files. If you have registered MBINCompiler to your system path then the location will be picked up automatically. If not, you will get a message when attempting to import or export something that you need to set the path.
 
 ## Animation controls:
 

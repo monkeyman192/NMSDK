@@ -1,6 +1,7 @@
 # NMSString0x10 struct
 
 from .Struct import Struct
+from .String import String
 
 
 class NMSString0x10(Struct):

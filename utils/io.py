@@ -1,6 +1,10 @@
+# stdlib imports
+import os
 import os.path as op
 from pathlib import Path
-import bpy  # pylint: disable=import-error
+
+# Blender imports
+import bpy
 
 
 def get_NMS_dir(fpath):
@@ -24,6 +28,18 @@ def get_NMS_dir(fpath):
                 # Cache the PCBANKS folder
                 bpy.context.scene.nmsdk_default_settings.PCBANKS_directory = str(parent)  # noqa
                 return str(parent)
+
+
+def get_MBINCompiler_path():
+    """ Return the location of the MBINCompiler exe if it is registered on the
+    path. """
+    _path = ''
+    for p in os.environ['PATH'].split(';'):
+        test_path = op.join(p, 'MBINCompiler.exe')
+        if op.exists(test_path):
+            _path = test_path
+            break
+    return _path
 
 
 def realize_path(fpath):

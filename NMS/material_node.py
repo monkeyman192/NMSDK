@@ -1,4 +1,5 @@
 import bpy
+from mathutils import Vector
 
 import os.path as op
 
@@ -24,6 +25,12 @@ def create_material_node(mat_path, material_cache):
 
     # Since we are using cycles we want to have node-based materials
     mat.use_nodes = True
+
+    # Add some material settings:
+    CastShadow = mat_data['CastShadow']
+    if CastShadow:
+        mat.shadow_method = 'OPAQUE'
+
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     # clear any existing nodes just to be safe.
@@ -39,8 +46,10 @@ def create_material_node(mat_path, material_cache):
     # Set up some constants
     if 61 in mat_data['Flags']:
         kfAlphaThreshold = 0.1
+        kfAlphaThresholdMax = 0.5
     elif 10 in mat_data['Flags']:
         kfAlphaThreshold = 0.45
+        kfAlphaThresholdMax = 0.8
     else:
         kfAlphaThreshold = 0.0001
 
@@ -51,6 +60,9 @@ def create_material_node(mat_path, material_cache):
         rgb_input.outputs[0].default_value[2] = uniforms['gMaterialColourVec4'][2]  # noqa
         rgb_input.outputs[0].default_value[3] = uniforms['gMaterialColourVec4'][3]  # noqa
         lColourVec4 = rgb_input.outputs['Color']
+
+    # TODO: restructure all this to be as similar to the actual shaders as
+    # possible
 
     # create the diffuse, mask and normal nodes and give them their images
     for tex_type, tex_path in mat_data['Samplers'].items():
@@ -104,19 +116,22 @@ def create_material_node(mat_path, material_cache):
             _path = realize_path(tex_path)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
+                img.colorspace_settings.name = 'XYZ'
             mask_texture = nodes.new(type='ShaderNodeTexImage')
             mask_texture.name = mask_texture.label = 'Texture Image - Mask'
             mask_texture.image = img
-            mask_texture.location = (-600, 0)
-            mask_texture.color_space = 'NONE'
+            mask_texture.location = (-700, 0)
+            lfRoughness = None
+            # RGB separation node
+            separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
+            separate_rgb.location = (-400, 0)
+            links.new(separate_rgb.inputs['Image'],
+                      mask_texture.outputs['Color'])
             if 43 not in mat_data['Flags']:
                 # #ifndef _F44_IMPOSTER
                 if 24 in mat_data['Flags']:
                     # #ifdef _F25_ROUGHNESS_MASK
                     # lfRoughness = 1 - lMasks.g
-                    # RGB separation node
-                    separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
-                    separate_rgb.location = (-400, 0)
                     # subtract the green channel from 1:
                     sub_1 = nodes.new(type="ShaderNodeMath")
                     sub_1.operation = 'SUBTRACT'
@@ -124,8 +139,6 @@ def create_material_node(mat_path, material_cache):
                     sub_1.inputs[0].default_value = 1.0
                     lfRoughness = sub_1.outputs['Value']
                     # link them up
-                    links.new(separate_rgb.inputs['Image'],
-                              mask_texture.outputs['Color'])
                     links.new(sub_1.inputs[1], separate_rgb.outputs['G'])
                 else:
                     roughness_value = nodes.new(type='ShaderNodeValue')
@@ -138,11 +151,14 @@ def create_material_node(mat_path, material_cache):
                     'gMaterialParamsVec4'][0]
                 links.new(mult_param_x.inputs[0], lfRoughness)
                 lfRoughness = mult_param_x.outputs['Value']
-            links.new(principled_BSDF.inputs['Roughness'],
-                      lfRoughness)
+            if lfRoughness is not None:
+                links.new(principled_BSDF.inputs['Roughness'],
+                          lfRoughness)
+            # If the roughness wasn't ever defined then the default value is 1
+            # which is what blender has as the default anyway
 
             # gMaterialParamsVec4.x
-            # from shader: #ifdef _F40_SUBSURFACE_MASK
+            # #ifdef _F40_SUBSURFACE_MASK
             if 39 in mat_data['Flags']:
                 links.new(principled_BSDF.inputs['Subsurface'],
                           separate_rgb.outputs['R'])
@@ -156,11 +172,11 @@ def create_material_node(mat_path, material_cache):
             _path = realize_path(tex_path)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
+                img.colorspace_settings.name = 'XYZ'
             normal_texture = nodes.new(type='ShaderNodeTexImage')
             normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
             normal_texture.image = img
-            normal_texture.location = (-600, -300)
-            normal_texture.color_space = 'NONE'
+            normal_texture.location = (-700, -300)
             # separate xyz then recombine
             normal_sep_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
             normal_sep_xyz.location = (-400, -300)
@@ -190,10 +206,10 @@ def create_material_node(mat_path, material_cache):
                 normal_scale = nodes.new(type='ShaderNodeMapping')
                 normal_scale.location = (-1000, -300)
                 scale = uniforms['gCustomParams01Vec4'][2]
-                normal_scale.scale = (scale, scale, scale)
+                normal_scale.inputs['Scale'].default_value = Vector((scale, scale, scale))  # noqa
                 tex_coord = nodes.new(type='ShaderNodeTexCoord')
                 tex_coord.location = (-1200, -300)
-                tex_coord.object = bpy.context.scene.objects.active
+                tex_coord.object = bpy.context.active_object
                 links.new(normal_scale.inputs['Vector'],
                           tex_coord.outputs['Generated'])
                 links.new(normal_texture.inputs['Vector'],
@@ -227,11 +243,25 @@ def create_material_node(mat_path, material_cache):
             discard_node = nodes.new(type="ShaderNodeMath")
             discard_node.operation = 'LESS_THAN'
             discard_node.inputs[1].default_value = kfAlphaThreshold
+            lColourVec4_a = diffuse_texture.outputs['Alpha']
 
-            links.new(discard_node.inputs[0],
-                      diffuse_texture.outputs['Alpha'])
-            links.new(alpha_mix.inputs['Fac'],
-                      discard_node.outputs['Value'])
+            links.new(discard_node.inputs[0], lColourVec4_a)
+            lColourVec4_a = discard_node.outputs['Value']
+
+            if 10 in mat_data['Flags']:
+                clamp_node = nodes.new(type='ShaderNodeClamp')
+                clamp_node.clamp_type = 'RANGE'
+                clamp_node.location = (500, -300)
+                clamp_node.inputs['Min'].default_value = kfAlphaThreshold
+                clamp_node.inputs['Max'].default_value = kfAlphaThresholdMax
+
+                links.new(clamp_node.inputs['Value'], lColourVec4_a)
+                lColourVec4_a = clamp_node.outputs['Result']
+
+            links.new(alpha_mix.inputs['Fac'], lColourVec4_a)
+            # If the material has any transparency we want to specify this in
+            # the material
+            mat.blend_method = 'BLEND'
         else:
             # if there isn't we will use the material colour as the base
             # colour of the transparency shader
@@ -268,8 +298,10 @@ def create_material_node(mat_path, material_cache):
               FRAGMENT_COLOUR0)
 
     # link some nodes up according to the uberfragment.bin shader
-    if 6 in mat_data['Flags']:
-        mat.use_shadeless = True
+    # TODO: fix this at some point...
+    # https://blender.stackexchange.com/questions/21533/totally-white-shadeless-material-in-cycles
+    # if 6 in mat_data['Flags']:
+    #    mat.use_shadeless = True
     material_cache[mat_path] = mat
 
     return mat

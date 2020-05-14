@@ -20,7 +20,7 @@ Old format scenes in blender can be updated to the new format by simply pressing
 
 ## Setting up
 
-NMSDK uses a consistent node setup for both imported and exported scenes to allow the `import > modify > export` workflow to be as seamless as possible.
+NMSDK uses a consistent node setup for both imported and exported scenes to allow the `import > modify > export` workflow to be as seamless as possible in the future.
 Because of this, the `Reference` node type is given a special place.
 Putting it simply, the `Reference` node type is used to denote a scene that is to be exported.
 `Reference` nodes can either be at the top level of a scene (to indicate that you have multiple scenes to be exported that are potentially unrelated to each other), or nested within a scene (to indicate that the sub-scene may be referenced by other scenes).

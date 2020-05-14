@@ -1,21 +1,19 @@
 import subprocess
-import os
 import os.path as op
 import pytest
 
 
-PLUGIN_PATH = os.getcwd()
-TESTS_PATH = 'tests\\import_tests'
+SELF_DIR = op.dirname(__file__)
+BLENDER_PATH = op.realpath(op.join(SELF_DIR, '../../../../../../blender.exe'))
 
-CRYSTAL_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH, 'import_crystal.py')
-MISPLACED_CRYSTAL_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH,
-                                      'import_misplaced_crystal.py')
-BAD_IMPORT_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH, 'import_bad.py')
-SMALLPROPA_TEST_PATH = op.join(PLUGIN_PATH, TESTS_PATH, 'import_smallpropa.py')
+CRYSTAL_TEST_PATH = op.join(SELF_DIR, 'import_crystal.py')
+MISPLACED_CRYSTAL_TEST_PATH = op.join(SELF_DIR, 'import_misplaced_crystal.py')
+BAD_IMPORT_TEST_PATH = op.join(SELF_DIR, 'import_bad.py')
+SMALLPROPA_TEST_PATH = op.join(SELF_DIR, 'import_smallpropa.py')
 
 
 def run_test(test_path):
-    proc = subprocess.Popen(['blender', '-b', '-noaudio',
+    proc = subprocess.Popen([BLENDER_PATH, '-b', '-noaudio',
                              '--python', test_path],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)

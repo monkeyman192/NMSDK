@@ -6,6 +6,8 @@ At the moment the functionality is still in beta and has many issues, primarily 
 
 Importing scenes from the game is simple. An option can be found in the `Import` drop-down menu found by selecting `File` > `Import`
 
+Note: The format the scene is imported in as isn't guaranteed to be perfectly exportable (sorry!). This functionality will come in the future.
+
 ![importing](../../images/import.png)
 
 This will open up a file selection dialog which lets you select the scene you wish to import.

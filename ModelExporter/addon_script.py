@@ -2,10 +2,10 @@
 import os.path as op
 from math import radians, degrees
 # blender imports
-import bpy  # pylint: disable=import-error
-import bmesh  # pylint: disable=import-error
-from idprop.types import IDPropertyGroup  # pylint: disable=import-error
-from mathutils import Matrix, Vector  # pylint: disable=import-error
+import bpy
+import bmesh
+from idprop.types import IDPropertyGroup
+from mathutils import Matrix, Vector
 # Internal imports
 from ..utils.misc import CompareMatrices, get_obj_name
 from .utils import apply_local_transform, transform_to_NMS_coords
@@ -422,7 +422,7 @@ class Exporter():
 
     # Main Mesh parser
     def mesh_parser(self, ob):
-        self.global_scene.objects.active = ob
+        bpy.context.view_layer.objects.active = ob
         # Lists
         indexes = []
         verts = []
@@ -450,7 +450,7 @@ class Exporter():
         try:
             data.calc_tangents(uvmap=uv_layer_name)
         except RuntimeError:
-            data = ob.to_mesh(self.global_scene, False, 'PREVIEW')
+            data = ob.to_mesh(preserve_all_data_layers=True)
             data_is_temp = True
             triangulate_mesh(data)
             data.calc_tangents(uvmap=uv_layer_name)
