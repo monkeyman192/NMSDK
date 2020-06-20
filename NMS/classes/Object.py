@@ -58,7 +58,7 @@ class Object():
         # children of this object.
         self.ListOfEntities = []    # this works similarly to the above...
 
-        self.Name = Name.upper()
+        self.Name = Name
         self._Type = ""
 
         self.ExtraEntityData = kwargs.get('ExtraEntityData', dict())
@@ -209,17 +209,22 @@ class Light(Object):
     def create_attributes(self, data):
         self.Attributes = List(
             TkSceneNodeAttributeData(Name='FOV',
-                                     Value=self.FOV),
+                                     Value=self.FOV,
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='FALLOFF',
                                      Value='quadratic'),
             TkSceneNodeAttributeData(Name='INTENSITY',
-                                     Value=self.Intensity),
+                                     Value=self.Intensity,
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='COL_R',
-                                     Value=self.Colour[0]),
+                                     Value=self.Colour[0],
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='COL_G',
-                                     Value=self.Colour[1]),
+                                     Value=self.Colour[1],
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='COL_B',
-                                     Value=self.Colour[2]),
+                                     Value=self.Colour[2],
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='MATERIAL',
                                      Value='MATERIALS/LIGHT.MATERIAL.MBIN'))
 
@@ -300,17 +305,23 @@ class Mesh(Object):
             TkSceneNodeAttributeData(Name='BOUNDHULLED',
                                      Value=data.get('BOUNDHULLED', 0)),
             TkSceneNodeAttributeData(Name='AABBMINX',
-                                     Value=data.get('AABBMINX', 0)),
+                                     Value=data.get('AABBMINX', 0),
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='AABBMINY',
-                                     Value=data.get('AABBMINY', 0)),
+                                     Value=data.get('AABBMINY', 0),
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='AABBMINZ',
-                                     Value=data.get('AABBMINZ', 0)),
+                                     Value=data.get('AABBMINZ', 0),
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='AABBMAXX',
-                                     Value=data.get('AABBMAXX', 0)),
+                                     Value=data.get('AABBMAXX', 0),
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='AABBMAXY',
-                                     Value=data.get('AABBMAXY', 0)),
+                                     Value=data.get('AABBMAXY', 0),
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='AABBMAXZ',
-                                     Value=data.get('AABBMAXZ', 0)),
+                                     Value=data.get('AABBMAXZ', 0),
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='HASH',
                                      Value=data.get('HASH', 0)),
             TkSceneNodeAttributeData(Name='MATERIAL',

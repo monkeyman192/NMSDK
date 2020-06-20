@@ -1,7 +1,7 @@
 bl_info = {
     "name": "No Man's Sky Development Kit",
     "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 20),
+    "version": (0, 9, 21),
     "blender": (2, 82, 0),
     "location": "File > Export",
     "description": "Create NMS scene structures and export to NMS File format",
@@ -19,6 +19,8 @@ from bpy.props import PointerProperty
 from .NMSDK import ImportSceneOperator, ImportMeshOperator, ExportSceneOperator
 # Main IO operators
 from .NMSDK import NMS_Export_Operator, NMS_Import_Operator
+# NMSDK object node handling operators
+from .NMSDK import CreateNMSDKScene
 # Internal operators
 from .NMSDK import (_FixOldFormat, _ToggleCollisionVisibility,
                     _SaveDefaultSettings, _FixActionNames, _GetPCBANKSFolder,
@@ -33,7 +35,7 @@ from .NMSDK import (_ChangeAnimation, _PlayAnimation, _PauseAnimation,
 from .ModelImporter.animation_handler import AnimationHandler
 # extensions to blender UI
 from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
-                                SettingsPanels)  # , NMSShaderNode)
+                                SettingsPanels, ContextMenus)  # , NMSShaderNode)
 # Note: The NMSShaderNode is broken for 2.8. This needs a lot of work anyway
 # and isn't being used so we'll just not load it for now...
 
@@ -58,6 +60,7 @@ classes = (NMS_Export_Operator,
            ImportSceneOperator,
            ImportMeshOperator,
            ExportSceneOperator,
+           CreateNMSDKScene,
            _FixOldFormat,
            _FixActionNames,
            _GetPCBANKSFolder,
@@ -90,6 +93,7 @@ def register():
     customNodes.register()
     NMSEntities.register()
     SettingsPanels.register()
+    ContextMenus.register()
 
 
 def unregister():
@@ -105,6 +109,7 @@ def unregister():
     customNodes.unregister()
     NMSEntities.unregister()
     SettingsPanels.unregister()
+    ContextMenus.unregister()
 
 
 if __name__ == '__main__':

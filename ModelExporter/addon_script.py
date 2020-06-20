@@ -144,7 +144,8 @@ class Exporter():
         self.export_scenes = list()
         for obj in self.global_scene.objects:
             if obj.NMSNode_props.node_types == 'Reference':
-                if obj.NMSReference_props.reference_path == '':
+                if (obj.NMSReference_props.reference_path == '' or
+                        obj.parent is None):
                     self.export_scenes.append(obj)
 
         if self.settings['AT_only']:
@@ -496,10 +497,11 @@ class Exporter():
             del data
 
         # Apply rotation and normal matrices on vertices and normal vectors
-        apply_local_transform(ROT_X_MAT, verts, normalize=False)
-        apply_local_transform(ROT_X_MAT, normals, use_norm_mat=True)
-        apply_local_transform(ROT_X_MAT, tangents, use_norm_mat=True)
-        apply_local_transform(ROT_X_MAT, chverts, normalize=False)
+        if ob.rotation_mode != 'QUATERNION':
+            apply_local_transform(ROT_X_MAT, verts, normalize=False)
+            apply_local_transform(ROT_X_MAT, normals, use_norm_mat=True)
+            apply_local_transform(ROT_X_MAT, tangents, use_norm_mat=True)
+            apply_local_transform(ROT_X_MAT, chverts, normalize=False)
 
         return verts, normals, tangents, uvs, indexes, chverts, colours
 
@@ -542,13 +544,14 @@ class Exporter():
 
     def parse_object(self, ob, parent):
         newob = None
-        # Apply location/rotation/scale
-        # bpy.ops.object.transform_apply(location=False, rotation=True,
-        #                                scale=True)
-
         # get the objects' location and convert to NMS coordinates
-        trans, rot_q, scale = transform_to_NMS_coords(ob)
-        rot = rot_q.to_euler()      # TODO: should be 'ZXY'??
+        # TODO: this fix is somewhat temporary
+        if ob.rotation_mode != 'QUATERNION':
+            trans, rot_q, scale = transform_to_NMS_coords(ob)
+            rot = rot_q.to_euler('ZXY')
+        else:
+            trans, rot_q, scale = ob.matrix_local.decompose()
+            rot = rot_q.to_euler('ZXY')
 
         transform = TkTransformData(TransX=trans[0],
                                     TransY=trans[1],
@@ -699,8 +702,6 @@ class Exporter():
                     # take the properties of the rotation vector and give it
                     # to the mesh as part of it's entity data
                     axis = child.rotation_quaternion*Vector((0, 0, 1))
-                    # axis = Matrix.Rotation(
-                    #    radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
                     print(axis)
                     rotation_data = TkRotationComponentData(
                         Speed=child.NMSRotation_props.speed,

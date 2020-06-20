@@ -238,7 +238,7 @@ class ImportScene():
         # Update the global animation data dictionary
         _loadable_anim_data.update(local_anims)
 
-        if self.settings['max_anims'] != 0:
+        if self.settings['max_anims'] == 0:
             load_anims = False
         elif self.settings['max_anims'] != -1:
             if len(_loadable_anim_data) < self.settings['max_anims']:
@@ -374,6 +374,8 @@ class ImportScene():
         obj.parent = self.local_objects[self.scene_basename]
 
     def _add_bone_to_scene(self, scene_node, armature):
+        bpy.context.view_layer.objects.active = armature
+        armature.select = True
         bone = armature.edit_bones.new(scene_node.Name)
         bone.use_inherit_rotation = True
         bone.use_inherit_scale = True
@@ -534,6 +536,10 @@ class ImportScene():
         light.node_tree.nodes['Emission'].inputs[1].default_value = intensity
         light_obj = bpy.data.objects.new(name, light)
         light_obj.NMSNode_props.node_types = TYPE_MAP[scene_node.Type]
+        # This is pretty much just a hack until I can get the value directly
+        # from the node. This is just easier really...
+        light_obj.NMSLight_props.intensity_value = float(
+            scene_node.Attribute('INTENSITY'))
 
         # get transform and apply
         transform = scene_node.Transform['Trans']
@@ -609,6 +615,10 @@ class ImportScene():
         self.scn.collection.objects.link(bh_obj)
         self.local_objects[scene_node] = bh_obj
 
+        # Set the rotation mode to be in quaternions so that anims work
+        # correctly
+        bh_obj.rotation_mode = 'QUATERNION'
+
         if not self.settings['show_collisions']:
             # Only draw the collisions if they are wanted
             bh_obj.hide_set(True)
@@ -678,6 +688,10 @@ class ImportScene():
 
         self.scn.collection.objects.link(coll_obj)
         self.local_objects[scene_node] = coll_obj
+
+        # Set the rotation mode to be in quaternions so that anims work
+        # correctly
+        coll_obj.rotation_mode = 'QUATERNION'
 
         if not self.settings['show_collisions']:
             # Only draw the collisions if they are wanted
@@ -750,6 +764,10 @@ class ImportScene():
         else:
             mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
 
+        # Set the rotation mode to be in quaternions so that anims work
+        # correctly
+        mesh_obj.rotation_mode = 'QUATERNION'
+
         # link the object then update the scene so that the above transforms
         # can be applied before we do the NMS -> blender scene rotation
         self.scn.collection.objects.link(mesh_obj)
@@ -791,7 +809,7 @@ class ImportScene():
                 'SkinMatrixLayout'][first_skin_mat: last_skin_mat]
             for skin_mat in skin_mats:
                 joint = self._find_joint(skin_mat)
-                mesh_obj.vertex_groups.new(joint.Name)
+                mesh_obj.vertex_groups.new(name=joint.Name)
             if len(skin_mats) != 0:
                 for i, vert in enumerate(mesh.vertices):
                     blend_indices = scene_node.verts[BLENDINDEX][i]
@@ -799,7 +817,7 @@ class ImportScene():
                     for j, bw in enumerate(blend_weights):
                         if bw != 0:
                             mesh_obj.vertex_groups[blend_indices[j]].add(
-                                [vert.index], bw, 'ADD')
+                                index=[vert.index], weight=bw, type='ADD')
             self.skinned_meshes.append(mesh_obj)
 
         # sort out materials
@@ -848,17 +866,6 @@ class ImportScene():
         for act in bpy.data.actions:
             bpy.data.actions.remove(act)
         self.scn.nmsdk_anim_data.reset()
-
-    def _compose_matrix(self, trans, rotation, scale):
-        """ Create a 4x4 matrix representation of the objects transform. """
-        mat_loc = Matrix.Translation(trans)
-        mat_sca = Matrix([[scale[0], 0, 0, 0],
-                          [0, scale[1], 0, 0],
-                          [0, 0, scale[2], 0],
-                          [0, 0, 0, 1]])
-        _rotation = [rotation[3], rotation[0], rotation[1], rotation[2]]
-        mat_rot = Quaternion(_rotation).to_matrix().to_4x4()
-        return mat_loc * mat_rot * mat_sca
 
     def _deserialize_index_data(self, mesh):
         """ Take the raw index data and generate a list of actual index data.

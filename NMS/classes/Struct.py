@@ -56,7 +56,7 @@ class Struct():
         for pname in self.data:
             data = self.data[pname]
             if isinstance(data, Number):
-                # in this case convert the int or foat to a string
+                # in this case convert the int or float to a string
                 SubElement(
                     self.element,
                     'Property',
@@ -66,7 +66,7 @@ class Struct():
                 SubElement(
                     self.element,
                     'Property',
-                    {'name': pname, 'value': str(data.string)})
+                    {'name': pname, 'value': str(data)})
             elif isinstance(data, Empty):
                 pass
             elif isinstance(data, str):

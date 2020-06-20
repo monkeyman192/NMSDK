@@ -6,13 +6,17 @@ null = chr(0)
 
 
 class String():
-    def __init__(self, string, length, endpadding=b''):
+    def __init__(self, string, length, endpadding=b'', fmt=None):
         self.size = length
         self.string = string
         self.endpadding = endpadding
+        self.fmt = fmt
 
     def __str__(self):
-        return self.string
+        if self.fmt:
+            return self.fmt.format(self.string)
+        else:
+            return str(self.string)
 
     def __len__(self):
         return self.size

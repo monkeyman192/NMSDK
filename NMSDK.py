@@ -6,6 +6,7 @@ from bpy.props import (StringProperty, BoolProperty, EnumProperty, IntProperty)
 import bpy
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 from bpy.types import Operator, PropertyGroup
+from mathutils import Matrix
 
 # internal imports
 from .ModelImporter.import_scene import ImportScene
@@ -16,7 +17,7 @@ from .BlenderExtensions.UIWidgets import ShowMessageBox
 
 
 # Operators to be used for the public API
-
+# Import/Export operators
 
 class ImportSceneOperator(Operator):
     """ Import an entire scene into the current blender context."""
@@ -131,6 +132,36 @@ class ExportSceneOperator(Operator):
         if status == {'FINISHED'}:
             self.report({'INFO'}, "Models Exported Successfully")
         return status
+
+
+# Operators to create various NMSDK objects
+
+
+class CreateNMSDKScene(Operator):
+    """Add the currently selected object to the NMSDK scene node. """
+    bl_idname = "nmsdk.create_scene"
+    bl_label = "Add object to NMSDK scene"
+
+    def execute(self, context):
+        selected_obj = getattr(context, "active_object", None)
+        print(selected_obj)
+        empty_mesh = bpy.data.meshes.new('NMS_Scene')
+        empty_obj = bpy.data.objects.new('NMS_Scene', empty_mesh)
+        empty_obj.NMSNode_props.node_types = 'Reference'
+        # Set the empty object to have a 90 degree rotation around the x-axis
+        # to emulate the NMS coordinate system.
+        empty_obj.matrix_world = Matrix(
+            ((1.0, 0.0, 0.0, 0.0),
+             (0.0, 0.0, 1.0, 0.0),
+             (0.0, -1.0, 0.0, 0.0),
+             (0.0, 0.0, 0.0, 1.0)))
+        bpy.context.scene.collection.objects.link(empty_obj)
+        bpy.context.view_layer.objects.active = empty_obj
+        bpy.ops.object.mode_set(mode='OBJECT')
+        if selected_obj:
+            selected_obj.parent = empty_obj
+        bpy.context.scene.collection.objects.link(selected_obj)
+        return {'FINISHED'}
 
 
 # Private operators for internal use

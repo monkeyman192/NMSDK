@@ -5,8 +5,8 @@ import os.path as op
 different path. """
 
 
-# Path is relative to the plugin directory
-TEST_DATA_PATH = op.join(op.dirname(__file__), 'data')
+# The NMS game data to test the importing with is in the main test folder.
+TEST_DATA_PATH = op.join(op.dirname(__file__), '..', 'NMS_DATA')
 CRYSTAL_BASE_PATH = 'MODELS\\PLANETS\\BIOMES\\COMMON\\CRYSTALS\\LARGE'
 CRYSTAL_PATH = op.join(TEST_DATA_PATH,
                        'NEW',           # Effective PCBANKS folder
@@ -27,9 +27,8 @@ assert '_Crystal_A' in bpy.data.objects
 crystal_ob = bpy.data.objects['_Crystal_A']
 assert len(crystal_ob.data.vertices) == 852
 # Check that the mesh collision is loaded correctly
-assert op.join(CRYSTAL_BASE_PATH, 'CRYSTAL_LARGE_COLL') in bpy.data.objects
-mesh_coll_ob = bpy.data.objects[op.join(CRYSTAL_BASE_PATH,
-                                        'CRYSTAL_LARGE_COLL')]
+assert 'CRYSTAL_LARGE_COLL' in bpy.data.objects
+mesh_coll_ob = bpy.data.objects['CRYSTAL_LARGE_COLL']
 # Let's make sure that the ability to toggle collisions' visibility works
 assert bpy.ops.nmsdk._toggle_collision_visibility()
 # Now, check that the collision mesh has the right number of verts
