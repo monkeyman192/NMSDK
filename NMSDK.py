@@ -1,4 +1,5 @@
 # stdlib imports
+from math import radians
 import os.path as op
 
 # Blender imports
@@ -139,28 +140,19 @@ class ExportSceneOperator(Operator):
 
 class CreateNMSDKScene(Operator):
     """Add the currently selected object to the NMSDK scene node. """
-    bl_idname = "nmsdk.create_scene"
-    bl_label = "Add object to NMSDK scene"
+    bl_idname = "nmsdk.create_root_scene"
+    bl_label = "Create empty NMSDK scene"
 
     def execute(self, context):
-        selected_obj = getattr(context, "active_object", None)
-        print(selected_obj)
         empty_mesh = bpy.data.meshes.new('NMS_Scene')
         empty_obj = bpy.data.objects.new('NMS_Scene', empty_mesh)
         empty_obj.NMSNode_props.node_types = 'Reference'
         # Set the empty object to have a 90 degree rotation around the x-axis
         # to emulate the NMS coordinate system.
-        empty_obj.matrix_world = Matrix(
-            ((1.0, 0.0, 0.0, 0.0),
-             (0.0, 0.0, 1.0, 0.0),
-             (0.0, -1.0, 0.0, 0.0),
-             (0.0, 0.0, 0.0, 1.0)))
+        empty_obj.matrix_world = Matrix.Rotation(radians(90), 4, 'X')
         bpy.context.scene.collection.objects.link(empty_obj)
         bpy.context.view_layer.objects.active = empty_obj
         bpy.ops.object.mode_set(mode='OBJECT')
-        if selected_obj:
-            selected_obj.parent = empty_obj
-        bpy.context.scene.collection.objects.link(selected_obj)
         return {'FINISHED'}
 
 
@@ -206,6 +198,33 @@ class _FixOldFormat(Operator):
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
+
+
+class _ImportReferencedScene(Operator):
+    """Import a referenced scene into an existing node"""
+    bl_idname = "nmsdk._import_ref_scene"
+    bl_label = "Import referenced NMS scene file"
+
+    def execute(self, context):
+        obj = context.object
+        scene_path = obj.NMSReference_props.reference_path
+        if not scene_path:
+            # Can't import anything. Give up.
+            return {'FINISHED'}
+        if obj.children:
+            # It already has children. For now, do nothing...
+            return {'FINISHED'}
+        # If we get here, then the node has no children, and has a path to
+        # import. Try and do so...
+        # TODO: globalize the ref_scenes or the importer itself. This will
+        # allow the referenced scenes to be potentially taken from a previously
+        # imported scene.
+        PCBANKS_dir = context.scene.nmsdk_default_settings.PCBANKS_directory
+        full_path = op.join(PCBANKS_dir, scene_path)
+        importer = ImportScene(full_path, parent_obj=obj, ref_scenes=dict(),
+                               settings={'clear_scene': False})
+        importer.render_scene()
+        return importer.state
 
 
 class _ToggleCollisionVisibility(Operator):

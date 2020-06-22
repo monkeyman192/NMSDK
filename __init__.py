@@ -25,7 +25,7 @@ from .NMSDK import CreateNMSDKScene
 from .NMSDK import (_FixOldFormat, _ToggleCollisionVisibility,
                     _SaveDefaultSettings, _FixActionNames, _GetPCBANKSFolder,
                     _RemovePCBANKSFolder, _GetMBINCompilerLocation,
-                    _RemoveMBINCompilerLocation)
+                    _RemoveMBINCompilerLocation, _ImportReferencedScene)
 # Settings
 from .NMSDK import NMSDKSettings, NMSDKDefaultSettings
 # Animation classes
@@ -63,6 +63,7 @@ classes = (NMS_Export_Operator,
            CreateNMSDKScene,
            _FixOldFormat,
            _FixActionNames,
+           _ImportReferencedScene,
            _GetPCBANKSFolder,
            _RemovePCBANKSFolder,
            _GetMBINCompilerLocation,

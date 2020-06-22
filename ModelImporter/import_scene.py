@@ -199,7 +199,7 @@ class ImportScene():
                 f.seek(0x10, 1)
                 self.vertex_elements.append(data)
 
-        if self.settings['import_bones']:
+        if self.settings.get('import_bones', False):
             self.mesh_binding_data = read_mesh_binding_data(self.geometry_file)
 
         self.scn.nmsdk_anim_data.has_bound_mesh = (
@@ -238,10 +238,11 @@ class ImportScene():
         # Update the global animation data dictionary
         _loadable_anim_data.update(local_anims)
 
-        if self.settings['max_anims'] == 0:
+        max_anims = self.settings.get('max_anims', 10)
+        if max_anims == 0:
             load_anims = False
-        elif self.settings['max_anims'] != -1:
-            if len(_loadable_anim_data) < self.settings['max_anims']:
+        elif max_anims != -1:
+            if len(_loadable_anim_data) < max_anims:
                 load_anims = True
             else:
                 print('Warning! Too many animations detected!')
@@ -311,7 +312,7 @@ class ImportScene():
         print('rendering {0}'.format(self.scene_name))
         if self.parent_obj is None:
             # First, remove everything else in the scene
-            if self.settings['clear_scene']:
+            if self.settings.get('clear_scene', True):
                 self._clear_prev_scene()
             self._add_empty_to_scene(self.scene_basename)
         # If we need to know the list of joints, get them now...
@@ -336,7 +337,7 @@ class ImportScene():
                   or obj.Type == 'REFERENCE'):
                 self._add_empty_to_scene(obj)
             elif obj.Type == 'COLLISION':
-                if self.settings['import_collisions']:
+                if self.settings.get('import_collisions', True):
                     if obj.Attribute('TYPE') == 'Mesh':
                         self.load_collision_mesh(obj)
                         self._add_mesh_collision_to_scene(obj)
@@ -619,7 +620,7 @@ class ImportScene():
         # correctly
         bh_obj.rotation_mode = 'QUATERNION'
 
-        if not self.settings['show_collisions']:
+        if not self.settings.get('show_collisions', False):
             # Only draw the collisions if they are wanted
             bh_obj.hide_set(True)
         # Never show the object in the render.
@@ -693,7 +694,7 @@ class ImportScene():
         # correctly
         coll_obj.rotation_mode = 'QUATERNION'
 
-        if not self.settings['show_collisions']:
+        if not self.settings.get('show_collisions', False):
             # Only draw the collisions if they are wanted
             coll_obj.hide_set(True)
         # never show the object in the render
@@ -837,7 +838,7 @@ class ImportScene():
             mesh_obj.NMSMesh_props.has_entity = True
             mesh_obj.NMSEntity_props.name_or_path = entity_path
 
-        if self.settings['draw_hulls']:
+        if self.settings.get('draw_hulls', False):
             # create child object for bounded hull
             name = 'BH' + name
             mesh = bpy.data.meshes.new(name)

@@ -67,6 +67,14 @@ def getParentRefScene(obj):
         return getParentRefScene(obj.parent)
 
 
+def getRootNode(obj):
+    """ Returns the root node for the NMS scene. """
+    if obj.parent is None and obj.NMSNode_props.node_types == 'Reference':
+        return obj
+    if obj.parent is not None:
+        return getRootNode(obj.parent)
+
+
 def get_obj_name(obj, export_name):
     if obj.NMSNode_props.override_name != '':
         return obj.NMSNode_props.override_name

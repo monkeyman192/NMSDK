@@ -236,7 +236,7 @@ def read_metadata(fname):
         f.seek(list_offset, 1)
         for _ in range(list_count):
             # read the ID in and strip it to be just the string and no padding.
-            string = read_string(f, 0x80)
+            string = read_string(f, 0x80).upper()
             # skip the hash
             f.seek(0x8, 1)
             # read in the actual data we want

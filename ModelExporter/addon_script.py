@@ -496,12 +496,14 @@ class Exporter():
             # If we created a temporary data object then delete it
             del data
 
+        """
         # Apply rotation and normal matrices on vertices and normal vectors
         if ob.rotation_mode != 'QUATERNION':
             apply_local_transform(ROT_X_MAT, verts, normalize=False)
             apply_local_transform(ROT_X_MAT, normals, use_norm_mat=True)
             apply_local_transform(ROT_X_MAT, tangents, use_norm_mat=True)
             apply_local_transform(ROT_X_MAT, chverts, normalize=False)
+        """
 
         return verts, normals, tangents, uvs, indexes, chverts, colours
 
@@ -544,14 +546,10 @@ class Exporter():
 
     def parse_object(self, ob, parent):
         newob = None
-        # get the objects' location and convert to NMS coordinates
-        # TODO: this fix is somewhat temporary
-        if ob.rotation_mode != 'QUATERNION':
-            trans, rot_q, scale = transform_to_NMS_coords(ob)
-            rot = rot_q.to_euler('ZXY')
-        else:
-            trans, rot_q, scale = ob.matrix_local.decompose()
-            rot = rot_q.to_euler('ZXY')
+        # TODO: this is currently only true for models that are imported then
+        # modified then exported again.
+        trans, rot_q, scale = ob.matrix_local.decompose()
+        rot = rot_q.to_euler('ZXY')
 
         transform = TkTransformData(TransX=trans[0],
                                     TransY=trans[1],
@@ -663,9 +661,6 @@ class Exporter():
                 # anything.
 
                 chverts, chindexes = generate_hull(ob.data, True)
-
-                # Apply rotation to the convex hull
-                apply_local_transform(ROT_X_MAT, chverts, normalize=False)
 
                 # Reset Transforms on meshes
 
