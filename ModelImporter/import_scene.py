@@ -322,6 +322,9 @@ class ImportScene():
                     self.joints.append(obj)
                     self.scn.nmsdk_anim_data.joints.append(obj.Name)
         for obj in self.scene_node_data.iter():
+            added_obj = None
+            # print(obj.Name)
+            # print(obj.info)
             if obj.Type == 'MESH':
                 if obj.Name.upper() in self.mesh_metadata:
                     obj.metadata = self._handle_duplicate_mesh_names(
@@ -332,19 +335,23 @@ class ImportScene():
                           'versions.'.format(obj.Name))
                     continue
                 self.load_mesh(obj)
-                self._add_mesh_to_scene(obj)
+                added_obj = self._add_mesh_to_scene(obj)
             elif (obj.Type == 'LOCATOR' or obj.Type == 'JOINT'
                   or obj.Type == 'REFERENCE'):
-                self._add_empty_to_scene(obj)
+                added_obj = self._add_empty_to_scene(obj)
             elif obj.Type == 'COLLISION':
                 if self.settings.get('import_collisions', True):
                     if obj.Attribute('TYPE') == 'Mesh':
                         self.load_collision_mesh(obj)
-                        self._add_mesh_collision_to_scene(obj)
+                        added_obj = self._add_mesh_collision_to_scene(obj)
                     else:
-                        self._add_primitive_collision_to_scene(obj)
+                        added_obj = self._add_primitive_collision_to_scene(obj)
             elif obj.Type == 'LIGHT':
-                self._add_light_to_scene(obj)
+                added_obj = self._add_light_to_scene(obj)
+            # Get the added object and give it its scene node data so that it
+            # can be rexported in a more faithful way.
+            # if added_obj:
+            #     added_obj['scene_node'] = obj.info
         if self.mesh_binding_data is not None:
             self._add_armature_to_scene()
             armature = bpy.data.armatures[self.scene_basename]
@@ -519,6 +526,8 @@ class ImportScene():
                 print("The reference node {0} has a reference to a path "
                       "that doesn't exist ({1})".format(name, ref_scene_path))
 
+        return empty_obj
+
     def _add_light_to_scene(self, scene_node, standalone=False):
         """ Adds the given light node to the Blender scene. """
         name = scene_node.Name
@@ -573,10 +582,10 @@ class ImportScene():
         # correctly
         light_obj.rotation_mode = 'QUATERNION'
 
-        # link the object then update the scene so that the above transforms
-        # can be applied before we do the NMS -> blender scene rotation
         self.scn.collection.objects.link(light_obj)
         self.dep_graph.update()
+
+        return light_obj
 
     def _add_mesh_collision_to_scene(self, scene_node):
         """ Adds the given collision node to the Blender scene. """
@@ -625,6 +634,8 @@ class ImportScene():
             bh_obj.hide_set(True)
         # Never show the object in the render.
         bh_obj.hide_render = True
+
+        return bh_obj
 
     def _add_primitive_collision_to_scene(self, scene_node):
         name = op.basename(scene_node.Name) + '_COLL'
@@ -699,6 +710,8 @@ class ImportScene():
             coll_obj.hide_set(True)
         # never show the object in the render
         coll_obj.hide_render = True
+
+        return coll_obj
 
     def _add_existing_to_scene(self):
         # existing is a list of child objects to the reference
@@ -849,6 +862,8 @@ class ImportScene():
             # Don't show the bounded hull
             bh_obj.hide_set(True)
             bh_obj.hide_render = True
+
+        return mesh_obj
 
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """

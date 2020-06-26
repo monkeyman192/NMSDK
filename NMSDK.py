@@ -104,6 +104,11 @@ class ExportSceneOperator(Operator):
     scene_name: StringProperty(
         name="Scene Name",
         description="Name of the scene to be exported.")
+    preserve_node_info: BoolProperty(
+        name="Preserve Node Info",
+        description="If the exported scene was originally, preserve the "
+                    "details of any nodes that were in the original scene.",
+        default=True)
     AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
@@ -603,6 +608,11 @@ class NMS_Export_Operator(Operator, ExportHelper):
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)")
+    preserve_node_info: BoolProperty(
+        name="Preserve Node Info",
+        description="If the exported scene was originally, preserve the "
+                    "details of any nodes that were in the original scene.",
+        default=True)
     AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
@@ -634,6 +644,7 @@ class NMS_Export_Operator(Operator, ExportHelper):
         layout = self.layout
         layout.prop(self, 'export_directory')
         layout.prop(self, 'group_name')
+        # layout.prop(self, 'preserve_node_info')
         layout.prop(self, 'AT_only')
         layout.prop(self, 'no_vert_colours')
 

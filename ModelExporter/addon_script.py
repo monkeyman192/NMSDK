@@ -633,9 +633,11 @@ class Exporter():
             if ob.NMSCollision_props.transform_type == "Transform":
                 trans_scale = (1, 1, 1)
                 dims = scale
-                # relative scale factor (to correct for the scaling due to the\
+                # relative scale factor (to correct for the scaling due to the
                 # transform)
-                factor = (0.5, 0.5, 0.5)
+                # TODO: confirm; this may not be needed if we can add the
+                # meshes in the correct way.
+                factor = (1, 1, 1)
             else:
                 trans_scale = scale
                 # swap coords to match the NMS coordinate system
@@ -812,7 +814,7 @@ class Exporter():
         # If we parsed a reference node or a collision node, stop.
         if (ob.NMSNode_props.node_types == 'Collision' or
                 (ob.NMSNode_props.node_types == 'Reference' and
-                 ob.NMSReference_props.reference_path == '')):
+                 ob.NMSReference_props.reference_path != '')):
             return
 
         # Parse children

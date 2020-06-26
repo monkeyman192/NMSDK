@@ -4,9 +4,10 @@
 from copy import copy
 
 # Local imports
-from ..utils.misc import getRootNode
+from ..utils.misc import get_root_node, clone_node
 
 # Blender imports
+import bmesh
 import bpy
 from bpy.types import Menu, Operator
 from mathutils import Matrix
@@ -64,9 +65,9 @@ class AddLocatorNode(Operator):
         return {'FINISHED'}
 
 
-class AddCubeMeshNode(Operator):
+class AddBoxCollisionNode(Operator):
     """Add a new NMS cube mesh node"""
-    bl_idname = "nmsdk.add_cube_mesh_node"
+    bl_idname = "nmsdk.add_box_collision_node"
     bl_label = "Cube Mesh node"
 
     @classmethod
@@ -79,16 +80,58 @@ class AddCubeMeshNode(Operator):
             return {'FINISHED'}
         # Create a new empty reference node.
         for obj in selected_objs:
-            bpy.ops.mesh.primitive_cube_add()
-            cube = bpy.context.selected_objects[0]
-            cube.NMSNode_props.node_types = 'Mesh'
-            cube.name = 'cube'
+            # Create a new cube for collisions
+            mesh = bpy.data.meshes.new('cube')
+            bm = bmesh.new()
+            bmesh.ops.create_cube(bm, size=1.0)
+            bm.to_mesh(mesh)
+            bm.free()
+            cube = bpy.data.objects.new('cube', mesh)
+            cube.NMSNode_props.node_types = 'Collision'
+            cube.NMSCollision_props.collision_types = 'Box'
             cube.matrix_world = Matrix()
-            bpy.context.collection.objects.unlink(cube)
             cube.parent = obj
             bpy.context.scene.collection.objects.link(cube)
             cube.rotation_mode = 'QUATERNION'
 
+        return {'FINISHED'}
+
+
+class CloneNodes(Operator):
+    """Clone the selcted node(s)"""
+    bl_idname = "nmsdk.clone_nodes"
+    bl_label = "Clone node(s)"
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        selected_objs = getattr(context, "selected_objects", None)
+        if not selected_objs:
+            return {'FINISHED'}
+        # Make a copy of each of the selected nodes.
+        for obj in selected_objs:
+            clone_node(obj)
+        return {'FINISHED'}
+
+
+class CloneNodesRecursively(Operator):
+    """Clone the selcted node(s) and all attached children"""
+    bl_idname = "nmsdk.clone_nodes_recursively"
+    bl_label = "Clone node(s) recursively"
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        selected_objs = getattr(context, "selected_objects", None)
+        if not selected_objs:
+            return {'FINISHED'}
+        # Make a copy of each of the selected nodes.
+        for obj in selected_objs:
+            clone_node(obj, True)
         return {'FINISHED'}
 
 
@@ -104,7 +147,7 @@ class WM_OT_button_add_parent(Operator):
     def execute(self, context):
         selected_objs = getattr(context, "selected_objects", None)
         parent_obj = getattr(context, "active_object", None)
-        root_obj = getRootNode(parent_obj)
+        root_obj = get_root_node(parent_obj)
         for obj in selected_objs:
             print(obj)
             if obj == parent_obj:
@@ -137,7 +180,20 @@ class NMSDK_MT_add_NMS_Scenenodes(Menu):
         row = layout.row()
         row.operator('nmsdk.add_locator_node')
         row = layout.row()
-        row.operator('nmsdk.add_cube_mesh_node')
+        row.operator('nmsdk.add_box_collision_node')
+
+
+class NMSDK_MT_clone_NMS_Scenenodes(Menu):
+    bl_label = "Clone NMS Scenenode objects"
+    bl_idname = "NMSDK_MT_clone_NMS_Scenenodes"
+
+    def draw(self, context):
+        layout = self.layout
+        row = layout.row()
+        row.operator('nmsdk.clone_nodes')
+        row = layout.row()
+        row.operator('nmsdk.clone_nodes_recursively')
+        row = layout.row()
 
 
 # Functions to modify blenders' menu items
@@ -161,18 +217,28 @@ def add_obj_menu_func(self, context):
     """ Add the sub-menu to the context menu. """
     layout = self.layout
     layout.separator()
-    layout.menu("NMSDK_MT_add_NMS_Scenenodes")
+    row = layout.row()
+    row.menu("NMSDK_MT_add_NMS_Scenenodes")
+    row = layout.row()
+    row.menu("NMSDK_MT_clone_NMS_Scenenodes")
+
+
+classes = (WM_OT_button_add_parent,
+           AddReferenceNode,
+           AddBoxCollisionNode,
+           AddLocatorNode,
+           NMSDK_MT_add_NMS_Scenenodes,
+           NMSDK_MT_clone_NMS_Scenenodes,
+           CloneNodes,
+           CloneNodesRecursively)
 
 
 class ContextMenus():
     @staticmethod
     def register():
         # Register classes to be used.
-        bpy.utils.register_class(WM_OT_button_add_parent)
-        bpy.utils.register_class(AddReferenceNode)
-        bpy.utils.register_class(AddCubeMeshNode)
-        bpy.utils.register_class(AddLocatorNode)
-        bpy.utils.register_class(NMSDK_MT_add_NMS_Scenenodes)
+        for cls_ in classes:
+            bpy.utils.register_class(cls_)
         # Add the functions to the menus they need to be in.
         bpy.types.VIEW3D_MT_add.append(add_empty_root_node)
         bpy.types.VIEW3D_MT_object_parent.append(parent_menu_func)
@@ -181,11 +247,8 @@ class ContextMenus():
     @staticmethod
     def unregister():
         # Unregister classes used.
-        bpy.utils.unregister_class(WM_OT_button_add_parent)
-        bpy.utils.unregister_class(AddReferenceNode)
-        bpy.utils.unregister_class(AddCubeMeshNode)
-        bpy.utils.unregister_class(AddLocatorNode)
-        bpy.utils.unregister_class(NMSDK_MT_add_NMS_Scenenodes)
+        for cls_ in classes:
+            bpy.utils.unregister_class(cls_)
         # Remove the functions from the menus they were in.
         bpy.types.VIEW3D_MT_add.remove(add_empty_root_node)
         bpy.types.VIEW3D_MT_object_parent.remove(parent_menu_func)

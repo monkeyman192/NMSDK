@@ -10,6 +10,9 @@ from mathutils import Matrix, Vector
 from ..NMS.classes import Vector4f
 
 
+ALL_TYPES = ['Reference', 'Mesh', 'Locator', 'Collision', 'Light', 'Joint']
+
+
 # region Misc
 
 
@@ -69,14 +72,25 @@ def get_all_actions(obj):
                 yield obj.name, obj.NMSAnimation_props.anim_name, strip.action
 
 
-def get_children(obj, curr_children, obj_types, condition=lambda x: True,
-                 just_names=False):
-    # return a flattened list of all the children of an object of a specified
-    # type.
-    # condition is a function applied to the child, and if it returns true,
-    # then add the child to the list
-    # if just_name is True, then only return the names, otherwise return the
-    # actual objects themselves
+def get_children(obj, obj_types=ALL_TYPES, condition=lambda x: True,
+                 just_names=False, flatten=True):
+    """ Return all the children of an object of a specified type.
+
+    Parameters
+    ----------
+    obj : bpy.types.Object
+        The blender object to get the children of.
+    obj_types : str or list or str's
+        The object type(s) that we want children of. This can be a single type
+        (eg. 'Mesh'), or a list (['Mesh', 'Locator']).
+    condition : function
+        A function which will be applied to the children. If it returns True
+        then the child will be added to the list of children.
+    just_names : bool
+        If True, then just the name will be returned, otherwise it will return
+        the objects themselves.
+    """
+    curr_children = list()
     if type(obj_types) == str:
         obj_types = [obj_types]
     # otherwise we'll just assume that it is a list of strings

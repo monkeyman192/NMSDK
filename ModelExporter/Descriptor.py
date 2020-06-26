@@ -113,7 +113,7 @@ class Node_Data():
 
         # get the list off all children of self.obj that are ref nodes and
         # aren't proc
-        non_proc_refs = get_children(self.obj, [], "Reference", not_proc)
+        non_proc_refs = get_children(self.obj, "Reference", not_proc)
         additional_ref_paths = set()
 
         for child in non_proc_refs:
