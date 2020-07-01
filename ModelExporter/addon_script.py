@@ -148,7 +148,7 @@ class Exporter():
                         obj.parent is None):
                     self.export_scenes.append(obj)
 
-        if self.settings['AT_only']:
+        if self.settings.get('AT_only', False):
             # in this case we want to export just the entity with action
             # trigger data, nothing else
             entitydata = ParseNodes()
@@ -462,7 +462,7 @@ class Exporter():
         # Determine if the model has colour data
         export_colours = bool(len(data.vertex_colors))
         # If we have an overwrite to say not to export them then don't
-        if self.settings['no_vert_colours']:
+        if self.settings.get('no_vert_colours', False):
             export_colours = False
         if export_colours:
             colour_data = data.vertex_colors.active.data
@@ -563,6 +563,12 @@ class Exporter():
 
         entitydata = dict()         # this is the local entity data
 
+        # If the user has chosen to export an imported scene then we want to
+        # try and preserve as much info as possible
+        orig_node_data = dict()
+        if self.settings.get('preserve_node_info', False):
+            orig_node_data = ob.get('scene_node', dict())
+
         # let's first sort out any entity data that is specified:
         if ob.NMSMesh_props.has_entity or ob.NMSLocator_props.has_entity:
             print('this has an entity:', ob)
@@ -623,7 +629,8 @@ class Exporter():
             # The object will have its name in the scene so that any data
             # required can be linked up. This name will be overwritten by the
             # exporter to be the path name of the scene.
-            optdict = {'Name': get_obj_name(ob, None)}
+            optdict = {'Name': get_obj_name(ob, None),
+                       'orig_node_data': orig_node_data}
 
             # Let's do a check on the values of the scale and the dimensions.
             # We can have it so that the user can apply scale, even if by
@@ -717,7 +724,8 @@ class Exporter():
                          CHVerts=chverts,
                          Colours=colours,
                          ExtraEntityData=entitydata,
-                         HasAttachment=ob.NMSMesh_props.has_entity)
+                         HasAttachment=ob.NMSMesh_props.has_entity,
+                         orig_node_data=orig_node_data)
 
             # Check to see if the mesh's entity will be animation controller,
             # if so assign to the anim_controller_obj variable.
@@ -766,7 +774,8 @@ class Exporter():
 
             newob = Reference(Name=actualname,
                               Transform=transform,
-                              Scenegraph=scenegraph)
+                              Scenegraph=scenegraph,
+                              orig_node_data=orig_node_data)
             ob.NMSReference_props.ref_path = scenegraph
         elif ob.NMSNode_props.node_types == 'Locator':
             actualname = get_obj_name(ob, None)
@@ -775,7 +784,8 @@ class Exporter():
             newob = Locator(Name=actualname,
                             Transform=transform,
                             ExtraEntityData=entitydata,
-                            HasAttachment=HasAttachment)
+                            HasAttachment=HasAttachment,
+                            orig_node_data=orig_node_data)
 
             if (ob.NMSEntity_props.is_anim_controller and
                     ob.NMSLocator_props.has_entity):
@@ -789,7 +799,8 @@ class Exporter():
             self.joints += 1
             newob = Joint(Name=actualname,
                           Transform=transform,
-                          JointIndex=self.joints)
+                          JointIndex=self.joints,
+                          orig_node_data=orig_node_data)
 
         # Light Objects
         elif ob.NMSNode_props.node_types == 'Light':
@@ -804,7 +815,8 @@ class Exporter():
                           Transform=transform,
                           Colour=col,
                           Intensity=intensity,
-                          FOV=ob.NMSLight_props.FOV_value)
+                          FOV=ob.NMSLight_props.FOV_value,
+                          orig_node_data=orig_node_data)
 
         parent.add_child(newob)
 
@@ -835,10 +847,10 @@ class Exporter():
         if len(bpy.data.actions) == 0:
             return
         # First, check to see if there is an idle animation
-        if self.settings['idle_anim'] != "":
+        idle_anim = self.settings.get('idle_anim', '')
+        if idle_anim != '':
             # If the script is being called from the cli.
-            self.global_scene.nmsdk_anim_data.idle_anim = self.settings[
-                'idle_anim']
+            self.global_scene.nmsdk_anim_data.idle_anim = idle_anim
         idle_anim_name = self.global_scene.nmsdk_anim_data.idle_anim
         Idle = None
         Anims = List()

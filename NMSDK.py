@@ -47,6 +47,13 @@ class ImportSceneOperator(Operator):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    import_recursively: BoolProperty(
+        name='Import recursively',
+        description='Whether or not to import reference nodes automatically.\n'
+                    'For large scenes with many referenced scenes it is better'
+                    ' to set this as False to avoid long wait times, and then '
+                    'only import the scenes you want after it has loaded.',
+        default=True)
     # Animation related properties
     import_bones: BoolProperty(
         name='Import bones',
@@ -108,7 +115,7 @@ class ExportSceneOperator(Operator):
         name="Preserve Node Info",
         description="If the exported scene was originally, preserve the "
                     "details of any nodes that were in the original scene.",
-        default=True)
+        default=False)
     AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
@@ -599,6 +606,12 @@ class NMS_Export_Operator(Operator, ExportHelper):
     bl_idname = "export_mesh.nms"
     bl_label = "Export to NMS XML Format"
 
+    filepath: StringProperty(
+        name="File Path",
+        description="Filepath used for exporting the file",
+        maxlen=1024,
+        subtype='FILE_PATH',
+    )
     export_directory: StringProperty(
         name="Export Directory",
         description="The base path relative to the PCBANKS folder under which "
@@ -612,7 +625,7 @@ class NMS_Export_Operator(Operator, ExportHelper):
         name="Preserve Node Info",
         description="If the exported scene was originally, preserve the "
                     "details of any nodes that were in the original scene.",
-        default=True)
+        default=False)
     AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
@@ -635,16 +648,32 @@ class NMS_Export_Operator(Operator, ExportHelper):
 
     settings_loaded = False
 
+    def invoke(self, context, _event):
+        """ Override the default behavior so that we can provide a scene
+        file name automatcially. """
+        if bpy.context.scene.get('scene_node'):
+            scene_node = bpy.context.scene.get('scene_node')
+            scene_name = op.basename(scene_node['imported_from'])
+            self.filepath = scene_name
+        return super().invoke(context, _event)
+
     def draw(self, context):
         if not self.settings_loaded:
             default_settings = context.scene.nmsdk_default_settings
             self.export_directory = default_settings.export_directory
             self.group_name = default_settings.group_name
             self.settings_loaded = True
+        # If there is an imported node, then get some default info from it.
+        if bpy.context.scene.get('scene_node'):
+            scene_node = bpy.context.scene.get('scene_node')
+            scene_path = scene_node['imported_from']
+            export_dir = op.dirname(scene_path)
+            self.export_directory, self.group_name = op.split(export_dir)
+            self.preserve_node_info = True
         layout = self.layout
         layout.prop(self, 'export_directory')
         layout.prop(self, 'group_name')
-        # layout.prop(self, 'preserve_node_info')
+        layout.prop(self, 'preserve_node_info')
         layout.prop(self, 'AT_only')
         layout.prop(self, 'no_vert_colours')
 
@@ -699,6 +728,13 @@ class NMS_Import_Operator(Operator, ImportHelper):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    import_recursively: BoolProperty(
+        name='Import recursively',
+        description='Whether or not to import reference nodes automatically.\n'
+                    'For large scenes with many referenced scenes it is better'
+                    ' to set this as False to avoid long wait times, and then '
+                    'only import the scenes you want after it has loaded.',
+        default=True)
     # Animation related properties
     import_bones: BoolProperty(
         name='Import bones',
@@ -716,10 +752,12 @@ class NMS_Import_Operator(Operator, ImportHelper):
         layout = self.layout
         layout.prop(self, 'draw_hulls')
         layout.prop(self, 'clear_scene')
+        layout.prop(self, 'import_recursively')
         coll_box = layout.box()
         coll_box.label(text='Collisions')
         coll_box.prop(self, 'import_collisions')
         coll_box.prop(self, 'show_collisions')
+
         animation_box = layout.box()
         animation_box.label(text='Animation')
         animation_box.prop(self, 'import_bones')

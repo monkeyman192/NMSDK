@@ -323,8 +323,6 @@ class ImportScene():
                     self.scn.nmsdk_anim_data.joints.append(obj.Name)
         for obj in self.scene_node_data.iter():
             added_obj = None
-            # print(obj.Name)
-            # print(obj.info)
             if obj.Type == 'MESH':
                 if obj.Name.upper() in self.mesh_metadata:
                     obj.metadata = self._handle_duplicate_mesh_names(
@@ -350,8 +348,8 @@ class ImportScene():
                 added_obj = self._add_light_to_scene(obj)
             # Get the added object and give it its scene node data so that it
             # can be rexported in a more faithful way.
-            # if added_obj:
-            #     added_obj['scene_node'] = obj.info
+            if added_obj:
+                added_obj['scene_node'] = obj.info
         if self.mesh_binding_data is not None:
             self._add_armature_to_scene()
             armature = bpy.data.armatures[self.scene_basename]
@@ -456,6 +454,12 @@ class ImportScene():
             self.scn.collection.objects.link(empty_obj)
             bpy.context.view_layer.objects.active = empty_obj
             bpy.ops.object.mode_set(mode='OBJECT')
+            # Add a custom property so that if it is exported with the
+            # 'preserve node info' option selected then it can use this info.
+            empty_obj['imported_from'] = self.scene_name
+            # Also add this object to the scene in a sneaky way so that we can
+            # always find this node easily.
+            self.scn['scene_node'] = empty_obj
             # check if the scene is proc-gen
             descriptor_name = self.scene_name + '.DESCRIPTOR.MBIN'
             if op.exists(op.join(self.PCBANKS_dir, descriptor_name)):
@@ -517,11 +521,12 @@ class ImportScene():
             ref_scene_path = op.join(self.PCBANKS_dir,
                                      scene_node.Attribute('SCENEGRAPH'))
             if op.exists(ref_scene_path):
-                print('loading referenced scene: {0}'.format(ref_scene_path))
-                sub_scene = ImportScene(ref_scene_path, empty_obj,
-                                        self.ref_scenes, self.settings)
-                if sub_scene.requires_render:
-                    sub_scene.render_scene()
+                if self.settings.get('import_recursively', True):
+                    print(f'loading referenced scene: {ref_scene_path}')
+                    sub_scene = ImportScene(ref_scene_path, empty_obj,
+                                            self.ref_scenes, self.settings)
+                    if sub_scene.requires_render:
+                        sub_scene.render_scene()
             else:
                 print("The reference node {0} has a reference to a path "
                       "that doesn't exist ({1})".format(name, ref_scene_path))
