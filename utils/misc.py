@@ -130,3 +130,12 @@ def get_obj_name(obj, export_name):
         if name.startswith('NMS_'):
             name = name[4:].upper()
     return name
+
+
+def truncate_float(val):
+    """ Return the float value but truncated to at most 6 dp's. """
+    new_val = float(f'{val:.6f}')
+    if new_val == 0:
+        return 0
+    else:
+        return new_val

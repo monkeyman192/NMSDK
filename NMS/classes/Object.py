@@ -447,24 +447,30 @@ class Collision(Object):
         elif self.CType == 'Box':
             self.Attributes.append(
                 TkSceneNodeAttributeData(Name="WIDTH",
-                                         Value=data['WIDTH']))
+                                         Value=data['WIDTH'],
+                                         fmt='{0:.6f}'))
             self.Attributes.append(
                 TkSceneNodeAttributeData(Name="HEIGHT",
-                                         Value=data['HEIGHT']))
+                                         Value=data['HEIGHT'],
+                                         fmt='{0:.6f}'))
             self.Attributes.append(
                 TkSceneNodeAttributeData(Name="DEPTH",
-                                         Value=data['DEPTH']))
+                                         Value=data['DEPTH'],
+                                         fmt='{0:.6f}'))
         elif self.CType == 'Sphere':
             self.Attributes.append(
                 TkSceneNodeAttributeData(Name="RADIUS",
-                                         Value=data['RADIUS']))
+                                         Value=data['RADIUS'],
+                                         fmt='{0:.6f}'))
         elif self.CType == 'Capsule' or self.CType == 'Cylinder':
             self.Attributes.append(
                 TkSceneNodeAttributeData(Name="RADIUS",
-                                         Value=data['RADIUS']))
+                                         Value=data['RADIUS'],
+                                         fmt='{0:.6f}'))
             self.Attributes.append(
                 TkSceneNodeAttributeData(Name="HEIGHT",
-                                         Value=data['HEIGHT']))
+                                         Value=data['HEIGHT'],
+                                         fmt='{0:.6f}'))
 
 
 class Model(Object):
