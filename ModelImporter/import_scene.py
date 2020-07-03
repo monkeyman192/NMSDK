@@ -314,7 +314,9 @@ class ImportScene():
             # First, remove everything else in the scene
             if self.settings.get('clear_scene', True):
                 self._clear_prev_scene()
-            self._add_empty_to_scene(self.scene_basename)
+            added_obj = self._add_empty_to_scene(self.scene_basename)
+            print(self.scene_node_data.info)
+            added_obj['scene_node'] = self.scene_node_data.info
         # If we need to know the list of joints, get them now...
         if self.mesh_binding_data is not None:
             for obj in self.scene_node_data.iter():
@@ -334,8 +336,7 @@ class ImportScene():
                     continue
                 self.load_mesh(obj)
                 added_obj = self._add_mesh_to_scene(obj)
-            elif (obj.Type == 'LOCATOR' or obj.Type == 'JOINT'
-                  or obj.Type == 'REFERENCE'):
+            elif obj.Type in ('LOCATOR', 'JOINT', 'REFERENCE'):
                 added_obj = self._add_empty_to_scene(obj)
             elif obj.Type == 'COLLISION':
                 if self.settings.get('import_collisions', True):
@@ -465,7 +466,7 @@ class ImportScene():
             if op.exists(op.join(self.PCBANKS_dir, descriptor_name)):
                 empty_obj.NMSReference_props.is_proc = True
             self.local_objects[scene_node] = empty_obj
-            return
+            return empty_obj
 
         # Otherwise just assign everything as usual...
         name = scene_node.Name
@@ -514,6 +515,13 @@ class ImportScene():
         # can be applied before we do the NMS -> blender scene rotation
         self.scn.collection.objects.link(empty_obj)
         self.dep_graph.update()
+
+        # Check to see if the empty node has an associated entity
+        if scene_node.Type == 'LOCATOR':
+            entity_path = scene_node.Attribute('ATTACHMENT')
+            if entity_path != '' and entity_path is not None:
+                empty_obj.NMSLocator_props.has_entity = True
+                empty_obj.NMSEntity_props.name_or_path = entity_path
 
         if scene_node.Type == 'REFERENCE':
             empty_obj.NMSReference_props.reference_path = scene_node.Attribute(

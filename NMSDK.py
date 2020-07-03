@@ -299,7 +299,7 @@ class _GetPCBANKSFolder(Operator):
 
 
 class _RemovePCBANKSFolder(Operator):
-    """Reset the PCBANKS folder location."""
+    """Reset the PCBANKS folder location"""
     bl_idname = "nmsdk._remove_pcbanks"
     bl_label = "Remove PCBANKS location"
 
@@ -339,7 +339,7 @@ class _GetMBINCompilerLocation(Operator):
 
 
 class _RemoveMBINCompilerLocation(Operator):
-    """Reset the PCBANKS folder location."""
+    """Reset the MBINCompiler executable location"""
     bl_idname = "nmsdk._remove_mbincompiler"
     bl_label = "Remove MBINCompiler location"
 
@@ -664,7 +664,8 @@ class NMS_Export_Operator(Operator, ExportHelper):
             self.group_name = default_settings.group_name
             self.settings_loaded = True
         # If there is an imported node, then get some default info from it.
-        if bpy.context.scene.get('scene_node'):
+        # TODO: This needs a bit of work...
+        if bpy.context.scene.get('scene_node') and self.preserve_node_info:
             scene_node = bpy.context.scene.get('scene_node')
             scene_path = scene_node['imported_from']
             export_dir = op.dirname(scene_path)
@@ -702,7 +703,7 @@ class NMS_Import_Operator(Operator, ImportHelper):
     bl_idname = "import_mesh.nms"
     bl_label = "Import from SCENE.EXML"
 
-    # ExportHelper mixin class uses this
+    # ImportHelper mixin class uses this
     filename_ext = ".EXML"
     filter_glob: StringProperty(
         default="*.scene.exml;*.SCENE.EXML;*.scene.mbin;*.SCENE.MBIN",

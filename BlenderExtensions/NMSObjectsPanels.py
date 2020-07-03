@@ -95,7 +95,8 @@ class NMSRotationProperties(bpy.types.PropertyGroup):
 class NMSReferenceProperties(bpy.types.PropertyGroup):
     reference_path: StringProperty(
         name="Reference Path",
-        description="Path to scene to be referenced at this location.")
+        description="Path to scene to be referenced at this location.",
+        subtype='FILE_PATH')
     ref_path: StringProperty(
         name="Reference Path (internal)",
         description="Internal use only reference path variable.")

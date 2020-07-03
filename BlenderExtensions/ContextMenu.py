@@ -25,6 +25,8 @@ class AddReferenceNode(Operator):
     def execute(self, context):
         selected_objs = getattr(context, "selected_objects", None)
         if not selected_objs:
+            self.report({'ERROR_INVALID_INPUT'},
+                        'Please select an object to add a child node to')
             return {'FINISHED'}
         # Create a new empty reference node.
         for obj in selected_objs:
@@ -51,6 +53,8 @@ class AddLocatorNode(Operator):
     def execute(self, context):
         selected_objs = getattr(context, "selected_objects", None)
         if not selected_objs:
+            self.report({'ERROR_INVALID_INPUT'},
+                        'Please select an object to add a child node to')
             return {'FINISHED'}
         # Create a new empty reference node.
         for obj in selected_objs:
@@ -66,9 +70,9 @@ class AddLocatorNode(Operator):
 
 
 class AddBoxCollisionNode(Operator):
-    """Add a new NMS cube mesh node"""
+    """Add a new NMS box collision node"""
     bl_idname = "nmsdk.add_box_collision_node"
-    bl_label = "Cube Mesh node"
+    bl_label = "Box Collision node"
 
     @classmethod
     def poll(cls, context):
@@ -77,6 +81,8 @@ class AddBoxCollisionNode(Operator):
     def execute(self, context):
         selected_objs = getattr(context, "selected_objects", None)
         if not selected_objs:
+            self.report({'ERROR_INVALID_INPUT'},
+                        'Please select an object to add a child node to')
             return {'FINISHED'}
         # Create a new empty reference node.
         for obj in selected_objs:
@@ -109,6 +115,8 @@ class CloneNodes(Operator):
     def execute(self, context):
         selected_objs = getattr(context, "selected_objects", None)
         if not selected_objs:
+            self.report({'ERROR_INVALID_INPUT'},
+                        'Please select an object to clone')
             return {'FINISHED'}
         # Make a copy of each of the selected nodes.
         for obj in selected_objs:
@@ -128,6 +136,8 @@ class CloneNodesRecursively(Operator):
     def execute(self, context):
         selected_objs = getattr(context, "selected_objects", None)
         if not selected_objs:
+            self.report({'ERROR_INVALID_INPUT'},
+                        'Please select an object to clone')
             return {'FINISHED'}
         # Make a copy of each of the selected nodes.
         for obj in selected_objs:
@@ -135,36 +145,58 @@ class CloneNodesRecursively(Operator):
         return {'FINISHED'}
 
 
-class WM_OT_button_add_parent(Operator):
-    """ Add the selected objects as child nodes to the selected parent"""
-    bl_idname = "wm.add_to_parent"
-    bl_label = "Add object to NMSDK scene"
+class NMSDK_OT_move_to_parent(Operator):
+    """Set the selected object(s) to be a child node of the selected parent"""
+    bl_idname = "nmsdk.add_to_parent"
+    bl_label = "Set object(s) as child of selected parent"
 
     @classmethod
     def poll(cls, context):
         return context.active_object is not None
 
     def execute(self, context):
-        selected_objs = getattr(context, "selected_objects", None)
+        selected_objs = getattr(context, "selected_objects", [])
         parent_obj = getattr(context, "active_object", None)
+
+        # First, make sure we have, a) enough objects selected, and b) the
+        # correct set of objects to iterate over so that it doesn't include the
+        # parent object.
+        if len(selected_objs) < 2:
+            self.report({'ERROR_INVALID_INPUT'},
+                        'Please select 2 or more objects')
+            return {'FINISHED'}
+        child_objs = set(selected_objs) - {parent_obj}
         root_obj = get_root_node(parent_obj)
-        for obj in selected_objs:
-            print(obj)
-            if obj == parent_obj:
-                # Skip over the parent obj.
-                pass
-            # 1. copy the world matrix of the object.
-            trans = copy(obj.matrix_world)
-            # 2. Set the world matrix of the object to be the Identity matrix.
-            obj.matrix_world = Matrix()
-            # 3. Change the object to be in the coordinate system of the root
-            # node. Apply this change the object.
-            obj.data.transform(root_obj.matrix_world)
-            obj.matrix_world = Matrix()
-            # 4. Parent the object to the required object.
-            obj.parent = parent_obj
-            # 5. Set the objects transform from before.
-            obj.matrix_local = trans
+        for obj in child_objs:
+            # There are two possibilities for moving an object under a parent.
+            # 1. It can already be inside the imported scene, in which case we
+            # don't want to apply any kind of transforms, but simply set the
+            # parent and local transform.
+            # 2. The object exists outside of the scene, so we need to do a few
+            # extra things detailed within the code block.
+            if get_root_node(obj) == root_obj:
+                # Copy the local transform.
+                trans = copy(obj.matrix_local)
+                # set the parent.
+                obj.parent = parent_obj
+                # Set the local transform as before
+                obj.matrix_local = trans
+                del trans
+            else:
+                # 1. copy the world matrix of the object.
+                trans = copy(obj.matrix_world)
+                # 2. Set the world matrix of the object to be the Identity
+                # matrix.
+                obj.matrix_world = Matrix()
+                # 3. Change the object to be in the coordinate system of the
+                # root node. Apply this change the object.
+                obj.data.transform(root_obj.matrix_world)
+                obj.matrix_world = Matrix()
+                # 4. Parent the object to the required object.
+                obj.parent = parent_obj
+                # 5. Set the objects transform from before.
+                obj.matrix_local = trans
+                del trans
 
         return {'FINISHED'}
 
@@ -210,7 +242,7 @@ def add_empty_root_node(self, context):
 def parent_menu_func(self, context):
     layout = self.layout
     layout.separator()
-    layout.operator('wm.add_to_parent')
+    layout.operator('nmsdk.add_to_parent')
 
 
 def add_obj_menu_func(self, context):
@@ -223,7 +255,7 @@ def add_obj_menu_func(self, context):
     row.menu("NMSDK_MT_clone_NMS_Scenenodes")
 
 
-classes = (WM_OT_button_add_parent,
+classes = (NMSDK_OT_move_to_parent,
            AddReferenceNode,
            AddBoxCollisionNode,
            AddLocatorNode,
