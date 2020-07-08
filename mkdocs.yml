@@ -7,6 +7,7 @@ nav:
     - Setup: setup.md
     - Importing a Scene:
       - Importing: importing/importing.md
+      - Manipulating imported scenes: importing/manipulating_scenes.md
     - Exporting a Scene:
       - Setting up: exporting/exporting.md
       - Node type guide: exporting/node_docs.md

@@ -2,7 +2,13 @@
 
 ## Releases:
 
-### Current - v0.9.20
+### Current - v0.9.21
+
+ - Vastly improved the system to allow importing scenes to be exported again. As part of this improvement a number of new API functions have been added as well as context menu items. Please see the [import page](importing/importing.md) for more details on usage. These changes have been across a fair chunk of the codebase, so I may have introduced some regressions, but this will be investigated more thoroughly in the next release.
+
+### Past:
+
+### v0.9.20 (14/05/2020)
 
  - Release for Blender 2.82 (maybe 2.83? It is untested...). I don't think it will be compatible with 2.80 as I think there were some API changes between 2.80 and 2.82.
  - Fixed tests to be able to run better/easier.
@@ -10,8 +16,6 @@
  - Fixed an issue where some scenes were unable to be imported due to a number of reasons [#64](https://github.com/monkeyman192/NMSDK/issues/64) and [#66](https://github.com/monkeyman192/NMSDK/issues/66).
  - Fixed a small bug [#62](https://github.com/monkeyman192/NMSDK/issues/62).
  - Collision node names are now shorter and more managable.
-
-### Past:
 
 ### v0.9.19 (01/11/2019)
 
