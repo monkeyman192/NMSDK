@@ -214,7 +214,8 @@ class Exporter():
                    name,
                    scene,
                    self.scene_anim_data.get(obj.name, dict()),
-                   descriptor)
+                   descriptor,
+                   self.settings)
 
         self.global_scene.frame_set(0)
 

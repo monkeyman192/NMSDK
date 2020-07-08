@@ -113,8 +113,11 @@ class ExportSceneOperator(Operator):
         description="Name of the scene to be exported.")
     preserve_node_info: BoolProperty(
         name="Preserve Node Info",
-        description="If the exported scene was originally, preserve the "
-                    "details of any nodes that were in the original scene.",
+        description="If the exported scene was originally imported, preserve "
+                    "the details of any nodes that were in the original scene."
+                    "\nNote that this will not currently export any geometry "
+                    "data, so adding mesh collisions to an existing scene is "
+                    "not currently possible.",
         default=False)
     AT_only: BoolProperty(
         name="ActionTriggers Only",
@@ -623,8 +626,11 @@ class NMS_Export_Operator(Operator, ExportHelper):
                     "folder are placed there (path becomes group_name/name)")
     preserve_node_info: BoolProperty(
         name="Preserve Node Info",
-        description="If the exported scene was originally, preserve the "
-                    "details of any nodes that were in the original scene.",
+        description="If the exported scene was originally imported, preserve "
+                    "the details of any nodes that were in the original scene."
+                    "\nNote that this will not currently export any geometry "
+                    "data, so adding mesh collisions to an existing scene is "
+                    "not currently possible.",
         default=False)
     AT_only: BoolProperty(
         name="ActionTriggers Only",
@@ -643,7 +649,7 @@ class NMS_Export_Operator(Operator, ExportHelper):
         name="Idle animation name",
         description="The name of the animation that is the idle animation.")
 
-    # ExportHelper mixin class uses this
+    # ExportHelper mixin class uses this.
     filename_ext = ""
 
     settings_loaded = False
