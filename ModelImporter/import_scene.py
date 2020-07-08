@@ -1,6 +1,5 @@
 # stdlib imports
 import os.path as op
-import xml.etree.ElementTree as ET
 import struct
 from math import radians
 import subprocess
@@ -18,7 +17,7 @@ from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT  #
 from ..NMS.material_node import create_material_node  # noqa pylint: disable=relative-beyond-top-level
 from .readers import (read_metadata, read_gstream, read_anim, read_entity,  # noqa pylint: disable=relative-beyond-top-level
                       read_mesh_binding_data)
-from .utils import element_to_dict  # noqa pylint: disable=relative-beyond-top-level
+from ..utils.utils import scene_to_dict  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
 
@@ -137,7 +136,7 @@ class ImportScene():
                       'registered on the path.')
                 print('Import failed')
                 return
-        self._load_scene(exml_fpath)
+        self.data = scene_to_dict(exml_fpath)
 
         if self.data is None:
             raise ValueError('Cannot load scene file...')
@@ -315,7 +314,6 @@ class ImportScene():
             if self.settings.get('clear_scene', True):
                 self._clear_prev_scene()
             added_obj = self._add_empty_to_scene(self.scene_basename)
-            print(self.scene_node_data.info)
             added_obj['scene_node'] = self.scene_node_data.info
         # If we need to know the list of joints, get them now...
         if self.mesh_binding_data is not None:
@@ -381,9 +379,11 @@ class ImportScene():
         obj.parent = self.local_objects[self.scene_basename]
 
     def _add_bone_to_scene(self, scene_node, armature):
-        bpy.context.view_layer.objects.active = armature
-        armature.select = True
+        # bpy.context.view_layer.objects.active = armature
+        # armature.select = True
+        bpy.ops.object.mode_set(mode='EDIT')
         bone = armature.edit_bones.new(scene_node.Name)
+        bpy.ops.object.mode_set(mode='OBJECT')
         bone.use_inherit_rotation = True
         bone.use_inherit_scale = True
         if scene_node.parent.Type == 'JOINT':
@@ -1053,8 +1053,3 @@ class ImportScene():
         """ Load the mesh data from the geometry stream file."""
         mesh.raw_verts, mesh.raw_idxs = read_gstream(self.geometry_stream_file,
                                                      mesh.metadata)
-
-    def _load_scene(self, fpath):
-        tree = ET.parse(fpath)
-        root = tree.getroot()
-        self.data = element_to_dict(root)
