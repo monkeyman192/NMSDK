@@ -139,21 +139,25 @@ def read_material(fname):
         f.seek(0x60)
         # get name
         data['Name'] = read_string(f, 0x80)
+        # get metamaterial, introduced in 2.61 - see issue 72
+        data['Metamaterial'] = read_string(f, 0x100)
         # get class
         data['Class'] = read_string(f, 0x20)
         # get whether it casts a shadow
-        f.seek(0xA4 + 0x60)
+        f.seek(0x4,1)
         data['CastShadow'] = read_bool(f)
+        # save pointer for Flags Uniforms Samplers list headers
+        list_header_first = f.tell()+0x1+0x80+0x80+0x2
         # get material flags
         data['Flags'] = list()
-        f.seek(0x208)
+        f.seek(list_header_first)
         list_offset, list_count = read_list_header(f)
         f.seek(list_offset, 1)
         for i in range(list_count):
             data['Flags'].append(struct.unpack('<I', f.read(0x4))[0])
         # get uniforms
         data['Uniforms'] = dict()
-        f.seek(0x218)
+        f.seek(list_header_first+0x10)
         list_offset, list_count = read_list_header(f)
         f.seek(list_offset, 1)
         for i in range(list_count):
@@ -163,7 +167,7 @@ def read_material(fname):
             f.seek(0x10, 1)
         # get samplers (texture paths)
         data['Samplers'] = dict()
-        f.seek(0x228)
+        f.seek(list_header_first+0x20)
         list_offset, list_count = read_list_header(f)
         f.seek(list_offset, 1)
         for i in range(list_count):
