@@ -379,8 +379,8 @@ class ImportScene():
         obj.parent = self.local_objects[self.scene_basename]
 
     def _add_bone_to_scene(self, scene_node, armature):
-        # bpy.context.view_layer.objects.active = armature
-        # armature.select = True
+        bpy.context.view_layer.objects.active = armature
+        #armature.select = True
         bpy.ops.object.mode_set(mode='EDIT')
         bone = armature.edit_bones.new(scene_node.Name)
         bpy.ops.object.mode_set(mode='OBJECT')

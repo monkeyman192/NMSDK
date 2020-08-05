@@ -13,7 +13,7 @@ Installing NMSDK is very easy. Head to the [NMSDK Release page](https://github.c
 Open Blender and open the user settings (Ctrl + Alt + U) (or `File` > `User Preferences...`), and select `Install Add-on from File...` (it is at the bottom left of the window).
 Select the `.zip` file you just downloaded and blender should install it without any errors.
 
-To make exporting easier, NMSDK will automatically convert all produced `.exml` files to `.mbin` files. For this to work, *MBINCompiler* is required. See below for instructions on downloading and installing the latest version.
+To make exporting easier, NMSDK will automatically convert all produced `.exml` files to `.mbin` files. For this to work, [MBINCompiler](https://github.com/monkeyman192/MBINCompiler) is required. See below for instructions on downloading and installing the latest version.
 
 ### Prerequisites
 
@@ -40,11 +40,32 @@ This will add the folder the `.exe` is in to the system path, allowing NMSDK to 
 
 ---
 
-### Usage:
+### Usage
 
 For a comprehensive guide on using NMSDK, please visit the [documentation](https://monkeyman192.github.io/NMSDK/) for more details.
 
-### Credits:
+### Running Tests
+
+If you are looking to develop NMSDK, there are a number of tests that can be run so ensure the added functionality doesn't cause any regressions.
+If new features are added, it is highly encouraged that new tests are written to ensure good code coverage (not currently tracked, and not even sure if it is possible to...)
+
+To run the tests, you must have NMSDK cloned from git, and not simply installed. In a console, then run
+```
+./run_tests.sh`.
+```
+This will run all the tests.
+
+This script can have specific test files passed to it as an argument, and these are passed to pytest, which is the underlying test runner.
+
+For example, to run a single individual test you could enter
+```
+./run_tests.sh tests/import_tests/import_test.py::test_import_crystal
+```
+
+For more info, use `./run_tests.sh -h` to see the help and options.
+
+### Credits
+
  - Primarily coded and maintained by monkeyman192.
  - All functionality for extracting data from blender provided by Gregkwaste.
  - Thanks to GmrLeon for their assistance in converting structs to python for the entity construction.
