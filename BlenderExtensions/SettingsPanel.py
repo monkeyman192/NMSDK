@@ -86,6 +86,30 @@ class NMSDK_PT_DefaultsPanel(bpy.types.Panel):
         layout.operator("nmsdk._save_default_settings", icon='FILE_TICK',
                         text='Save settings')
 
+class NMSDK_PT_TestsPanel(bpy.types.Panel):
+    bl_idname = 'NMSDK_PT_TestsPanel'
+    bl_label = 'Tests'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'NMSDK'
+    bl_context = 'objectmode'
+    
+    @classmethod
+    def poll(self, context):
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+        try:
+            import pytest
+            row = layout.row(align=True)
+            row.alignment = 'LEFT'
+            row.prop( context.scene.nmsdk_tests, "tests", text="")
+            row.operator("nmsdk.run_test",text="",
+                         icon='PLAY', emboss=False)
+        except ModuleNotFoundError:
+            # Blender has privilege and can install pytest
+            layout.operator("nmsdk.install_pytest")
 
 class NMSDK_PT_AnimationsPanel(bpy.types.Panel):
     bl_idname = 'NMSDK_PT_AnimationsPanel'
@@ -146,6 +170,7 @@ class NMSDK_PT_AnimationsPanel(bpy.types.Panel):
 classes = (NMSDK_PT_UpdateSettingsPanel,
            NMSDK_PT_ToolsPanel,
            NMSDK_PT_DefaultsPanel,
+           NMSDK_PT_TestsPanel,
            NMSDK_PT_AnimationsPanel)
 
 

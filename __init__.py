@@ -33,6 +33,8 @@ from .NMSDK import (_ChangeAnimation, _PlayAnimation, _PauseAnimation,
                     _StopAnimation, _LoadAnimation, AnimProperties,
                     _RefreshAnimations)
 from .ModelImporter.animation_handler import AnimationHandler
+# Tests
+from .pytest import (NMSTests, RunTest, InstallPytest)
 # extensions to blender UI
 from .BlenderExtensions import (NMSNodes, NMSEntities, NMSPanels,
                                 SettingsPanels, ContextMenus)  # , NMSShaderNode)
@@ -77,7 +79,11 @@ classes = (NMS_Export_Operator,
            _PauseAnimation,
            _StopAnimation,
            AnimationHandler,
-           AnimProperties)
+           AnimProperties,
+           NMSTests,
+           RunTest,
+           InstallPytest
+          )
 
 
 def register():
@@ -87,6 +93,7 @@ def register():
     bpy.types.Scene.nmsdk_default_settings = PointerProperty(
         type=NMSDKDefaultSettings)
     bpy.types.Scene.nmsdk_anim_data = PointerProperty(type=AnimProperties)
+    bpy.types.Scene.nmsdk_tests = PointerProperty(type=NMSTests)
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     NMSPanels.register()
@@ -103,6 +110,7 @@ def unregister():
     del bpy.types.Scene.nmsdk_settings
     del bpy.types.Scene.nmsdk_default_settings
     del bpy.types.Scene.anim_data
+    del bpy.types.Scene.nmsdk_tests
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
     NMSPanels.unregister()
