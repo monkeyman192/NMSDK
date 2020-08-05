@@ -15,9 +15,13 @@ class NMSTests(PropertyGroup):
         items=[
             ('\\tests\\import_tests\\import_crystal.py', 'Import large crystal', ''),
             ('\\tests\\import_tests\\import_toycube.py', 'Import toy cube', ''),
+            ('tests/import_tests', 'Import tests', ''),
+            ('tests/export_tests', 'Export tests', ''),
+            ('tests/import_export_tests', 'Import & export tests', ''),
+            ('serialization', 'Serialization', ''),
+            ('', 'All tests', ''),
         ]
     )
-
 class RunTest(Operator):
     """Run a test"""
     bl_idname = "nmsdk.run_test"
@@ -26,9 +30,7 @@ class RunTest(Operator):
     def execute(self, context):
         try:
             from pytest import main as pytexec
-            print("enum state:", context.scene.nmsdk_tests.tests)
-            print(os.path.dirname(__file__))
-            pytexec([os.path.dirname(__file__) + context.scene.nmsdk_tests.tests])
+            pytexec([bpy.utils.user_resource('SCRIPTS') + 'addons\\nmsdk\\' + context.scene.nmsdk_tests.tests])
             return {'FINISHED'}
         except ModuleNotFoundError:
             print('Pytest not installed')
