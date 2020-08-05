@@ -93,7 +93,7 @@ class NMSDK_PT_TestsPanel(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_category = 'NMSDK'
     bl_context = 'objectmode'
-    
+
     @classmethod
     def poll(self, context):
         return True
@@ -104,8 +104,8 @@ class NMSDK_PT_TestsPanel(bpy.types.Panel):
             import pytest
             row = layout.row(align=True)
             row.alignment = 'LEFT'
-            row.prop( context.scene.nmsdk_tests, "tests", text="")
-            row.operator("nmsdk.run_test",text="",
+            row.prop(context.scene.nmsdk_tests, "tests", text="")
+            row.operator("nmsdk.run_test", text="",
                          icon='PLAY', emboss=False)
         except ModuleNotFoundError:
             # Blender has privilege and can install pytest
