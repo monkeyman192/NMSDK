@@ -9,6 +9,7 @@ MISPLACED_CRYSTAL_TEST_PATH = op.join(SELF_DIR, 'import_misplaced_crystal.py')
 BAD_IMPORT_TEST_PATH = op.join(SELF_DIR, 'import_bad.py')
 SMALLPROPA_TEST_PATH = op.join(SELF_DIR, 'import_smallpropa.py')
 TOYCUBE_TEST_PATH = op.join(SELF_DIR, 'import_toycube.py')
+JELLY_TEST_PATH = op.join(SELF_DIR, 'import_jelly.py')
 
 
 def test_import_crystal(run_test):
@@ -27,7 +28,12 @@ def test_import_smallpropa(run_test):
     run_test(SMALLPROPA_TEST_PATH)
 
 
-def test_import_animated_mesh(run_test):
+def test_import_jelly(run_test):
+    # Test the importing of a model with animated bones
+    run_test(JELLY_TEST_PATH)
+
+
+def test_import_toycube(run_test):
     # Test the importing of a model with animated bones
     run_test(TOYCUBE_TEST_PATH)
 

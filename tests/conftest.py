@@ -1,6 +1,7 @@
 import os
-import pytest
+import sys
 import subprocess
+import pytest
 
 
 # TODO: create a fixture which uses the pytest fixture (?) or property which
@@ -15,7 +16,10 @@ def run_test():
     """ A fixture that is used to run each test by calling some python code
     from blender. """
     def _run_test(test_path: list, blend_path=None):
-        _blender_path = os.environ.get('BLENDERPATH')
+        if os.path.basename(sys.executable) == 'blender.exe':
+            _blender_path = sys.executable
+        else:
+            _blender_path = os.environ.get('BLENDERPATH')
         if _blender_path:
             cmd = [_blender_path, '-b', '-noaudio']
             if blend_path:
