@@ -1,6 +1,7 @@
 import os
-import pytest
+import sys
 import subprocess
+import pytest
 
 
 # TODO: create a fixture which uses the pytest fixture (?) or property which
@@ -36,7 +37,10 @@ def run_test(logging):
         req_stderr:
             A string or list of strings that are to match the stderr.
         """
-        _blender_path = os.environ.get('BLENDERPATH')
+        if os.path.basename(sys.executable) == 'blender.exe':
+            _blender_path = sys.executable
+        else:
+            _blender_path = os.environ.get('BLENDERPATH')
         if _blender_path:
             cmd = [_blender_path, '-b', '-noaudio']
             if blend_path:
