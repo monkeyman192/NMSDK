@@ -12,7 +12,7 @@ class List():
         self.subElements = []
         self._format = kwargs.get('_format', None)
         for e in args:
-            if type(e) == list:
+            if isinstance(e, list):
                 for i in e:
                     self.subElements.append(i)
             else:

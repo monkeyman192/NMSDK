@@ -185,7 +185,7 @@ class Export():
         # on down the tree
         self.TkSceneNodeData.make_elements(main=True)
         for material in self.materials:
-            if type(material) != str:
+            if not isinstance(material, str):
                 material.make_elements(main=True)
         for anim_name in list(self.anim_data.keys()):
             self.anim_data[anim_name].make_elements(main=True)
@@ -441,7 +441,7 @@ class Export():
                     data['HASH'] = self.hashes.get(name, 0)
                     # we only care about entity and material data for Mesh
                     # Objects
-                    if type(mesh_obj.Material) != str:
+                    if not isinstance(mesh_obj.Material, str):
                         if mesh_obj.Material is not None:
                             mat_name = str(mesh_obj.Material['Name'])
                             print('material name: {}'.format(mat_name))
@@ -664,7 +664,7 @@ class Export():
         """ Process the material data and gives the textures the correct paths.
         """
         for material in self.materials:
-            if type(material) != str:
+            if not isinstance(material, str):
                 # in this case we are given actual material data, not just a
                 # string path location
                 samplers = material['Samplers']
@@ -706,7 +706,7 @@ class Export():
             descriptor.tree.write(
                 "{}.DESCRIPTOR.exml".format(self.abs_name_path))
         for material in self.materials:
-            if type(material) != str:
+            if not isinstance(material, str):
                 material.tree.write(
                     "{0}.MATERIAL.exml".format(os.path.join(
                         self.abs_name_path, str(material['Name']).upper())))

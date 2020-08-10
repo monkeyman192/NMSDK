@@ -68,9 +68,9 @@ def generate_hull(mesh, determine_indexes=False):
     ch = bmesh.ops.convex_hull(bm, input=bm.verts)['geom']
     faces = list()
     for i in ch:
-        if type(i) == bmesh.types.BMVert:
+        if isinstance(i, bmesh.types.BMVert):
             chverts.append((i.co[0], i.co[1], i.co[2], 1.0))
-        elif type(i) == bmesh.types.BMFace:
+        elif isinstance(i, bmesh.types.BMFace):
             if determine_indexes:
                 faces.append(i)
     # determine the index stream

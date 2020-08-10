@@ -186,12 +186,12 @@ def read_bool(data):
 def serialize(x):
     """ Generic serialization function. Attempts to return the bytes
     representation of the object. """
-    if type(x) == bytes:
+    if isinstance(x, bytes):
         # in this case it is already sorted are ready to write
         return x
-    elif type(x) == int:
+    elif isinstance(x, int):
         return pack('<i', x)
-    elif type(x) == float:
+    elif isinstance(x, float):
         return pack('<f', x)
     else:
         # in this case just call bytes(~) on the object and hope we get

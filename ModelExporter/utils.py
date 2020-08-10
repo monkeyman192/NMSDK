@@ -91,7 +91,7 @@ def get_children(obj, obj_types=ALL_TYPES, condition=lambda x: True,
         the objects themselves.
     """
     curr_children = list()
-    if type(obj_types) == str:
+    if isinstance(obj_types, str):
         obj_types = [obj_types]
     # otherwise we'll just assume that it is a list of strings
     for child in obj.children:
