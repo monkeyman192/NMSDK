@@ -1,13 +1,13 @@
 import xml.etree.ElementTree as ET
 
 
-def scene_to_dict(fpath):
+def scene_to_dict(fpath: str) -> dict:
     tree = ET.parse(fpath)
     root = tree.getroot()
     return element_to_dict(root)
 
 
-def element_to_dict(node):
+def element_to_dict(node: ET.Element) -> dict:
     """ Converts an element object to a dictionary. """
     data = dict()
     for elem in list(node):

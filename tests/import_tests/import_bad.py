@@ -7,7 +7,7 @@ import pytest
 
 
 with pytest.raises(FileNotFoundError):
-    res = bpy.ops.nmsdk.import_scene('fake_file.mbin')
+    res = bpy.ops.nmsdk.import_scene(path='fake_file.mbin')
 
 with pytest.raises(TypeError):
-    res = bpy.ops.nmsdk.import_scene('fake_file')
+    res = bpy.ops.nmsdk.import_scene(path='fake_file')

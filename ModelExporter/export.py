@@ -697,6 +697,7 @@ class Export():
                 self.TkGeometryData,
                 "{}.GEOMETRY.MBIN.PC".format(self.abs_name_path))
             mbinc.serialize()
+        print(f'Scene written to {self.abs_name_path}')
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(
             self.abs_name_path))
         # Build all the descriptor exml data

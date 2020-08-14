@@ -17,6 +17,26 @@ from .utils.settings import read_settings, write_settings
 from .BlenderExtensions.UIWidgets import ShowMessageBox
 
 
+def set_import_export_defaults(cls, context):
+    if hasattr(cls, 'settings_loaded'):
+        if not cls.settings_loaded:
+            default_settings = context.scene.nmsdk_default_settings
+            cls.export_directory = default_settings.export_directory
+            cls.group_name = default_settings.group_name
+            cls.settings_loaded = True
+    # If there is an imported node, then get some default info from it.
+    # TODO: This needs a bit of work...
+    if bpy.context.scene.get('scene_node') and cls.preserve_node_info:
+        scene_node = bpy.context.scene.get('scene_node')
+        scene_path = scene_node['imported_from']
+        export_dir = op.dirname(scene_path)
+        cls.export_directory, cls.group_name = op.split(export_dir)
+        cls.preserve_node_info = True
+        print(scene_node['imported_from'])
+        if hasattr(cls, 'scene_name'):
+            cls.scene_name = op.basename(scene_node['imported_from'])
+
+
 # Operators to be used for the public API
 # Import/Export operators
 
@@ -137,6 +157,7 @@ class ExportSceneOperator(Operator):
         description="The name of the animation that is the idle animation.")
 
     def execute(self, context):
+        set_import_export_defaults(self, context)
         keywords = self.as_keywords()
         keywords.pop('output_directory')
         keywords.pop('export_directory')
@@ -146,7 +167,9 @@ class ExportSceneOperator(Operator):
                                  self.group_name, self.scene_name, keywords)
         status = main_exporter.state
         if status == {'FINISHED'}:
-            self.report({'INFO'}, "Models Exported Successfully")
+            path = op.join(self.export_directory, self.group_name,
+                           self.scene_name)
+            self.report({'INFO'}, f"Models Exported Successfully to {path}")
         return status
 
 
@@ -652,11 +675,13 @@ class NMS_Export_Operator(Operator, ExportHelper):
     # ExportHelper mixin class uses this.
     filename_ext = ""
 
+    # Track whether some values have been read from the settings file to avoid
+    # constantly reading from them.
     settings_loaded = False
 
     def invoke(self, context, _event):
         """ Override the default behavior so that we can provide a scene
-        file name automatcially. """
+        file name automatically. """
         if bpy.context.scene.get('scene_node'):
             scene_node = bpy.context.scene.get('scene_node')
             scene_name = op.basename(scene_node['imported_from'])
@@ -664,19 +689,7 @@ class NMS_Export_Operator(Operator, ExportHelper):
         return super().invoke(context, _event)
 
     def draw(self, context):
-        if not self.settings_loaded:
-            default_settings = context.scene.nmsdk_default_settings
-            self.export_directory = default_settings.export_directory
-            self.group_name = default_settings.group_name
-            self.settings_loaded = True
-        # If there is an imported node, then get some default info from it.
-        # TODO: This needs a bit of work...
-        if bpy.context.scene.get('scene_node') and self.preserve_node_info:
-            scene_node = bpy.context.scene.get('scene_node')
-            scene_path = scene_node['imported_from']
-            export_dir = op.dirname(scene_path)
-            self.export_directory, self.group_name = op.split(export_dir)
-            self.preserve_node_info = True
+        set_import_export_defaults(self, context)
         layout = self.layout
         layout.prop(self, 'export_directory')
         layout.prop(self, 'group_name')

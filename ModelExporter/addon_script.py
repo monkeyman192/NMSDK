@@ -201,7 +201,10 @@ class Exporter():
             if obj.NMSReference_props.is_proc:
                 descriptor = self.descriptor_generator(obj)
             print('Located Object for export', name)
-            scene = Model(Name=name)
+            orig_node_data = dict()
+            if self.settings.get('preserve_node_info', False):
+                orig_node_data = obj.get('scene_node', dict())
+            scene = Model(Name=name, orig_node_data=orig_node_data)
             # We don't want to actually add the main object to the scene,
             # Just its children.
             for sub_obj in obj.children:
@@ -547,6 +550,10 @@ class Exporter():
 
     def parse_object(self, ob, parent):
         newob = None
+        # Some objects (eg. imported bounded hulls) shouldn't be exported.
+        # If the object has this custom property then ignore it.
+        if ob.get('_dont_export', False):
+            return
         # TODO: this is currently only true for models that are imported then
         # modified then exported again.
         trans, rot_q, scale = ob.matrix_local.decompose()

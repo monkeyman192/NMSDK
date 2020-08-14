@@ -875,6 +875,7 @@ class ImportScene():
             # Don't show the bounded hull
             bh_obj.hide_set(True)
             bh_obj.hide_render = True
+            bh_obj['_dont_export'] = True
 
         return mesh_obj
 
