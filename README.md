@@ -28,8 +28,7 @@ to generate the *.mbin* files that are read by the game.
 The easiest way to have *MBINCompiler* set up is to download the most recent
 release and register *MBINCompiler* to the path so that it can be picked up
 anywhere by Blender.
-If you already have a version of *MBINCompiler* on your computer, ensure it is
-version **v2.61.1-pre1** or above. This can be found on the [MBINCompiler releases](https://github.com/monkeyman192/MBINCompiler/releases) page.
+If you already have a version of *MBINCompiler* on your computer, ensure it is the latest version. This can be found on the [MBINCompiler releases](https://github.com/monkeyman192/MBINCompiler/releases) page.
 
 For NMSDK to be able to use *MBINCompiler*, the program needs to be registered to the path so that it can be called from anywhere on your computer.
 Open the folder containing the `MBINCompiler.exe` you just downloaded, open this folder in command line, then enter `MBINCompiler.exe register`.
