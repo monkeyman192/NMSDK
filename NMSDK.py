@@ -1,4 +1,5 @@
 # stdlib imports
+from math import radians
 import os.path as op
 
 # Blender imports
@@ -6,6 +7,7 @@ from bpy.props import (StringProperty, BoolProperty, EnumProperty, IntProperty)
 import bpy
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 from bpy.types import Operator, PropertyGroup
+from mathutils import Matrix
 
 # internal imports
 from .ModelImporter.import_scene import ImportScene
@@ -15,8 +17,28 @@ from .utils.settings import read_settings, write_settings
 from .BlenderExtensions.UIWidgets import ShowMessageBox
 
 
-# Operators to be used for the public API
+def set_import_export_defaults(cls, context):
+    if hasattr(cls, 'settings_loaded'):
+        if not cls.settings_loaded:
+            default_settings = context.scene.nmsdk_default_settings
+            cls.export_directory = default_settings.export_directory
+            cls.group_name = default_settings.group_name
+            cls.settings_loaded = True
+    # If there is an imported node, then get some default info from it.
+    # TODO: This needs a bit of work...
+    if bpy.context.scene.get('scene_node') and cls.preserve_node_info:
+        scene_node = bpy.context.scene.get('scene_node')
+        scene_path = scene_node['imported_from']
+        export_dir = op.dirname(scene_path)
+        cls.export_directory, cls.group_name = op.split(export_dir)
+        cls.preserve_node_info = True
+        print(scene_node['imported_from'])
+        if hasattr(cls, 'scene_name'):
+            cls.scene_name = op.basename(scene_node['imported_from'])
 
+
+# Operators to be used for the public API
+# Import/Export operators
 
 class ImportSceneOperator(Operator):
     """ Import an entire scene into the current blender context."""
@@ -45,6 +67,13 @@ class ImportSceneOperator(Operator):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    import_recursively: BoolProperty(
+        name='Import recursively',
+        description='Whether or not to import reference nodes automatically.\n'
+                    'For large scenes with many referenced scenes it is better'
+                    ' to set this as False to avoid long wait times, and then '
+                    'only import the scenes you want after it has loaded.',
+        default=True)
     # Animation related properties
     import_bones: BoolProperty(
         name='Import bones',
@@ -102,6 +131,14 @@ class ExportSceneOperator(Operator):
     scene_name: StringProperty(
         name="Scene Name",
         description="Name of the scene to be exported.")
+    preserve_node_info: BoolProperty(
+        name="Preserve Node Info",
+        description="If the exported scene was originally imported, preserve "
+                    "the details of any nodes that were in the original scene."
+                    "\nNote that this will not currently export any geometry "
+                    "data, so adding mesh collisions to an existing scene is "
+                    "not currently possible.",
+        default=False)
     AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
@@ -120,6 +157,7 @@ class ExportSceneOperator(Operator):
         description="The name of the animation that is the idle animation.")
 
     def execute(self, context):
+        set_import_export_defaults(self, context)
         keywords = self.as_keywords()
         keywords.pop('output_directory')
         keywords.pop('export_directory')
@@ -129,8 +167,31 @@ class ExportSceneOperator(Operator):
                                  self.group_name, self.scene_name, keywords)
         status = main_exporter.state
         if status == {'FINISHED'}:
-            self.report({'INFO'}, "Models Exported Successfully")
+            path = op.join(self.export_directory, self.group_name,
+                           self.scene_name)
+            self.report({'INFO'}, f"Models Exported Successfully to {path}")
         return status
+
+
+# Operators to create various NMSDK objects
+
+
+class CreateNMSDKScene(Operator):
+    """Add the currently selected object to the NMSDK scene node. """
+    bl_idname = "nmsdk.create_root_scene"
+    bl_label = "Create empty NMSDK scene"
+
+    def execute(self, context):
+        empty_mesh = bpy.data.meshes.new('NMS_Scene')
+        empty_obj = bpy.data.objects.new('NMS_Scene', empty_mesh)
+        empty_obj.NMSNode_props.node_types = 'Reference'
+        # Set the empty object to have a 90 degree rotation around the x-axis
+        # to emulate the NMS coordinate system.
+        empty_obj.matrix_world = Matrix.Rotation(radians(90), 4, 'X')
+        bpy.context.scene.collection.objects.link(empty_obj)
+        bpy.context.view_layer.objects.active = empty_obj
+        bpy.ops.object.mode_set(mode='OBJECT')
+        return {'FINISHED'}
 
 
 # Private operators for internal use
@@ -175,6 +236,33 @@ class _FixOldFormat(Operator):
 
     def invoke(self, context, event):
         return context.window_manager.invoke_confirm(self, event)
+
+
+class _ImportReferencedScene(Operator):
+    """Import a referenced scene into an existing node"""
+    bl_idname = "nmsdk._import_ref_scene"
+    bl_label = "Import referenced NMS scene file"
+
+    def execute(self, context):
+        obj = context.object
+        scene_path = obj.NMSReference_props.reference_path
+        if not scene_path:
+            # Can't import anything. Give up.
+            return {'FINISHED'}
+        if obj.children:
+            # It already has children. For now, do nothing...
+            return {'FINISHED'}
+        # If we get here, then the node has no children, and has a path to
+        # import. Try and do so...
+        # TODO: globalize the ref_scenes or the importer itself. This will
+        # allow the referenced scenes to be potentially taken from a previously
+        # imported scene.
+        PCBANKS_dir = context.scene.nmsdk_default_settings.PCBANKS_directory
+        full_path = op.join(PCBANKS_dir, scene_path)
+        importer = ImportScene(full_path, parent_obj=obj, ref_scenes=dict(),
+                               settings={'clear_scene': False})
+        importer.render_scene()
+        return importer.state
 
 
 class _ToggleCollisionVisibility(Operator):
@@ -237,7 +325,7 @@ class _GetPCBANKSFolder(Operator):
 
 
 class _RemovePCBANKSFolder(Operator):
-    """Reset the PCBANKS folder location."""
+    """Reset the PCBANKS folder location"""
     bl_idname = "nmsdk._remove_pcbanks"
     bl_label = "Remove PCBANKS location"
 
@@ -277,7 +365,7 @@ class _GetMBINCompilerLocation(Operator):
 
 
 class _RemoveMBINCompilerLocation(Operator):
-    """Reset the PCBANKS folder location."""
+    """Reset the MBINCompiler executable location"""
     bl_idname = "nmsdk._remove_mbincompiler"
     bl_label = "Remove MBINCompiler location"
 
@@ -544,6 +632,12 @@ class NMS_Export_Operator(Operator, ExportHelper):
     bl_idname = "export_mesh.nms"
     bl_label = "Export to NMS XML Format"
 
+    filepath: StringProperty(
+        name="File Path",
+        description="Filepath used for exporting the file",
+        maxlen=1024,
+        subtype='FILE_PATH',
+    )
     export_directory: StringProperty(
         name="Export Directory",
         description="The base path relative to the PCBANKS folder under which "
@@ -553,6 +647,14 @@ class NMS_Export_Operator(Operator, ExportHelper):
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)")
+    preserve_node_info: BoolProperty(
+        name="Preserve Node Info",
+        description="If the exported scene was originally imported, preserve "
+                    "the details of any nodes that were in the original scene."
+                    "\nNote that this will not currently export any geometry "
+                    "data, so adding mesh collisions to an existing scene is "
+                    "not currently possible.",
+        default=False)
     AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
@@ -570,20 +672,28 @@ class NMS_Export_Operator(Operator, ExportHelper):
         name="Idle animation name",
         description="The name of the animation that is the idle animation.")
 
-    # ExportHelper mixin class uses this
+    # ExportHelper mixin class uses this.
     filename_ext = ""
 
+    # Track whether some values have been read from the settings file to avoid
+    # constantly reading from them.
     settings_loaded = False
 
+    def invoke(self, context, _event):
+        """ Override the default behavior so that we can provide a scene
+        file name automatically. """
+        if bpy.context.scene.get('scene_node'):
+            scene_node = bpy.context.scene.get('scene_node')
+            scene_name = op.basename(scene_node['imported_from'])
+            self.filepath = scene_name
+        return super().invoke(context, _event)
+
     def draw(self, context):
-        if not self.settings_loaded:
-            default_settings = context.scene.nmsdk_default_settings
-            self.export_directory = default_settings.export_directory
-            self.group_name = default_settings.group_name
-            self.settings_loaded = True
+        set_import_export_defaults(self, context)
         layout = self.layout
         layout.prop(self, 'export_directory')
         layout.prop(self, 'group_name')
+        layout.prop(self, 'preserve_node_info')
         layout.prop(self, 'AT_only')
         layout.prop(self, 'no_vert_colours')
 
@@ -612,7 +722,7 @@ class NMS_Import_Operator(Operator, ImportHelper):
     bl_idname = "import_mesh.nms"
     bl_label = "Import from SCENE.EXML"
 
-    # ExportHelper mixin class uses this
+    # ImportHelper mixin class uses this
     filename_ext = ".EXML"
     filter_glob: StringProperty(
         default="*.scene.exml;*.SCENE.EXML;*.scene.mbin;*.SCENE.MBIN",
@@ -638,6 +748,13 @@ class NMS_Import_Operator(Operator, ImportHelper):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
+    import_recursively: BoolProperty(
+        name='Import recursively',
+        description='Whether or not to import reference nodes automatically.\n'
+                    'For large scenes with many referenced scenes it is better'
+                    ' to set this as False to avoid long wait times, and then '
+                    'only import the scenes you want after it has loaded.',
+        default=True)
     # Animation related properties
     import_bones: BoolProperty(
         name='Import bones',
@@ -655,10 +772,12 @@ class NMS_Import_Operator(Operator, ImportHelper):
         layout = self.layout
         layout.prop(self, 'draw_hulls')
         layout.prop(self, 'clear_scene')
+        layout.prop(self, 'import_recursively')
         coll_box = layout.box()
         coll_box.label(text='Collisions')
         coll_box.prop(self, 'import_collisions')
         coll_box.prop(self, 'show_collisions')
+
         animation_box = layout.box()
         animation_box.label(text='Animation')
         animation_box.prop(self, 'import_bones')

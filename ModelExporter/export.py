@@ -51,9 +51,12 @@ class Export():
         TkAnimMetadata object.
     descriptior: Descriptor
         Descriptor information for the scene.
+    settings : dict
+        A dictionaty containing various export settings. These will generally
+        be set by the blender export helper.
     """
     def __init__(self, export_directory, scene_directory, scene_name, model,
-                 anim_data=dict(), descriptor=None):
+                 anim_data=dict(), descriptor=None, settings=dict()):
         self.export_directory = export_directory
         self.scene_directory = scene_directory.upper()
         self.scene_name = scene_name.upper()
@@ -63,6 +66,7 @@ class Export():
         # animation data (defaults to None)
         self.anim_data = anim_data
         self.descriptor = descriptor
+        self.settings = settings
 
         # assign each of the input streams to a variable
         self.mesh_metadata = odict()
@@ -85,6 +89,10 @@ class Export():
         self.materials = set()
         self.hashes = odict()
         self.mesh_names = list()
+
+        # Make some settings values more easily accessible.
+        self.preserve_node_info = self.settings.get('preserve_node_info',
+                                                    False)
 
         # a list of any extra properties to go in each entity
         # self.Entities = []
@@ -136,12 +144,13 @@ class Export():
         # This dictionary contains all the information for the geometry file
         self.GeometryData = odict()
 
-        self.geometry_stream = StreamData(
-            '{}.GEOMETRY.DATA.MBIN.PC'.format(os.path.join(self.basepath,
-                                                           self.scene_name)))
+        if not self.preserve_node_info:
+            self.geometry_stream = StreamData(
+                '{}.GEOMETRY.DATA.MBIN.PC'.format(
+                    os.path.join(self.basepath, self.scene_name)))
 
-        # generate the geometry stream data now
-        self.serialize_data()
+            # generate the geometry stream data now
+            self.serialize_data()
 
         self.preprocess_streams()
 
@@ -167,15 +176,16 @@ class Export():
 
         # Assign each of the class objects that contain all of the data their
         # data
-        self.TkGeometryData = TkGeometryData(**self.GeometryData)
-        self.TkGeometryData.make_elements(main=True)
+        if not self.preserve_node_info:
+            self.TkGeometryData = TkGeometryData(**self.GeometryData)
+            self.TkGeometryData.make_elements(main=True)
         self.Model.construct_data()
         self.TkSceneNodeData = self.Model.get_data()
         # get the model to create all the required data and this will continue
         # on down the tree
         self.TkSceneNodeData.make_elements(main=True)
         for material in self.materials:
-            if type(material) != str:
+            if not isinstance(material, str):
                 material.make_elements(main=True)
         for anim_name in list(self.anim_data.keys()):
             self.anim_data[anim_name].make_elements(main=True)
@@ -428,10 +438,10 @@ class Export():
                     data['AABBMAXX'] = self.mesh_bounds[name]['x'][1]
                     data['AABBMAXY'] = self.mesh_bounds[name]['y'][1]
                     data['AABBMAXZ'] = self.mesh_bounds[name]['z'][1]
-                    data['HASH'] = self.hashes[name]
+                    data['HASH'] = self.hashes.get(name, 0)
                     # we only care about entity and material data for Mesh
                     # Objects
-                    if type(mesh_obj.Material) != str:
+                    if not isinstance(mesh_obj.Material, str):
                         if mesh_obj.Material is not None:
                             mat_name = str(mesh_obj.Material['Name'])
                             print('material name: {}'.format(mat_name))
@@ -654,7 +664,7 @@ class Export():
         """ Process the material data and gives the textures the correct paths.
         """
         for material in self.materials:
-            if type(material) != str:
+            if not isinstance(material, str):
                 # in this case we are given actual material data, not just a
                 # string path location
                 samplers = material['Samplers']
@@ -680,9 +690,14 @@ class Export():
 
     def write(self):
         """ Write all of the files required for the scene. """
-        mbinc = mbinCompiler(self.TkGeometryData,
-                             "{}.GEOMETRY.MBIN.PC".format(self.abs_name_path))
-        mbinc.serialize()
+        # We only need to write the geometry data if we aren't preserving
+        # imported node data.
+        if not self.preserve_node_info:
+            mbinc = mbinCompiler(
+                self.TkGeometryData,
+                "{}.GEOMETRY.MBIN.PC".format(self.abs_name_path))
+            mbinc.serialize()
+        print(f'Scene written to {self.abs_name_path}')
         self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(
             self.abs_name_path))
         # Build all the descriptor exml data
@@ -692,7 +707,7 @@ class Export():
             descriptor.tree.write(
                 "{}.DESCRIPTOR.exml".format(self.abs_name_path))
         for material in self.materials:
-            if type(material) != str:
+            if not isinstance(material, str):
                 material.tree.write(
                     "{0}.MATERIAL.exml".format(os.path.join(
                         self.abs_name_path, str(material['Name']).upper())))

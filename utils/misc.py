@@ -1,4 +1,32 @@
-# TODO: categorise better?
+# Blender imports
+import bpy
+
+
+def clone_node(node, include_children=False, new_parent=None):
+    """ Create a clone of the provided "node".
+
+    Parameters
+    ----------
+    node : bpy_types.Object
+        The node to clone.
+    include_children : bool
+        If True, then the children of `node` will also be cloned recursively.
+    new_parent : bpy_types.Object
+        The object that will be assigned as the parent of the newly copied node
+    """
+    # Copy the node then assign it its new parent.
+    new_node = node.copy()
+    # If there is no new_parent, then it will be the same as the parent of the
+    # original node by default.
+    if not new_parent:
+        new_parent = node.parent
+    new_node.parent = new_parent
+    bpy.context.scene.collection.objects.link(new_node)
+    if include_children:
+        # Go over the children and clone them, assigning the parent as the
+        # newly cloned node above.
+        for child in node.children:
+            clone_node(child, include_children, new_node)
 
 
 def CompareMatrices(mat1, mat2, tol):
@@ -67,6 +95,14 @@ def getParentRefScene(obj):
         return getParentRefScene(obj.parent)
 
 
+def get_root_node(obj):
+    """ Returns the root node for the NMS scene. """
+    if obj.parent is None and obj.NMSNode_props.node_types == 'Reference':
+        return obj
+    if obj.parent is not None:
+        return get_root_node(obj.parent)
+
+
 def get_obj_name(obj, export_name):
     if obj.NMSNode_props.override_name != '':
         return obj.NMSNode_props.override_name
@@ -94,3 +130,12 @@ def get_obj_name(obj, export_name):
         if name.startswith('NMS_'):
             name = name[4:].upper()
     return name
+
+
+def truncate_float(val):
+    """ Return the float value but truncated to at most 6 dp's. """
+    new_val = float(f'{val:.6f}')
+    if new_val == 0:
+        return 0
+    else:
+        return new_val

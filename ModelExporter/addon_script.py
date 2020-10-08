@@ -68,9 +68,9 @@ def generate_hull(mesh, determine_indexes=False):
     ch = bmesh.ops.convex_hull(bm, input=bm.verts)['geom']
     faces = list()
     for i in ch:
-        if type(i) == bmesh.types.BMVert:
+        if isinstance(i, bmesh.types.BMVert):
             chverts.append((i.co[0], i.co[1], i.co[2], 1.0))
-        elif type(i) == bmesh.types.BMFace:
+        elif isinstance(i, bmesh.types.BMFace):
             if determine_indexes:
                 faces.append(i)
     # determine the index stream
@@ -144,10 +144,11 @@ class Exporter():
         self.export_scenes = list()
         for obj in self.global_scene.objects:
             if obj.NMSNode_props.node_types == 'Reference':
-                if obj.NMSReference_props.reference_path == '':
+                if (obj.NMSReference_props.reference_path == '' or
+                        obj.parent is None):
                     self.export_scenes.append(obj)
 
-        if self.settings['AT_only']:
+        if self.settings.get('AT_only', False):
             # in this case we want to export just the entity with action
             # trigger data, nothing else
             entitydata = ParseNodes()
@@ -200,7 +201,10 @@ class Exporter():
             if obj.NMSReference_props.is_proc:
                 descriptor = self.descriptor_generator(obj)
             print('Located Object for export', name)
-            scene = Model(Name=name)
+            orig_node_data = dict()
+            if self.settings.get('preserve_node_info', False):
+                orig_node_data = obj.get('scene_node', dict())
+            scene = Model(Name=name, orig_node_data=orig_node_data)
             # We don't want to actually add the main object to the scene,
             # Just its children.
             for sub_obj in obj.children:
@@ -213,7 +217,8 @@ class Exporter():
                    name,
                    scene,
                    self.scene_anim_data.get(obj.name, dict()),
-                   descriptor)
+                   descriptor,
+                   self.settings)
 
         self.global_scene.frame_set(0)
 
@@ -461,7 +466,7 @@ class Exporter():
         # Determine if the model has colour data
         export_colours = bool(len(data.vertex_colors))
         # If we have an overwrite to say not to export them then don't
-        if self.settings['no_vert_colours']:
+        if self.settings.get('no_vert_colours', False):
             export_colours = False
         if export_colours:
             colour_data = data.vertex_colors.active.data
@@ -495,11 +500,14 @@ class Exporter():
             # If we created a temporary data object then delete it
             del data
 
+        """
         # Apply rotation and normal matrices on vertices and normal vectors
-        apply_local_transform(ROT_X_MAT, verts, normalize=False)
-        apply_local_transform(ROT_X_MAT, normals, use_norm_mat=True)
-        apply_local_transform(ROT_X_MAT, tangents, use_norm_mat=True)
-        apply_local_transform(ROT_X_MAT, chverts, normalize=False)
+        if ob.rotation_mode != 'QUATERNION':
+            apply_local_transform(ROT_X_MAT, verts, normalize=False)
+            apply_local_transform(ROT_X_MAT, normals, use_norm_mat=True)
+            apply_local_transform(ROT_X_MAT, tangents, use_norm_mat=True)
+            apply_local_transform(ROT_X_MAT, chverts, normalize=False)
+        """
 
         return verts, normals, tangents, uvs, indexes, chverts, colours
 
@@ -542,13 +550,14 @@ class Exporter():
 
     def parse_object(self, ob, parent):
         newob = None
-        # Apply location/rotation/scale
-        # bpy.ops.object.transform_apply(location=False, rotation=True,
-        #                                scale=True)
-
-        # get the objects' location and convert to NMS coordinates
-        trans, rot_q, scale = transform_to_NMS_coords(ob)
-        rot = rot_q.to_euler()      # TODO: should be 'ZXY'??
+        # Some objects (eg. imported bounded hulls) shouldn't be exported.
+        # If the object has this custom property then ignore it.
+        if ob.get('_dont_export', False):
+            return
+        # TODO: this is currently only true for models that are imported then
+        # modified then exported again.
+        trans, rot_q, scale = ob.matrix_local.decompose()
+        rot = rot_q.to_euler('ZXY')
 
         transform = TkTransformData(TransX=trans[0],
                                     TransY=trans[1],
@@ -561,6 +570,12 @@ class Exporter():
                                     ScaleZ=scale[2])
 
         entitydata = dict()         # this is the local entity data
+
+        # If the user has chosen to export an imported scene then we want to
+        # try and preserve as much info as possible
+        orig_node_data = dict()
+        if self.settings.get('preserve_node_info', False):
+            orig_node_data = ob.get('scene_node', dict())
 
         # let's first sort out any entity data that is specified:
         if ob.NMSMesh_props.has_entity or ob.NMSLocator_props.has_entity:
@@ -622,7 +637,8 @@ class Exporter():
             # The object will have its name in the scene so that any data
             # required can be linked up. This name will be overwritten by the
             # exporter to be the path name of the scene.
-            optdict = {'Name': get_obj_name(ob, None)}
+            optdict = {'Name': get_obj_name(ob, None),
+                       'orig_node_data': orig_node_data}
 
             # Let's do a check on the values of the scale and the dimensions.
             # We can have it so that the user can apply scale, even if by
@@ -632,9 +648,11 @@ class Exporter():
             if ob.NMSCollision_props.transform_type == "Transform":
                 trans_scale = (1, 1, 1)
                 dims = scale
-                # relative scale factor (to correct for the scaling due to the\
+                # relative scale factor (to correct for the scaling due to the
                 # transform)
-                factor = (0.5, 0.5, 0.5)
+                # TODO: confirm; this may not be needed if we can add the
+                # meshes in the correct way.
+                factor = (1, 1, 1)
             else:
                 trans_scale = scale
                 # swap coords to match the NMS coordinate system
@@ -660,9 +678,6 @@ class Exporter():
                 # anything.
 
                 chverts, chindexes = generate_hull(ob.data, True)
-
-                # Apply rotation to the convex hull
-                apply_local_transform(ROT_X_MAT, chverts, normalize=False)
 
                 # Reset Transforms on meshes
 
@@ -699,8 +714,6 @@ class Exporter():
                     # take the properties of the rotation vector and give it
                     # to the mesh as part of it's entity data
                     axis = child.rotation_quaternion*Vector((0, 0, 1))
-                    # axis = Matrix.Rotation(
-                    #    radians(-90), 4, 'X')*(rot*Vector((0,1,0)))
                     print(axis)
                     rotation_data = TkRotationComponentData(
                         Speed=child.NMSRotation_props.speed,
@@ -719,7 +732,8 @@ class Exporter():
                          CHVerts=chverts,
                          Colours=colours,
                          ExtraEntityData=entitydata,
-                         HasAttachment=ob.NMSMesh_props.has_entity)
+                         HasAttachment=ob.NMSMesh_props.has_entity,
+                         orig_node_data=orig_node_data)
 
             # Check to see if the mesh's entity will be animation controller,
             # if so assign to the anim_controller_obj variable.
@@ -768,7 +782,8 @@ class Exporter():
 
             newob = Reference(Name=actualname,
                               Transform=transform,
-                              Scenegraph=scenegraph)
+                              Scenegraph=scenegraph,
+                              orig_node_data=orig_node_data)
             ob.NMSReference_props.ref_path = scenegraph
         elif ob.NMSNode_props.node_types == 'Locator':
             actualname = get_obj_name(ob, None)
@@ -777,7 +792,8 @@ class Exporter():
             newob = Locator(Name=actualname,
                             Transform=transform,
                             ExtraEntityData=entitydata,
-                            HasAttachment=HasAttachment)
+                            HasAttachment=HasAttachment,
+                            orig_node_data=orig_node_data)
 
             if (ob.NMSEntity_props.is_anim_controller and
                     ob.NMSLocator_props.has_entity):
@@ -791,7 +807,8 @@ class Exporter():
             self.joints += 1
             newob = Joint(Name=actualname,
                           Transform=transform,
-                          JointIndex=self.joints)
+                          JointIndex=self.joints,
+                          orig_node_data=orig_node_data)
 
         # Light Objects
         elif ob.NMSNode_props.node_types == 'Light':
@@ -806,7 +823,8 @@ class Exporter():
                           Transform=transform,
                           Colour=col,
                           Intensity=intensity,
-                          FOV=ob.NMSLight_props.FOV_value)
+                          FOV=ob.NMSLight_props.FOV_value,
+                          orig_node_data=orig_node_data)
 
         parent.add_child(newob)
 
@@ -816,7 +834,7 @@ class Exporter():
         # If we parsed a reference node or a collision node, stop.
         if (ob.NMSNode_props.node_types == 'Collision' or
                 (ob.NMSNode_props.node_types == 'Reference' and
-                 ob.NMSReference_props.reference_path == '')):
+                 ob.NMSReference_props.reference_path != '')):
             return
 
         # Parse children
@@ -837,10 +855,10 @@ class Exporter():
         if len(bpy.data.actions) == 0:
             return
         # First, check to see if there is an idle animation
-        if self.settings['idle_anim'] != "":
+        idle_anim = self.settings.get('idle_anim', '')
+        if idle_anim != '':
             # If the script is being called from the cli.
-            self.global_scene.nmsdk_anim_data.idle_anim = self.settings[
-                'idle_anim']
+            self.global_scene.nmsdk_anim_data.idle_anim = idle_anim
         idle_anim_name = self.global_scene.nmsdk_anim_data.idle_anim
         Idle = None
         Anims = List()

@@ -69,7 +69,7 @@ class NMSDK_PT_DefaultsPanel(bpy.types.Panel):
                      text='PCBANKS location')
         row.separator()
         row.operator('nmsdk._remove_pcbanks',
-                     icon='X', emboss=False, text=" ")
+                     icon='X', emboss=False, text="Remove PCBANKS directory")
         _dir = context.scene.nmsdk_default_settings.PCBANKS_directory
         if _dir != "":
             layout.label(text=_dir)
@@ -79,7 +79,7 @@ class NMSDK_PT_DefaultsPanel(bpy.types.Panel):
                      text='MBINCompiler location')
         row.separator()
         row.operator('nmsdk._remove_mbincompiler',
-                     icon='X', emboss=False, text=" ")
+                     icon='X', emboss=False, text="Remove MBINCompiler path")
         _dir = context.scene.nmsdk_default_settings.MBINCompiler_path
         if _dir != "":
             layout.label(text=_dir)

@@ -95,7 +95,8 @@ class NMSRotationProperties(bpy.types.PropertyGroup):
 class NMSReferenceProperties(bpy.types.PropertyGroup):
     reference_path: StringProperty(
         name="Reference Path",
-        description="Path to scene to be referenced at this location.")
+        description="Path to scene to be referenced at this location.",
+        subtype='FILE_PATH')
     ref_path: StringProperty(
         name="Reference Path (internal)",
         description="Internal use only reference path variable.")
@@ -174,6 +175,15 @@ class NMSDK_PT_NodePropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSNode_props, "node_types", expand=True)
 
 
+class test_OT_op(bpy.types.Operator):
+    bl_label = "test"
+    bl_idname = "test.op"
+
+    def execute(self, context):
+        print(context.object)
+        return {'FINISHED'}
+
+
 class NMSDK_PT_ReferencePropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Reference Properties"
@@ -198,6 +208,8 @@ class NMSDK_PT_ReferencePropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSReference_props, "scene_name")
         row = layout.row()
         row.prop(obj.NMSReference_props, "is_proc")
+        row = layout.row()
+        row.operator("nmsdk._import_ref_scene")
 
 
 class NMSDK_PT_MaterialPropertyPanel(bpy.types.Panel):
@@ -410,7 +422,8 @@ classes = (NMSNodeProperties,
            NMSRotationProperties,
            NMSAnimationProperties,
            NMSCollisionProperties,
-           NMSDescriptorProperties)
+           NMSDescriptorProperties,
+           test_OT_op)
 panel_classes = (NMSDK_PT_NodePropertyPanel,
                  NMSDK_PT_MeshPropertyPanel,
                  NMSDK_PT_MaterialPropertyPanel,
@@ -427,8 +440,8 @@ class NMSPanels():
     @staticmethod
     def register():
         # register the properties
-        for cls in classes:
-            register_class(cls)
+        for cls_ in classes:
+            register_class(cls_)
         # link the properties with the objects' internal variables
         bpy.types.Object.NMSNode_props = bpy.props.PointerProperty(
             type=NMSNodeProperties)
@@ -451,14 +464,14 @@ class NMSPanels():
         bpy.types.Object.NMSDescriptor_props = bpy.props.PointerProperty(
             type=NMSDescriptorProperties)
         # register the panels
-        for cls in panel_classes:
-            register_class(cls)
+        for cls_ in panel_classes:
+            register_class(cls_)
 
     @staticmethod
     def unregister():
         # unregister the property classes
-        for cls in reversed(classes):
-            unregister_class(cls)
+        for cls_ in reversed(classes):
+            unregister_class(cls_)
         # delete the properties from the objects
         del bpy.types.Object.NMSNode_props
         del bpy.types.Object.NMSMesh_props
@@ -471,5 +484,5 @@ class NMSPanels():
         del bpy.types.Object.NMSCollision_props
         del bpy.types.Object.NMSDescriptor_props
         # unregister the panels
-        for cls in reversed(panel_classes):
-            unregister_class(cls)
+        for cls_ in reversed(panel_classes):
+            unregister_class(cls_)

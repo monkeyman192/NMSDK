@@ -27,17 +27,22 @@ class PointLight():
     def process_attributes(self):
         self.Attributes = List()
         self.Attributes.append(TkSceneNodeAttributeData(Name="FOV",
-                                                        Value=self.FOV))
+                                                        Value=self.FOV,
+                                                        fmt='{0:.6f}'))
         self.Attributes.append(TkSceneNodeAttributeData(Name="FALLOFF",
                                                         Value=self.Falloff))
         self.Attributes.append(TkSceneNodeAttributeData(Name="INTENSITY",
-                                                        Value=self.Intensity))
+                                                        Value=self.Intensity,
+                                                        fmt='{0:.6f}'))
         self.Attributes.append(TkSceneNodeAttributeData(Name="COL_R",
-                                                        Value=self.Colour[0]))
+                                                        Value=self.Colour[0],
+                                                        fmt='{0:.6f}'))
         self.Attributes.append(TkSceneNodeAttributeData(Name="COL_G",
-                                                        Value=self.Colour[1]))
+                                                        Value=self.Colour[1],
+                                                        fmt='{0:.6f}'))
         self.Attributes.append(TkSceneNodeAttributeData(Name="COL_B",
-                                                        Value=self.Colour[2]))
+                                                        Value=self.Colour[2],
+                                                        fmt='{0:.6f}'))
         self.Attributes.append(TkSceneNodeAttributeData(
             Name="MATERIAL",
             Value="MATERIALS/LIGHT.MATERIAL.MBIN"))

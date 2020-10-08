@@ -56,7 +56,7 @@ class Struct():
         for pname in self.data:
             data = self.data[pname]
             if isinstance(data, Number):
-                # in this case convert the int or foat to a string
+                # in this case convert the int or float to a string
                 SubElement(
                     self.element,
                     'Property',
@@ -66,7 +66,7 @@ class Struct():
                 SubElement(
                     self.element,
                     'Property',
-                    {'name': pname, 'value': str(data.string)})
+                    {'name': pname, 'value': str(data)})
             elif isinstance(data, Empty):
                 pass
             elif isinstance(data, str):
@@ -108,16 +108,16 @@ class Struct():
             if hasattr(data, 'serialize'):
                 data.serialize(output, list_worker, return_data)
             else:
-                if type(data) == int:
+                if isinstance(data, int):
                     serialized_data = to_chr(hexlify(struct.pack('<i', data)))
                     list_worker['curr'] += 0x4
-                elif type(data) == float:
+                elif isinstance(data, float):
                     serialized_data = to_chr(hexlify(struct.pack('<f', data)))
                     list_worker['curr'] += 0x4
-                elif type(data) == bool:
+                elif isinstance(data, bool):
                     serialized_data = chr(data)
                     list_worker['curr'] += 0x1
-                elif type(data) == str:
+                elif isinstance(data, str):
                     try:
                         # in this case we actually want the index
                         val = self.__dict__[key].index(data)
@@ -164,9 +164,9 @@ class Struct():
         for key in self.data:
             val = self.data[key]
             # if it is an int or a float the size will be 4 bytes
-            if type(val) == int or type(val) == float:
+            if isinstance(val, (int, float)):
                 length += 0x4
-            elif type(val) == bool:
+            elif isinstance(val, bool):
                 length += 0x1
             else:
                 # we can also see if the value has a length attribute (such as
