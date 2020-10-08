@@ -59,6 +59,8 @@
                 <ul>
                     <li class="toctree-l1"><a class="reference internal" href="../importing/importing/">Importing</a>
                     </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../importing/manipulating_scenes/">Manipulating imported scenes</a>
+                    </li>
                 </ul>
                 <p class="caption"><span class="caption-text">Exporting a Scene</span></p>
                 <ul>
@@ -176,7 +178,7 @@ The name of the path you want the data to be relative to the <code>PCBANKS</code
     This calls the same function as is used when operating NMSDK visually with blender, but with a slightly different call signature to allow exactness.<br />
     As this call is a blender operator, the scene itself must be loaded by an instance of blender.  </p>
 <p><strong>Example</strong>:  </p>
-<pre><code class="python"># First, you need to have to have loaded the blender file with blender
+<pre><code class="language-python"># First, you need to have to have loaded the blender file with blender
 # Let's say we have blender file with a scene node in it called 'NEWMODEL'
 # In blender, you can then call the operator as follows:
 bpy.ops.nmsdk.export_scene(output_directory='C:\\OUTPUT_PATH', 
@@ -193,7 +195,6 @@ bpy.ops.nmsdk.export_scene(output_directory='C:\\OUTPUT_PATH',
                            scene_name='SOMETHINGELSE')
 # Where we will now get the files output in the same folder as before, but as a scene called 'SOMETHINGELSE.SCENE.MBIN', etc
 </code></pre>
-
 <hr />
 <h2 id="importing-data-into-blender">Importing data into Blender</h2>
 <h3 id="bpyopsnmsdkimport_scenepath"><strong>bpy.ops.nmsdk.import_scene(path)</strong></h3>
@@ -206,9 +207,8 @@ bpy.ops.nmsdk.export_scene(output_directory='C:\\OUTPUT_PATH',
 <p><strong>Notes</strong>:<br />
     The entire scene will be loaded into the active scene in blender.</p>
 <p><strong>Example</strong>:</p>
-<pre><code class="python">bpy.ops.nmsdk.import_scene(path='C:\\NMS-1.77\\MODELS\\PLANETS\\BIOMES\\COMMON\\CRYSTALS\\LARGE\\CRYSTAL_LARGE.SCENE.MBIN')
+<pre><code class="language-python">bpy.ops.nmsdk.import_scene(path='C:\\NMS-1.77\\MODELS\\PLANETS\\BIOMES\\COMMON\\CRYSTALS\\LARGE\\CRYSTAL_LARGE.SCENE.MBIN')
 </code></pre>
-
 <h3 id="bpyopsnmsdkimport_meshpath-mesh_id"><strong>bpy.ops.nmsdk.import_mesh(path, mesh_id)</strong></h3>
 <p>Import part of a scene specified by the id of a mesh node in the scene file.</p>
 <p><strong>Parameters</strong>:<br />
@@ -223,7 +223,7 @@ bpy.ops.nmsdk.export_scene(output_directory='C:\\OUTPUT_PATH',
 <p><strong>Notes</strong>:<br />
     Only this object will be loaded. None of the children will be.</p>
 <p><strong>Example</strong>:</p>
-<pre><code class="python">bpy.ops.nmsdk.import_mesh(path='C:\\NMS-1.77\\MODELS\\PLANETS\\BIOMES\\COMMON\\CRYSTALS\\LARGE\\CRYSTAL_LARGE.SCENE.MBIN', mesh_id='_CRYSTAL_A')
+<pre><code class="language-python">bpy.ops.nmsdk.import_mesh(path='C:\\NMS-1.77\\MODELS\\PLANETS\\BIOMES\\COMMON\\CRYSTALS\\LARGE\\CRYSTAL_LARGE.SCENE.MBIN', mesh_id='_CRYSTAL_A')
 </code></pre>
               
             </div>

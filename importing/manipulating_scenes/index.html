@@ -9,7 +9,7 @@
   
   
   <link rel="shortcut icon" href="../../img/favicon.ico">
-  <title>Shader Setup - NMSDK</title>
+  <title>Manipulating imported scenes - NMSDK</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
   <link rel="stylesheet" href="../../css/theme.css" />
@@ -18,8 +18,8 @@
   
   <script>
     // Current page data
-    var mkdocs_page_name = "Shader Setup";
-    var mkdocs_page_input_path = "exporting/shader_nodes.md";
+    var mkdocs_page_name = "Manipulating imported scenes";
+    var mkdocs_page_input_path = "importing/manipulating_scenes.md";
     var mkdocs_page_url = null;
   </script>
   
@@ -56,29 +56,29 @@
                     </li>
                 </ul>
                 <p class="caption"><span class="caption-text">Importing a Scene</span></p>
-                <ul>
-                    <li class="toctree-l1"><a class="reference internal" href="../../importing/importing/">Importing</a>
+                <ul class="current">
+                    <li class="toctree-l1"><a class="reference internal" href="../importing/">Importing</a>
                     </li>
-                    <li class="toctree-l1"><a class="reference internal" href="../../importing/manipulating_scenes/">Manipulating imported scenes</a>
+                    <li class="toctree-l1 current"><a class="reference internal current" href="./">Manipulating imported scenes</a>
+    <ul class="current">
+    </ul>
                     </li>
                 </ul>
                 <p class="caption"><span class="caption-text">Exporting a Scene</span></p>
-                <ul class="current">
-                    <li class="toctree-l1"><a class="reference internal" href="../exporting/">Setting up</a>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/exporting/">Setting up</a>
                     </li>
-                    <li class="toctree-l1"><a class="reference internal" href="../node_docs/">Node type guide</a>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/node_docs/">Node type guide</a>
                     </li>
-                    <li class="toctree-l1"><a class="reference internal" href="../entities/">Adding Entities</a>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/entities/">Adding Entities</a>
                     </li>
-                    <li class="toctree-l1"><a class="reference internal" href="../animations/">Adding Animations</a>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/animations/">Adding Animations</a>
                     </li>
-                    <li class="toctree-l1"><a class="reference internal" href="../proc_gen/">Making a proc-gen scene</a>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/proc_gen/">Making a proc-gen scene</a>
                     </li>
-                    <li class="toctree-l1"><a class="reference internal" href="../action_triggers/">Creating Action Triggers</a>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/action_triggers/">Creating Action Triggers</a>
                     </li>
-                    <li class="toctree-l1 current"><a class="reference internal current" href="./">Shader Setup</a>
-    <ul class="current">
-    </ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../exporting/shader_nodes/">Shader Setup</a>
                     </li>
                 </ul>
                 <ul>
@@ -110,11 +110,11 @@
     
       
         
-          <li>Exporting a Scene &raquo;</li>
+          <li>Importing a Scene &raquo;</li>
         
       
     
-    <li>Shader Setup</li>
+    <li>Manipulating imported scenes</li>
     <li class="wy-breadcrumbs-aside">
       
     </li>
@@ -125,12 +125,11 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="setting-up-the-nms-ubershader-node">Setting up the NMS UberShader node</h1>
-<ol>
-<li>Make sure you have the blender renderer set up as the 'Cycles' renderer.</li>
-</ol>
-<p>The rest... Coming soon!<br />
-For now... Just export models with the textures as usual...</p>
+                <h1 id="manipulating-scenes-imported-into-blender">Manipulating scenes imported into Blender</h1>
+<p>(Added in version 0.9.21)</p>
+<p>When a scene is loaded in, all the values in the scene such as info about the meshes, and everything is stored in the blender scene.
+When re-exporting, there is an option which exports all the values that are not modified.
+Genrally this is useful if you are wanting to not add new meshes to a scene but do want to re-organise where objects are in a scene, remove objects from a scene, or add new references and scuh to a scene.</p>
               
             </div>
           </div>
@@ -138,10 +137,10 @@ For now... Just export models with the textures as usual...</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../../api/" class="btn btn-neutral float-right" title="API guide">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../../exporting/exporting/" class="btn btn-neutral float-right" title="Setting up">Next <span class="icon icon-circle-arrow-right"></span></a>
       
       
-        <a href="../action_triggers/" class="btn btn-neutral" title="Creating Action Triggers"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../importing/" class="btn btn-neutral" title="Importing"><span class="icon icon-circle-arrow-left"></span> Previous</a>
       
     </div>
   
@@ -167,10 +166,10 @@ For now... Just export models with the textures as usual...</p>
     <span class="rst-current-version" data-toggle="rst-current-version">
       
       
-        <span><a href="../action_triggers/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+        <span><a href="../importing/" style="color: #fcfcfc;">&laquo; Previous</a></span>
       
       
-        <span style="margin-left: 15px"><a href="../../api/" style="color: #fcfcfc">Next &raquo;</a></span>
+        <span style="margin-left: 15px"><a href="../../exporting/exporting/" style="color: #fcfcfc">Next &raquo;</a></span>
       
     </span>
 </div>

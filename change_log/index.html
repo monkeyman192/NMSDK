@@ -59,6 +59,8 @@
                 <ul>
                     <li class="toctree-l1"><a class="reference internal" href="../importing/importing/">Importing</a>
                     </li>
+                    <li class="toctree-l1"><a class="reference internal" href="../importing/manipulating_scenes/">Manipulating imported scenes</a>
+                    </li>
                 </ul>
                 <p class="caption"><span class="caption-text">Exporting a Scene</span></p>
                 <ul>
@@ -86,9 +88,11 @@
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#releases">Releases:</a>
         <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#current-v0920">Current - v0.9.20</a>
+    <li class="toctree-l3"><a class="reference internal" href="#current-v0921">Current - v0.9.21</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#past">Past:</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#v0920-14052020">v0.9.20 (14/05/2020)</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#v0919-01112019">v0.9.19 (01/11/2019)</a>
     </li>
@@ -153,7 +157,12 @@
               
                 <h1 id="nmsdk-changelog">NMSDK Changelog</h1>
 <h2 id="releases">Releases:</h2>
-<h3 id="current-v0920">Current - v0.9.20</h3>
+<h3 id="current-v0921">Current - v0.9.21</h3>
+<ul>
+<li>Vastly improved the system to allow importing scenes to be exported again. As part of this improvement a number of new API functions have been added as well as context menu items. Please see the <a href="../importing/importing/">import page</a> for more details on usage. These changes have been across a fair chunk of the codebase, so I may have introduced some regressions, but this will be investigated more thoroughly in the next release.</li>
+</ul>
+<h3 id="past">Past:</h3>
+<h3 id="v0920-14052020">v0.9.20 (14/05/2020)</h3>
 <ul>
 <li>Release for Blender 2.82 (maybe 2.83? It is untested...). I don't think it will be compatible with 2.80 as I think there were some API changes between 2.80 and 2.82.</li>
 <li>Fixed tests to be able to run better/easier.</li>
@@ -162,7 +171,6 @@
 <li>Fixed a small bug <a href="https://github.com/monkeyman192/NMSDK/issues/62">#62</a>.</li>
 <li>Collision node names are now shorter and more managable.</li>
 </ul>
-<h3 id="past">Past:</h3>
 <h3 id="v0919-01112019">v0.9.19 (01/11/2019)</h3>
 <p>This was a beta release for blender 2.80 update compatibility checking.
  - Added support for blender 2.80. Note that this plugin is <strong>not</strong> backward compatible, so it is not compatible with 2.79 as it is not worth the effort to make it compatible with both versions and maintain it.
