@@ -1,7 +1,8 @@
 #!/bin/bash
 
-PYTHON=../../../python/bin/python.exe;
-BLENDER=../../../../blender.exe;
+BLENDER=$( reg query "HKEY_CLASSES_ROOT\blendfile\shell\open\command" | grep 'blender' | cut -d '"' -f2 )
+PYTHON=$( "$BLENDER" -b --disable-autoexec -noaudio --factory-startup --python-expr "import bpy; import sys; print(bpy.app.binary_path_python, file=sys.stderr)" 3>&1 1>/dev/null 2>&3 )
+
 TESTS="";
 LOGGING="";
 
@@ -16,9 +17,9 @@ while getopts "p:b:hl" opt "${EXTRAS[@]}"; do
         h)
             echo -e "NMSDK test usage instructions:\n";
             echo "ARGUMENTS:";
-            echo "-b <blender path> (optional, defaults to '.../../../../blender.exe')";
-            echo -e "\tThe relative or absolue path to the blender executable.";
-            echo "-p <python path> (optional, defaults to '../../../python/bin/python.exe')";
+            echo "-b <blender path> (optional, defaults to what opens your .blend files)"
+            echo -e "\tThe relative or absolute path to the blender executable.";
+            echo "-p <python path> (optional, defaults to the Python configured in Blender)"
             echo -e "\tThe relative or absolute path to the python executable.";
             echo -e "\tThis should be the executable that blender executable provided by -b uses.";
             echo "-l"
@@ -41,12 +42,12 @@ if [ "$@" ]; then
     TESTS="$@";
 fi
 
-export BLENDERPATH=$(realpath $BLENDER);
+export BLENDERPATH=$(realpath "$BLENDER");
 
 # run the tests with the blender python
-if $PYTHON -m pip freeze | grep 'pytest' > /dev/null 2>&1; then
-    $PYTHON -m pytest -vv "$LOGGING" "$TESTS";
+if "$PYTHON" -m pip freeze | grep 'pytest' > /dev/null 2>&1; then
+    "$PYTHON" -m pytest -vv "$LOGGING" "$TESTS";
 else
-    $PYTHON -m pip install pytest;
-    $PYTHON -m pytest -vv "$LOGGING" "$TESTS";
+    "$PYTHON" -m pip install pytest;
+    "$PYTHON" -m pytest -vv "$LOGGING" "$TESTS";
 fi

@@ -19,10 +19,7 @@ To make exporting easier, NMSDK will automatically convert all produced `.exml` 
 
 #### Blender
 
-NMSDK requires a version of blender greater than or equal to 2.79.
-This is due to the model importer component to need a shader node that only exists with Blender 2.79 and above.
-
-NMSDK has not been tested for blender 2.80, however it is likely to not work, and support for 2.80 will not come until 2.80 is out of beta and is the latest official release.
+NMSDK requires a version of blender greater than or equal to 2.80. This is due to various API changes introduced in 2.80.
 
 #### MBINCompiler
 
@@ -31,8 +28,7 @@ to generate the *.mbin* files that are read by the game.
 The easiest way to have *MBINCompiler* set up is to download the most recent
 release and register *MBINCompiler* to the path so that it can be picked up
 anywhere by Blender.
-If you already have a version of *MBINCompiler* on your computer, ensure it is
-version **v1.78.0-pre1** or above. This can be found on the [MBINCompiler releases](https://github.com/monkeyman192/MBINCompiler/releases) page.
+If you already have a version of *MBINCompiler* on your computer, ensure it is the latest version. This can be found on the [MBINCompiler releases](https://github.com/monkeyman192/MBINCompiler/releases) page.
 
 For NMSDK to be able to use *MBINCompiler*, the program needs to be registered to the path so that it can be called from anywhere on your computer.
 Open the folder containing the `MBINCompiler.exe` you just downloaded, open this folder in command line, then enter `MBINCompiler.exe register`.
@@ -49,7 +45,7 @@ For a comprehensive guide on using NMSDK, please visit the [documentation](https
 If you are looking to develop NMSDK, there are a number of tests that can be run so ensure the added functionality doesn't cause any regressions.
 If new features are added, it is highly encouraged that new tests are written to ensure good code coverage (not currently tracked, and not even sure if it is possible to...)
 
-To run the tests, you must have NMSDK cloned from git, and not simply installed. In a console, then run
+To run the tests, you must have NMSDK cloned from git, and not simply installed. If you're using Github Desktop, you will also need Git for Windows installed to have Git Bash available. In a console, then run
 ```
 ./run_tests.sh`.
 ```
@@ -62,7 +58,7 @@ For example, to run a single individual test you could enter
 ./run_tests.sh tests/import_tests/import_test.py::test_import_crystal
 ```
 
-For more info, use `./run_tests.sh -h` to see the help and options.
+This script uses the Blender that is assigned to open .blend files - do Blender.exe -R to associate Blender with .blend files. To learn how to specify an alternative Blender executable or for more info, use `./run_tests.sh -h` to see the help and options.
 
 ### Credits
 
