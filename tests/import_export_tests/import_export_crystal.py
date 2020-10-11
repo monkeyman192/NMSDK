@@ -1,8 +1,8 @@
-import bpy
 import os.path as op
 import tempfile
 import sys
 
+import bpy
 
 # Fix up the system path to include the nmsdk directory...
 # I can't think of a better way of doing this right now... If this becomes

@@ -204,7 +204,12 @@ class Exporter():
             orig_node_data = dict()
             if self.settings.get('preserve_node_info', False):
                 orig_node_data = obj.get('scene_node', dict())
-            scene = Model(Name=name, orig_node_data=orig_node_data)
+            # Get the LOD distances
+            lod_distances = []
+            if obj.NMSReference_props.has_lods:
+                lod_distances = list(obj.NMSReference_props.lod_levels)
+            scene = Model(Name=name, orig_node_data=orig_node_data,
+                          lod_distances=lod_distances)
             # We don't want to actually add the main object to the scene,
             # Just its children.
             for sub_obj in obj.children:
@@ -696,6 +701,10 @@ class Exporter():
             elif colType == "Cylinder":
                 optdict['Radius'] = min([0.5*dims[0]/factor[0],
                                          0.5*dims[2]/factor[2]])
+                optdict['Height'] = dims[1]/factor[1]
+            elif colType == "Capsule":
+                optdict['Radius'] = min([dims[0]/factor[0],
+                                         dims[2]/factor[2]])
                 optdict['Height'] = dims[1]/factor[1]
             else:
                 raise Exception("Unsupported Collision")

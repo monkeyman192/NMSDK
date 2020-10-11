@@ -470,7 +470,7 @@ class Collision(Object):
                 TkSceneNodeAttributeData(Name="RADIUS",
                                          Value=data['RADIUS'],
                                          fmt='{0:.6f}'))
-        elif self.CType == 'Capsule' or self.CType == 'Cylinder':
+        elif self.CType in ('Capsule', 'Cylinder'):
             self.Attributes.append(
                 TkSceneNodeAttributeData(Name="RADIUS",
                                          Value=data['RADIUS'],
@@ -487,14 +487,22 @@ class Model(Object):
         self._Type = "MODEL"
         # Whether the object has vertex colour info
         self.has_vertex_colours = False
+        self.lod_distances = kwargs.get('lod_distances', [])
 
     def create_attributes(self, data: dict):
-        # data will be just the information required for the Attributes
+        # Data will be just the information required for the Attributes.
         self.Attributes = List(
             TkSceneNodeAttributeData(Name='GEOMETRY',
-                                     Value=data['GEOMETRY']),
+                                     Value=data['GEOMETRY']))
+        # Add the LOD info
+        for i, dist in enumerate(self.lod_distances):
+            self.Attributes.append(
+                TkSceneNodeAttributeData(
+                    Name=f'LODDIST{i + 1}',
+                    Value=dist))
+        self.Attributes.append(
             TkSceneNodeAttributeData(Name='NUMLODS',
-                                     Value=data.get('NUMLODS', 1)))
+                                     Value=len(self.lod_distances) + 1))
 
     def check_vert_colours(self):
         for mesh in self.Meshes.values():

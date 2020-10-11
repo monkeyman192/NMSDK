@@ -2,11 +2,16 @@
 
 ## Releases:
 
-### Current - v0.9.21
+### Current - v0.9.22
 
- - Vastly improved the system to allow importing scenes to be exported again. As part of this improvement a number of new API functions have been added as well as context menu items. Please see the [import page](importing/importing.md) for more details on usage. These changes have been across a fair chunk of the codebase, so I may have introduced some regressions, but this will be investigated more thoroughly in the next release.
+ - Added support for the `Capsule` primitive collision type. [#80](https://github.com/monkeyman192/NMSDK/issues/80).
+ - Added support for loading and modifyin LOD values for scenes which have them. Those that do not cannot be modified currently. [#80](https://github.com/monkeyman192/NMSDK/issues/80).
 
 ### Past:
+
+### v0.9.21 (08/10/2020)
+
+ - Vastly improved the system to allow importing scenes to be exported again. As part of this improvement a number of new API functions have been added as well as context menu items. Please see the [import page](importing/importing.md) for more details on usage. These changes have been across a fair chunk of the codebase, so I may have introduced some regressions, but this will be investigated more thoroughly in the next release.
 
 ### v0.9.20 (14/05/2020)
 

@@ -315,7 +315,7 @@ class ImportScene():
             # First, remove everything else in the scene
             if self.settings.get('clear_scene', True):
                 self._clear_prev_scene()
-            added_obj = self._add_empty_to_scene(self.scene_basename)
+            added_obj = self._add_empty_to_scene(self.scene_node_data)
             added_obj['scene_node'] = self.scene_node_data.info
         # If we need to know the list of joints, get them now...
         if self.mesh_binding_data is not None:
@@ -443,19 +443,24 @@ class ImportScene():
                 bone.tail += Vector([0, 0, 10 ** (-4)])
                 scene_node = scene_node.parent
 
-    def _add_empty_to_scene(self, scene_node, standalone=False):
+    def _add_empty_to_scene(self, scene_node: SceneNodeData,
+                            standalone: bool = False):
         """ Adds the given scene node data to the Blender scene.
 
         Parameters
         ----------
-        standalone : bool
+        scene_node
+            The scene node object which contains the attributes and children
+            nodes.
+        standalone
             Whether or not the scene_node is provided by itself and not part
             of a complete scene. This is used to indicate that a single mesh
             part is being rendered.
         """
-        if scene_node == self.scene_basename and self.parent_obj is None:
-            # If the scene_node is simply self.scene_basename just add an
-            # empty and return
+        # We can determine if a scene is the root scene by whether it has a
+        # 'GEOMETRY' key in the attributes.
+        if (scene_node.Attribute('GEOMETRY') is not None
+                and self.parent_obj is None):
             empty_mesh = bpy.data.meshes.new(self.scene_basename)
             empty_obj = bpy.data.objects.new(self.scene_basename,
                                              empty_mesh)
@@ -465,6 +470,14 @@ class ImportScene():
             empty_obj.matrix_world = ROT_MATRIX
             self.scene_ctx.link_object(empty_obj)
             select_object(empty_obj)
+
+            # Determine if the scene has LOD info
+            if scene_node.Attribute('NUMLODS', int) > 1:
+                lods = []
+                for i in range(1, scene_node.Attribute('NUMLODS', int)):
+                    lods.append(scene_node.Attribute(f'LODDIST{i}', float))
+                empty_obj.NMSReference_props.lod_levels = lods
+                empty_obj.NMSReference_props.has_lods = True
 
             # Add a custom property so that if it is exported with the
             # 'preserve node info' option selected then it can use this info.
@@ -476,7 +489,7 @@ class ImportScene():
             descriptor_name = self.scene_name + '.DESCRIPTOR.MBIN'
             if op.exists(op.join(self.PCBANKS_dir, descriptor_name)):
                 empty_obj.NMSReference_props.is_proc = True
-            self.local_objects[scene_node] = empty_obj
+            self.local_objects[self.scene_basename] = empty_obj
             return empty_obj
 
         # Otherwise just assign everything as usual...
@@ -680,6 +693,20 @@ class ImportScene():
             bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True,
                                   diameter1=1.0, diameter2=1.0, depth=1.0,
                                   segments=20, matrix=ROT_MATRIX)
+            scale_mult = [float(scene_node.Attribute('RADIUS')),
+                          float(scene_node.Attribute('HEIGHT')),
+                          float(scene_node.Attribute('RADIUS'))]
+        elif coll_type == 'Capsule':
+            capsule = bmesh.ops.create_icosphere(
+                bm, subdivisions=4, diameter=1,
+                matrix=Matrix.Scale(0.25, 4, Vector((0, 1, 0))))
+            # select the top set of verts
+            for bmvert in capsule['verts']:
+                if bmvert.co[1] > 0:
+                    bmvert.co[1] += 0.25
+                elif bmvert.co[1] < 0:
+                    bmvert.co[1] -= 0.25
+
             scale_mult = [float(scene_node.Attribute('RADIUS')),
                           float(scene_node.Attribute('HEIGHT')),
                           float(scene_node.Attribute('RADIUS'))]
@@ -924,7 +951,7 @@ class ImportScene():
                    "Mesh name: {0}\n".format(mesh.Name) +
                    "Mesh indexes: {0}\n".format(idx_count) +
                    "Mesh metadata: {0}\n".format(mesh.metadata) +
-                   "In geomtry file: {0}".format(self.geometry_file))
+                   "In geometry file: {0}".format(self.geometry_file))
             raise ValueError(err)
         with open(self.geometry_stream_file, 'rb') as f:
             f.seek(mesh.metadata.idx_off)

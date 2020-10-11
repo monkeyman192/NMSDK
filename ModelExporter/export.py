@@ -522,7 +522,7 @@ class Export():
                                 'DEPTH': obj.Depth}
                     elif obj.CType == 'Sphere':
                         data = {'RADIUS': obj.Radius}
-                    elif obj.CType == 'Capsule' or obj.CType == 'Cylinder':
+                    elif obj.CType in ('Capsule', 'Cylinder'):
                         data = {'RADIUS': obj.Radius, 'HEIGHT': obj.Height}
                 elif obj._Type == 'MODEL':
                     obj.Name = self.rel_named_path

@@ -71,7 +71,7 @@ Note that NMSDK will construct the objects' name to be of the form `_<prefix>_<n
 
 A `Collision` node is used to specify a primitive object that will be used as a collition for the model.
 
-- **Collision Type** : `enum` - Choice of `Mesh`, `Box`, `Sphere` or `Cylinder`
+- **Collision Type** : `enum` - Choice of `Mesh`, `Box`, `Sphere`, `Cylinder` or `Capsule`
 
 The type of collision primitive to use.
 

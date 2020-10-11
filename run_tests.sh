@@ -44,10 +44,14 @@ fi
 
 export BLENDERPATH=$(realpath "$BLENDER");
 
-# run the tests with the blender python
-if "$PYTHON" -m pip freeze | grep 'pytest' > /dev/null 2>&1; then
-    "$PYTHON" -m pytest -vv "$LOGGING" "$TESTS";
-else
+# Ensure pytest is installed
+if "$PYTHON" -m pip freeze | grep 'pytest' > /dev/null 2>&1; then :; else
+    echo "installing pytest";
     "$PYTHON" -m pip install pytest;
+fi
+# Run the tests
+if [ -z "$LOGGING" ]; then
+    "$PYTHON" -m pytest -vv "$TESTS";
+else
     "$PYTHON" -m pytest -vv "$LOGGING" "$TESTS";
 fi
