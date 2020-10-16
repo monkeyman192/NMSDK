@@ -17,12 +17,6 @@ def element_to_dict(node: ET.Element) -> dict:
             lst = list()
             for e in list(elem):
                 lst.append(element_to_dict(e))
-            # Sort the entries by name.
-            #TODO: This is a temp fix to get around the issue of scene not
-            # always having nodes in alphabetical order. A better solution is
-            # to ensure they are exported in the same order as they were
-            # imported.
-            lst.sort(key=lambda x: x['Name'])
             data[elem.get('name')] = lst
         elif '.xml' in elem.get('value'):
             # In this case we are loading a sub-struct.

@@ -39,7 +39,7 @@ root_scene.NMSReference_props.lod_levels[1] = 1250
 root_scene.NMSReference_props.lod_levels[2] = 3000
 
 # Let's change the shape of one of the nodes too
-obj = bpy.data.objects['_Asteroid_03']
+obj = bpy.data.objects['_Asteroid_07']
 obj.matrix_local = obj.matrix_local @ Matrix.Scale(0.5, 4, Vector((0, 1, 0)))
 
 # SECOND - check the exported data
@@ -65,7 +65,7 @@ with tempfile.TemporaryDirectory() as tempdir:
     assert int(new_scene['Attributes'][4]['Value']) == 4
     # remove this data to ensure it isn't in the comparison
     del new_scene['Attributes'][1:4]
-    # Check to see that the _Asteroid_03 node has been scaled correctly
+    # Check to see that the _Asteroid_07 node has been scaled correctly
     assert float(new_scene['Children'][0]['Transform']['ScaleY']) == 0.5
     # And then remove it from the comparison
     del new_scene['Children'][0]['Transform']['ScaleY']

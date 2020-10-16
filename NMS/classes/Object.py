@@ -2,6 +2,7 @@
 # Each object in blender will be passed into this class. Any children are added
 # as child objects.
 
+from typing import Optional
 from zlib import crc32
 
 from .TkSceneNodeData import TkSceneNodeData
@@ -64,7 +65,10 @@ class Object():
         self.ExtraEntityData = kwargs.get('ExtraEntityData', dict())
 
         # Get the original node data info
-        self.orig_node_data = kwargs.get('orig_node_data', dict())
+        orig_node_data = kwargs.get('orig_node_data', dict())
+        # We nest the actual data under the key 'data' and keep the index also
+        self.orig_node_data = orig_node_data.get('data', dict())
+        self.orig_node_idx = orig_node_data.get('idx', 0)
 
         if isinstance(self.ExtraEntityData, str):
             self.EntityData = None
@@ -148,7 +152,11 @@ class Object():
         # iterate through all the children and create a TkSceneNode for every
         # child with the appropriate properties.
 
-        # call each child's process function
+        # If we have been imported then we want to preserve the order of
+        # nodes as they were in the original scene file.
+        if self.was_imported:
+            self.Children.sort(key=lambda x: x.orig_node_idx)
+        # Call each child's process function
         if len(self.Children) != 0:
             self.Child_Nodes = List()
             for child in self.Children:
@@ -180,7 +188,7 @@ class Object():
             for entity in self.ExtraEntityData[entityname]:
                 self.EntityData[entityname].append(entity)
 
-    def original_attribute(self, name: str):
+    def original_attribute(self, name: str) -> Optional[tuple]:
         """ Returns the value of an attibute from the original imported value,
         or None if there isn't a value. """
         attribs = self.orig_node_data.get('Attributes', [])
@@ -188,6 +196,15 @@ class Object():
             if attr.get('Name', '') == name:
                 return (attr['AltID'], attr['Value'])
         return None
+
+    @property
+    def was_imported(self) -> bool:
+        """ Whether the scene the object belongs to was imported originally."""
+        if self.Parent:
+            return self.Parent.was_imported
+        # Default to False. I don't think this should ever happen but it's
+        # safer to do this in case it does.
+        return False
 
     @property
     def NameHash(self) -> int:
@@ -488,6 +505,7 @@ class Model(Object):
         # Whether the object has vertex colour info
         self.has_vertex_colours = False
         self.lod_distances = kwargs.get('lod_distances', [])
+        self._was_imported = self.orig_node_data != dict()
 
     def create_attributes(self, data: dict):
         # Data will be just the information required for the Attributes.
@@ -499,7 +517,8 @@ class Model(Object):
             self.Attributes.append(
                 TkSceneNodeAttributeData(
                     Name=f'LODDIST{i + 1}',
-                    Value=dist))
+                    Value=dist,
+                    fmt='{0:.6f}'))
         self.Attributes.append(
             TkSceneNodeAttributeData(Name='NUMLODS',
                                      Value=len(self.lod_distances) + 1))
@@ -510,6 +529,14 @@ class Model(Object):
             # to know so dummy data can be provided for every other mesh
             if mesh.Colours is not None:
                 self.has_vertex_colours = True
+
+    @property
+    def was_imported(self) -> bool:
+        return self._was_imported
+
+    @was_imported.setter
+    def was_imported(self, val: bool):
+        self._was_imported = val
 
 
 class Reference(Object):

@@ -316,14 +316,15 @@ class ImportScene():
             if self.settings.get('clear_scene', True):
                 self._clear_prev_scene()
             added_obj = self._add_empty_to_scene(self.scene_node_data)
-            added_obj['scene_node'] = self.scene_node_data.info
+            added_obj['scene_node'] = {'idx': 0,
+                                       'data': self.scene_node_data.info}
         # If we need to know the list of joints, get them now...
         if self.mesh_binding_data is not None:
             for obj in self.scene_node_data.iter():
                 if obj.Type == 'JOINT':
                     self.joints.append(obj)
                     self.scn.nmsdk_anim_data.joints.append(obj.Name)
-        for obj in self.scene_node_data.iter():
+        for i, obj in enumerate(self.scene_node_data.iter()):
             added_obj = None
             if obj.Type == 'MESH':
                 if obj.Name.upper() in self.mesh_metadata:
@@ -350,7 +351,7 @@ class ImportScene():
             # Get the added object and give it its scene node data so that it
             # can be rexported in a more faithful way.
             if added_obj:
-                added_obj['scene_node'] = obj.info
+                added_obj['scene_node'] = {'idx': i, 'data': obj.info}
         if self.mesh_binding_data is not None:
             armature = self._add_armature_to_scene()
             for joint in self.joints:
