@@ -1,7 +1,6 @@
 import os.path as op
 import tempfile
 import sys
-import pprint
 
 # Blender imports
 import bpy
@@ -15,7 +14,7 @@ nmsdk_dir = op.normpath(op.join(op.dirname(__file__), '..', '..'))
 if nmsdk_dir not in sys.path:
     sys.path.append(nmsdk_dir)
 
-from utils.utils import scene_to_dict  # noqa pylint: E402
+from utils.utils import exml_to_dict  # noqa pylint: E402
 from utils.io import convert_file  # noqa pylint: E402
 
 
@@ -31,8 +30,16 @@ ASTEROID_PATH = op.join(TEST_DATA_PATH,
 res = bpy.ops.nmsdk.import_scene(path=ASTEROID_PATH)
 # Get the root object
 root_scene = bpy.data.objects['ASTEROIDXL.SCENE']
+
 assert root_scene.NMSReference_props.has_lods is True
 assert list(root_scene.NMSReference_props.lod_levels) == [500, 1000, 2500]
+
+# Let's make sure that the descriptor is loaded correctly
+assert root_scene.NMSReference_props.is_proc
+assert bpy.data.objects['_Asteroid_03'].NMSDescriptor_props.proc_prefix == '_ASTEROID_'  # noqa
+assert bpy.data.objects['_Asteroid_07'].NMSDescriptor_props.proc_prefix == '_ASTEROID_'  # noqa
+assert bpy.data.objects['_Asteroid_Vertical'].NMSDescriptor_props.proc_prefix == '_ASTEROID_'  # noqa
+
 # Let's modify the value to make sure it's in the exported data
 root_scene.NMSReference_props.lod_levels[0] = 750.25
 root_scene.NMSReference_props.lod_levels[1] = 1250
@@ -48,7 +55,6 @@ with tempfile.TemporaryDirectory() as tempdir:
                                      preserve_node_info=True)
     assert res == {'FINISHED'}
 
-    export_path = op.join(tempdir, 'CUSTOMMODELS')
     out_path = op.join(tempdir, ASTEROID_BASE_PATH, 'ASTEROIDXL.SCENE.MBIN')
     # Let's ensure it exists
     assert op.exists(out_path)
@@ -56,7 +62,7 @@ with tempfile.TemporaryDirectory() as tempdir:
     # original one (other than where modified)
     # First we need to convert it to an exml file...
     new_exml_scene = convert_file(out_path)
-    new_scene = scene_to_dict(new_exml_scene)
+    new_scene = exml_to_dict(new_exml_scene)
     # Let's check to see if the new LOD values are there
     assert float(new_scene['Attributes'][1]['Value']) == 750.25
     assert float(new_scene['Attributes'][2]['Value']) == 1250
@@ -71,9 +77,19 @@ with tempfile.TemporaryDirectory() as tempdir:
     del new_scene['Children'][0]['Transform']['ScaleY']
     # Then convert the original scene file...
     orig_exml_scene = convert_file(ASTEROID_PATH)
-    orig_scene = scene_to_dict(orig_exml_scene)
+    orig_scene = exml_to_dict(orig_exml_scene)
     # Delete the modified values from this scene too.
     del orig_scene['Attributes'][1:4]
     del orig_scene['Children'][0]['Transform']['ScaleY']
     # Now let's compare it to the original
     assert new_scene == orig_scene
+
+    # Let's do a comparison of the descriptors and make sure they are correct
+    orig_descriptor = op.join(TEST_DATA_PATH,
+                              ASTEROID_BASE_PATH,
+                              'ASTEROIDXL.DESCRIPTOR.MBIN')
+    orig_descriptor = exml_to_dict(convert_file(orig_descriptor))
+    new_descriptor = op.join(tempdir, ASTEROID_BASE_PATH,
+                             'ASTEROIDXL.DESCRIPTOR.MBIN')
+    new_descriptor = exml_to_dict(convert_file(new_descriptor))
+    assert orig_descriptor == new_descriptor

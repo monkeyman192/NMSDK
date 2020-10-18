@@ -382,7 +382,9 @@ class Exporter():
 
     def descriptor_generator(self, obj):
         """ Generate a descriptor for the specified object."""
-
+        # NOTE: This will not work correctly for descriptors where the ID
+        # is truncated due to the field being only 0x10 long.
+        # TODO: fix this...
         descriptor_struct = Descriptor()
 
         def descriptor_recurse(obj, structure):
@@ -413,10 +415,10 @@ class Exporter():
                 p = child.NMSDescriptor_props.proc_prefix
                 prefix = '_{0}_'.format(p.strip('_')).upper()
                 name = get_obj_name(child, self.export_fname)
-                if not name.startswith(prefix):
+                if not name.upper().startswith(prefix):
                     # If the name doesn't start with the prefix
                     child.NMSNode_props.override_name = "{0}{1}".format(
-                        prefix, name.lstrip('_').upper())
+                        prefix, name.lstrip('_'))
                 node = structure.get_child(prefix).add_child(child)
                 if child.NMSNode_props.node_types != 'Reference':
                     descriptor_recurse(child, node)

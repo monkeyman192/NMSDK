@@ -6,8 +6,8 @@ import subprocess
 
 # Blender imports
 import bpy
-import bmesh
-from mathutils import Matrix, Vector, Quaternion
+import bmesh  # pylint: disable=import-error
+from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
 
 # Internal imports
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
@@ -16,8 +16,8 @@ from ..serialization.utils import read_list_header  # noqa pylint: disable=relat
 from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.material_node import create_material_node  # noqa pylint: disable=relative-beyond-top-level
 from .readers import (read_metadata, read_gstream, read_anim, read_entity,  # noqa pylint: disable=relative-beyond-top-level
-                      read_mesh_binding_data)
-from ..utils.utils import scene_to_dict  # noqa pylint: disable=relative-beyond-top-level
+                      read_mesh_binding_data, read_descriptor)
+from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.bpyutils import SceneOp, edit_object, select_object  # noqa pylint: disable=relative-beyond-top-level
@@ -138,7 +138,7 @@ class ImportScene():
                       'registered on the path.')
                 print('Import failed')
                 return
-        self.data = scene_to_dict(exml_fpath)
+        self.data = exml_to_dict(exml_fpath)
 
         if self.data is None:
             raise ValueError('Cannot load scene file...')
@@ -364,6 +364,11 @@ class ImportScene():
             mod.object = bpy.data.objects['Armature']
         self.load_animations()
         bpy.ops.nmsdk._change_animation(anim_names='None')
+
+        # If the loaded scene is a proc-gen scene, load the info in.
+        if self.scn['scene_node'].NMSReference_props.is_proc:
+            self._apply_proc_gen_info()
+
         self.state = {'FINISHED'}
 
 # region private methods
@@ -487,9 +492,28 @@ class ImportScene():
             # always find this node easily.
             self.scn['scene_node'] = empty_obj
             # check if the scene is proc-gen
-            descriptor_name = self.scene_name + '.DESCRIPTOR.MBIN'
-            if op.exists(op.join(self.PCBANKS_dir, descriptor_name)):
+            descriptor_name = self.scene_name + '.DESCRIPTOR'
+            # Try and find the descriptor locally
+            descriptor_path = op.join(self.local_directory,
+                                      descriptor_name)
+            # Otherwise fallback to looking relative to the PCBANKS directory.
+            if not op.exists(descriptor_path):
+                descriptor_path = op.join(self.PCBANKS_dir, descriptor_name)
+            if op.exists(descriptor_path + '.MBIN'):
                 empty_obj.NMSReference_props.is_proc = True
+                # Also convert the .mbin to exml for parsing if the exml
+                # doesn't already exist.
+                if not op.exists(descriptor_path + '.EXML'):
+                    retcode = subprocess.call(
+                        [self.scn.nmsdk_default_settings.MBINCompiler_path,
+                         "-q", "-Q", descriptor_path + '.MBIN'])
+                    if retcode != 0:
+                        print('MBINCompiler failed to run. Please ensure it is'
+                              ' registered on the path.')
+                        print('Import failed')
+                        return
+                self.descriptor_data = read_descriptor(
+                    descriptor_path + '.EXML')
             self.local_objects[self.scene_basename] = empty_obj
             return empty_obj
 
@@ -914,6 +938,19 @@ class ImportScene():
             bh_obj['_dont_export'] = True
 
         return mesh_obj
+
+    def _apply_proc_gen_info(self):
+        """ Go over the data in the descriptor and add it to the scene. """
+        # We'll create a function here to apply recursively
+        def apply_recursively(data):
+            for key, value in data.items():
+                for node in value:
+                    obj = bpy.data.objects.get(node['Name'])
+                    if obj:
+                        obj.NMSDescriptor_props.proc_prefix = key
+                    for child in node['Children']:
+                        apply_recursively(child)
+        apply_recursively(self.descriptor_data)
 
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """
