@@ -942,15 +942,28 @@ class ImportScene():
     def _apply_proc_gen_info(self):
         """ Go over the data in the descriptor and add it to the scene. """
         # We'll create a function here to apply recursively
-        def apply_recursively(data):
+        def apply_recursively(data, parent_collection):
             for key, value in data.items():
+                coll = bpy.data.collections.new(key)
+                parent_collection.children.link(coll)
                 for node in value:
                     obj = bpy.data.objects.get(node['Name'])
                     if obj:
                         obj.NMSDescriptor_props.proc_prefix = key
+                        coll.objects.link(obj)
                     for child in node['Children']:
-                        apply_recursively(child)
-        apply_recursively(self.descriptor_data)
+                        apply_recursively(child, coll)
+
+        # Let's add a collection for all the proc-gen object's to be linked in
+        # so that they can be toggled easily.
+
+        # First, add the root collection
+        desc_coll = bpy.data.collections.new('Descriptor')
+        self.scn.collection.children.link(desc_coll)
+
+        # Now, when we apply the above function recursively it will add the
+        # objects to the collection.
+        apply_recursively(self.descriptor_data, desc_coll)
 
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """
