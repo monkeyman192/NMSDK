@@ -482,6 +482,13 @@ class ImportScene():
                 lods = []
                 for i in range(1, scene_node.Attribute('NUMLODS', int)):
                     lods.append(scene_node.Attribute(f'LODDIST{i}', float))
+                empty_obj.NMSReference_props.num_lods = len(lods)
+                # TODO: make this more robust... What if there are 4 LOD's?
+                if empty_obj.NMSReference_props.num_lods < 3:
+                    # pad it with 0's until it is 3
+                    j = 3 - empty_obj.NMSReference_props.num_lods
+                    for _ in range(j):
+                        lods.append(0)
                 empty_obj.NMSReference_props.lod_levels = lods
                 empty_obj.NMSReference_props.has_lods = True
 
@@ -949,6 +956,7 @@ class ImportScene():
                 for node in value:
                     obj = bpy.data.objects.get(node['Name'])
                     if obj:
+                        obj.NMSDescriptor_props.choice_types = "Random"
                         obj.NMSDescriptor_props.proc_prefix = key
                         coll.objects.link(obj)
                     for child in node['Children']:

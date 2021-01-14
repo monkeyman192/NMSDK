@@ -16,5 +16,7 @@ nav:
       - Making a proc-gen scene: exporting/proc_gen.md
       - Creating Action Triggers: exporting/action_triggers.md
       - Shader Setup: exporting/shader_nodes.md
+    - Examples:
+      - Creating a proc-gen reference scene: examples/create_procgen_scene.md
     - API guide: api.md
     - Change log: change_log.md

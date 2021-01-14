@@ -3,7 +3,8 @@
 import bpy
 from bpy.utils import register_class, unregister_class
 from bpy.props import (StringProperty, BoolProperty, EnumProperty,
-                       FloatProperty, IntVectorProperty, FloatVectorProperty)
+                       FloatProperty, IntVectorProperty, FloatVectorProperty,
+                       IntProperty)
 from ..utils.misc import getParentRefScene
 
 """ Various properties for each of the different node types """
@@ -116,6 +117,12 @@ class NMSReferenceProperties(bpy.types.PropertyGroup):
         name="LOD levels",
         description="The distances for each LOD level",
         min=0)
+    num_lods: IntProperty(
+        name="Number of LOD levels",
+        description="This is usually 3, but some models may have more or less "
+                    "LOD levels. This is used internally to ensure that the "
+                    "exported model will retain the original number of "
+                    "LOD levels.")
     has_been_imported: BoolProperty(
         name="Has been imported?",
         description="Whether or not the scene is one that has been imported.",
