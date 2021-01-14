@@ -3,7 +3,8 @@
 import bpy
 from bpy.utils import register_class, unregister_class
 from bpy.props import (StringProperty, BoolProperty, EnumProperty,
-                       FloatProperty, IntVectorProperty)
+                       FloatProperty, IntVectorProperty, FloatVectorProperty,
+                       IntProperty)
 from ..utils.misc import getParentRefScene
 
 """ Various properties for each of the different node types """
@@ -108,6 +109,20 @@ class NMSReferenceProperties(bpy.types.PropertyGroup):
         description="If checked, then a new panel will appear that can be "
                     "used to describe the proc-gen nature of the scene",
         default=False)
+    has_lods: BoolProperty(
+        name="Has custom LOD levels",
+        description="Whether the scene has any custom LOD level (INTERNAL)",
+        default=False)
+    lod_levels: FloatVectorProperty(
+        name="LOD levels",
+        description="The distances for each LOD level",
+        min=0)
+    num_lods: IntProperty(
+        name="Number of LOD levels",
+        description="This is usually 3, but some models may have more or less "
+                    "LOD levels. This is used internally to ensure that the "
+                    "exported model will retain the original number of "
+                    "LOD levels.")
     has_been_imported: BoolProperty(
         name="Has been imported?",
         description="Whether or not the scene is one that has been imported.",
@@ -121,7 +136,8 @@ class NMSCollisionProperties(bpy.types.PropertyGroup):
         items=[("Mesh", "Mesh", "Mesh Collision"),
                ("Box", "Box", "Box (rectangular prism collision"),
                ("Sphere", "Sphere", "Spherical collision"),
-               ("Cylinder", "Cylinder", "Cylindrical collision")])
+               ("Cylinder", "Cylinder", "Cylindrical collision"),
+               ("Capsule", "Capsule", "Capsule-shaped collision")])
     transform_type: EnumProperty(
         name="Scale Transform",
         description="Whether or not to use the transform data, or the "
@@ -206,6 +222,10 @@ class NMSDK_PT_ReferencePropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSReference_props, "reference_path")
         row = layout.row()
         row.prop(obj.NMSReference_props, "scene_name")
+        if obj.parent is None and obj.NMSReference_props.has_lods:
+            # Only draw the LOD distances if the object is the parent scene
+            row = layout.row()
+            row.prop(obj.NMSReference_props, "lod_levels")
         row = layout.row()
         row.prop(obj.NMSReference_props, "is_proc")
         row = layout.row()

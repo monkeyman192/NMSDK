@@ -6,8 +6,8 @@ import subprocess
 
 # Blender imports
 import bpy
-import bmesh
-from mathutils import Matrix, Vector, Quaternion
+import bmesh  # pylint: disable=import-error
+from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
 
 # Internal imports
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
@@ -16,8 +16,8 @@ from ..serialization.utils import read_list_header  # noqa pylint: disable=relat
 from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.material_node import create_material_node  # noqa pylint: disable=relative-beyond-top-level
 from .readers import (read_metadata, read_gstream, read_anim, read_entity,  # noqa pylint: disable=relative-beyond-top-level
-                      read_mesh_binding_data)
-from ..utils.utils import scene_to_dict  # noqa pylint: disable=relative-beyond-top-level
+                      read_mesh_binding_data, read_descriptor)
+from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.bpyutils import SceneOp, edit_object, select_object  # noqa pylint: disable=relative-beyond-top-level
@@ -138,7 +138,7 @@ class ImportScene():
                       'registered on the path.')
                 print('Import failed')
                 return
-        self.data = scene_to_dict(exml_fpath)
+        self.data = exml_to_dict(exml_fpath)
 
         if self.data is None:
             raise ValueError('Cannot load scene file...')
@@ -315,15 +315,16 @@ class ImportScene():
             # First, remove everything else in the scene
             if self.settings.get('clear_scene', True):
                 self._clear_prev_scene()
-            added_obj = self._add_empty_to_scene(self.scene_basename)
-            added_obj['scene_node'] = self.scene_node_data.info
+            added_obj = self._add_empty_to_scene(self.scene_node_data)
+            added_obj['scene_node'] = {'idx': 0,
+                                       'data': self.scene_node_data.info}
         # If we need to know the list of joints, get them now...
         if self.mesh_binding_data is not None:
             for obj in self.scene_node_data.iter():
                 if obj.Type == 'JOINT':
                     self.joints.append(obj)
                     self.scn.nmsdk_anim_data.joints.append(obj.Name)
-        for obj in self.scene_node_data.iter():
+        for i, obj in enumerate(self.scene_node_data.iter()):
             added_obj = None
             if obj.Type == 'MESH':
                 if obj.Name.upper() in self.mesh_metadata:
@@ -350,7 +351,7 @@ class ImportScene():
             # Get the added object and give it its scene node data so that it
             # can be rexported in a more faithful way.
             if added_obj:
-                added_obj['scene_node'] = obj.info
+                added_obj['scene_node'] = {'idx': i, 'data': obj.info}
         if self.mesh_binding_data is not None:
             armature = self._add_armature_to_scene()
             for joint in self.joints:
@@ -363,6 +364,11 @@ class ImportScene():
             mod.object = bpy.data.objects['Armature']
         self.load_animations()
         bpy.ops.nmsdk._change_animation(anim_names='None')
+
+        # If the loaded scene is a proc-gen scene, load the info in.
+        if self.scn['scene_node'].NMSReference_props.is_proc:
+            self._apply_proc_gen_info()
+
         self.state = {'FINISHED'}
 
 # region private methods
@@ -443,19 +449,24 @@ class ImportScene():
                 bone.tail += Vector([0, 0, 10 ** (-4)])
                 scene_node = scene_node.parent
 
-    def _add_empty_to_scene(self, scene_node, standalone=False):
+    def _add_empty_to_scene(self, scene_node: SceneNodeData,
+                            standalone: bool = False):
         """ Adds the given scene node data to the Blender scene.
 
         Parameters
         ----------
-        standalone : bool
+        scene_node
+            The scene node object which contains the attributes and children
+            nodes.
+        standalone
             Whether or not the scene_node is provided by itself and not part
             of a complete scene. This is used to indicate that a single mesh
             part is being rendered.
         """
-        if scene_node == self.scene_basename and self.parent_obj is None:
-            # If the scene_node is simply self.scene_basename just add an
-            # empty and return
+        # We can determine if a scene is the root scene by whether it has a
+        # 'GEOMETRY' key in the attributes.
+        if (scene_node.Attribute('GEOMETRY') is not None
+                and self.parent_obj is None):
             empty_mesh = bpy.data.meshes.new(self.scene_basename)
             empty_obj = bpy.data.objects.new(self.scene_basename,
                                              empty_mesh)
@@ -466,6 +477,21 @@ class ImportScene():
             self.scene_ctx.link_object(empty_obj)
             select_object(empty_obj)
 
+            # Determine if the scene has LOD info
+            if scene_node.Attribute('NUMLODS', int) > 1:
+                lods = []
+                for i in range(1, scene_node.Attribute('NUMLODS', int)):
+                    lods.append(scene_node.Attribute(f'LODDIST{i}', float))
+                empty_obj.NMSReference_props.num_lods = len(lods)
+                # TODO: make this more robust... What if there are 4 LOD's?
+                if empty_obj.NMSReference_props.num_lods < 3:
+                    # pad it with 0's until it is 3
+                    j = 3 - empty_obj.NMSReference_props.num_lods
+                    for _ in range(j):
+                        lods.append(0)
+                empty_obj.NMSReference_props.lod_levels = lods
+                empty_obj.NMSReference_props.has_lods = True
+
             # Add a custom property so that if it is exported with the
             # 'preserve node info' option selected then it can use this info.
             empty_obj['imported_from'] = self.scene_name
@@ -473,10 +499,29 @@ class ImportScene():
             # always find this node easily.
             self.scn['scene_node'] = empty_obj
             # check if the scene is proc-gen
-            descriptor_name = self.scene_name + '.DESCRIPTOR.MBIN'
-            if op.exists(op.join(self.PCBANKS_dir, descriptor_name)):
+            descriptor_name = self.scene_name + '.DESCRIPTOR'
+            # Try and find the descriptor locally
+            descriptor_path = op.join(self.local_directory,
+                                      descriptor_name)
+            # Otherwise fallback to looking relative to the PCBANKS directory.
+            if not op.exists(descriptor_path):
+                descriptor_path = op.join(self.PCBANKS_dir, descriptor_name)
+            if op.exists(descriptor_path + '.MBIN'):
                 empty_obj.NMSReference_props.is_proc = True
-            self.local_objects[scene_node] = empty_obj
+                # Also convert the .mbin to exml for parsing if the exml
+                # doesn't already exist.
+                if not op.exists(descriptor_path + '.EXML'):
+                    retcode = subprocess.call(
+                        [self.scn.nmsdk_default_settings.MBINCompiler_path,
+                         "-q", "-Q", descriptor_path + '.MBIN'])
+                    if retcode != 0:
+                        print('MBINCompiler failed to run. Please ensure it is'
+                              ' registered on the path.')
+                        print('Import failed')
+                        return
+                self.descriptor_data = read_descriptor(
+                    descriptor_path + '.EXML')
+            self.local_objects[self.scene_basename] = empty_obj
             return empty_obj
 
         # Otherwise just assign everything as usual...
@@ -680,6 +725,20 @@ class ImportScene():
             bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True,
                                   diameter1=1.0, diameter2=1.0, depth=1.0,
                                   segments=20, matrix=ROT_MATRIX)
+            scale_mult = [float(scene_node.Attribute('RADIUS')),
+                          float(scene_node.Attribute('HEIGHT')),
+                          float(scene_node.Attribute('RADIUS'))]
+        elif coll_type == 'Capsule':
+            capsule = bmesh.ops.create_icosphere(
+                bm, subdivisions=4, diameter=1,
+                matrix=Matrix.Scale(0.25, 4, Vector((0, 1, 0))))
+            # select the top set of verts
+            for bmvert in capsule['verts']:
+                if bmvert.co[1] > 0:
+                    bmvert.co[1] += 0.25
+                elif bmvert.co[1] < 0:
+                    bmvert.co[1] -= 0.25
+
             scale_mult = [float(scene_node.Attribute('RADIUS')),
                           float(scene_node.Attribute('HEIGHT')),
                           float(scene_node.Attribute('RADIUS'))]
@@ -887,6 +946,33 @@ class ImportScene():
 
         return mesh_obj
 
+    def _apply_proc_gen_info(self):
+        """ Go over the data in the descriptor and add it to the scene. """
+        # We'll create a function here to apply recursively
+        def apply_recursively(data, parent_collection):
+            for key, value in data.items():
+                coll = bpy.data.collections.new(key)
+                parent_collection.children.link(coll)
+                for node in value:
+                    obj = bpy.data.objects.get(node['Name'])
+                    if obj:
+                        obj.NMSDescriptor_props.choice_types = "Random"
+                        obj.NMSDescriptor_props.proc_prefix = key
+                        coll.objects.link(obj)
+                    for child in node['Children']:
+                        apply_recursively(child, coll)
+
+        # Let's add a collection for all the proc-gen object's to be linked in
+        # so that they can be toggled easily.
+
+        # First, add the root collection
+        desc_coll = bpy.data.collections.new('Descriptor')
+        self.scn.collection.children.link(desc_coll)
+
+        # Now, when we apply the above function recursively it will add the
+        # objects to the collection.
+        apply_recursively(self.descriptor_data, desc_coll)
+
     def _clear_prev_scene(self):
         """ Remove any existing data in the blender scene. """
         for obj in bpy.data.objects:
@@ -924,7 +1010,7 @@ class ImportScene():
                    "Mesh name: {0}\n".format(mesh.Name) +
                    "Mesh indexes: {0}\n".format(idx_count) +
                    "Mesh metadata: {0}\n".format(mesh.metadata) +
-                   "In geomtry file: {0}".format(self.geometry_file))
+                   "In geometry file: {0}".format(self.geometry_file))
             raise ValueError(err)
         with open(self.geometry_stream_file, 'rb') as f:
             f.seek(mesh.metadata.idx_off)

@@ -204,7 +204,12 @@ class Exporter():
             orig_node_data = dict()
             if self.settings.get('preserve_node_info', False):
                 orig_node_data = obj.get('scene_node', dict())
-            scene = Model(Name=name, orig_node_data=orig_node_data)
+            # Get the LOD distances
+            lod_distances = []
+            if obj.NMSReference_props.has_lods:
+                lod_distances = list(obj.NMSReference_props.lod_levels)
+            scene = Model(Name=name, orig_node_data=orig_node_data,
+                          lod_distances=lod_distances)
             # We don't want to actually add the main object to the scene,
             # Just its children.
             for sub_obj in obj.children:
@@ -377,7 +382,9 @@ class Exporter():
 
     def descriptor_generator(self, obj):
         """ Generate a descriptor for the specified object."""
-
+        # NOTE: This will not work correctly for descriptors where the ID
+        # is truncated due to the field being only 0x10 long.
+        # TODO: fix this...
         descriptor_struct = Descriptor()
 
         def descriptor_recurse(obj, structure):
@@ -408,10 +415,10 @@ class Exporter():
                 p = child.NMSDescriptor_props.proc_prefix
                 prefix = '_{0}_'.format(p.strip('_')).upper()
                 name = get_obj_name(child, self.export_fname)
-                if not name.startswith(prefix):
+                if not name.upper().startswith(prefix):
                     # If the name doesn't start with the prefix
                     child.NMSNode_props.override_name = "{0}{1}".format(
-                        prefix, name.lstrip('_').upper())
+                        prefix, name.lstrip('_'))
                 node = structure.get_child(prefix).add_child(child)
                 if child.NMSNode_props.node_types != 'Reference':
                     descriptor_recurse(child, node)
@@ -696,6 +703,10 @@ class Exporter():
             elif colType == "Cylinder":
                 optdict['Radius'] = min([0.5*dims[0]/factor[0],
                                          0.5*dims[2]/factor[2]])
+                optdict['Height'] = dims[1]/factor[1]
+            elif colType == "Capsule":
+                optdict['Radius'] = min([dims[0]/factor[0],
+                                         dims[2]/factor[2]])
                 optdict['Height'] = dims[1]/factor[1]
             else:
                 raise Exception("Unsupported Collision")

@@ -1,5 +1,6 @@
-import struct
 from collections import namedtuple
+import struct
+from typing import Tuple
 
 # TODO: move to the serialization folder?
 
@@ -7,6 +8,7 @@ from ..serialization.utils import (read_list_header, read_string, # noqa pylint:
                                    bytes_to_quat, read_bool)
 from ..serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL  # noqa pylint: disable=relative-beyond-top-level
+from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
 
 
 def read_anim(fname):
@@ -260,22 +262,22 @@ def read_metadata(fname):
     return data
 
 
-def read_gstream(fname, info):
+def read_gstream(fname: str, info: namedtuple) -> Tuple[bytes, bytes]:
     """ Read the requested info from the gstream file.
 
     Parameters
     ----------
-    fname : string
+    fname
         File path to the ~.GEOMETRY.DATA.MBIN.PC file.
-    info : namedtuple
+    info
         namedtupled containing the vertex sizes and offset, and index sizes and
         offsets.
 
     Returns
     -------
-    verts : bytes
+    verts
         Raw vertex data.
-    indexes : bytes
+    indexes
         Raw index data.
     """
     with open(fname, 'rb') as f:
@@ -286,11 +288,50 @@ def read_gstream(fname, info):
     return verts, indexes
 
 
-def read_TkAnimationComponentData(f):
+def read_TkAnimationComponentData(f) -> dict:
     """ Extract the animation name and path from the entity file. """
     data = dict()
     data['Anim'] = read_string(f, 0x10)
     data['Filename'] = read_string(f, 0x80)
     # Move the pointer to the end of the TkAnimationComponentData struct
     f.seek(0xA8, 1)
+    return data
+
+
+def read_TkModelDescriptorList(data: dict) -> dict:
+    """ Take a dictionary of the model descriptor data and extract recursively
+    just the useful info. """
+    ret_data = dict()
+    for d in data:
+        desc_data = []
+        for desc in d['Descriptors']:
+            sub_desc_data = {
+                'Id': desc['Id'],
+                'Name': desc['Name'],
+                'ReferencePaths': desc['ReferencePaths'],
+                'Children': [read_TkModelDescriptorList(
+                    x['List']) for x in desc['Children']]}
+            desc_data.append(sub_desc_data)
+        ret_data[d['TypeId']] = desc_data
+    return ret_data
+
+
+def read_descriptor(fname: str) -> dict:
+    """ Take a file path to a descriptor and process it, returning a dict
+    containing the necessary data.
+
+    Parameters
+    ----------
+    fname
+        Full path to the descriptor file to be parsed.
+
+    Returns
+    -------
+    data
+        A dictionary with the required data.
+    """
+    with open(fname) as f:
+        # The top level is always a list, let's just extract it immediately.
+        data = exml_to_dict(f)['List']
+    data = read_TkModelDescriptorList(data)
     return data

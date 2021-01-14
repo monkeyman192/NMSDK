@@ -32,7 +32,6 @@ def set_import_export_defaults(cls, context):
         export_dir = op.dirname(scene_path)
         cls.export_directory, cls.group_name = op.split(export_dir)
         cls.preserve_node_info = True
-        print(scene_node['imported_from'])
         if hasattr(cls, 'scene_name'):
             cls.scene_name = op.basename(scene_node['imported_from'])
 

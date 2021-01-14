@@ -1,8 +1,8 @@
-import bpy
 import os.path as op
 import tempfile
 import sys
 
+import bpy
 
 # Fix up the system path to include the nmsdk directory...
 # I can't think of a better way of doing this right now... If this becomes
@@ -12,7 +12,7 @@ nmsdk_dir = op.normpath(op.join(op.dirname(__file__), '..', '..'))
 if nmsdk_dir not in sys.path:
     sys.path.append(nmsdk_dir)
 
-from utils.utils import scene_to_dict  # noqa pylint: E402
+from utils.utils import exml_to_dict  # noqa pylint: E402
 from utils.io import convert_file  # noqa pylint: E402
 
 # The NMS game data to test the importing with is in the main test folder.
@@ -59,7 +59,6 @@ with tempfile.TemporaryDirectory() as tempdir:
                                      preserve_node_info=True)
     assert res == {'FINISHED'}
 
-    export_path = op.join(tempdir, 'CUSTOMMODELS')
     out_path = op.join(tempdir, CRYSTAL_BASE_PATH, 'CRYSTAL_LARGE.SCENE.MBIN')
     # Let's ensure it exists
     assert op.exists(out_path)
@@ -67,9 +66,9 @@ with tempfile.TemporaryDirectory() as tempdir:
     # original one...
     # First we need to convert it to an exml file...
     new_exml_scene = convert_file(out_path)
-    new_scene = scene_to_dict(new_exml_scene)
+    new_scene = exml_to_dict(new_exml_scene)
     # Then convert the original scene file...
     orig_exml_scene = convert_file(CRYSTAL_PATH)
-    orig_scene = scene_to_dict(orig_exml_scene)
+    orig_scene = exml_to_dict(orig_exml_scene)
     # Now let's compare it to the original
     assert new_scene == orig_scene

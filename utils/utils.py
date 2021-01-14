@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 
 
-def scene_to_dict(fpath: str) -> dict:
+def exml_to_dict(fpath: str) -> dict:
     tree = ET.parse(fpath)
     root = tree.getroot()
     return element_to_dict(root)

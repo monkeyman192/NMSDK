@@ -14,6 +14,8 @@ from .utils import get_children
 # type, but we will keep it separate.
 # this corresponds to the outmost TkModelDescriptorList object
 class Descriptor():
+    """ Main descriptor object. This is equivalent to the TkModelDescriptorList
+    object. """
     def __init__(self):
         self.children = []
         self.path = ''
@@ -131,13 +133,13 @@ class Node_Data():
         children = List()
         for child in self.children:
             children.append(child.to_exml())
-        # check how many children there are so we aren't making empty
-        # TkModelDescriptorList's for nothing
+        # Check how many children there are so we aren't making empty
+        # TkModelDescriptorList's for nothing.
         if len(children) == 0:
             _children = List()
         else:
             _children = List(TkModelDescriptorList(List=children))
-        return TkResourceDescriptorData(Id=name,
+        return TkResourceDescriptorData(Id=name.upper(),
                                         Name=name,
                                         ReferencePaths=refs + additional_refs,
                                         Chance=0,
