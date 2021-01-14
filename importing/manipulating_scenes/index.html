@@ -61,6 +61,10 @@
                     </li>
                     <li class="toctree-l1 current"><a class="reference internal current" href="./">Manipulating imported scenes</a>
     <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#limitations">Limitations</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#considerations">Considerations</a>
+    </li>
     </ul>
                     </li>
                 </ul>
@@ -79,6 +83,11 @@
                     <li class="toctree-l1"><a class="reference internal" href="../../exporting/action_triggers/">Creating Action Triggers</a>
                     </li>
                     <li class="toctree-l1"><a class="reference internal" href="../../exporting/shader_nodes/">Shader Setup</a>
+                    </li>
+                </ul>
+                <p class="caption"><span class="caption-text">Examples</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../examples/create_procgen_scene/">Creating a proc-gen reference scene</a>
                     </li>
                 </ul>
                 <ul>
@@ -128,8 +137,23 @@
                 <h1 id="manipulating-scenes-imported-into-blender">Manipulating scenes imported into Blender</h1>
 <p>(Added in version 0.9.21)</p>
 <p>When a scene is loaded in, all the values in the scene such as info about the meshes, and everything is stored in the blender scene.
-When re-exporting, there is an option which exports all the values that are not modified.
-Genrally this is useful if you are wanting to not add new meshes to a scene but do want to re-organise where objects are in a scene, remove objects from a scene, or add new references and scuh to a scene.</p>
+When re-exporting, there is an option which exports all the values that are not modified.</p>
+<p><img alt="preserve nodes" src="../../images/preserve_import.png" /></p>
+<p>There are some limitations and considerations to keep in mind when using this mode which are listed below:</p>
+<h3 id="limitations">Limitations</h3>
+<ul>
+<li>You cannot make any modifications to any of the meshes. Any changes made will be ignored.</li>
+<li>Animations cannot be modified at this time. Maybe in the future this will be possible, but not right now.</li>
+<li>You cannot add new LOD levels.</li>
+</ul>
+<h3 id="considerations">Considerations</h3>
+<p>When making changes you should take the following things into consideration:</p>
+<ul>
+<li>When you make a change to the scale, position or rotation of an object, you should do so whilst in object mode so that the change is applied. Do not apply the change within blender.</li>
+<li>To add new nodes it is recommended that you add them with the handy context menu options.</li>
+</ul>
+<p><img alt="add reference nodes" src="../../images/add_ref_node.png" /></p>
+<p><strong>Note</strong>: There may still be some issues with this process as it is still in development. If you see something not work as you think it should, please raise an issue on github!</p>
               
             </div>
           </div>

@@ -9,7 +9,7 @@
   
   
   <link rel="shortcut icon" href="../../img/favicon.ico">
-  <title>Importing - NMSDK</title>
+  <title>Creating a proc-gen reference scene - NMSDK</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
   <link rel="stylesheet" href="../../css/theme.css" />
@@ -18,8 +18,8 @@
   
   <script>
     // Current page data
-    var mkdocs_page_name = "Importing";
-    var mkdocs_page_input_path = "importing/importing.md";
+    var mkdocs_page_name = "Creating a proc-gen reference scene";
+    var mkdocs_page_input_path = "examples/create_procgen_scene.md";
     var mkdocs_page_url = null;
   </script>
   
@@ -56,28 +56,10 @@
                     </li>
                 </ul>
                 <p class="caption"><span class="caption-text">Importing a Scene</span></p>
-                <ul class="current">
-                    <li class="toctree-l1 current"><a class="reference internal current" href="./">Importing</a>
-    <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#import-settings">Import settings</a>
-        <ul>
-    <li class="toctree-l3"><a class="reference internal" href="#draw-bounded-hulls">Draw bounded hulls</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#clear-scene">Clear scene</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#import-collisions">Import collisions</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#draw-collisions">Draw collisions</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#import-bones">Import bones</a>
-    </li>
-    <li class="toctree-l3"><a class="reference internal" href="#max-loaded-animations">Max loaded animations</a>
-    </li>
-        </ul>
-    </li>
-    </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../../importing/importing/">Importing</a>
                     </li>
-                    <li class="toctree-l1"><a class="reference internal" href="../manipulating_scenes/">Manipulating imported scenes</a>
+                    <li class="toctree-l1"><a class="reference internal" href="../../importing/manipulating_scenes/">Manipulating imported scenes</a>
                     </li>
                 </ul>
                 <p class="caption"><span class="caption-text">Exporting a Scene</span></p>
@@ -98,8 +80,14 @@
                     </li>
                 </ul>
                 <p class="caption"><span class="caption-text">Examples</span></p>
-                <ul>
-                    <li class="toctree-l1"><a class="reference internal" href="../../examples/create_procgen_scene/">Creating a proc-gen reference scene</a>
+                <ul class="current">
+                    <li class="toctree-l1 current"><a class="reference internal current" href="./">Creating a proc-gen reference scene</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#scenario">Scenario</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#steps">Steps</a>
+    </li>
+    </ul>
                     </li>
                 </ul>
                 <ul>
@@ -131,11 +119,11 @@
     
       
         
-          <li>Importing a Scene &raquo;</li>
+          <li>Examples &raquo;</li>
         
       
     
-    <li>Importing</li>
+    <li>Creating a proc-gen reference scene</li>
     <li class="wy-breadcrumbs-aside">
       
     </li>
@@ -146,36 +134,62 @@
           <div role="main">
             <div class="section">
               
-                <h1 id="importing-models-into-blender">Importing models into Blender</h1>
-<p>NMSDK is capable of importing NMS <em>SCENE</em> files and loading the models.</p>
-<p>At the moment the functionality is still in beta and has many issues, primarily due to the custom shader setup used by NMS.</p>
-<p>Importing scenes from the game is simple. An option can be found in the <code>Import</code> drop-down menu found by selecting <code>File</code> &gt; <code>Import</code></p>
-<p>Note: The format the scene is imported in as isn't guaranteed to be perfectly exportable (sorry!). This functionality will come in the future.</p>
-<p><img alt="importing" src="../../images/import.png" /></p>
-<p>This will open up a file selection dialog which lets you select the scene you wish to import.
-Keep in mind that at the moment NMSDK will import <strong>all</strong> of the components of a scene including ones that are referenced by the scene. So for a large scene such as the freighter scene it may actually take a minute or two to load all the data.</p>
-<h2 id="import-settings">Import settings</h2>
-<p>When importing scenes into blender, there are a number of options that can be changed to allow for flexibility when importing. These are as follows:</p>
-<h4 id="draw-bounded-hulls">Draw bounded hulls</h4>
-<p>This setting is essentially for debugging purposes. There is never going to be a time in standard use that you will want to enable this.</p>
-<h4 id="clear-scene">Clear scene</h4>
-<p>This will remove any existing objects in the scene (except camera and light) then import the scene into the empty blender scene. If you are wanting to import multiple scenes into the one blender scene then you can disable this option.</p>
-<h4 id="import-collisions">Import collisions</h4>
-<p>If you are simply wanting to see what the model looks like, you can safely disable this option. This may be used for debugging existing models.
-This is enabled by default, however these collisions are not drawn (see next option...)</p>
-<h4 id="draw-collisions">Draw collisions</h4>
-<p>If collisions are imported, specify whether they should be drawn intially. This is disabled by default and will probably be removed as an option soon as it has been superseded by the ability to toggle the collision visibility via the <a href="../../settings/#scene_tools">NMSDK properties panel</a>.</p>
-<h4 id="import-bones">Import bones</h4>
-<p>Whether or not to import the bones for models that have them. This is useful if you are importing models to animate yourself as they are already rigged.
-This functionality is still reasonably broken so do not expect good results if this is enabled.</p>
-<h4 id="max-loaded-animations">Max loaded animations</h4>
-<p>Specify the maximum number of animations to be imported.<br />
-The default is set to 10 as you generally don't want to be importing many more than this as it can take a while.<br />
-To disable importing any animations set this value to <code>0</code>.<br />
-To force all animations to load (generally <strong>not</strong> recommended), set the value to <code>-1</code>.<br />
-Otherwise, set the value to a positive integer.</p>
-<p>Keep in mind that for the player model there are over 300 animations to load so it takes an extremely long time to load all of them.
-For more on loading animations after the scene has been loaded, see <a href="../../settings/#animation_controls">here</a>.</p>
+                <h1 id="creating-a-simple-proc-gen-scene">Creating a simple proc-gen scene.</h1>
+<h3 id="scenario">Scenario</h3>
+<p>You have a number of objects which you wish to bundle together in a way that the game will select randomly. Either to implement new obejcts, or to add objects to an existing proc-gen pool.</p>
+<h3 id="steps">Steps</h3>
+<ol>
+<li>
+<p>First, we will start by creating an empty scene in blender with NMSDK</p>
+<blockquote>
+<p><img alt="add root node" src="../../images/examples/ex1-1.png" /></p>
+</blockquote>
+</li>
+<li>
+<p>Right click on the object (in 'Object' mode) and select the option to add a new child.
+   <em>NOTE</em>: It is important to do it this way and not create a new child naively and parent it as there may be issues here. NMS uses a different coordinate system to blender, so the process of adding a new child via the NMSDK specific context menu items means that it will be added with the correct reference frame.</p>
+<blockquote>
+<p><img alt="add child ref node" src="../../images/examples/ex1-2.png" /></p>
+</blockquote>
+</li>
+<li>
+<p>Let's add 3 child reference nodes and give them names:</p>
+<blockquote>
+<p><img alt="3 child nodes" src="../../images/examples/ex1-3.png" /></p>
+</blockquote>
+</li>
+<li>
+<p>Each reference node can be given a reference path to the model you wish to reference.
+    If you specify a path which is relative to a PCBANKS folder this will automatically be picked up on export. It doesn't matter if the full path itself is included.
+    You can however also just copy the path the SCENE.MBIN file you want to reference and it will be used as is.</p>
+<blockquote>
+<p><img alt="full path reference" src="../../images/examples/ex1-4a.png" />
+<img alt="relative path reference" src="../../images/examples/ex1-4b.png" /></p>
+</blockquote>
+</li>
+<li>
+<p>To make a scene proc-gen we will select the button 'Is a proc-gen scene?' in the root NMS_SCENE object reference properties:</p>
+<blockquote>
+<p><img alt="make proc-gen" src="../../images/examples/ex1-5.png" /></p>
+</blockquote>
+</li>
+<li>
+<p>Now, all the child nodes will have a new panel which we can edit.</p>
+<blockquote>
+<p><img alt="Set descrtiptor prefix" src="../../images/examples/ex1-6.png" /></p>
+</blockquote>
+<p>We are going to want to set this for every child reference node that we want to be displayed in a proc-gen way.
+Let's say we want <code>CHILD1</code> and <code>CHILD2</code> to be picked randomly but <code>CHILD3</code> to always be selected, we only need to give the first 2 a proc-prefix and the descriptor will be created in such a way that this is the behaviour.
+<em>NOTE</em>: The prefix doesn't really matter, it is just used to indicate what objects belong to the same proc-gen pool. If you give everything a different prefix, they will all be picked as each prefix pool contains only one node.</p>
+</li>
+<li>
+<p>Export the scene</p>
+<blockquote>
+<p><img alt="export scene" src="../../images/examples/ex1-7.png" /></p>
+</blockquote>
+<p>Enter a name for the scene and click export. You will see the descriptor and scene files produced in the specified directory.</p>
+</li>
+</ol>
               
             </div>
           </div>
@@ -183,10 +197,10 @@ For more on loading animations after the scene has been loaded, see <a href="../
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../manipulating_scenes/" class="btn btn-neutral float-right" title="Manipulating imported scenes">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../../api/" class="btn btn-neutral float-right" title="API guide">Next <span class="icon icon-circle-arrow-right"></span></a>
       
       
-        <a href="../../setup/" class="btn btn-neutral" title="Setup"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../exporting/shader_nodes/" class="btn btn-neutral" title="Shader Setup"><span class="icon icon-circle-arrow-left"></span> Previous</a>
       
     </div>
   
@@ -212,10 +226,10 @@ For more on loading animations after the scene has been loaded, see <a href="../
     <span class="rst-current-version" data-toggle="rst-current-version">
       
       
-        <span><a href="../../setup/" style="color: #fcfcfc;">&laquo; Previous</a></span>
+        <span><a href="../../exporting/shader_nodes/" style="color: #fcfcfc;">&laquo; Previous</a></span>
       
       
-        <span style="margin-left: 15px"><a href="../manipulating_scenes/" style="color: #fcfcfc">Next &raquo;</a></span>
+        <span style="margin-left: 15px"><a href="../../api/" style="color: #fcfcfc">Next &raquo;</a></span>
       
     </span>
 </div>
