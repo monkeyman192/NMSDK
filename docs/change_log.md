@@ -2,12 +2,16 @@
 
 ## Releases:
 
-### Current - v0.9.22
+### Current - v0.9.23
+
+ - 
+
+### Past:
+
+### v0.9.22 (14/01/2021)
 
  - Added support for the `Capsule` primitive collision type. [#80](https://github.com/monkeyman192/NMSDK/issues/80).
  - Added support for loading and modifyin LOD values for scenes which have them. Those that do not cannot be modified currently. [#80](https://github.com/monkeyman192/NMSDK/issues/80).
-
-### Past:
 
 ### v0.9.21 (08/10/2020)
 

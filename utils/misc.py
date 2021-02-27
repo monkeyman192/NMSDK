@@ -1,6 +1,8 @@
 # Blender imports
 import bpy
 
+FORBIDDEN_CHARS = '()'
+
 
 def clone_node(node, include_children=False, new_parent=None):
     """ Create a clone of the provided "node".
@@ -139,3 +141,12 @@ def truncate_float(val):
         return 0
     else:
         return new_val
+
+
+def clean_name(name):
+    """ Return a cleaned version of the node name. This will remove a number of
+    disallowed character, and replace spaces with underscores. """
+    name = name.replace(' ', '_')
+    for char in FORBIDDEN_CHARS:
+        name = name.replace(char, '')
+    return name

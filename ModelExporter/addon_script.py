@@ -1,14 +1,16 @@
 # stdlib imports
-import os.path as op
 from math import radians, degrees
+import os
+import os.path as op
+import shutil
 # blender imports
 import bpy
 import bmesh
 from idprop.types import IDPropertyGroup
 from mathutils import Matrix, Vector
 # Internal imports
-from ..utils.misc import CompareMatrices, get_obj_name
-from .utils import apply_local_transform, transform_to_NMS_coords
+from ..utils.misc import CompareMatrices, get_obj_name, clean_name
+from ..utils.image_convert import convert_image
 from .animations import process_anims
 from .export import Export
 from .Descriptor import Descriptor
@@ -89,6 +91,21 @@ def generate_hull(mesh, determine_indexes=False):
         return chverts
 
 
+def create_sampler(image, sampler_name, texture_dir, type_, output_dir):
+    if not image.filepath:
+        raise Exception(
+            f"Missing Image in Texture: {image.name}")
+    # If the textures are packed into the blend file, unpack them.
+    if len(image.packed_files) > 0:
+        image.unpack(method="WRITE_LOCAL")
+
+    print(f'Converting {image.filepath} to .DDS')
+    tex_path = convert_image(image.filepath_from_user(),
+                             texture_dir, type_)
+    relpath = op.relpath(tex_path, output_dir)
+    return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=True)
+
+
 """ Main exporter class with all the other functions contained in one place """
 
 
@@ -124,7 +141,7 @@ class Exporter():
         self.global_scene.frame_set(0)
         self.output_directory = output_directory
         self.export_dir = export_directory
-        self.export_fname = scene_name
+        self.export_fname = scene_name.replace(' ', '_')
         self.settings = settings
 
         self.state = None
@@ -279,7 +296,19 @@ class Exporter():
             matsamplers = List()
             matuniforms = List()
 
-            tslots = mat.texture_slots
+            # Find the texture nodes
+            tslots = [x for x in mat.node_tree.nodes if x.type == 'TEX_IMAGE']
+            # Try and determine which of the nodes belongs to which texture
+            diffuse_image = None
+            normal_image = None
+            mask_image = None
+            for ts in tslots:
+                if 'diffuse' in ts.image.name.lower():
+                    diffuse_image = ts.image
+                elif 'normal' in ts.image.name.lower():
+                    normal_image = ts.image
+                elif 'mask' in ts.image.name.lower():
+                    mask_image = ts.image
 
             # Fetch Uniforms
             matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
@@ -302,69 +331,56 @@ class Exporter():
                                                                  y=0.0,
                                                                  z=0.0,
                                                                  t=0.0)))
-            # Fetch Diffuse
-            texpath = ""
-            if tslots[0]:
+
+            texture_dir = op.join(self.output_directory, 'CUSTOM_TEXTURES',
+                                  mat.name.upper().replace(' ', '_'))
+            if any([diffuse_image, mask_image, normal_image]):
+                os.makedirs(texture_dir, exist_ok=True)
+
+            # Sort out Diffuse
+            if diffuse_image:
                 # Set _F01_DIFFUSEMAP
                 add_matflags.add(0)
-                # matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
-                # Create gDiffuseMap Sampler
+                # Add the sampler to the list
+                matsamplers.append(create_sampler(
+                    diffuse_image, "gDiffuseMap", texture_dir, 'diffuse',
+                    self.output_directory
+                ))
 
-                tex = tslots[0].texture
-                # Check if there is no texture loaded
-                if not tex.type == 'IMAGE':
-                    raise Exception("Missing Image in Texture: " + tex.name)
+            # Sort out Mask
+            if mask_image:
+                # Set _F02_SKINNED
+                add_matflags.add(1)
+                # Add the sampler to the list
+                matsamplers.append(create_sampler(
+                    mask_image, "gMasksMap", texture_dir, 'masks',
+                    self.output_directory
+                ))
 
-                texpath = op.join(proj_path, tex.image.filepath[2:])
-            print(texpath)
-            sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath,
-                                      IsSRGB=True)
-            matsamplers.append(sampl)
+            # Sort out Normal Map
+            if normal_image:
+                # Set _F03_NORMALMAP
+                add_matflags.add(2)
+                # Add the sampler to the list
+                matsamplers.append(create_sampler(
+                    normal_image, "gNormalMap", texture_dir, 'normal',
+                    self.output_directory
+                ))
 
             # Check shadeless status
+            # TODO: Not compatible with 2.8x
+            """
             if (mat.use_shadeless):
                 # Set _F07_UNLIT
                 add_matflags.add(6)
-
-            # Fetch Mask
-            texpath = ""
-            if tslots[1]:
-                # Create gMaskMap Sampler
-
-                tex = tslots[1].texture
-                # Check if there is no texture loaded
-                if not tex.type == 'IMAGE':
-                    raise Exception("Missing Image in Texture: " + tex.name)
-
-                texpath = op.join(proj_path, tex.image.filepath[2:])
-
-            sampl = TkMaterialSampler(Name="gMasksMap", Map=texpath,
-                                      IsSRGB=False)
-            matsamplers.append(sampl)
-
-            # Fetch Normal Map
-            texpath = ""
-            if tslots[2]:
-                # Set _F03_NORMALMAP
-                add_matflags.add(2)
-                # Create gNormalMap Sampler
-
-                tex = tslots[2].texture
-                # Check if there is no texture loaded
-                if not tex.type == 'IMAGE':
-                    raise Exception("Missing Image in Texture: " + tex.name)
-
-                texpath = op.join(proj_path, tex.image.filepath[2:])
-
-            sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath,
-                                      IsSRGB=False)
-            matsamplers.append(sampl)
+            """
 
             add_matflags.add(24)
             add_matflags.add(38)
             add_matflags.add(46)
 
-            lst = list(add_matflags)        # convert to list so we can order
+            # convert to list so we can order
+            lst = list(add_matflags)
             lst.sort()
             for flag in lst:
                 matflags.append(
@@ -760,9 +776,7 @@ class Exporter():
                 newob.Material = ob.NMSMesh_props.material_path
             else:
                 try:
-                    slot = ob.material_slots[0]
-                    mat = slot.material
-                    print(mat.name)
+                    mat = ob.material_slots[0].material
                     if mat.name not in self.material_dict:
                         print("Parsing Material " + mat.name)
                         material_ob = self.parse_material(ob)

@@ -101,8 +101,8 @@ def get_children(obj, obj_types=ALL_TYPES, condition=lambda x: True,
                 curr_children.append(child.name)
             else:
                 curr_children.append(child)
-        curr_children += get_children(child, list(), obj_types, condition,
-                                      just_names)
+        curr_children += get_children(child, obj_types, condition, just_names,
+                                      flatten)
     return curr_children
 
 

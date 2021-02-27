@@ -5,6 +5,7 @@ from copy import copy
 
 # Local imports
 from ..utils.misc import get_root_node, clone_node
+from ..ModelExporter.utils import get_children
 
 # Blender imports
 import bmesh
@@ -183,20 +184,28 @@ class NMSDK_OT_move_to_parent(Operator):
                 obj.matrix_local = trans
                 del trans
             else:
-                # 1. copy the world matrix of the object.
+                # 1. Copy the world matrix of the object.
                 trans = copy(obj.matrix_world)
                 # 2. Set the world matrix of the object to be the Identity
                 # matrix.
                 obj.matrix_world = Matrix()
                 # 3. Change the object to be in the coordinate system of the
                 # root node. Apply this change the object.
-                obj.data.transform(root_obj.matrix_world)
+                if obj.data:
+                    obj.data.transform(root_obj.matrix_world)
                 obj.matrix_world = Matrix()
                 # 4. Parent the object to the required object.
                 obj.parent = parent_obj
                 # 5. Set the objects transform from before.
                 obj.matrix_local = trans
                 del trans
+
+                # Go over all the children nodes, and if any don't have data
+                # then they are empty. We'll set these as Locators.
+                # Also check the obj itself while we are here...
+                for child in [obj] + get_children(obj):
+                    if not child.data:
+                        child.NMSNode_props.node_types = 'Locator'
 
         return {'FINISHED'}
 

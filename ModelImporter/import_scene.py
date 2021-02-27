@@ -158,6 +158,8 @@ class ImportScene():
                 self.PCBANKS_dir,
                 self.scene_node_data.Attribute('GEOMETRY') + '.PC')
 
+        self.descriptor_data = dict()
+
         self.geometry_stream_file = self.geometry_file.replace('GEOMETRY',
                                                                'GEOMETRY.DATA')
 
@@ -503,10 +505,13 @@ class ImportScene():
             # Try and find the descriptor locally
             descriptor_path = op.join(self.local_directory,
                                       descriptor_name)
+            print(f'Expecting a descriptor at: {descriptor_path}')
             # Otherwise fallback to looking relative to the PCBANKS directory.
             if not op.exists(descriptor_path):
                 descriptor_path = op.join(self.PCBANKS_dir, descriptor_name)
+                print(f'Now expecting a descriptor at: {descriptor_path}')
             if op.exists(descriptor_path + '.MBIN'):
+                print('FOUND IT!')
                 empty_obj.NMSReference_props.is_proc = True
                 # Also convert the .mbin to exml for parsing if the exml
                 # doesn't already exist.
@@ -966,8 +971,11 @@ class ImportScene():
         # so that they can be toggled easily.
 
         # First, add the root collection
-        desc_coll = bpy.data.collections.new('Descriptor')
-        self.scn.collection.children.link(desc_coll)
+        if not bpy.data.collections.get('Descriptor'):
+            desc_coll = bpy.data.collections.new('Descriptor')
+            self.scn.collection.children.link(desc_coll)
+        else:
+            desc_coll = bpy.data.collections['Descriptor']
 
         # Now, when we apply the above function recursively it will add the
         # objects to the collection.
