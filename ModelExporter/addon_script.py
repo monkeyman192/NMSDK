@@ -100,8 +100,11 @@ def create_sampler(image, sampler_name, texture_dir, type_, output_dir):
         image.unpack(method="WRITE_LOCAL")
 
     print(f'Converting {image.filepath} to .DDS')
-    tex_path = convert_image(image.filepath_from_user(),
-                             texture_dir, type_)
+    if op.splitext(image.filepath)[1].lower() != '.dds':
+        tex_path = convert_image(image.filepath_from_user(),
+                                 texture_dir, type_, tuple(image.size))
+    else:
+        tex_path = image.filepath_from_user()
     relpath = op.relpath(tex_path, output_dir)
     return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=True)
 
@@ -213,6 +216,7 @@ class Exporter():
                 name = get_obj_name(obj, self.export_fname)
             self.scene_directory = op.join(self.export_dir,
                                            self.group_name)
+            self.inner_scene_path = op.join(self.scene_directory, name)
             # Sort out any descriptors
             descriptor = None
             if obj.NMSReference_props.is_proc:
@@ -279,7 +283,6 @@ class Exporter():
             # otherwise parse the actual material data
             slot = ob.material_slots[0]
             mat = slot.material
-            print(mat.name)
 
             # find any additional material flags specificed by the user
             add_matflags = set()
@@ -288,8 +291,6 @@ class Exporter():
                 if i != 0:
                     # subtract 1 to account for the index start in the struct
                     add_matflags.add(i - 1)
-
-            proj_path = bpy.path.abspath('//')
 
             # Create the material
             matflags = List()
@@ -303,12 +304,22 @@ class Exporter():
             normal_image = None
             mask_image = None
             for ts in tslots:
-                if 'diffuse' in ts.image.name.lower():
+                if ('diffuse' in ts.image.name.lower()
+                        or 'diffuse' in ts.label.lower()):
                     diffuse_image = ts.image
-                elif 'normal' in ts.image.name.lower():
+                elif ('normal' in ts.image.name.lower()
+                        or 'normal' in ts.label.lower()):
                     normal_image = ts.image
-                elif 'mask' in ts.image.name.lower():
+                elif ('mask' in ts.image.name.lower()
+                        or 'mask' in ts.label.lower()):
                     mask_image = ts.image
+
+            if not any([diffuse_image, normal_image, mask_image]):
+                raise Exception(
+                    f"No texture files found for material {mat.name}.\n"
+                    "Please ensure that it has textures and the nodes in the "
+                    "node tree are labelled correctly (ie. diffuse in the "
+                    "label for the diffuse texture, etc.")
 
             # Fetch Uniforms
             matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
@@ -332,8 +343,11 @@ class Exporter():
                                                                  z=0.0,
                                                                  t=0.0)))
 
-            texture_dir = op.join(self.output_directory, 'CUSTOM_TEXTURES',
-                                  mat.name.upper().replace(' ', '_'))
+            if self.settings.get('use_shared_textures'):
+                texture_dir = self.settings.get('shared_texture_folder')
+            else:
+                texture_dir = os.path.join(self.inner_scene_path, 'TEXTURES')
+
             if any([diffuse_image, mask_image, normal_image]):
                 os.makedirs(texture_dir, exist_ok=True)
 
@@ -377,7 +391,6 @@ class Exporter():
 
             add_matflags.add(24)
             add_matflags.add(38)
-            add_matflags.add(46)
 
             # convert to list so we can order
             lst = list(add_matflags)
@@ -470,7 +483,7 @@ class Exporter():
         # Raise exception if UV Map is missing
         uvcount = len(data.uv_layers)
         if uvcount < 1:
-            raise Exception("Missing UV Map")
+            raise Exception(f"Object {ob.name} missing UV map")
 
         uv_layer_name = data.uv_layers.active.name
 
@@ -877,7 +890,7 @@ class Exporter():
             Name of the scene that contains the animations.
         """
         # Do nothing if there are no animations
-        if len(bpy.data.actions) == 0:
+        if len(bpy.data.actions) == 0 or not self.anim_controller_obj:
             return
         # First, check to see if there is an idle animation
         idle_anim = self.settings.get('idle_anim', '')

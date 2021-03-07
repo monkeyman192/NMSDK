@@ -166,9 +166,6 @@ class Export():
         # this creates the VertexLayout and SmallVertexLayout properties
         self.create_vertex_layouts()
 
-        # Material defaults
-        self.process_materials()
-
         self.process_nodes()
         # make this last to make sure flattening each stream doesn't affect
         # other data.
@@ -199,8 +196,6 @@ class Export():
         # check whether the require paths exist and make them
         if not os.path.exists(self.ent_path):
             os.makedirs(self.ent_path)
-        if not os.path.exists(self.texture_path):
-            os.makedirs(self.texture_path)
         if not os.path.exists(self.anims_path) and len(self.anim_data) > 1:
             os.makedirs(self.anims_path)
 
@@ -659,34 +654,6 @@ class Export():
                 # only add the meshes to the self.mesh_bounds dict:
                 self.mesh_bounds[obj.Name] = {'x': x_bounds, 'y': y_bounds,
                                               'z': z_bounds}
-
-    def process_materials(self):
-        """ Process the material data and gives the textures the correct paths.
-        """
-        for material in self.materials:
-            if not isinstance(material, str):
-                # in this case we are given actual material data, not just a
-                # string path location
-                samplers = material['Samplers']
-                # this will have the order Diffuse, Masks, Normal and be a List
-                if samplers is not None:
-                    for sample in samplers.subElements:
-                        # this will be a TkMaterialSampler object
-                        # this should be the current absolute path to the
-                        # image, we want to move it to the correct relative
-                        # path
-                        t_path = str(sample['Map'])
-                        new_path = os.path.join(
-                            self.texture_path,
-                            os.path.basename(t_path).upper())
-                        try:
-                            copy2(t_path, new_path)
-                        except FileNotFoundError:
-                            # in this case the path is probably broken, just
-                            # set as empty if it wasn't before
-                            new_path = ""
-                        f_name, ext = os.path.splitext(new_path)
-                        sample['Map'] = f_name + ext.upper()
 
     def write(self):
         """ Write all of the files required for the scene. """

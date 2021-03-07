@@ -670,6 +670,18 @@ class NMS_Export_Operator(Operator, ExportHelper):
     idle_anim: StringProperty(
         name="Idle animation name",
         description="The name of the animation that is the idle animation.")
+    use_shared_textures: BoolProperty(
+        name="Use shared textures location",
+        description="If True, then all exported textures will be placed in a "
+                    "folder in the same location as the CUSTOMMODELS folder "
+                    "called 'CUSTOMTEXTURES'. Otherwise the textures will be "
+                    "located in a TEXTURES folder within the scene folder.",
+        default=False)
+    shared_texture_folder: StringProperty(
+        name="Shared texture folder",
+        description="The base path relative to the PCBANKS folder under which "
+                    "all textures will be exported.",
+        default="CUSTOMTEXTURES")
 
     # ExportHelper mixin class uses this.
     filename_ext = ""
@@ -695,6 +707,9 @@ class NMS_Export_Operator(Operator, ExportHelper):
         layout.prop(self, 'preserve_node_info')
         layout.prop(self, 'AT_only')
         layout.prop(self, 'no_vert_colours')
+        layout.prop(self, 'use_shared_textures')
+        if self.use_shared_textures:
+            layout.prop(self, 'shared_texture_folder')
 
     def execute(self, context):
         keywords = self.as_keywords()
