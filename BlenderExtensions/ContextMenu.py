@@ -5,6 +5,7 @@ from copy import copy
 
 # Local imports
 from ..utils.misc import get_root_node, clone_node
+from ..utils.bpyutils import select_object
 from ..ModelExporter.utils import get_children
 
 # Blender imports
@@ -73,7 +74,7 @@ class AddLocatorNode(Operator):
 class AddBoxCollisionNode(Operator):
     """Add a new NMS box collision node"""
     bl_idname = "nmsdk.add_box_collision_node"
-    bl_label = "Box Collision node"
+    bl_label = "Box collision node"
 
     @classmethod
     def poll(cls, context):
@@ -100,6 +101,76 @@ class AddBoxCollisionNode(Operator):
             cube.parent = obj
             bpy.context.scene.collection.objects.link(cube)
             cube.rotation_mode = 'QUATERNION'
+
+        return {'FINISHED'}
+
+
+class AddSphereCollisionNode(Operator):
+    """Add a new NMS sphere collision node"""
+    bl_idname = "nmsdk.add_sphere_collision_node"
+    bl_label = "Sphere collision node"
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        selected_objs = getattr(context, "selected_objects", None)
+        if not selected_objs:
+            self.report({'ERROR_INVALID_INPUT'},
+                        'Please select an object to add a child node to')
+            return {'FINISHED'}
+        # Create a new empty reference node.
+        for obj in selected_objs:
+            # Create a new sphere for collisions
+            mesh = bpy.data.meshes.new('sphere')
+            bm = bmesh.new()
+            bmesh.ops.create_icosphere(bm, subdivisions=4, diameter=1.0)
+            bm.to_mesh(mesh)
+            bm.free()
+            sphere = bpy.data.objects.new('sphere', mesh)
+            sphere.NMSNode_props.node_types = 'Collision'
+            sphere.NMSCollision_props.collision_types = 'Sphere'
+            sphere.matrix_world = Matrix()
+            sphere.parent = obj
+            bpy.context.scene.collection.objects.link(sphere)
+            sphere.rotation_mode = 'QUATERNION'
+
+        return {'FINISHED'}
+
+
+class AddCylinderCollisionNode(Operator):
+    """Add a new NMS cylinder collision node"""
+    bl_idname = "nmsdk.add_cylinder_collision_node"
+    bl_label = "Cylinder collision node"
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        selected_objs = getattr(context, "selected_objects", None)
+        if not selected_objs:
+            self.report({'ERROR_INVALID_INPUT'},
+                        'Please select an object to add a child node to')
+            return {'FINISHED'}
+        # Create a new empty reference node.
+        for obj in selected_objs:
+            # Create a new cylinder for collisions
+            mesh = bpy.data.meshes.new('cylinder')
+            bm = bmesh.new()
+            bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True,
+                                  diameter1=1.0, diameter2=1.0, depth=1.0,
+                                  segments=20, matrix=Matrix())
+            bm.to_mesh(mesh)
+            bm.free()
+            cylinder = bpy.data.objects.new('cylinder', mesh)
+            cylinder.NMSNode_props.node_types = 'Collision'
+            cylinder.NMSCollision_props.collision_types = 'Cylinder'
+            cylinder.matrix_world = Matrix()
+            cylinder.parent = obj
+            bpy.context.scene.collection.objects.link(cylinder)
+            cylinder.rotation_mode = 'QUATERNION'
 
         return {'FINISHED'}
 
@@ -168,6 +239,10 @@ class NMSDK_OT_move_to_parent(Operator):
             return {'FINISHED'}
         child_objs = set(selected_objs) - {parent_obj}
         root_obj = get_root_node(parent_obj)
+        if root_obj is not parent_obj:
+            self.report({'ERROR_INVALID_INPUT'},
+                        "Last selected node must be the parent NMS Scene node")
+            return {'FINISHED'}
         for obj in child_objs:
             # There are two possibilities for moving an object under a parent.
             # 1. It can already be inside the imported scene, in which case we
@@ -184,21 +259,9 @@ class NMSDK_OT_move_to_parent(Operator):
                 obj.matrix_local = trans
                 del trans
             else:
-                # 1. Copy the world matrix of the object.
-                trans = copy(obj.matrix_world)
-                # 2. Set the world matrix of the object to be the Identity
-                # matrix.
-                obj.matrix_world = Matrix()
-                # 3. Change the object to be in the coordinate system of the
-                # root node. Apply this change the object.
-                if obj.data:
-                    obj.data.transform(root_obj.matrix_world)
-                obj.matrix_world = Matrix()
-                # 4. Parent the object to the required object.
-                obj.parent = parent_obj
-                # 5. Set the objects transform from before.
-                obj.matrix_local = trans
-                del trans
+                # Simply reparent like normal
+                # obj.parent = parent_obj
+                bpy.ops.object.parent_set()
 
                 # Go over all the children nodes, and if any don't have data
                 # then they are empty. We'll set these as Locators.
@@ -220,8 +283,13 @@ class NMSDK_MT_add_NMS_Scenenodes(Menu):
         row.operator('nmsdk.add_reference_node')
         row = layout.row()
         row.operator('nmsdk.add_locator_node')
+        layout.separator()
         row = layout.row()
         row.operator('nmsdk.add_box_collision_node')
+        row = layout.row()
+        row.operator('nmsdk.add_sphere_collision_node')
+        row = layout.row()
+        row.operator('nmsdk.add_cylinder_collision_node')
 
 
 class NMSDK_MT_clone_NMS_Scenenodes(Menu):
@@ -257,16 +325,19 @@ def parent_menu_func(self, context):
 def add_obj_menu_func(self, context):
     """ Add the sub-menu to the context menu. """
     layout = self.layout
-    layout.separator()
-    row = layout.row()
-    row.menu("NMSDK_MT_add_NMS_Scenenodes")
-    row = layout.row()
-    row.menu("NMSDK_MT_clone_NMS_Scenenodes")
+    if get_root_node(context.active_object) is not None:
+        layout.separator()
+        row = layout.row()
+        row.menu("NMSDK_MT_add_NMS_Scenenodes")
+        row = layout.row()
+        row.menu("NMSDK_MT_clone_NMS_Scenenodes")
 
 
 classes = (NMSDK_OT_move_to_parent,
            AddReferenceNode,
            AddBoxCollisionNode,
+           AddSphereCollisionNode,
+           AddCylinderCollisionNode,
            AddLocatorNode,
            NMSDK_MT_add_NMS_Scenenodes,
            NMSDK_MT_clone_NMS_Scenenodes,
