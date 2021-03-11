@@ -9,7 +9,7 @@ import bmesh
 from idprop.types import IDPropertyGroup
 from mathutils import Matrix, Vector
 # Internal imports
-from ..utils.misc import CompareMatrices, get_obj_name, clean_name
+from ..utils.misc import CompareMatrices, get_obj_name
 from ..utils.image_convert import convert_image
 from .animations import process_anims
 from .export import Export
@@ -91,7 +91,23 @@ def generate_hull(mesh, determine_indexes=False):
         return chverts
 
 
-def create_sampler(image, sampler_name, texture_dir, type_, output_dir):
+def create_sampler(image, sampler_name: str, texture_dir: str,
+                   output_dir: str):
+    """ Create a sampler using the specified image and paths.
+
+    Parameters
+    ----------
+    image
+        A Blender Image object. Extracted from the shader node and contains a
+        bunch of info.
+    sampler_name
+        The name of the sampler. One of ('gDiffuseMap', 'gNormalMap',
+        'gMasksMap').
+    texture_dir
+        The path relative to output_dir that the textures will be stored in.
+    output_dir
+        The root output directory.
+    """
     if not image.filepath:
         raise Exception(
             f"Missing Image in Texture: {image.name}")
@@ -102,10 +118,19 @@ def create_sampler(image, sampler_name, texture_dir, type_, output_dir):
     print(f'Converting {image.filepath} to .DDS')
     if op.splitext(image.filepath)[1].lower() != '.dds':
         tex_path = convert_image(image.filepath_from_user(),
-                                 texture_dir, type_, tuple(image.size))
+                                 sampler_name[1:-3].lower(),
+                                 tuple(image.size))
     else:
         tex_path = image.filepath_from_user()
-    relpath = op.relpath(tex_path, output_dir)
+    # Now, we need to potentially move the image to the actual location it
+    # needs to be in.
+    texture_name = op.split(tex_path)[1]
+    # The path is the output path + the path relative to this + the filename.
+    relpath = op.join(texture_dir, texture_name)
+    out_tex_path = op.join(output_dir, relpath)
+    # Move the file to this location
+    shutil.copyfile(tex_path, out_tex_path)
+
     return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=True)
 
 
@@ -217,6 +242,7 @@ class Exporter():
             self.scene_directory = op.join(self.export_dir,
                                            self.group_name)
             self.inner_scene_path = op.join(self.scene_directory, name)
+            print(f'inner scene path: {self.inner_scene_path}')
             # Sort out any descriptors
             descriptor = None
             if obj.NMSReference_props.is_proc:
@@ -349,7 +375,8 @@ class Exporter():
                 texture_dir = os.path.join(self.inner_scene_path, 'TEXTURES')
 
             if any([diffuse_image, mask_image, normal_image]):
-                os.makedirs(texture_dir, exist_ok=True)
+                os.makedirs(op.join(self.output_directory, texture_dir),
+                            exist_ok=True)
 
             # Sort out Diffuse
             if diffuse_image:
@@ -357,7 +384,7 @@ class Exporter():
                 add_matflags.add(0)
                 # Add the sampler to the list
                 matsamplers.append(create_sampler(
-                    diffuse_image, "gDiffuseMap", texture_dir, 'diffuse',
+                    diffuse_image, "gDiffuseMap", texture_dir,
                     self.output_directory
                 ))
 
@@ -367,7 +394,7 @@ class Exporter():
                 add_matflags.add(1)
                 # Add the sampler to the list
                 matsamplers.append(create_sampler(
-                    mask_image, "gMasksMap", texture_dir, 'masks',
+                    mask_image, "gMasksMap", texture_dir,
                     self.output_directory
                 ))
 
@@ -377,7 +404,7 @@ class Exporter():
                 add_matflags.add(2)
                 # Add the sampler to the list
                 matsamplers.append(create_sampler(
-                    normal_image, "gNormalMap", texture_dir, 'normal',
+                    normal_image, "gNormalMap", texture_dir,
                     self.output_directory
                 ))
 

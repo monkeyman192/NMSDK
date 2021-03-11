@@ -8,10 +8,7 @@ from ..ModelImporter.readers import read_material  # noqa pylint: disable=relati
 from ..utils.io import realize_path  # noqa pylint: disable=relative-beyond-top-level
 
 
-def create_material_node(mat_path, material_cache):
-    # retrieve a cached copy if it exists
-    if mat_path in material_cache:
-        return material_cache[mat_path]
+def create_material_node(mat_path):
     # Read the material data directly from the material MBIN
     mat_data = read_material(mat_path)
     if mat_data is None or mat_data == dict():
@@ -302,6 +299,5 @@ def create_material_node(mat_path, material_cache):
     # https://blender.stackexchange.com/questions/21533/totally-white-shadeless-material-in-cycles
     # if 6 in mat_data['Flags']:
     #    mat.use_shadeless = True
-    material_cache[mat_path] = mat
 
     return mat

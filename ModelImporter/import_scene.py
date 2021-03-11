@@ -923,7 +923,10 @@ class ImportScene():
         mat_path = self._get_material_path(scene_node)
         material = None
         if mat_path is not None:
-            material = create_material_node(mat_path, self.materials)
+            if mat_path not in self.materials:
+                material = create_material_node(mat_path)
+                if material:
+                    self.materials[mat_path] = material
             mesh_obj.NMSMesh_props.material_path = scene_node.Attribute(
                 'MATERIAL')
         if material is not None:

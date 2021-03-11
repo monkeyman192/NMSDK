@@ -43,6 +43,21 @@ def get_MBINCompiler_path() -> str:
     return _path
 
 
+def base_path(abs_path: str, rel_path: str):
+    """ Return the base path that the rel_path is contained in the abs_path
+    For example, if abs_path is a/b/c/d, and rel_path is c/d, then this will
+    return a/b
+    """
+    a_parts = list(Path(abs_path).parts)
+    r_parts = Path(rel_path).parts
+    for part in r_parts[::-1]:
+        if a_parts[-1] == part:
+            a_parts.pop(-1)
+        else:
+            raise ValueError(f"{rel_path} doesn't stem from {abs_path}")
+    return op.join(a_parts)
+
+
 def realize_path(fpath: str) -> str:
     """ Return the provided path relativized to the PCBANKS folder. """
     # Get the NMS directory. This has to have been initialized already
