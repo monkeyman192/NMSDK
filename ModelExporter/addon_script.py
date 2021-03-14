@@ -879,7 +879,7 @@ class Exporter():
         elif ob.NMSNode_props.node_types == 'Light':
             actualname = get_obj_name(ob, None)
             # Get Color
-            col = tuple(ob.data.color)
+            col = tuple(ob.color)
             print("colour: {}".format(col))
             # Get Intensity
             intensity = ob.NMSLight_props.intensity_value

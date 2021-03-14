@@ -23,6 +23,10 @@ def convert_image(fpath, type_, size):
     """ Take an image and convert it to .DDS. """
     # We can only generate as many mip maps as the image will allow based on
     # size.
+    if min(size) == 0:
+        # There is an issue with reading the dimensions... raise an error
+        raise ValueError(f'Cannot determine dimensions of {fpath}. '
+                         'Please check the image is valid in blender.')
     out_fpath = op.splitext(fpath)[0] + '.DDS'
     mips = math.floor(math.log(min(size), 2))
     CONVERT_COMAMND[2] = str(mips)
