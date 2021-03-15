@@ -4,7 +4,10 @@
 
 ### Current - v0.9.23
 
- - 
+ - Many changes have been made to material handling on export:
+   - Diffuse, Mask and Normal textures are now picked up from shader nodes and exported (and converted if need be)
+   - These textures can be exported to either a local (within the context of an export) or shared texture directory.
+ - A long standing bug was identified in the serialisation of geometry files which has been fixed.
 
 ### Past:
 

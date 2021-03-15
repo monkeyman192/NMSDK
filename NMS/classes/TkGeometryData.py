@@ -11,6 +11,7 @@ from ...serialization.utils import serialize, list_header
 class TkGeometryData(Struct):
     def __init__(self, **kwargs):
         super(TkGeometryData, self).__init__()
+        self.GUID = 0xCD49AC37B4729513
 
         """ Contents of the struct """
         self.data['VertexCount'] = kwargs.get('VertexCount', 0)
@@ -157,6 +158,8 @@ class TkGeometryData(Struct):
                 else:
                     for val in self.data['IndexBuffer']:
                         data.extend(pack('<H', val))
+                # If the data is not aligned to 0x8, then add some padding
+                data.extend(b'\xFE' * ((8 - (bytes_in_list % 8)) % 8))
                 list_data['IndexBuffer'] = data
             elif pname == 'StreamMetaDataArray':
                 length = len(self.data[pname])

@@ -92,7 +92,8 @@ def generate_hull(mesh, determine_indexes=False):
 
 
 def create_sampler(image, sampler_name: str, texture_dir: str,
-                   output_dir: str):
+                   output_dir: str, force_overwrite: bool = False,
+                   force_material_name: str = None):
     """ Create a sampler using the specified image and paths.
 
     Parameters
@@ -111,27 +112,42 @@ def create_sampler(image, sampler_name: str, texture_dir: str,
     if not image.filepath:
         raise Exception(
             f"Missing Image in Texture: {image.name}")
+
+    type_ = sampler_name[1:-3].lower()
+    # Determine before we convert what it should be called and where it should
+    # be located. This way we can determine if it exists before we convert to
+    # allow us to skip converting if we don't want to if it already exists.
+    if force_material_name is not None:
+        if type_ == 'diffuse':
+            new_fname = f'{force_material_name}.DDS'.upper()
+        else:
+            new_fname = f'{force_material_name}.{type_}.DDS'.upper()
+    else:
+        new_fname = op.splitext(op.split(image.filepath)[1])[0] + '.DDS'
+    relpath = op.join(texture_dir, new_fname)
+    out_tex_path = op.join(output_dir, relpath)
+
+    if op.exists(out_tex_path) and not force_overwrite:
+        print(f'Found existing texture at {out_tex_path}. Using this.')
+        return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=True)
+
     # If the textures are packed into the blend file, unpack them.
     if len(image.packed_files) > 0:
         image.unpack(method="WRITE_LOCAL")
 
-    print(f'Converting {image.filepath} to .DDS')
     if op.splitext(image.filepath)[1].lower() != '.dds':
         tex_path = convert_image(image.filepath_from_user(),
+                                 out_tex_path,
                                  sampler_name[1:-3].lower(),
                                  tuple(image.size))
     else:
+        # In this case we already have the image in .dds format. Just move it.
         tex_path = image.filepath_from_user()
-    # Now, we need to potentially move the image to the actual location it
-    # needs to be in.
-    texture_name = op.split(tex_path)[1]
-    # The path is the output path + the path relative to this + the filename.
-    relpath = op.join(texture_dir, texture_name)
-    out_tex_path = op.join(output_dir, relpath)
-    # Move the file to this location
-    shutil.copyfile(tex_path, out_tex_path)
-
-    return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=True)
+        shutil.copy(tex_path, out_tex_path)
+    if op.exists(out_tex_path):
+        return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=True)
+    else:
+        raise FileNotFoundError(f'Texture not written to {out_tex_path}')
 
 
 """ Main exporter class with all the other functions contained in one place """
@@ -296,7 +312,6 @@ class Exporter():
         return objects
 
     def parse_material(self, ob):
-        # TODO: This will all become obsolete at some point
         # This function returns a tkmaterialdata object with all necessary
         # material information
 
@@ -309,6 +324,10 @@ class Exporter():
             # otherwise parse the actual material data
             slot = ob.material_slots[0]
             mat = slot.material
+            if len(ob.material_slots) > 1:
+                print('WARNING: More than one material slot was found for '
+                      f'{ob}. Only the first will be used. If you want '
+                      'multiple split the mesh by material and try again.')
 
             # find any additional material flags specificed by the user
             add_matflags = set()
@@ -378,6 +397,9 @@ class Exporter():
                 os.makedirs(op.join(self.output_directory, texture_dir),
                             exist_ok=True)
 
+            texture_overwrite_name = None
+            if self.settings.get('rename_textures', False):
+                texture_overwrite_name = mat.name
             # Sort out Diffuse
             if diffuse_image:
                 # Set _F01_DIFFUSEMAP
@@ -385,17 +407,21 @@ class Exporter():
                 # Add the sampler to the list
                 matsamplers.append(create_sampler(
                     diffuse_image, "gDiffuseMap", texture_dir,
-                    self.output_directory
+                    self.output_directory,
+                    self.settings.get('overwrite_textures', False),
+                    texture_overwrite_name
                 ))
 
             # Sort out Mask
             if mask_image:
-                # Set _F02_SKINNED
-                add_matflags.add(1)
+                # Set _F25_ROUGHNESS_MASK
+                add_matflags.add(24)
                 # Add the sampler to the list
                 matsamplers.append(create_sampler(
                     mask_image, "gMasksMap", texture_dir,
-                    self.output_directory
+                    self.output_directory,
+                    self.settings.get('overwrite_textures', False),
+                    texture_overwrite_name
                 ))
 
             # Sort out Normal Map
@@ -405,7 +431,9 @@ class Exporter():
                 # Add the sampler to the list
                 matsamplers.append(create_sampler(
                     normal_image, "gNormalMap", texture_dir,
-                    self.output_directory
+                    self.output_directory,
+                    self.settings.get('overwrite_textures', False),
+                    texture_overwrite_name
                 ))
 
             # Check shadeless status
@@ -415,9 +443,6 @@ class Exporter():
                 # Set _F07_UNLIT
                 add_matflags.add(6)
             """
-
-            add_matflags.add(24)
-            add_matflags.add(38)
 
             # convert to list so we can order
             lst = list(add_matflags)
@@ -757,9 +782,14 @@ class Exporter():
                                          0.5*dims[1]/factor[1],
                                          0.5*dims[2]/factor[2]])
             elif colType == "Cylinder":
-                optdict['Radius'] = min([0.5*dims[0]/factor[0],
-                                         0.5*dims[2]/factor[2]])
-                optdict['Height'] = dims[1]/factor[1]
+                #optdict['Radius'] = min([0.5*dims[0]/factor[0],
+                                         #0.5*dims[2]/factor[2]])
+                #<--Kibs Fix-->
+                optdict['Radius'] = min([dims[0]/factor[0],
+                                         dims[1]/factor[1]])
+                #optdict['Height'] = dims[1]/factor[1]
+                #<--Kibs Fix-->
+                optdict['Height'] = dims[2]/factor[2]
             elif colType == "Capsule":
                 optdict['Radius'] = min([dims[0]/factor[0],
                                          dims[2]/factor[2]])
@@ -824,7 +854,6 @@ class Exporter():
                     else:
                         material_ob = self.material_dict[mat.name]
 
-                    print(material_ob)
                     # Attach material to Mesh
                     newob.Material = material_ob
                 # TODO: Determine if this is the right error

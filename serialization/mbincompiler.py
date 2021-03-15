@@ -15,10 +15,13 @@ class mbinCompiler():
     def header(self):
         data = bytearray()
         # return the header bytes (0x60 long)
-        data.extend(b'\xDD\xDD\xDD\xDD')        # magic
-        data.extend(serialize(2500))               # version
-        # TODO: change this to the correct GUID?
-        data.extend(pad(b'CUSTOMGEOMETRY', 0x10))      # custom name thing
+        data.extend(b'\xDD\xDD\xDD\xDD')                                # magic
+        data.extend(serialize(2500))                                  # version
+        data.extend(b'\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF')    # 0x8 bytes of 0xFF
+        if hasattr(self.struct, 'GUID'):
+            data.extend(serialize(self.struct.GUID, '<Q'))        # Actual GUID
+        else:
+            data.extend(b'CSTMGEOM')                        # custom name thing
         template_name = 'c' + '{}'.format(self.struct.name)
         data.extend(pad(template_name.encode('utf-8'), 0x40))     # struct name
         data.extend(b'\xFE\xFE\xFE\xFE\xFE\xFE\xFE\xFE')

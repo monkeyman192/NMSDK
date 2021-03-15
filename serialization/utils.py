@@ -183,9 +183,12 @@ def read_bool(data):
     return unpack('?', data.read(1))[0]
 
 
-def serialize(x):
+def serialize(x, fmt=None):
     """ Generic serialization function. Attempts to return the bytes
     representation of the object. """
+    if fmt is not None:
+        # If a specific format string is passed in, use it.
+        return pack(fmt, x)
     if isinstance(x, bytes):
         # in this case it is already sorted are ready to write
         return x

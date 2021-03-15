@@ -239,10 +239,6 @@ class NMSDK_OT_move_to_parent(Operator):
             return {'FINISHED'}
         child_objs = set(selected_objs) - {parent_obj}
         root_obj = get_root_node(parent_obj)
-        if root_obj is not parent_obj:
-            self.report({'ERROR_INVALID_INPUT'},
-                        "Last selected node must be the parent NMS Scene node")
-            return {'FINISHED'}
         for obj in child_objs:
             # There are two possibilities for moving an object under a parent.
             # 1. It can already be inside the imported scene, in which case we
@@ -259,9 +255,25 @@ class NMSDK_OT_move_to_parent(Operator):
                 obj.matrix_local = trans
                 del trans
             else:
-                # Simply reparent like normal
-                # obj.parent = parent_obj
-                bpy.ops.object.parent_set()
+                if obj.data:
+                    # 1. Copy the world matrix of the object.
+                    trans = copy(obj.matrix_world)
+                    # 2. Set the world matrix of the object to be the Identity
+                    # matrix.
+                    obj.matrix_world = Matrix()
+                    # 3. Change the object to be in the coordinate system of
+                    # the root node. Apply this change to the object.
+                    if obj.data:
+                        obj.data.transform(root_obj.matrix_world)
+                    obj.matrix_world = Matrix()
+                    # 4. Parent the object to the required object.
+                    obj.parent = parent_obj
+                    # 5. Set the objects transform from before.
+                    obj.matrix_local = trans
+                    del trans
+                else:
+                    # Simply reparent like normal
+                    bpy.ops.object.parent_set()
 
                 # Go over all the children nodes, and if any don't have data
                 # then they are empty. We'll set these as Locators.

@@ -682,6 +682,19 @@ class NMS_Export_Operator(Operator, ExportHelper):
         description="The base path relative to the PCBANKS folder under which "
                     "all textures will be exported.",
         default="CUSTOMTEXTURES")
+    overwrite_textures: BoolProperty(
+        name="Overwrite existing textures",
+        description="If selected then force the exporter to overwrite any "
+                    "existing .DDS files\nthat are created during the export "
+                    "process.",
+        default=False)
+    rename_textures: BoolProperty(
+        name="Rename textures based on material name",
+        description="If selected then all textures are renamed when moved/"
+                    "converted\nto be in the form "
+                    "{material name}.{texture type}.DDS\n"
+                    "(Only for masks and normals)",
+        default=False)
 
     # ExportHelper mixin class uses this.
     filename_ext = ""
@@ -707,9 +720,14 @@ class NMS_Export_Operator(Operator, ExportHelper):
         layout.prop(self, 'preserve_node_info')
         layout.prop(self, 'AT_only')
         layout.prop(self, 'no_vert_colours')
-        layout.prop(self, 'use_shared_textures')
+
+        textures_box = layout.box()
+        textures_box.label(text='Materials')
+        textures_box.prop(self, 'use_shared_textures')
         if self.use_shared_textures:
-            layout.prop(self, 'shared_texture_folder')
+            textures_box.prop(self, 'shared_texture_folder')
+        textures_box.prop(self, 'overwrite_textures')
+        textures_box.prop(self, 'rename_textures')
 
     def execute(self, context):
         keywords = self.as_keywords()
