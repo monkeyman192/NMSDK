@@ -123,6 +123,8 @@ def create_sampler(image, sampler_name: str, texture_dir: str,
         else:
             new_fname = f'{force_material_name}.{type_}.DDS'.upper()
     else:
+        # TODO: Need to check if the image.filepath is only a single filename.
+        # If so, we don't need to split (or take the 0th element of the split)
         new_fname = op.splitext(op.split(image.filepath)[1])[0] + '.DDS'
     relpath = op.join(texture_dir, new_fname)
     out_tex_path = op.join(output_dir, relpath)
@@ -247,7 +249,7 @@ class Exporter():
             self.anim_node_data[obj.name] = self.get_animated_children(obj)
 
         self.scene_anim_data = dict()
-        if len(bpy.data.actions) != 0:
+        if len(bpy.data.actions) != 0 and self.settings.get('export_anims'):
             self.scene_anim_data = process_anims(self.anim_node_data)
 
         # Go over each object in the list of nodes that are to be exported
@@ -416,6 +418,8 @@ class Exporter():
             if mask_image:
                 # Set _F25_ROUGHNESS_MASK
                 add_matflags.add(24)
+                # Set _F39_METALLIC_MASK
+                add_matflags.add(38)
                 # Add the sampler to the list
                 matsamplers.append(create_sampler(
                     mask_image, "gMasksMap", texture_dir,
@@ -645,7 +649,7 @@ class Exporter():
         # TODO: this is currently only true for models that are imported then
         # modified then exported again.
         trans, rot_q, scale = ob.matrix_local.decompose()
-        rot = rot_q.to_euler('ZXY')
+        rot = rot_q.to_euler('XYZ')
 
         transform = TkTransformData(TransX=trans[0],
                                     TransY=trans[1],
@@ -773,27 +777,27 @@ class Exporter():
                 optdict['CHIndexes'] = chindexes
             # Handle Primitives
             elif colType == "Box":
-                optdict['Width'] = dims[0]/factor[0]
-                optdict['Depth'] = dims[2]/factor[2]
-                optdict['Height'] = dims[1]/factor[1]
+                optdict['Width'] = dims[0] / factor[0]
+                optdict['Depth'] = dims[2] / factor[2]
+                optdict['Height'] = dims[1] / factor[1]
             elif colType == "Sphere":
                 # take the minimum value to find the 'base' size (effectively)
-                optdict['Radius'] = min([0.5*dims[0]/factor[0],
-                                         0.5*dims[1]/factor[1],
-                                         0.5*dims[2]/factor[2]])
+                optdict['Radius'] = min([0.5 * dims[0] / factor[0],
+                                         0.5 * dims[1] / factor[1],
+                                         0.5 * dims[2] / factor[2]])
             elif colType == "Cylinder":
                 #optdict['Radius'] = min([0.5*dims[0]/factor[0],
                                          #0.5*dims[2]/factor[2]])
                 #<--Kibs Fix-->
-                optdict['Radius'] = min([dims[0]/factor[0],
-                                         dims[1]/factor[1]])
+                optdict['Radius'] = min([dims[0] / factor[0],
+                                         dims[1] / factor[1]])
                 #optdict['Height'] = dims[1]/factor[1]
                 #<--Kibs Fix-->
-                optdict['Height'] = dims[2]/factor[2]
+                optdict['Height'] = dims[2] / factor[2]
             elif colType == "Capsule":
-                optdict['Radius'] = min([dims[0]/factor[0],
-                                         dims[2]/factor[2]])
-                optdict['Height'] = dims[1]/factor[1]
+                optdict['Radius'] = min([dims[0] / factor[0],
+                                         dims[2] / factor[2]])
+                optdict['Height'] = dims[1] / factor[1]
             else:
                 raise Exception("Unsupported Collision")
 
@@ -810,7 +814,7 @@ class Exporter():
                 if child.name.upper() == 'ROTATION':
                     # take the properties of the rotation vector and give it
                     # to the mesh as part of it's entity data
-                    axis = child.rotation_quaternion*Vector((0, 0, 1))
+                    axis = child.rotation_quaternion * Vector((0, 0, 1))
                     print(axis)
                     rotation_data = TkRotationComponentData(
                         Speed=child.NMSRotation_props.speed,
@@ -899,9 +903,11 @@ class Exporter():
         elif ob.NMSNode_props.node_types == 'Joint':
             actualname = get_obj_name(ob, None)
             self.joints += 1
+            joint_num = ob.NMSJoint_props.joint_id or self.joints
+
             newob = Joint(Name=actualname,
                           Transform=transform,
-                          JointIndex=self.joints,
+                          JointIndex=joint_num,
                           orig_node_data=orig_node_data)
 
         # Light Objects

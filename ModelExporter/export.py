@@ -516,7 +516,7 @@ class Export():
                         data = {'WIDTH': obj.Width, 'HEIGHT': obj.Height,
                                 'DEPTH': obj.Depth}
                     elif obj.CType == 'Sphere':
-                        data = {'RADIUS': obj.Radius}
+                        data = {'RADIUS': 2 * obj.Radius}
                     elif obj.CType in ('Capsule', 'Cylinder'):
                         data = {'RADIUS': obj.Radius, 'HEIGHT': obj.Height}
                 elif obj._Type == 'MODEL':
@@ -608,6 +608,9 @@ class Export():
                         # in the case this fails there is an index error caused
                         # by collisions. In this case just add a default value
                         VertexStream.extend((0, 0, 0, 1))
+                    except TypeError:
+                        print(f'{name} mesh has an error!')
+                        raise
 
         self.GeometryData['VertexStream'] = VertexStream
         self.GeometryData['SmallVertexStream'] = SmallVertexStream

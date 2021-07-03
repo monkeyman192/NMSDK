@@ -278,7 +278,9 @@ class Joint(Object):
 
     def create_attributes(self, data: dict):
         self.Attributes = List(TkSceneNodeAttributeData(
-            Name='JOINTINDEX', Value=self.JointIndex))
+            Name='JOINTINDEX',
+            Value=self.JointIndex,
+            orig=self.original_attribute('JOINTINDEX')))
 
 
 class Emitter(Object):
@@ -288,10 +290,10 @@ class Emitter(Object):
 
     def create_attributes(self, data: dict):
         if data is not None:
-            self.Attributes = List(TkSceneNodeAttributeData(
-                Name='MATERIAL', Value=data['MATERIAL']),
-                                   TkSceneNodeAttributeData(
-                Name='DATA', Value=data['DATA']))
+            self.Attributes = List(
+                TkSceneNodeAttributeData(Name='MATERIAL',
+                                         Value=data['MATERIAL']),
+                TkSceneNodeAttributeData(Name='DATA', Value=data['DATA']))
 
 
 class Mesh(Object):
@@ -399,7 +401,8 @@ class Mesh(Object):
                                      Value=data['MATERIAL'],
                                      orig=self.original_attribute('MATERIAL')),
             TkSceneNodeAttributeData(Name='MESHLINK',
-                                     Value=self.Name + 'Shape'))
+                                     Value=self.Name + 'Shape',
+                                     orig=self.original_attribute('MESHLINK')))
         if self.HasAttachment:
             self.Attributes.append(
                 TkSceneNodeAttributeData(Name='ATTACHMENT',

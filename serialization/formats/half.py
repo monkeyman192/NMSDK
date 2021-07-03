@@ -89,3 +89,8 @@ def _float_from_unsigned16(n):
         else:
             return float('nan')
     return (-1)**sign * (1 + fraction / 2**10) * 2**(exp - 15)
+
+
+if __name__ == "__main__":
+    print(bytes_to_half(b'\xa8\x3f'))
+    print(bytes_to_half(b'\xb4\x5d\x12\xc2'))

@@ -1,5 +1,7 @@
 import math
 
+from mathutils import Matrix, Euler
+
 
 class SceneNodeData():
     def __init__(self, info, parent=None):
@@ -69,11 +71,11 @@ class SceneNodeData():
 # region properties
 
     @property
-    def Name(self):
+    def Name(self) -> str:
         return self.info['Name']
 
     @property
-    def Transform(self):
+    def Transform(self) -> dict:
         trans = (float(self.info['Transform']['TransX']),
                  float(self.info['Transform']['TransY']),
                  float(self.info['Transform']['TransZ']))
@@ -84,6 +86,34 @@ class SceneNodeData():
                  float(self.info['Transform']['ScaleY']),
                  float(self.info['Transform']['ScaleZ']))
         return {'Trans': trans, 'Rot': rot, 'Scale': scale}
+
+    @property
+    def matrix_local(self) -> Matrix:
+        t = self.Transform
+
+        # Translation matrix
+        mat_loc = Matrix.Translation((t['Trans'][0],
+                                      t['Trans'][1],
+                                      t['Trans'][2]))
+
+        # Rotation matrix
+        mat_rot = Euler((t['Rot'][0], t['Rot'][1], t['Rot'][2]), 'XYZ')
+        mat_rot = mat_rot.to_matrix().to_4x4()
+        """
+        mat_rotx = Matrix.Rotation(t['Rot'][0], 4, 'X')
+        mat_roty = Matrix.Rotation(t['Rot'][1], 4, 'Y')
+        mat_rotz = Matrix.Rotation(t['Rot'][2], 4, 'Z')
+        # Rotations are stored in the ZXY order
+        mat_rot = mat_rotz @ mat_rotx @ mat_roty
+        """
+
+        # Scale Matrix
+        mat_scax = Matrix.Scale(t['Scale'][0], 4, (1, 0, 0))
+        mat_scay = Matrix.Scale(t['Scale'][1], 4, (0, 1, 0))
+        mat_scaz = Matrix.Scale(t['Scale'][2], 4, (0, 0, 1))
+        mat_sca = mat_scax @ mat_scay @ mat_scaz
+
+        return mat_loc @ mat_rot @ mat_sca
 
     @property
     def Type(self):

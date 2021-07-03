@@ -18,11 +18,15 @@ def clone_node(node, include_children=False, new_parent=None):
     """
     # Copy the node then assign it its new parent.
     new_node = node.copy()
+    orig_local = node.matrix_local
+    orig_world = node.matrix_world
     # If there is no new_parent, then it will be the same as the parent of the
     # original node by default.
     if not new_parent:
         new_parent = node.parent
     new_node.parent = new_parent
+    new_node.matrix_world = orig_world
+    new_node.matrix_local = orig_local
     bpy.context.scene.collection.objects.link(new_node)
     if include_children:
         # Go over the children and clone them, assigning the parent as the

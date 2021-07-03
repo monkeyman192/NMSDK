@@ -155,7 +155,9 @@ class Struct():
         self.data[key] = value
 
     def __str__(self):
-        return "Name: {0}".format(self.name)
+        str_rep = f"Name: {self.name}\n"
+        str_rep += "\n".join(f"{k}: {v}" for k, v in self.data.items())
+        return str_rep
 
     def __len__(self):
         # returns the length of the Struct in bytes. Works better when

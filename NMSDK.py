@@ -78,6 +78,10 @@ class ImportSceneOperator(Operator):
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
+    import_anims: BoolProperty(
+        name='Import animations',
+        description='Whether or not to import animations for this scene',
+        default=False)
     max_anims: IntProperty(
         name='Max loaded animations',
         description='Maximum number of animations to load',
@@ -670,6 +674,10 @@ class NMS_Export_Operator(Operator, ExportHelper):
     idle_anim: StringProperty(
         name="Idle animation name",
         description="The name of the animation that is the idle animation.")
+    export_anims: BoolProperty(
+        name="Export animations",
+        description="Whether to export animations",
+    )
     use_shared_textures: BoolProperty(
         name="Use shared textures location",
         description="If True, then all exported textures will be placed in a "
@@ -721,6 +729,7 @@ class NMS_Export_Operator(Operator, ExportHelper):
         layout.prop(self, 'AT_only')
         layout.prop(self, 'no_vert_colours')
 
+        # Texture settings
         textures_box = layout.box()
         textures_box.label(text='Materials')
         textures_box.prop(self, 'use_shared_textures')
@@ -728,6 +737,13 @@ class NMS_Export_Operator(Operator, ExportHelper):
             textures_box.prop(self, 'shared_texture_folder')
         textures_box.prop(self, 'overwrite_textures')
         textures_box.prop(self, 'rename_textures')
+
+        # Animation settings
+        animations_box = layout.box()
+        animations_box.label(text='Animations')
+        animations_box.prop(self, 'export_anims')
+        if self.export_anims:
+            animations_box.prop(self, 'idle_anim')
 
     def execute(self, context):
         keywords = self.as_keywords()
@@ -792,6 +808,10 @@ class NMS_Import_Operator(Operator, ImportHelper):
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
+    import_anims: BoolProperty(
+        name='Import animations',
+        description='Whether or not to import animations for this scene',
+        default=False)
     max_anims: IntProperty(
         name='Max loaded animations',
         description='Maximum number of animations to load. To Disable loading '
@@ -813,7 +833,9 @@ class NMS_Import_Operator(Operator, ImportHelper):
         animation_box = layout.box()
         animation_box.label(text='Animation')
         animation_box.prop(self, 'import_bones')
-        animation_box.prop(self, 'max_anims')
+        animation_box.prop(self, 'import_anims')
+        if self.import_anims:
+            animation_box.prop(self, 'max_anims')
 
     def execute(self, context):
         keywords = self.as_keywords()
