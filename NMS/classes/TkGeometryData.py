@@ -159,7 +159,9 @@ class TkGeometryData(Struct):
                     for val in self.data['IndexBuffer']:
                         data.extend(pack('<H', val))
                 # If the data is not aligned to 0x8, then add some padding
-                data.extend(b'\xFE' * ((8 - (bytes_in_list % 8)) % 8))
+                padding_bytes = (8 - (bytes_in_list % 8)) % 8
+                data.extend(b'\xFE' * padding_bytes)
+                bytes_in_list += padding_bytes
                 list_data['IndexBuffer'] = data
             elif pname == 'StreamMetaDataArray':
                 length = len(self.data[pname])

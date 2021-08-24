@@ -1,10 +1,13 @@
+from collections import Counter
 import math
+
+from .mesh_utils import polygonalise
 
 from mathutils import Matrix, Euler
 
 
 class SceneNodeData():
-    def __init__(self, info, parent=None):
+    def __init__(self, info, parent: 'SceneNodeData' = None):
         self.info = info
         self.parent = parent
         self.verts = dict()
@@ -55,18 +58,59 @@ class SceneNodeData():
             Whether the data is being generated from the hull data.
         """
         if len(self.idxs) == 0:
-            if ((from_bh and len(self.bounded_hull) == 0) or
-                    (not from_bh and len(self.verts.keys()) == 0)):
+            if ((from_bh and len(self.bounded_hull) == 0)
+                    or (not from_bh and len(self.verts.keys()) == 0)):
                 raise ValueError('Something has gone wrong!!!')
         self.faces = list(zip(self.idxs[0::3],
                               self.idxs[1::3],
                               self.idxs[2::3]))
-        self.edges = list()
-        for face in self.faces:
+        self.idx_rep = Counter(self.idxs)
+        print("GROUPING TRIS")
+        self.new_faces = self._group_tris()
+
+        """for face in self.faces:
             edges = [(face[0], face[1]),
                      (face[1], face[2]),
                      (face[2], face[0])]
-            self.edges.extend(edges)
+            self.edges.extend(edges)"""
+
+    def _group_tris(self):
+        """ Take the list of indexes, and group by faces. """
+        new_faces = []
+        prev_idxs = set()
+        curr_face_data = []
+        # Iterate over the tris.
+        # As far as I can tell, all tris which form a contigious n-gon are
+        # consecutive.
+        for tri in self.faces:
+            idxs = set(tri)
+            # & is the intersection operator for sets. This checks to see if
+            # there are any overlapping indexes in the consecutive tris.
+            if idxs & prev_idxs:
+                # Add the current tri to the face being constructed.
+                curr_face_data.append(tri)
+            else:
+                # If we have current face data, then it means that this tri is
+                # part of a new n-gon and we want to write the curr_face_data
+                # to the list of faces then reset it to be the current tri.
+                if curr_face_data:
+                    # If the face is indeed a single tri then we just add it,
+                    # otherwise we need to generate the polygon.
+                    if len(curr_face_data) == 1:
+                        new_faces.append(curr_face_data[0])
+                    else:
+                        new_faces.append(polygonalise(curr_face_data))
+                # Add the current tri to the curr_face_data
+                curr_face_data = [tri]
+            # Set the previous index as the current one.
+            prev_idxs = set(tri)
+        # Add the final face
+        if len(curr_face_data) == 1:
+            new_faces.append(curr_face_data[0])
+        else:
+            new_faces.append(polygonalise(curr_face_data))
+
+        return new_faces
 
 # region properties
 

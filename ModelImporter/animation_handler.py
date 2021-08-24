@@ -35,7 +35,7 @@ class AnimationHandler(bpy.types.Operator):
     anim_path: StringProperty(default="")
 
     def execute(self, context):
-        print('Adding {0}'.format(self.anim_name))
+        print(f'Adding animation: {self.anim_name}')
         self.scn = bpy.context.scene
         self.anim_data = read_anim(self.anim_path)
         self._add_animation_to_scene(self.anim_name, self.anim_data)
@@ -44,6 +44,10 @@ class AnimationHandler(bpy.types.Operator):
 
     def invoke(self, context, event):
         return self.execute(context)
+
+    # TODO: Add the ability to add the 'None' animation. This will back in an
+    # action which is the rest post so that it can actually be set correctly
+    # from the animation selection menu.
 
     def _add_animation_to_scene(self, anim_name, anim_data):
         # First, let's find out what animation data each object has
@@ -154,9 +158,9 @@ class AnimationHandler(bpy.types.Operator):
                     delta_rot = rotation.rotation_difference(
                         Quaternion(bind_data[1].to_list()))
                     ref_scale = Vector(bind_data[2].to_list())
-                    delta_sca = Vector((scale[0]/ref_scale[0],
-                                        scale[1]/ref_scale[1],
-                                        scale[2]/ref_scale[2]))
+                    delta_sca = Vector((scale[0] / ref_scale[0],
+                                        scale[1] / ref_scale[1],
+                                        scale[2] / ref_scale[2]))
 
                     bone.location = delta_loc
                     bone.rotation_quaternion = delta_rot

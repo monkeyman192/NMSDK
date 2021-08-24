@@ -93,6 +93,8 @@ class Export():
         # Make some settings values more easily accessible.
         self.preserve_node_info = self.settings.get('preserve_node_info',
                                                     False)
+        self.export_original_geom_data = self.settings.get('reexport_geometry',
+                                                           False)
 
         # a list of any extra properties to go in each entity
         # self.Entities = []
@@ -107,8 +109,8 @@ class Export():
             self.t_stream[mesh.Name] = mesh.Tangents
             if self.Model.has_vertex_colours:
                 if mesh.Colours is None:
-                    self.c_stream[mesh.Name] = ([[0, 0, 0, 0]] *
-                                                len(mesh.Vertices))
+                    self.c_stream[mesh.Name] = (
+                        [[0, 0, 0, 0]] * len(mesh.Vertices))
                 else:
                     self.c_stream[mesh.Name] = mesh.Colours
             else:
@@ -144,7 +146,9 @@ class Export():
         # This dictionary contains all the information for the geometry file
         self.GeometryData = odict()
 
-        if not self.preserve_node_info:
+        if (not self.preserve_node_info
+                or (self.preserve_node_info
+                    and self.export_original_geom_data)):
             self.geometry_stream = StreamData(
                 '{}.GEOMETRY.DATA.MBIN.PC'.format(
                     os.path.join(self.basepath, self.scene_name)))
@@ -173,7 +177,9 @@ class Export():
 
         # Assign each of the class objects that contain all of the data their
         # data
-        if not self.preserve_node_info:
+        if (not self.preserve_node_info
+                or (self.preserve_node_info
+                    and self.export_original_geom_data)):
             self.TkGeometryData = TkGeometryData(**self.GeometryData)
             self.TkGeometryData.make_elements(main=True)
         self.Model.construct_data()
@@ -301,7 +307,7 @@ class Export():
         v_stream_lens = list(self.v_stream_lens.values())
         self.vert_bounds = odict(zip(self.mesh_names,
                                      [(sum(v_stream_lens[:i]),
-                                       sum(v_stream_lens[:i+1])-1)
+                                       sum(v_stream_lens[:i + 1]) - 1)
                                       for i in range(self.num_mesh_objs)]))
         # bounded hull data
         ch_stream_lens = list(self.ch_stream_lens.values())
@@ -524,7 +530,7 @@ class Export():
                     data = {'GEOMETRY': self.rel_named_path + ".GEOMETRY.MBIN"}
                 elif obj._Type in ['REFERENCE', 'LIGHT', 'JOINT']:
                     data = None
-            obj.create_attributes(data)
+            obj.create_attributes(data, self.export_original_geom_data)
 
     def create_vertex_layouts(self):
         # sort out what streams are given and create appropriate vertex layouts
@@ -542,7 +548,7 @@ class Export():
                                                       Instancing="PerVertex",
                                                       PlatformData=""))
                 # Also write the small vertex data
-                Offset = 8*sID
+                Offset = 8 * sID
                 SmallVertexElements.append(
                     TkVertexElement(SemanticID=sID,
                                     Size=4,
@@ -662,7 +668,9 @@ class Export():
         """ Write all of the files required for the scene. """
         # We only need to write the geometry data if we aren't preserving
         # imported node data.
-        if not self.preserve_node_info:
+        if (not self.preserve_node_info
+                or (self.preserve_node_info
+                    and self.export_original_geom_data)):
             mbinc = mbinCompiler(
                 self.TkGeometryData,
                 "{}.GEOMETRY.MBIN.PC".format(self.abs_name_path))

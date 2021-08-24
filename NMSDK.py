@@ -658,6 +658,12 @@ class NMS_Export_Operator(Operator, ExportHelper):
                     "data, so adding mesh collisions to an existing scene is "
                     "not currently possible.",
         default=False)
+    reexport_geometry: BoolProperty(
+        name="Re-export geometry data",
+        description="(BETA) Whether or not to re-export the geometry data for "
+                    "the current scene. This is not guaranteed to be the same "
+                    "as the source geometry, however it should be sufficiently"
+                    " close.")
     AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
@@ -726,6 +732,8 @@ class NMS_Export_Operator(Operator, ExportHelper):
         layout.prop(self, 'export_directory')
         layout.prop(self, 'group_name')
         layout.prop(self, 'preserve_node_info')
+        if self.preserve_node_info:
+            layout.prop(self, 'reexport_geometry')
         layout.prop(self, 'AT_only')
         layout.prop(self, 'no_vert_colours')
 

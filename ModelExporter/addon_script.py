@@ -3,12 +3,14 @@ from math import radians, degrees
 import os
 import os.path as op
 import shutil
+import time
 # blender imports
 import bpy
 import bmesh
 from idprop.types import IDPropertyGroup
 from mathutils import Matrix, Vector
 # Internal imports
+from .utils import get_surr, calc_tangents
 from ..utils.misc import CompareMatrices, get_obj_name
 from ..utils.image_convert import convert_image
 from .animations import process_anims
@@ -40,10 +42,25 @@ def triangulate_mesh(mesh):
     """
     bm = bmesh.new()
     bm.from_mesh(mesh)
-    bmesh.ops.triangulate(bm, faces=bm.faces)
+    data = bmesh.ops.triangulate(bm, faces=bm.faces, ngon_method='EAR_CLIP')
+    faces = data['faces']
+    face_mapping = data['face_map']
+    # This face mapping should be able to be used to map the new triangles back
+    # to the original polygons so that we can group them. When grouping we need
+    # to ensure that each subsequent value contains 2 of the previous values so
+    # that the triangulation method works. Or we can potentially just make some
+    # improvements to the method that determines if the triangles are part of
+    # a polygon.
+
+    # Create a new list of the tris sorted by polygon.
+    _poly_tris = sorted(face_mapping.items(), key=lambda x: x[1].index)
+    face_idxs = []
+    for face, _ in _poly_tris:
+        face_idxs.append(tuple(x.index for x in face.verts))
     bm.to_mesh(mesh)
     bm.free()
     del bm
+    return face_idxs
 
 
 def generate_hull(mesh, determine_indexes=False):
@@ -520,13 +537,6 @@ class Exporter():
     # Main Mesh parser
     def mesh_parser(self, ob):
         bpy.context.view_layer.objects.active = ob
-        # Lists
-        indexes = []
-        verts = []
-        uvs = []
-        normals = []
-        tangents = []
-        colours = []
         chverts = []        # convex hull vert data
         # Matrices
         # object_matrix_wrld = ob.matrix_world
@@ -535,22 +545,53 @@ class Exporter():
         # norm_mat = rot_x_mat.inverted().transposed()
 
         data = ob.data
-        data_is_temp = False
+        data_is_fake = False
         # Raise exception if UV Map is missing
         uvcount = len(data.uv_layers)
         if uvcount < 1:
             raise Exception(f"Object {ob.name} missing UV map")
 
-        uv_layer_name = data.uv_layers.active.name
+        # Lists
+        _num_verts = len(data.vertices)
+        indexes = []
+        verts = [None] * _num_verts
+        uvs = [None] * _num_verts
+        normals = [None] * _num_verts
+        tangents = [None] * _num_verts
+        colours = [None] * _num_verts
 
-        # Calculate the tangents and normals from the uv map
-        try:
-            data.calc_tangents(uvmap=uv_layer_name)
-        except RuntimeError:
+        # Get the polys before the mesh is triangulated
+        poly_indexes = [tuple(p.vertices) for p in data.polygons]
+        print(ob.name)
+        print('THE POLYS!!!')
+        print(poly_indexes)
+        # We can check to see if the mesh needs to be triangulated cheaply by
+        # checking to see if the lengths of all the polys are 3.
+        if not all([len(x) == 3 for x in poly_indexes]):
             data = ob.to_mesh(preserve_all_data_layers=True)
-            data_is_temp = True
-            triangulate_mesh(data)
-            data.calc_tangents(uvmap=uv_layer_name)
+            data_is_fake = True
+            tri_indexes = triangulate_mesh(data)
+            # The trinagulated data is in a weird order it seems. We can make
+            # it look a lot more like how it looks in the games files. It
+            # won't be perfect... But pretty close!
+            tri_indexes.sort(key=lambda x: x[0])
+        else:
+            tri_indexes = poly_indexes
+
+        print('TRI INDEXES!')
+        print(tri_indexes)
+
+        # we can actually just get the indexes by flattening the tri_indexes
+        # now:
+        for tri in tri_indexes:
+            indexes.extend(tri)
+
+        # TODO: if there is normal data, use it. Otherwise determine the
+        # normals based on the face normal of the polygon.
+
+        # TODO: Once we have the normal, we can calculate the tangent.
+        # Unfortunately the algorithm isn't exactly correct, but it seems
+        # pretty close...
 
         # Need to assign UV data *after* any possible triangulation
         uv_layer_data = data.uv_layers.active.data
@@ -567,30 +608,44 @@ class Exporter():
 
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        # Iterate over all the MeshLoops of the mesh
-        for ml in data.loops:
-            index = ml.index
-            vert_index = ml.vertex_index
-            indexes.append(index)
-            vert = data.vertices[vert_index].co
-            verts.append((vert[0], vert[1], vert[2], 1))
-            uv = uv_layer_data[index].uv
-            uvs.append((uv[0], 1 - uv[1], 0, 1))
-            normal = ml.normal
-            normals.append((normal[0], normal[1], normal[2], 1))
-            tangent = ml.tangent
-            tangents.append((tangent[0], tangent[1], tangent[2], 1))
-            if export_colours:
-                vcol = colour_data[index].color
-                colours.append([int(255 * vcol[0]),
-                                int(255 * vcol[1]),
-                                int(255 * vcol[2])])
+        # Iterate over the polygons as it allows us to get the indexes of the
+        # vertices as well as normals, and will allow use to calculate the
+        # tangents also.
+        for poly in data.polygons:
+            norm = poly.normal
+            for i, idx in enumerate(poly.vertices):
+                # Loop over the indices
+                if not verts[idx]:
+                    v = data.vertices[idx].co
+                    verts[idx] = (v[0], v[1], v[2], 1)
+                if not uvs[idx]:
+                    uv = uv_layer_data[idx].uv
+                    uvs[idx] = (uv[0], 1 - uv[1], 0, 1)
+                if not normals[idx]:
+                    normals[idx] = (norm[0], norm[1], norm[2], 1)
+                if not tangents[idx]:
+                    _idxs = get_surr(poly.vertices, i)
+                    tang = calc_tangents(
+                        tuple(data.vertices[j].co for j in _idxs),
+                        tuple(uv_layer_data[j].uv for j in _idxs),
+                        norm)
+                    tangents[idx] = (tang[0], tang[1], tang[2], 1)
+                if colours and not colours[idx]:
+                    vcol = colour_data[idx].color
+                    colours[idx] = (int(255 * vcol[0]),
+                                    int(255 * vcol[1]),
+                                    int(255 * vcol[2]))
 
         # finally, let's find the convex hull data of the mesh:
         chverts = generate_hull(data)
-        if data_is_temp:
+        if data_is_fake:
             # If we created a temporary data object then delete it
             del data
+
+        # Do a final check to make sure that every value has something in it
+        # in the vertex etc data
+        if not all(verts) and all(uvs) and all(normals) and all(tangents):
+            raise ValueError('There was an error parsing the mesh...')
 
         """
         # Apply rotation and normal matrices on vertices and normal vectors
@@ -914,7 +969,8 @@ class Exporter():
         elif ob.NMSNode_props.node_types == 'Light':
             actualname = get_obj_name(ob, None)
             # Get Color
-            col = tuple(ob.color)
+            if actualname:
+                col = tuple(bpy.data.lights[actualname].color)
             print("colour: {}".format(col))
             # Get Intensity
             intensity = ob.NMSLight_props.intensity_value
@@ -926,7 +982,8 @@ class Exporter():
                           FOV=ob.NMSLight_props.FOV_value,
                           orig_node_data=orig_node_data)
 
-        parent.add_child(newob)
+        if newob:
+            parent.add_child(newob)
 
         # add the local entity data to the global dict:
         self.global_entitydata[ob.name] = entitydata

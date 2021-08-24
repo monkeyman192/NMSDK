@@ -57,8 +57,10 @@ class TkMeshData():
         self.hash = hash
         self.vertex_size = vert_size
         self.index_size = index_size
-        self.list_data = (b'\x00'*8 + pack('<I', vert_size + index_size) +
-                          b'\x01\xFE\xFE\xFE')
+        self.list_data = (
+            b'\x00' * 8
+            + pack('<I', vert_size + index_size)
+            + b'\x01\xFE\xFE\xFE')
 
     def read(self, data):
         self.ID = data.read(0x80)

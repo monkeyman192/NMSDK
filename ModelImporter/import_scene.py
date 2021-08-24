@@ -1,12 +1,14 @@
 # stdlib imports
 import os.path as op
 import struct
-from math import radians, degrees
+from math import radians
 import subprocess
 from typing import List
+import json
 
 # Blender imports
 import bpy
+from bpy.types import Armature
 import bmesh  # pylint: disable=import-error
 from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
 
@@ -14,10 +16,11 @@ from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
                                      bytes_to_int_2_10_10_10_rev)
 from ..serialization.utils import read_list_header  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT  # noqa pylint: disable=relative-beyond-top-level
+from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT, REV_SEMANTICS, TANGS  # noqa pylint: disable=relative-beyond-top-level
 from ..NMS.material_node import create_material_node  # noqa pylint: disable=relative-beyond-top-level
-from .readers import (read_metadata, read_gstream, read_anim, read_entity,  # noqa pylint: disable=relative-beyond-top-level
-                      read_mesh_binding_data, read_descriptor)
+from .readers import (read_metadata, read_gstream,  # noqa pylint: disable=relative-beyond-top-level
+                      read_entity_animation_data, read_mesh_binding_data,
+                      read_descriptor)
 from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
@@ -203,8 +206,7 @@ class ImportScene():
                 f.seek(0x10, 1)
                 self.vertex_elements.append(data)
 
-        if self.settings.get('import_bones', False):
-            self.mesh_binding_data = read_mesh_binding_data(self.geometry_file)
+        self.mesh_binding_data = read_mesh_binding_data(self.geometry_file)
 
         self.scn.nmsdk_anim_data.has_bound_mesh = (
             self.mesh_binding_data is not None)
@@ -229,7 +231,7 @@ class ImportScene():
         local_anims = dict()
         for entity in self.entities:
             entity_path = op.join(self.PCBANKS_dir, entity)
-            local_anims.update(read_entity(entity_path))
+            local_anims.update(read_entity_animation_data(entity_path))
         if len(local_anims) == 0:
             # If there are no animations added by this scene just return to
             # save time.
@@ -262,6 +264,7 @@ class ImportScene():
 
         if load_anims:
             for anim_name, anim_data in local_anims.items():
+                print(anim_name, anim_data)
                 fpath = anim_data['Filename']
                 # Call the animation loading operator with the info
                 if anim_name not in self.scn.nmsdk_anim_data.loaded_anims:
@@ -321,12 +324,11 @@ class ImportScene():
             added_obj = self._add_empty_to_scene(self.scene_node_data)
             added_obj['scene_node'] = {'idx': 0,
                                        'data': self.scene_node_data.info}
-        # If we need to know the list of joints, get them now...
-        if self.mesh_binding_data is not None:
-            for obj in self.scene_node_data.iter():
-                if obj.Type == 'JOINT':
-                    self.joints.append(obj)
-                    self.scn.nmsdk_anim_data.joints.append(obj.Name)
+        # Get all the joints in the scene
+        for obj in self.scene_node_data.iter():
+            if obj.Type == 'JOINT':
+                self.joints.append(obj)
+                self.scn.nmsdk_anim_data.joints.append(obj.Name)
         for i, obj in enumerate(self.scene_node_data.iter()):
             added_obj = None
             if obj.Type == 'MESH':
@@ -355,17 +357,22 @@ class ImportScene():
             # can be rexported in a more faithful way.
             if added_obj:
                 added_obj['scene_node'] = {'idx': i, 'data': obj.info}
-        if self.mesh_binding_data is not None:
+
+        # We will add an armature to the scene irrespective of whether we have
+        # any animations.
+        if self.joints:
             armature = self._add_armature_to_scene()
+            print(f'{self.joints=}')
             for joint in self.joints:
                 print('Adding bone {0}'.format(joint.Name))
                 self._add_bone_to_scene(joint, armature)
-        # Now that we have the armature set up, apply modifiers to each of the
-        # meshes to bind them.
+        # Now that we have the armature set up, apply modifiers to each of
+        # the meshes to bind them.
         for mesh_obj in self.skinned_meshes:
             mod = mesh_obj.modifiers.new('Armature', 'ARMATURE')
             mod.object = bpy.data.objects['Armature']
-        if self.settings.get('import_anims', False):
+        if (self.settings.get('import_anims', False)
+                and self.settings.get('max_anims', 10) != 0):
             self.load_animations()
             bpy.ops.nmsdk._change_animation(anim_names='None')
 
@@ -377,81 +384,105 @@ class ImportScene():
 
 # region private methods
 
-    def _add_armature_to_scene(self):
+    def _add_armature_to_scene(self) -> Armature:
         """ Each joint will be added as an armature. """
         armature = bpy.data.armatures.new(self.scene_basename)
         obj = bpy.data.objects.new('Armature', armature)
+        obj.NMSNode_props.node_types = 'None'
         self.scene_ctx.link_object(obj)
         obj.parent = self.local_objects[self.scene_basename]
         return obj
 
-    def _add_bone_to_scene(self, scene_node, armature):
+    def _add_bone_to_scene(self, scene_node: SceneNodeData,
+                           armature: Armature):
         # Let's get all the data collection out of the way
-        joint_index = scene_node.Attribute('JOINTINDEX', int)
-        joint_binding_data = self.mesh_binding_data[
-            'JointBindings'][joint_index]
-        inv_bind_matrix = joint_binding_data['InvBindMatrix']
-        inv_bind_matrix = Matrix([inv_bind_matrix[:4],
-                                  inv_bind_matrix[4:8],
-                                  inv_bind_matrix[8:12],
-                                  inv_bind_matrix[12:]])
-        inv_bind_matrix.transpose()
-        bind_trans = joint_binding_data['BindTranslate']
-        bind_rot = joint_binding_data['BindRotate']
-        bind_sca = joint_binding_data['BindScale']
+        if self.scn.nmsdk_anim_data.has_bound_mesh:
+            joint_index = scene_node.Attribute('JOINTINDEX', int)
+            joint_binding_data = self.mesh_binding_data[
+                'JointBindings'][joint_index]
+            inv_bind_matrix = joint_binding_data['InvBindMatrix']
+            inv_bind_matrix = Matrix([inv_bind_matrix[:4],
+                                      inv_bind_matrix[4:8],
+                                      inv_bind_matrix[8:12],
+                                      inv_bind_matrix[12:]])
+            inv_bind_matrix.transpose()
+            bind_trans = joint_binding_data['BindTranslate']
+            bind_rot = joint_binding_data['BindRotate']
+            bind_sca = joint_binding_data['BindScale']
 
-        # Assign the bind matrix so we can do easy lookup of it later for
-        # applying animations.
-        # Ironically, the inverse bind matrix is strored uninverted, and the
-        # bind matrix is stored inverted...
-        self.inv_bind_matrices[scene_node.Name] = inv_bind_matrix
+            # Assign the bind matrix so we can do easy lookup of it later for
+            # applying animations.
+            # Ironically, the inverse bind matrix is strored uninverted, and the
+            # bind matrix is stored inverted...
+            self.inv_bind_matrices[scene_node.Name] = inv_bind_matrix
 
-        # Let's create the bone now
-        # All changes to Bones have to be in EDIT mode or _bad things happen_
-        with edit_object(armature) as data:
-            bone = data.edit_bones.new(scene_node.Name)
-            bone.use_inherit_rotation = True
-            bone.use_inherit_scale = True
+            # Let's create the bone now
+            # All changes to Bones have to be in EDIT mode or _bad things happen_
+            with edit_object(armature) as data:
+                bone = data.edit_bones.new(scene_node.Name)
+                bone.use_inherit_rotation = True
+                bone.use_inherit_scale = True
 
-            self.scn.objects[scene_node.Name]['bind_data'] = (
-                Vector(bind_trans[:3]),
-                Quaternion((bind_rot[3],
-                            bind_rot[0],
-                            bind_rot[1],
-                            bind_rot[2])),
-                Vector(bind_sca[:3]))
-            """
-            self.bind_matrices[scene_node.Name] = (Vector(bind_trans[:3]),
-                                                   Quaternion((bind_rot[3],
-                                                           bind_rot[0],
-                                                           bind_rot[1],
-                                                           bind_rot[2])),
-                                                   Vector(bind_sca[:3]))
-            """
+                self.scn.objects[scene_node.Name]['bind_data'] = (
+                    Vector(bind_trans[:3]),
+                    Quaternion((bind_rot[3],
+                                bind_rot[0],
+                                bind_rot[1],
+                                bind_rot[2])),
+                    Vector(bind_sca[:3]))
+                """
+                self.bind_matrices[scene_node.Name] = (Vector(bind_trans[:3]),
+                                                    Quaternion((bind_rot[3],
+                                                            bind_rot[0],
+                                                            bind_rot[1],
+                                                            bind_rot[2])),
+                                                    Vector(bind_sca[:3]))
+                """
 
-            if scene_node.parent.Type == 'JOINT':
-                bone.matrix = self.inv_bind_matrices[scene_node.parent.Name]
+                if scene_node.parent.Type == 'JOINT':
+                    bone.matrix = self.inv_bind_matrices[scene_node.parent.Name]
 
-            bone.tail = inv_bind_matrix.inverted().to_translation()
+                bone.tail = inv_bind_matrix.inverted().to_translation()
 
-            if bone.length == 0:
-                bone.tail = bone.head + Vector([0, 10 ** (-4), 0])
+                if bone.length == 0:
+                    bone.tail = bone.head + Vector([0, 10 ** (-4), 0])
 
-            if scene_node.parent.Type == 'JOINT':
-                bone.parent = armature.data.edit_bones[scene_node.parent.Name]
+                if scene_node.parent.Type == 'JOINT':
+                    bone.parent = armature.data.edit_bones[scene_node.parent.Name]
 
-            bone.use_connect = True
+                bone.use_connect = True
 
-            # NMS defines some bones used in animations with 0 transform, eg.
-            # Toy Cube.
-            # This causes bone creation to fail, we need to move the tail
-            # slightly.
-            # Note that MMD Tools would have to deal with this too.
-            while scene_node:
-                if scene_node.Transform['Trans'] != (0.0, 0.0, 0.0):
-                    break
-                bone.tail += Vector([0, 0, 10 ** (-4)])
-                scene_node = scene_node.parent
+                # NMS defines some bones used in animations with 0 transform, eg.
+                # Toy Cube.
+                # This causes bone creation to fail, we need to move the tail
+                # slightly.
+                # Note that MMD Tools would have to deal with this too.
+                while scene_node:
+                    if scene_node.Transform['Trans'] != (0.0, 0.0, 0.0):
+                        break
+                    bone.tail += Vector([0, 0, 10 ** (-4)])
+                    scene_node = scene_node.parent
+        else:
+            # Add bones but based on their associated joint data.
+            # Hopefully the above chunk can be merged into this if it ends up
+            # working correctly...
+            with edit_object(armature) as data:
+                if scene_node.parent.Type != 'JOINT':
+                    return
+                bone = data.edit_bones.new(scene_node.Name)
+                bone.use_inherit_rotation = True
+                bone.use_inherit_scale = True
+                bone.use_local_location = True
+                bone.connected = True
+                if scene_node.parent.Name in armature.data.edit_bones:
+                    bone.parent = armature.data.edit_bones[
+                        scene_node.parent.Name]
+
+                # Not sure whether to use:
+                bone.matrix = scene_node.parent.matrix_local
+                bone.tail = scene_node.matrix_local.decompose()[0]
+                # or something using
+                # bone.transform(scene_node.matrix_local)
 
     def _add_empty_to_scene(self, scene_node: SceneNodeData,
                             standalone: bool = False):
@@ -503,7 +534,7 @@ class ImportScene():
             # always find this node easily.
             self.scn['scene_node'] = empty_obj
             # check if the scene is proc-gen
-            descriptor_name = self.scene_name + '.DESCRIPTOR.MBIN'
+            descriptor_name = self.scene_name + '.DESCRIPTOR'
             # Try and find the descriptor locally
             descriptor_path = op.join(self.local_directory,
                                       descriptor_name)
@@ -512,7 +543,7 @@ class ImportScene():
             if not op.exists(descriptor_path):
                 descriptor_path = op.join(self.PCBANKS_dir, descriptor_name)
                 print(f'Now trying to find a descriptor at: {descriptor_path}')
-            if op.exists(descriptor_path):
+            if op.exists(descriptor_path + '.MBIN'):
                 empty_obj.NMSReference_props.is_proc = True
                 # Also convert the .mbin to exml for parsing if the exml
                 # doesn't already exist.
@@ -652,9 +683,12 @@ class ImportScene():
         """ Adds the given collision node to the Blender scene. """
         name = op.basename(scene_node.Name) + '_COLL'
         mesh = bpy.data.meshes.new(name)
+        print(name)
+        print(scene_node.faces)
+        print(scene_node.new_faces)
         mesh.from_pydata(scene_node.bounded_hull,
-                         scene_node.edges,
-                         scene_node.faces)
+                         [],
+                         scene_node.new_faces)
         bh_obj = bpy.data.objects.new(name, mesh)
 
         bh_obj.NMSNode_props.node_types = 'Collision'
@@ -801,9 +835,16 @@ class ImportScene():
         """
         name = scene_node.Name
         mesh = bpy.data.meshes.new(name)
+        print(name)
+        # print(scene_node.verts[VERTS])
+        print(scene_node.faces)
+        print(scene_node.new_faces)
+        # Pass in an empty list for edges (second arg) so edges are inferred
+        # from the polygons. This allows us to optimise the process so that we
+        # can generate the polygons explictly from the indexes.
         mesh.from_pydata(scene_node.verts[VERTS],
-                         scene_node.edges,
-                         scene_node.faces)
+                         [],
+                         scene_node.new_faces)
 
         # add the objects entity file if it has one
         if scene_node.Attribute('ATTACHMENT') is not None:
@@ -914,6 +955,7 @@ class ImportScene():
             mesh = bpy.data.meshes.new(name)
             mesh.from_pydata(scene_node.bounded_hull, [], [])
             bh_obj = bpy.data.objects.new(name, mesh)
+            bh_obj.NMSNode_props.node_types = 'None'
             bh_obj.parent = mesh_obj
             self.scene_ctx.link_object(bh_obj)
             # Don't show the bounded hull
@@ -1009,6 +1051,8 @@ class ImportScene():
         read_sizes = list()
         read_funcs = list()
         for ve in self.vertex_elements:
+            # TODO: Maybe don't import tangents? Not sure if they are used
+            # anyway...
             mesh.verts[ve['semID']] = list()
             semIDs.append(ve['semID'])
             read_sizes.append(ve['size'] * VERT_TYPE_MAP[ve['type']]['size'])
@@ -1035,8 +1079,10 @@ class ImportScene():
                     return joint
         return None
 
-    def _fix_anim_data(self, local_anims, mod_dir):
-        """ Replace an implicitly named animation with a name and a path. """
+    def _fix_anim_data(self, local_anims: dict, mod_dir: str):
+        """ Replace an implicitly named animation with a name and a path.
+        This modifies the local_anims dictionary in-place.
+        """
         _loadable_anim_data = self.scn.nmsdk_anim_data.loadable_anim_data
         # Make a copy of the dictionary to avoid modifying it while iterating
         # over its values.
@@ -1070,8 +1116,6 @@ class ImportScene():
                 fpath = op.join(mod_dir, anim_data['Filename'])
                 _loadable_anim_data[anim_name]['Filename'] = fpath
                 local_anims[anim_name]['Filename'] = fpath
-
-        return local_anims
 
     def _get_material_path(self, scene_node: SceneNodeData):
         real_path = None

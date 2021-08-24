@@ -82,7 +82,7 @@ def read_anim(fname):
         return anim_data
 
 
-def read_entity(fname):
+def read_entity_animation_data(fname: str) -> dict:
     """ Read an entity file.
 
     This will currently only support reading the animation data from the
@@ -90,7 +90,7 @@ def read_entity(fname):
 
     Returns
     -------
-    anim_data : list
+    anim_data
         List of dictionaries containing the path and name of the contained
         animation data.
     """
@@ -116,11 +116,12 @@ def read_entity(fname):
             return anim_data
         # Jump to the start of the struct
         f.seek(return_offset + offset)
-        _anim_data = read_TkAnimationComponentData(f)
-        anim_data[_anim_data.pop('Anim')] = _anim_data
+        _anim_data = read_TkAnimationData(f)
+        idle_anim_name = _anim_data.pop('Anim') or 'IDLE'
+        anim_data[idle_anim_name] = _anim_data
         with ListHeader(f) as anims:
             for _ in range(anims.count):
-                _anim_data = read_TkAnimationComponentData(f)
+                _anim_data = read_TkAnimationData(f)
                 anim_data[_anim_data.pop('Anim')] = _anim_data
         return anim_data
 
@@ -288,7 +289,7 @@ def read_gstream(fname: str, info: namedtuple) -> Tuple[bytes, bytes]:
     return verts, indexes
 
 
-def read_TkAnimationComponentData(f) -> dict:
+def read_TkAnimationData(f) -> dict:
     """ Extract the animation name and path from the entity file. """
     data = dict()
     data['Anim'] = read_string(f, 0x10)
