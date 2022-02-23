@@ -23,13 +23,13 @@ class TkMeshMetaData():
 
     def read(self, data):
         self.ID = data.read(0x80)
-        self.hash, self.vertex_size, _, self.index_size, _ = unpack(
-            '<QIIII', data.read(0x18))
+        self.hash, self.vertex_size, _, self.index_size, _, _ = unpack(
+            '<QIIIIQ', data.read(0x20))
 
     def __bytes__(self):
         b = self.ID
-        b += pack('<QIIII', self.hash, self.vert_size, self.vert_offset,
-                  self.index_size, self.index_offset)
+        b += pack('<QIIIIQ', self.hash, self.vert_size, self.vert_offset,
+                  self.index_size, self.index_offset, 0)
         return b
 
     @property

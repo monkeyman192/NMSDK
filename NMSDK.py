@@ -776,7 +776,7 @@ class NMS_Import_Operator(Operator, ImportHelper):
     """Import NMS Scene files"""
     # important since its how bpy.ops.import_test.some_data is constructed
     bl_idname = "import_mesh.nms"
-    bl_label = "Import from SCENE.EXML"
+    bl_label = "Import from SCENE file"
 
     # ImportHelper mixin class uses this
     filename_ext = ".EXML"

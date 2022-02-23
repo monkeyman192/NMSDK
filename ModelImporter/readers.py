@@ -247,15 +247,17 @@ def read_metadata(fname):
             # skip the hash
             f.seek(0x8, 1)
             # read in the actual data we want
-            vert_size, vert_off, idx_size, idx_off = struct.unpack(
-                '<IIII',
-                f.read(0x10))
+            vert_size, vert_off, idx_size, idx_off, dbl_buff = struct.unpack(
+                '<IIII?',
+                f.read(0x11))
+            # Skip the last 7 padding bytes (0xFE's)
+            f.seek(0x7, 1)
             gstream_info = namedtuple('gstream_info',
-                                      ['vert_size', 'vert_off',
-                                       'idx_size', 'idx_off'])
+                                      ['vert_size', 'vert_off', 'idx_size',
+                                       'idx_off', 'dbl_buff'])
             if string not in data:
                 data[string] = gstream_info(vert_size, vert_off, idx_size,
-                                            idx_off)
+                                            idx_off, dbl_buff)
             else:
                 data[string] = [data[string]]
                 data[string].append(gstream_info(vert_size, vert_off, idx_size,
