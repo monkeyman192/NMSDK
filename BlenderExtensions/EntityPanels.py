@@ -1422,7 +1422,9 @@ class NMSEntities():
 
     @staticmethod
     def unregister():
-        del bpy.types.Object.EntityStructs
+        # unregister the panels
+        for cls in reversed(panel_classes):
+            unregister_class(cls)
 
         # unregister the property classes
         for cls in reversed(classes):
@@ -1444,6 +1446,4 @@ class NMSEntities():
         del bpy.types.Object.NMSEntity_props
         del bpy.types.Object.NMSPhysics_props
 
-        # unregister the panels
-        for cls in reversed(panel_classes):
-            register_class(cls)
+        unregister_class(EntityItem)

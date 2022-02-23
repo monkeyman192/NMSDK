@@ -523,6 +523,9 @@ class NMSPanels():
 
     @staticmethod
     def unregister():
+        # unregister the panels
+        for cls_ in reversed(panel_classes):
+            unregister_class(cls_)
         # unregister the property classes
         for cls_ in reversed(classes):
             unregister_class(cls_)
@@ -538,6 +541,3 @@ class NMSPanels():
         del bpy.types.Object.NMSAnimation_props
         del bpy.types.Object.NMSCollision_props
         del bpy.types.Object.NMSDescriptor_props
-        # unregister the panels
-        for cls_ in reversed(panel_classes):
-            unregister_class(cls_)

@@ -38,6 +38,10 @@ TYPE_MAP = {'MESH': 'Mesh', 'LOCATOR': 'Locator', 'REFERENCE': 'Reference',
             'JOINT': 'Joint', 'LIGHT': 'Light'}
 
 
+class MeshError(Exception):
+    pass
+
+
 class ImportScene():
     """ Load a scene into blender.
 
@@ -141,12 +145,20 @@ class ImportScene():
                 print('MBINCompiler failed to run. Please ensure it is '
                       'registered on the path.')
                 print('Import failed')
+                self.requires_render = False
                 return
         self.data = exml_to_dict(exml_fpath)
 
         if self.data is None:
             raise ValueError('Cannot load scene file...')
         self.scene_node_data = SceneNodeData(self.data)
+        # Once we have loaded this, we need to do a sanity check to make sure
+        # that the scene file actually has an associated geometry file.
+        # Some do not (such as emitter scenes, more of which were added in the
+        # 3.80 update.)
+        if not self.scene_node_data.Attribute('GEOMETRY'):
+            self.requires_render = False
+            return
         self.directory = op.dirname(self.scene_node_data.Name)
         # remove the name of the top level object
         self.scene_node_data.info['Name'] = None
@@ -340,8 +352,13 @@ class ImportScene():
                           'file and geometry data are the same '
                           'versions.'.format(obj.Name))
                     continue
-                self.load_mesh(obj)
-                added_obj = self._add_mesh_to_scene(obj)
+                try:
+                    self.load_mesh(obj)
+                    added_obj = self._add_mesh_to_scene(obj)
+                except MeshError:
+                    # In the case of a mesh error, we will pass and leave the
+                    # `added_obj` as None to handle later.
+                    pass
             elif obj.Type in ('LOCATOR', 'JOINT', 'REFERENCE'):
                 added_obj = self._add_empty_to_scene(obj)
             elif obj.Type == 'COLLISION':
@@ -586,7 +603,12 @@ class ImportScene():
                 self.ref_scenes[self.scene_name].append(empty_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
-                empty_obj.parent = self.local_objects[scene_node.parent]
+                if scene_node.parent in self.local_objects:
+                    empty_obj.parent = self.local_objects[scene_node.parent]
+                else:
+                    # In this case the parent object doesn't exist (maybe it is
+                    # corrupt?). Skip this object.
+                    return
             else:
                 # Direct child of loaded scene
                 empty_obj.parent = self.local_objects[self.scene_basename]
@@ -662,7 +684,12 @@ class ImportScene():
                 self.ref_scenes[self.scene_name].append(light_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
-                light_obj.parent = self.local_objects[scene_node.parent]
+                if scene_node.parent in self.local_objects:
+                    light_obj.parent = self.local_objects[scene_node.parent]
+                else:
+                    # In this case the parent object doesn't exist (maybe it is
+                    # corrupt?). Skip this object.
+                    return
             else:
                 # Direct child of loaded scene
                 light_obj.parent = self.local_objects[self.scene_basename]
@@ -683,9 +710,6 @@ class ImportScene():
         """ Adds the given collision node to the Blender scene. """
         name = op.basename(scene_node.Name) + '_COLL'
         mesh = bpy.data.meshes.new(name)
-        print(name)
-        print(scene_node.faces)
-        print(scene_node.new_faces)
         mesh.from_pydata(scene_node.bounded_hull,
                          [],
                          scene_node.new_faces)
@@ -700,8 +724,12 @@ class ImportScene():
             self.ref_scenes[self.scene_name].append(bh_obj)
         elif scene_node.parent.Name is not None:
             # Other child
-            parent_obj = self.local_objects[scene_node.parent]
-            bh_obj.parent = parent_obj
+            if scene_node.parent in self.local_objects:
+                bh_obj.parent = self.local_objects[scene_node.parent]
+            else:
+                # In this case the parent object doesn't exist (maybe it is
+                # corrupt?). Skip this object.
+                return
         else:
             # Direct child of loaded scene
             bh_obj.parent = self.local_objects[self.scene_basename]
@@ -792,8 +820,12 @@ class ImportScene():
             self.ref_scenes[self.scene_name].append(coll_obj)
         elif scene_node.parent.Name is not None:
             # Other child
-            parent_obj = self.local_objects[scene_node.parent]
-            coll_obj.parent = parent_obj
+            if scene_node.parent in self.local_objects:
+                coll_obj.parent = self.local_objects[scene_node.parent]
+            else:
+                # In this case the parent object doesn't exist (maybe it is
+                # corrupt?). Skip this object.
+                return
         else:
             # Direct child of loaded scene
             coll_obj.parent = self.local_objects[self.scene_basename]
@@ -835,10 +867,6 @@ class ImportScene():
         """
         name = scene_node.Name
         mesh = bpy.data.meshes.new(name)
-        print(name)
-        # print(scene_node.verts[VERTS])
-        print(scene_node.faces)
-        print(scene_node.new_faces)
         # Pass in an empty list for edges (second arg) so edges are inferred
         # from the polygons. This allows us to optimise the process so that we
         # can generate the polygons explictly from the indexes.
@@ -867,8 +895,12 @@ class ImportScene():
                 self.ref_scenes[self.scene_name].append(mesh_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
-                parent_obj = self.local_objects[scene_node.parent]
-                mesh_obj.parent = parent_obj
+                if scene_node.parent in self.local_objects:
+                    mesh_obj.parent = self.local_objects[scene_node.parent]
+                else:
+                    # In this case the parent object doesn't exist (maybe it is
+                    # corrupt?). Skip this object.
+                    return
             else:
                 # Direct child of loaded scene
                 mesh_obj.parent = self.local_objects[self.scene_basename]
@@ -1033,7 +1065,7 @@ class ImportScene():
                    "Mesh indexes: {0}\n".format(idx_count) +
                    "Mesh metadata: {0}\n".format(mesh.metadata) +
                    "In geometry file: {0}".format(self.geometry_file))
-            raise ValueError(err)
+            raise MeshError(err)
         with open(self.geometry_stream_file, 'rb') as f:
             f.seek(mesh.metadata.idx_off)
             for _ in range(idx_count):

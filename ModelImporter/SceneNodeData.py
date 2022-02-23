@@ -65,7 +65,6 @@ class SceneNodeData():
                               self.idxs[1::3],
                               self.idxs[2::3]))
         self.idx_rep = Counter(self.idxs)
-        print("GROUPING TRIS")
         self.new_faces = self._group_tris()
 
         """for face in self.faces:

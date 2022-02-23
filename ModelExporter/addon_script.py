@@ -562,9 +562,6 @@ class Exporter():
 
         # Get the polys before the mesh is triangulated
         poly_indexes = [tuple(p.vertices) for p in data.polygons]
-        print(ob.name)
-        print('THE POLYS!!!')
-        print(poly_indexes)
         # We can check to see if the mesh needs to be triangulated cheaply by
         # checking to see if the lengths of all the polys are 3.
         if not all([len(x) == 3 for x in poly_indexes]):
@@ -577,9 +574,6 @@ class Exporter():
             tri_indexes.sort(key=lambda x: x[0])
         else:
             tri_indexes = poly_indexes
-
-        print('TRI INDEXES!')
-        print(tri_indexes)
 
         # we can actually just get the indexes by flattening the tri_indexes
         # now:
@@ -644,7 +638,7 @@ class Exporter():
 
         # Do a final check to make sure that every value has something in it
         # in the vertex etc data
-        if not all(verts) and all(uvs) and all(normals) and all(tangents):
+        if not (all(verts) and all(uvs) and all(normals) and all(tangents)):
             raise ValueError('There was an error parsing the mesh...')
 
         """
@@ -970,7 +964,7 @@ class Exporter():
             actualname = get_obj_name(ob, None)
             # Get Color
             if actualname:
-                col = tuple(bpy.data.lights[actualname].color)
+                col = tuple(ob.color)
             print("colour: {}".format(col))
             # Get Intensity
             intensity = ob.NMSLight_props.intensity_value

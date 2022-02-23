@@ -19,8 +19,7 @@ To make exporting easier, NMSDK will automatically convert all produced `.exml` 
 
 #### Blender
 
-NMSDK requires a version of Blender greater than or equal to 2.82. This is due to various API changes introduced in 2.80.
-NOTE: NMSDK has not been updated or tested for Blender 2.9
+NMSDK requires a version of Blender greater than or equal to 2.93
 
 #### MBINCompiler
 
