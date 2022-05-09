@@ -4,7 +4,6 @@ import struct
 from math import radians
 import subprocess
 from typing import List
-import json
 
 # Blender imports
 import bpy
@@ -23,6 +22,7 @@ from .readers import (read_metadata, read_gstream,  # noqa pylint: disable=relat
                       read_descriptor)
 from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
+from .mesh_utils import BB_transform_matrix
 from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.bpyutils import SceneOp, edit_object, select_object  # noqa pylint: disable=relative-beyond-top-level
 
@@ -501,6 +501,30 @@ class ImportScene():
                 # or something using
                 # bone.transform(scene_node.matrix_local)
 
+    def _add_bounds_to_scene(self, scene_node: SceneNodeData):
+        print(scene_node.Attribute("AABBMINX", float))
+        print(scene_node.Attribute("AABBMINY", float))
+        print(scene_node.Attribute("AABBMINZ", float))
+        print(scene_node.Attribute("AABBMAXX", float))
+        print(scene_node.Attribute("AABBMAXY", float))
+        print(scene_node.Attribute("AABBMAXZ", float))
+        x = (scene_node.Attribute("AABBMINX", float),
+             scene_node.Attribute("AABBMAXX", float))
+        y = (scene_node.Attribute("AABBMINY", float),
+             scene_node.Attribute("AABBMAXY", float))
+        z = (scene_node.Attribute("AABBMINZ", float),
+             scene_node.Attribute("AABBMAXZ", float))
+        name = op.basename(scene_node.Name) + '_BBOX'
+        mesh = bpy.data.meshes.new(name)
+        bm = bmesh.new()
+        bmesh.ops.create_cube(bm, size=1.0,
+                              matrix=BB_transform_matrix(x, y, z))
+        bm.to_mesh(mesh)
+        bm.free()
+        del bm
+        bbox_obj = bpy.data.objects.new(name, mesh)
+        self.scene_ctx.link_object(bbox_obj)
+
     def _add_empty_to_scene(self, scene_node: SceneNodeData,
                             standalone: bool = False):
         """ Adds the given scene node data to the Blender scene.
@@ -762,7 +786,7 @@ class ImportScene():
                           float(scene_node.Attribute('HEIGHT')),
                           float(scene_node.Attribute('DEPTH'))]
         elif coll_type == 'Sphere':
-            bmesh.ops.create_icosphere(bm, subdivisions=4, diameter=1.0)
+            bmesh.ops.create_icosphere(bm, subdivisions=4, radius=1.0)
             scale_mult = [float(scene_node.Attribute('RADIUS')),
                           float(scene_node.Attribute('RADIUS')),
                           float(scene_node.Attribute('RADIUS'))]
@@ -775,7 +799,7 @@ class ImportScene():
                           float(scene_node.Attribute('RADIUS'))]
         elif coll_type == 'Capsule':
             capsule = bmesh.ops.create_icosphere(
-                bm, subdivisions=4, diameter=1,
+                bm, subdivisions=4, radius=1,
                 matrix=Matrix.Scale(0.25, 4, Vector((0, 1, 0))))
             # select the top set of verts
             for bmvert in capsule['verts']:
@@ -994,6 +1018,9 @@ class ImportScene():
             bh_obj.hide_set(True)
             bh_obj.hide_render = True
             bh_obj['_dont_export'] = True
+
+        if self.settings.get('draw_bounding_box', False):
+            self._add_bounds_to_scene(scene_node)
 
         return mesh_obj
 

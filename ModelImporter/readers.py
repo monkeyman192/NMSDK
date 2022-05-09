@@ -11,6 +11,16 @@ from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL  # noqa pylint: disable=relativ
 from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
 
 
+gstream_info = namedtuple(
+    'gstream_info',
+    ['vert_size', 'vert_off', 'idx_size', 'idx_off', 'dbl_buff']
+)
+gstream_info_old = namedtuple(
+    'gstream_info',
+    ['vert_size', 'vert_off', 'idx_size', 'idx_off']
+)
+
+
 def read_anim(fname):
     """ Reads an anim file. """
     anim_data = dict()
@@ -235,7 +245,15 @@ def read_metadata(fname):
         Mapping between the names of the meshes and their metadata
     """
     data = dict()
+    old_fmt = False
     with open(fname, 'rb') as f:
+        # Let's get the GUID to see what version we are looking at.
+        f.seek(0x10)
+        guid = struct.unpack('<Q', f.read(0x8))[0]
+        # Let's check what it is. The current is 0x71E36E603CED2E6E
+        # Ones before this we will consider "old format".
+        if guid == 0xCD49AC37B4729513:
+            old_fmt = True
         # move to the start of the StreamMetaDataArray header
         f.seek(0x190)
         # find how far to jump
@@ -247,21 +265,19 @@ def read_metadata(fname):
             # skip the hash
             f.seek(0x8, 1)
             # read in the actual data we want
-            vert_size, vert_off, idx_size, idx_off, dbl_buff = struct.unpack(
-                '<IIII?',
-                f.read(0x11))
-            # Skip the last 7 padding bytes (0xFE's)
-            f.seek(0x7, 1)
-            gstream_info = namedtuple('gstream_info',
-                                      ['vert_size', 'vert_off', 'idx_size',
-                                       'idx_off', 'dbl_buff'])
+            if not old_fmt:
+                read_data = struct.unpack('<IIII?', f.read(0x11))
+                # Skip the last 7 padding bytes (0xFE's)
+                f.seek(0x7, 1)
+                gstream_info_ = gstream_info
+            else:
+                read_data = struct.unpack('<IIII', f.read(0x10))
+                gstream_info_ = gstream_info_old
             if string not in data:
-                data[string] = gstream_info(vert_size, vert_off, idx_size,
-                                            idx_off, dbl_buff)
+                data[string] = gstream_info_(*read_data)
             else:
                 data[string] = [data[string]]
-                data[string].append(gstream_info(vert_size, vert_off, idx_size,
-                                                 idx_off, dbl_buff))
+                data[string].append(gstream_info_(*read_data))
     return data
 
 

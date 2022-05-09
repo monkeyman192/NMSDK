@@ -789,13 +789,15 @@ class NMS_Import_Operator(Operator, ImportHelper):
         description='Whether or not to clear the currently exiting scene in '
                     'blender.',
         default=True)
+    import_recursively: BoolProperty(
+        name='Import recursively',
+        description='Whether or not to import reference nodes automatically.\n'
+                    'For large scenes with many referenced scenes it is better'
+                    ' to set this as False to avoid long wait times, and then '
+                    'only import the scenes you want after it has loaded.',
+        default=True)
 
-    draw_hulls: BoolProperty(
-        name='Draw bounded hulls',
-        description='Whether or not to draw the points that make up the '
-                    'bounded hulls of the materials. This is only for research'
-                    '/debugging, so can safely be left as False.',
-        default=False)
+    # Collision related properties
     import_collisions: BoolProperty(
         name='Import collisions',
         description='Whether or not to import the collision objects.',
@@ -804,13 +806,7 @@ class NMS_Import_Operator(Operator, ImportHelper):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False)
-    import_recursively: BoolProperty(
-        name='Import recursively',
-        description='Whether or not to import reference nodes automatically.\n'
-                    'For large scenes with many referenced scenes it is better'
-                    ' to set this as False to avoid long wait times, and then '
-                    'only import the scenes you want after it has loaded.',
-        default=True)
+
     # Animation related properties
     import_bones: BoolProperty(
         name='Import bones',
@@ -828,9 +824,22 @@ class NMS_Import_Operator(Operator, ImportHelper):
         default=10,
         soft_min=-1)
 
+    # Extra "Debug" options
+    draw_hulls: BoolProperty(
+        name='Draw bounded hulls',
+        description='Whether or not to draw the points that make up the '
+                    'bounded hulls of the materials. This is only for research'
+                    '/debugging, so can safely be left as False.',
+        default=False,
+    )
+    draw_bounding_box: BoolProperty(
+        name='Draw bounding boxes',
+        description='Whether to draw the bounding boxes for each mesh',
+        default=False,
+    )
+
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, 'draw_hulls')
         layout.prop(self, 'clear_scene')
         layout.prop(self, 'import_recursively')
         coll_box = layout.box()
@@ -844,6 +853,11 @@ class NMS_Import_Operator(Operator, ImportHelper):
         animation_box.prop(self, 'import_anims')
         if self.import_anims:
             animation_box.prop(self, 'max_anims')
+
+        debug_box = layout.box()
+        debug_box.label(text='Debug')
+        debug_box.prop(self, 'draw_hulls')
+        debug_box.prop(self, 'draw_bounding_box')
 
     def execute(self, context):
         keywords = self.as_keywords()
