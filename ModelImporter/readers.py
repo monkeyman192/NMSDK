@@ -261,7 +261,7 @@ def read_metadata(fname):
             else:
                 data[string] = [data[string]]
                 data[string].append(gstream_info(vert_size, vert_off, idx_size,
-                                                 idx_off))
+                                                 idx_off, dbl_buff))
     return data
 
 
