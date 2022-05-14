@@ -43,5 +43,4 @@ class String():
             list_worker['curr'] += self.size
             if move_end:
                 list_worker['end'] += self.size
-            print(len(self.string.ljust(self.size, null)))
             output.write(self.string.ljust(self.size, null))

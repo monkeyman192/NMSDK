@@ -44,6 +44,8 @@ class TkGeometryData(Struct):
         # iterate over a list and serialize each value (assuming it is of a
         # normal type...)
         data = bytearray()
+        # if data_name == "MeshAABBMin":
+        #     print(self.data["MeshAABBMin"])
         for val in self.data[data_name]:
             data.extend(serialize(val))
         return data
@@ -103,8 +105,10 @@ class TkGeometryData(Struct):
                 length = len(self.data[pname])
                 # to compensate for the moving of the data earlier
                 extra_offset = 8*len(self.data['BoundHullVertSt'])
+                diff = 0x10 - ((curr_offset + bytes_in_list - extra_offset) % 0x10)
+                # output.write(b'0xFE' * diff)
                 output.write(
-                    list_header(curr_offset + bytes_in_list - extra_offset,
+                    list_header(curr_offset + bytes_in_list - extra_offset + diff,
                                 length, lst_end))
                 bytes_in_list += 0x10 * length
                 curr_offset -= 0x10

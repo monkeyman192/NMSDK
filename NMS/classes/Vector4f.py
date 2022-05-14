@@ -16,10 +16,7 @@ class Vector4f(Struct):
         """ End of the struct contents"""
 
     def __bytes__(self):
-        data = bytearray()
-        for d in ['x', 'y', 'z', 't']:
-            data.extend(pack('<f', self.data[d]))
-        return bytes(data)
+        return pack('<ffff', self.data['x'], self.data['y'], self.data['z'], self.data['t'])
 
     def __str__(self):
         return 'Vector4f({0}, {1}, {2}, {3})'.format(self.data['x'],

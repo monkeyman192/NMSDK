@@ -297,7 +297,6 @@ class ImportScene():
         self._load_mesh(mesh_node)
         self._deserialize_vertex_data(mesh_node)
         self._deserialize_index_data(mesh_node)
-        mesh_node._generate_geometry()
         mesh_node._generate_bounded_hull(self.bh_data)
 
     def load_collision_mesh(self, mesh_node: SceneNodeData):
@@ -502,12 +501,6 @@ class ImportScene():
                 # bone.transform(scene_node.matrix_local)
 
     def _add_bounds_to_scene(self, scene_node: SceneNodeData):
-        print(scene_node.Attribute("AABBMINX", float))
-        print(scene_node.Attribute("AABBMINY", float))
-        print(scene_node.Attribute("AABBMINZ", float))
-        print(scene_node.Attribute("AABBMAXX", float))
-        print(scene_node.Attribute("AABBMAXY", float))
-        print(scene_node.Attribute("AABBMAXZ", float))
         x = (scene_node.Attribute("AABBMINX", float),
              scene_node.Attribute("AABBMAXX", float))
         y = (scene_node.Attribute("AABBMINY", float),
@@ -891,20 +884,30 @@ class ImportScene():
         """
         name = scene_node.Name
         mesh = bpy.data.meshes.new(name)
-        # Pass in an empty list for edges (second arg) so edges are inferred
-        # from the polygons. This allows us to optimise the process so that we
-        # can generate the polygons explictly from the indexes.
-        mesh.from_pydata(scene_node.verts[VERTS],
-                         [],
-                         scene_node.new_faces)
+
+        bm = bmesh.new()
+        # First, add all the verts
+        has_norms = NORMS in scene_node.verts
+        for i, vert in enumerate(scene_node.verts[VERTS]):
+            v = bm.verts.new(vert)
+            if has_norms:
+                v.normal = Vector(scene_node.verts[NORMS][i])
+        bm.verts.ensure_lookup_table()
+        for face in scene_node.faces:
+            bm.faces.new(
+                (bm.verts[face[0]],
+                 bm.verts[face[1]],
+                 bm.verts[face[2]]
+                )
+            )
+        bm.to_mesh(mesh)
+        bm.free()
+        # Now, add all the faces.
+        # Do this by going over all the indexes in sets of 3.
 
         # add the objects entity file if it has one
         if scene_node.Attribute('ATTACHMENT') is not None:
             self.entities.add(scene_node.Attribute('ATTACHMENT'))
-
-        # add normals
-        for i, vert in enumerate(mesh.vertices):
-            vert.normal = scene_node.verts[NORMS][i]
 
         mesh_obj = bpy.data.objects.new(name, mesh)
         mesh_obj.NMSNode_props.node_types = 'Mesh'
@@ -1080,23 +1083,25 @@ class ImportScene():
         mesh
             SceneNodeData of type MESH to get the vertex data of.
         """
-        idx_count = int(mesh.Attribute('BATCHCOUNT'))
-        size = mesh.metadata.idx_size // idx_count
-        if size == 4:
-            fmt = '<I'
-        elif size == 2:
-            fmt = '<H'
+        face_count = mesh.Attribute('BATCHCOUNT', int) // 3
+        size = mesh.metadata.idx_size // face_count
+        if size // 3 == 4:
+            fmt = '<III'
+        elif size // 3 == 2:
+            fmt = '<HHH'
         else:
             err = ("An error has ocurred. Here is the object information:\n" +
                    "Mesh name: {0}\n".format(mesh.Name) +
-                   "Mesh indexes: {0}\n".format(idx_count) +
+                   "Mesh indexes: {0}\n".format(face_count * 3) +
                    "Mesh metadata: {0}\n".format(mesh.metadata) +
                    "In geometry file: {0}".format(self.geometry_file))
             raise MeshError(err)
         with open(self.geometry_stream_file, 'rb') as f:
             f.seek(mesh.metadata.idx_off)
-            for _ in range(idx_count):
-                mesh.idxs.append(struct.unpack(fmt, f.read(size))[0])
+            for _ in range(face_count):
+                face = struct.unpack(fmt, f.read(size))
+                mesh.faces.append(face)
+                
 
     def _deserialize_vertex_data(self, mesh: SceneNodeData):
         """ Take the raw vertex data and generate a list of actual vertex data.
