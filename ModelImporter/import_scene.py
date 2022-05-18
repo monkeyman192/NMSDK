@@ -375,20 +375,21 @@ class ImportScene():
                 added_obj['scene_node'] = {'idx': i, 'data': obj.info}
 
         # We will add an armature to the scene irrespective of whether we have
-        # any animations.
-        if self.joints:
+        # any animations, only if we are asked to import bones.
+        import_bones = (self.settings.get("import_bones", False) or
+                        self.settings.get('import_anims', False))
+        import_anims = self.settings.get('import_anims', False)
+        if import_bones and self.joints:
             armature = self._add_armature_to_scene()
-            print(f'{self.joints=}')
             for joint in self.joints:
                 print('Adding bone {0}'.format(joint.Name))
                 self._add_bone_to_scene(joint, armature)
-        # Now that we have the armature set up, apply modifiers to each of
-        # the meshes to bind them.
-        for mesh_obj in self.skinned_meshes:
-            mod = mesh_obj.modifiers.new('Armature', 'ARMATURE')
-            mod.object = bpy.data.objects['Armature']
-        if (self.settings.get('import_anims', False)
-                and self.settings.get('max_anims', 10) != 0):
+            # Now that we have the armature set up, apply modifiers to each of
+            # the meshes to bind them.
+            for mesh_obj in self.skinned_meshes:
+                mod = mesh_obj.modifiers.new('Armature', 'ARMATURE')
+                mod.object = bpy.data.objects['Armature']
+        if import_anims and self.settings.get('max_anims', 10) != 0:
             self.load_animations()
             bpy.ops.nmsdk._change_animation(anim_names='None')
 
@@ -516,6 +517,7 @@ class ImportScene():
         bm.free()
         del bm
         bbox_obj = bpy.data.objects.new(name, mesh)
+        bbox_obj.NMSNode_props.node_types = 'None'
         self.scene_ctx.link_object(bbox_obj)
 
     def _add_empty_to_scene(self, scene_node: SceneNodeData,
@@ -729,7 +731,7 @@ class ImportScene():
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(scene_node.bounded_hull,
                          [],
-                         scene_node.new_faces)
+                         scene_node.faces)
         bh_obj = bpy.data.objects.new(name, mesh)
 
         bh_obj.NMSNode_props.node_types = 'Collision'
@@ -894,12 +896,17 @@ class ImportScene():
                 v.normal = Vector(scene_node.verts[NORMS][i])
         bm.verts.ensure_lookup_table()
         for face in scene_node.faces:
-            bm.faces.new(
-                (bm.verts[face[0]],
-                 bm.verts[face[1]],
-                 bm.verts[face[2]]
+            try:
+                bm.faces.new(
+                    (bm.verts[face[0]],
+                    bm.verts[face[1]],
+                    bm.verts[face[2]]
+                    )
                 )
-            )
+            except ValueError:
+                # Sometimes it will fail because the same face will be added
+                # again. No idea why, but just ignore (for now?)
+                pass
         bm.to_mesh(mesh)
         bm.free()
         # Now, add all the faces.
@@ -1012,7 +1019,15 @@ class ImportScene():
             # create child object for bounded hull
             name = 'BH' + name
             mesh = bpy.data.meshes.new(name)
-            mesh.from_pydata(scene_node.bounded_hull, [], [])
+            bm = bmesh.new()
+            # First, add all the verts
+            for vert in scene_node.bounded_hull:
+                v = bm.verts.new(vert)
+            bm.verts.ensure_lookup_table()
+            bmesh.ops.convex_hull(bm, input=bm.verts)
+            bm.to_mesh(mesh)
+            bm.free()
+
             bh_obj = bpy.data.objects.new(name, mesh)
             bh_obj.NMSNode_props.node_types = 'None'
             bh_obj.parent = mesh_obj

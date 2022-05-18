@@ -1,17 +1,22 @@
 # TkGeometryData struct
 
 from collections import OrderedDict
+from io import BufferedWriter
 from struct import pack
+
 from .Struct import Struct
 from .List import List
 from .TkVertexLayout import TkVertexLayout
 from ...serialization.utils import serialize, list_header
 
 
+PADDING_BYTE = b'\xFE'
+
+
 class TkGeometryData(Struct):
     def __init__(self, **kwargs):
         super(TkGeometryData, self).__init__()
-        self.GUID = 0xCD49AC37B4729513
+        self.GUID = 0x71E36E603CED2E6E
 
         """ Contents of the struct """
         self.data['VertexCount'] = kwargs.get('VertexCount', 0)
@@ -44,13 +49,11 @@ class TkGeometryData(Struct):
         # iterate over a list and serialize each value (assuming it is of a
         # normal type...)
         data = bytearray()
-        # if data_name == "MeshAABBMin":
-        #     print(self.data["MeshAABBMin"])
         for val in self.data[data_name]:
             data.extend(serialize(val))
         return data
 
-    def serialize(self, output):
+    def serialize(self, output: BufferedWriter):
         # list header ending
         lst_end = b'\x01\x00\x00\x00'
 
@@ -66,115 +69,105 @@ class TkGeometryData(Struct):
             self.data['Indices16Bit'] = 0
 
         Indices16Bit = self.data['Indices16Bit']
+        empty_offsets = {}
 
-        # this will be a specific serialisation method for this whole struct
-        for pname in self.data:
-            if pname in ['VertexCount', 'IndexCount', 'Indices16Bit',
-                         'CollisionIndexCount']:
-                output.write(pack('<i', self.data[pname]))
-            elif pname in ['JointBindings', 'JointExtents', 'JointMirrorPairs',
-                           'JointMirrorAxes', 'SkinMatrixLayout']:
-                output.write(list_header(0, 0, lst_end))
-            elif pname in ['MeshVertRStart', 'MeshVertREnd']:
-                length = len(self.data[pname])
-                output.write(list_header(curr_offset + bytes_in_list, length,
-                                         lst_end))
-                bytes_in_list += 4 * length
-                curr_offset -= 0x10
-                list_data[pname] = self.serialize_list(pname)
-            elif pname in ['BoundHullVertSt', 'BoundHullVertEd']:
-                # we need to handle this separately so that it goes right
-                # before the BoundHullVerts data
-                length = len(self.data[pname])
-                # *0x10 for each of the 4 byte values, and *2 as there will be
-                # equal amounts
-                extra_offset = 0x20 * len(self.data['MeshAABBMin'])
-                output.write(
-                    list_header(curr_offset + bytes_in_list + extra_offset,
-                                length, lst_end))
-                bytes_in_list += 4 * length
-                curr_offset -= 0x10
-                # just leave as none for now. Will be overridden later when we
-                # look at the MeshAABBMin/Max...
-                list_data[pname] = None
-                # list_data[pname] = self.serialize_list(pname)
-            elif pname == 'MeshBaseSkinMat':
-                output.write(list_header(0, 0, lst_end))
-                curr_offset -= 0x10
-            elif pname in ['MeshAABBMin', 'MeshAABBMax']:
-                length = len(self.data[pname])
-                # to compensate for the moving of the data earlier
-                extra_offset = 8*len(self.data['BoundHullVertSt'])
-                diff = 0x10 - ((curr_offset + bytes_in_list - extra_offset) % 0x10)
-                # output.write(b'0xFE' * diff)
-                output.write(
-                    list_header(curr_offset + bytes_in_list - extra_offset + diff,
-                                length, lst_end))
-                bytes_in_list += 0x10 * length
-                curr_offset -= 0x10
-                # need to do a bit of a hack here to have the data appear in
-                # the mbin in order...
-                if pname == 'MeshAABBMin':
-                    list_data['BoundHullVertSt'] = self.serialize_list(
-                        'MeshAABBMin')
-                    list_data['MeshAABBMin'] = self.serialize_list(
-                        'BoundHullVertSt')
-                elif pname == 'MeshAABBMax':
-                    list_data['BoundHullVertEd'] = self.serialize_list(
-                        'MeshAABBMax')
-                    list_data['MeshAABBMax'] = self.serialize_list(
-                        'BoundHullVertEd')
-            elif pname == 'BoundHullVerts':
-                length = len(self.data[pname])
-                output.write(list_header(curr_offset + bytes_in_list, length,
-                                         lst_end))
-                bytes_in_list += 0x10 * length
-                curr_offset -= 0x10
-                list_data[pname] = self.serialize_list(pname)
-            elif pname in ['VertexLayout', 'SmallVertexLayout']:
-                # just pull the data directly
-                output.write(pack('<I', self.data[pname].data['ElementCount']))
-                output.write(pack('<I', self.data[pname].data['Stride']))
-                output.write(bytes(self.data[pname].data['PlatformData']))
-                curr_offset -= 0x10
-                length = len(self.data[pname].data['VertexElements'])
-                output.write(list_header(curr_offset + bytes_in_list, length,
-                                         lst_end))
-                bytes_in_list += 0x20 * length
-                curr_offset -= 0x10
-                list_data[pname] = bytes(
-                    self.data[pname].data['VertexElements'])
-            elif pname == 'IndexBuffer':
-                if Indices16Bit == 0:
-                    length = len(self.data[pname])
-                else:
-                    # this should be an int anyway, but cast to an int so that
-                    # we can pack it correctly
-                    length = int(len(self.data[pname]) / 2)
-                output.write(list_header(curr_offset + bytes_in_list, length,
-                                         lst_end))
-                curr_offset -= 0x10
-                bytes_in_list += 0x4 * length
-                data = bytearray()
-                if Indices16Bit == 0:
-                    for val in self.data['IndexBuffer']:
-                        data.extend(pack('<I', val))
-                else:
-                    for val in self.data['IndexBuffer']:
-                        data.extend(pack('<H', val))
-                # If the data is not aligned to 0x8, then add some padding
-                padding_bytes = (8 - (bytes_in_list % 8)) % 8
-                data.extend(b'\xFE' * padding_bytes)
-                bytes_in_list += padding_bytes
-                list_data['IndexBuffer'] = data
-            elif pname == 'StreamMetaDataArray':
-                length = len(self.data[pname])
-                output.write(list_header(curr_offset + bytes_in_list, length,
-                                         lst_end))
-                curr_offset -= 0x10
-                bytes_in_list += 0x98 * length
-                list_data[pname] = bytes(self.data[pname])
-            elif 'Padding' in pname:
-                self.data[pname].serialize(output)
-        for data in list_data.keys():
-            output.write(list_data[data])
+        # Write all the data.
+        # This will happen in the following way:
+        # First we'll write all the constants, and some list headers.
+        # As we write these list headers we'll keep track of the offsets to the
+        # location we'll need to go back to to put the relative offset values.
+        # Then we'll write the actual data in the list.
+        for name in ('VertexCount', 'IndexCount', 'Indices16Bit',
+                     'CollisionIndexCount'):
+            output.write(pack('<i', self.data[name]))
+
+        for name in ('JointBindings', 'JointExtents', 'JointMirrorPairs',
+                     'JointMirrorAxes', 'SkinMatrixLayout', 'MeshVertRStart',
+                     'MeshVertREnd', 'BoundHullVertSt', 'BoundHullVertEd',
+                     'MeshBaseSkinMat', 'MeshAABBMin', 'MeshAABBMax',
+                     'BoundHullVerts'):
+            empty_offsets[name] = output.tell()
+            output.write(list_header(0, len(self.data[name])))
+        for name in ('VertexLayout', 'SmallVertexLayout'):
+            output.write(pack('<I', self.data[name].data['ElementCount']))
+            output.write(pack('<I', self.data[name].data['Stride']))
+            output.write(bytes(self.data[name].data['PlatformData']))
+            empty_offsets[name] = output.tell()
+            output.write(
+                list_header(0, len(self.data[name].data['VertexElements']))
+            )
+        # Write the IndexBuffer
+        if Indices16Bit == 0:
+            length = len(self.data['IndexBuffer'])
+        else:
+            # this should be an int anyway, but cast to an int so that
+            # we can pack it correctly
+            length = len(self.data['IndexBuffer']) // 2
+        empty_offsets['IndexBuffer'] = output.tell()
+        output.write(list_header(0, length))
+
+        empty_offsets['StreamMetaDataArray'] = output.tell()
+        output.write(list_header(0, len(self.data['StreamMetaDataArray'])))
+
+        # Now that we have written all the normal stuff, we can write the
+        # actual list data.
+        for name in ('JointBindings', 'JointExtents', 'JointMirrorPairs',
+                     'JointMirrorAxes', 'SkinMatrixLayout', 'MeshVertRStart',
+                     'MeshVertREnd', 'MeshAABBMin', 'MeshAABBMax',
+                     'MeshBaseSkinMat', 'BoundHullVertSt', 'BoundHullVertEd',
+                     'BoundHullVerts'):
+            # First, get the current location so that we can write it to the
+            # start of the list header.
+            curr_offset = output.tell()
+            if name in ('MeshAABBMin', 'MeshAABBMax', 'BoundHullVerts'):
+                if curr_offset % 0x10 != 0:
+                    output.write(PADDING_BYTE * (0x10 - (curr_offset % 0x10)))
+                curr_offset = output.tell()
+            if name in ('JointBindings', 'JointExtents', 'JointMirrorPairs',
+                        'JointMirrorAxes', 'SkinMatrixLayout'):
+                # For now, we will have this as 0 always...
+                # Instead of removing this from the outer list, I'll leave it in
+                # case we want to change this or add this functionality later.
+                pass
+            else:
+                output.write(self.serialize_list(name))
+            if output.tell() != curr_offset:
+                output.seek(empty_offsets[name], 0)
+                output.write(pack('<Q', curr_offset - empty_offsets[name]))
+                output.seek(0, 2)
+        for name in ('VertexLayout', 'SmallVertexLayout'):
+            curr_offset = output.tell()
+            output.write(
+                bytes(self.data[name].data['VertexElements'])
+            )
+            if output.tell() != curr_offset:
+                output.seek(empty_offsets[name], 0)
+                output.write(pack('<Q', curr_offset - empty_offsets[name]))
+                output.seek(0, 2)
+
+        curr_offset = output.tell()
+        index_buffer_data = bytearray()
+        # TODO: Optimise this??
+        if Indices16Bit == 0:
+            for val in self.data['IndexBuffer']:
+                index_buffer_data.extend(pack('<I', val))
+        else:
+            for val in self.data['IndexBuffer']:
+                index_buffer_data.extend(pack('<H', val))
+        # If the data is not aligned to 0x8, then add some padding
+        padding_bytes = (8 - (len(index_buffer_data) % 8)) % 8
+        index_buffer_data.extend(padding_bytes * PADDING_BYTE)
+        output.write(index_buffer_data)
+        if output.tell() != curr_offset:
+            output.seek(empty_offsets['IndexBuffer'], 0)
+            output.write(pack('<Q', curr_offset - empty_offsets['IndexBuffer']))
+            output.seek(0, 2)
+
+        curr_offset = output.tell()
+        output.write(bytes(self.data['StreamMetaDataArray']))
+        if output.tell() != curr_offset:
+            output.seek(empty_offsets['StreamMetaDataArray'], 0)
+            output.write(pack(
+                '<Q', curr_offset - empty_offsets['StreamMetaDataArray'])
+            )
+            output.seek(0, 2)

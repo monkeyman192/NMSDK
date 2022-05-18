@@ -8,7 +8,7 @@ def float_to_hex(num):
 
 
 # TODO: Rename
-def list_header(offset, size, end):
+def list_header(offset, size, end = b'\x01\x00\x00\x00'):
     """ Generate the list header.
 
     Parameters

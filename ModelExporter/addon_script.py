@@ -3,7 +3,6 @@ from math import radians, degrees
 import os
 import os.path as op
 import shutil
-import time
 # blender imports
 import bpy
 import bmesh

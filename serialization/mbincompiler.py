@@ -9,8 +9,8 @@ class mbinCompiler():
         # this is the struct containing all the data that needs to be
         # serialized
         self.struct = NMSstruct
+        self.out_name = out_name
         self.output = open('{}'.format(out_name), 'wb')
-        self.list_worker = ListWorker()
 
     def header(self):
         data = bytearray()
@@ -32,11 +32,9 @@ class mbinCompiler():
         # we will keep track of the current location and also the current
         # expected final location
         # so that list data can be placed there
-        self.output.write(self.header())
-        # add on the size of the struct to know where the current finish is
-        self.list_worker['end'] = 0x60 + len(self.struct)
-        self.struct.serialize(self.output)
-        self.output.close()
+        with open(self.out_name, 'wb') as f:
+            f.write(self.header())
+            self.struct.serialize(f)
 
 
 class ListWorker():
