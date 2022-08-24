@@ -787,7 +787,7 @@ class ImportScene():
                           float(scene_node.Attribute('RADIUS'))]
         elif coll_type == 'Cylinder':
             bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True,
-                                  diameter1=1.0, diameter2=1.0, depth=1.0,
+                                  radius1=0.5, radius2=0.5, depth=1.0,
                                   segments=20, matrix=ROT_MATRIX)
             scale_mult = [float(scene_node.Attribute('RADIUS')),
                           float(scene_node.Attribute('HEIGHT')),

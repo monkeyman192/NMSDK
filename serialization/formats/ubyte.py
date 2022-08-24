@@ -1,14 +1,14 @@
 import struct
 
 
-def bytes_to_ubyte(bytes_):
+def bytes_to_ubyte(bytes_: bytes) -> list:
     """ Read an array of bytes into a list of unsigned bytes. """
     fmt = '<' + 'B' * len(bytes_)
     data = struct.unpack(fmt, bytes_)
     return [int(n) for n in data]
 
 
-def ubytes_to_bytes(lst, target_length=4):
+def ubytes_to_bytes(lst: list, target_length=4) -> bytes:
     """ Read a list of numbers in the range [0, 255] and generate a byte
     array
 
@@ -23,7 +23,7 @@ def ubytes_to_bytes(lst, target_length=4):
 
     Returns
     -------
-    arr : bytearray
+    arr : bytes
     """
     if target_length < len(lst):
         raise ValueError('Target length must be equal to or greater than '
@@ -32,5 +32,7 @@ def ubytes_to_bytes(lst, target_length=4):
         fmt = '<' + 'B' * target_length
         extra_zeros = target_length - len(lst)
     # Add any extra zeros
+    if not isinstance(lst, list):
+        lst = list(lst)
     lst.extend([0] * extra_zeros)
     return struct.pack(fmt, *lst)

@@ -16,7 +16,6 @@ import bpy
 import os
 import subprocess
 from collections import OrderedDict as odict
-from shutil import copy2
 from array import array
 # Internal imports
 from ..NMS.classes import (TkAttachmentData, TkGeometryData, List,

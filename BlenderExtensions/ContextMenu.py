@@ -159,7 +159,7 @@ class AddCylinderCollisionNode(Operator):
             mesh = bpy.data.meshes.new('cylinder')
             bm = bmesh.new()
             bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True,
-                                  diameter1=1.0, diameter2=1.0, depth=1.0,
+                                  radius1=0.5, radius2=0.5, depth=1.0,
                                   segments=20, matrix=Matrix())
             bm.to_mesh(mesh)
             bm.free()
