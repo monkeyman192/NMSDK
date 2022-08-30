@@ -424,8 +424,11 @@ class Collision(Object):
             # We will only be passed the convex hull verts
             self.IsMesh = True
             self.Material = None
+            self.Vertices = kwargs.get('Vertices', None)
+            self.Indexes = kwargs.get('Indexes', None)
+            self.Normals = kwargs.get('Normals', None)
+            self.Tangents = kwargs.get('Tangents', None)
             self.CHVerts = kwargs.get('CHVerts', None)
-            self.CHIndexes = kwargs.get('CHIndexes', None)
         else:
             # just give all 4 values. The required ones will be non-zero (deal
             # with later in the main file...)

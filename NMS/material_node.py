@@ -8,7 +8,7 @@ from ..ModelImporter.readers import read_material  # noqa pylint: disable=relati
 from ..utils.io import realize_path  # noqa pylint: disable=relative-beyond-top-level
 
 
-def create_material_node(mat_path):
+def create_material_node(mat_path: str, local_root_directory: str):
     # Read the material data directly from the material MBIN
     mat_data = read_material(mat_path)
     if mat_data is None or mat_data == dict():
@@ -66,7 +66,7 @@ def create_material_node(mat_path):
         img = None
         if tex_type == DIFFUSE:
             # texture
-            _path = realize_path(tex_path)
+            _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
             diffuse_texture = nodes.new(type='ShaderNodeTexImage')
@@ -79,7 +79,7 @@ def create_material_node(mat_path):
                 if 16 not in mat_data['Flags']:
                     # #ifndef _F17_MULTIPLYDIFFUSE2MAP
                     diffuse2_path = realize_path(
-                        mat_data['Samplers'][DIFFUSE2])
+                        mat_data['Samplers'][DIFFUSE2], local_root_directory)
                     if op.exists(diffuse2_path):
                         img = bpy.data.images.load(diffuse2_path)
                     diffuse2_texture = nodes.new(type='ShaderNodeTexImage')
@@ -110,7 +110,7 @@ def create_material_node(mat_path):
                         principled_BSDF.inputs['Metallic'].default_value = uniforms['gMaterialParamsVec4'][2]  # noqa
         elif tex_type == MASKS:
             # texture
-            _path = realize_path(tex_path)
+            _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
                 img.colorspace_settings.name = 'XYZ'
@@ -166,7 +166,7 @@ def create_material_node(mat_path):
 
         elif tex_type == NORMAL:
             # texture
-            _path = realize_path(tex_path)
+            _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
                 img.colorspace_settings.name = 'XYZ'

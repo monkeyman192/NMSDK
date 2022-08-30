@@ -534,7 +534,7 @@ class Exporter():
         return descriptor_struct
 
     # Main Mesh parser
-    def mesh_parser(self, ob):
+    def mesh_parser(self, ob, is_coll_mesh: bool = False):
         bpy.context.view_layer.objects.active = ob
         chverts = []        # convex hull vert data
         # Matrices
@@ -546,18 +546,24 @@ class Exporter():
         data = ob.data
         data_is_fake = False
         # Raise exception if UV Map is missing
-        uvcount = len(data.uv_layers)
-        if uvcount < 1:
-            raise Exception(f"Object {ob.name} missing UV map")
+        if not is_coll_mesh:
+            uvcount = len(data.uv_layers)
+            if uvcount < 1:
+                raise Exception(f"Object {ob.name} missing UV map")
 
         # Lists
         _num_verts = len(data.vertices)
         indexes = []
         verts = [None] * _num_verts
-        uvs = [None] * _num_verts
-        normals = [None] * _num_verts
-        tangents = [None] * _num_verts
-        colours = [None] * _num_verts
+        if not is_coll_mesh:
+            uvs = [None] * _num_verts
+            normals = [None] * _num_verts
+            tangents = [None] * _num_verts
+            colours = [None] * _num_verts
+        else:
+            # For mesh collisions we don't need any of this data, but we do
+            # need to return it.
+            uvs = normals = tangents = colours = None
 
         # Get the polys before the mesh is triangulated
         poly_indexes = [tuple(p.vertices) for p in data.polygons]
@@ -587,14 +593,15 @@ class Exporter():
         # pretty close...
 
         # Need to assign UV data *after* any possible triangulation
-        uv_layer_data = data.uv_layers.active.data
+        if not is_coll_mesh:
+            uv_layer_data = data.uv_layers.active.data
 
         # Determine if the model has colour data
         export_colours = bool(len(data.vertex_colors))
         # If we have an overwrite to say not to export them then don't
         if self.settings.get('no_vert_colours', False):
             export_colours = False
-        if export_colours:
+        if export_colours and not is_coll_mesh:
             colour_data = data.vertex_colors.active.data
         else:
             colours = None
@@ -604,30 +611,67 @@ class Exporter():
         # Iterate over the polygons as it allows us to get the indexes of the
         # vertices as well as normals, and will allow use to calculate the
         # tangents also.
+        # for poly in data.polygons:
+        #     norm = poly.normal
+        #     for i, idx in enumerate(poly.vertices):
+        #         # Loop over the indices
+        #         if not verts[idx]:
+        #             v = data.vertices[idx].co
+        #             verts[idx] = (v[0], v[1], v[2], 1)
+        #         if not uvs[idx]:
+        #             uv = uv_layer_data[idx].uv
+        #             uvs[idx] = (uv[0], 1 - uv[1], 0, 1)
+        #         if not normals[idx]:
+        #             normals[idx] = (norm[0], norm[1], norm[2], 1)
+        #         if not tangents[idx]:
+        #             _idxs = get_surr(poly.vertices, i)
+        #             tang = calc_tangents(
+        #                 tuple(data.vertices[j].co for j in _idxs),
+        #                 tuple(uv_layer_data[j].uv for j in _idxs),
+        #                 norm)
+        #             tangents[idx] = (tang[0], tang[1], tang[2], 1)
+        #         if colours and not colours[idx]:
+        #             vcol = colour_data[idx].color
+        #             colours[idx] = (int(255 * vcol[0]),
+        #                             int(255 * vcol[1]),
+        #                             int(255 * vcol[2]))
+
         for poly in data.polygons:
             norm = poly.normal
-            for i, idx in enumerate(poly.vertices):
+            poly_verts = []
+            poly_indexes = []
+            for _loop_index in poly.loop_indices:
+                poly_verts.append(data.loops[_loop_index].vertex_index)
+                poly_indexes.append(data.loops[_loop_index].index)
+            for i in range(poly.loop_total):
+                vi = poly_verts[i]
+                li = poly_indexes[i]
                 # Loop over the indices
-                if not verts[idx]:
-                    v = data.vertices[idx].co
-                    verts[idx] = (v[0], v[1], v[2], 1)
-                if not uvs[idx]:
-                    uv = uv_layer_data[idx].uv
-                    uvs[idx] = (uv[0], 1 - uv[1], 0, 1)
-                if not normals[idx]:
-                    normals[idx] = (norm[0], norm[1], norm[2], 1)
-                if not tangents[idx]:
-                    _idxs = get_surr(poly.vertices, i)
-                    tang = calc_tangents(
-                        tuple(data.vertices[j].co for j in _idxs),
-                        tuple(uv_layer_data[j].uv for j in _idxs),
-                        norm)
-                    tangents[idx] = (tang[0], tang[1], tang[2], 1)
-                if colours and not colours[idx]:
-                    vcol = colour_data[idx].color
-                    colours[idx] = (int(255 * vcol[0]),
-                                    int(255 * vcol[1]),
-                                    int(255 * vcol[2]))
+                if not verts[vi]:
+                    v = data.vertices[vi].co
+                    verts[vi] = (v[0], v[1], v[2], 1)
+                if is_coll_mesh:
+                    # If we are parsing the collision mesh, we don't need to
+                    # try and get any data other than the verts and indexes
+                    continue
+                if not uvs[vi]:
+                    uv = uv_layer_data[li].uv
+                    uvs[vi] = (uv[0], 1 - uv[1], 0, 1)
+                if not normals[vi]:
+                    normals[vi] = (norm[0], norm[1], norm[2], 1)
+                if not tangents[vi]:
+                    # TODO: fix
+                    if poly.loop_total == 3:
+                        tang = calc_tangents(
+                            tuple(data.vertices[j].co for j in poly_verts),
+                            tuple(uv_layer_data[j].uv for j in poly_indexes),
+                            norm)
+                    tangents[vi] = (tang[0], tang[1], tang[2], 1)
+                if colours and not colours[vi]:
+                    vcol = colour_data[li].color
+                    colours[vi] = (int(255 * vcol[0]),
+                                   int(255 * vcol[1]),
+                                   int(255 * vcol[2]))
 
         # finally, let's find the convex hull data of the mesh:
         chverts = generate_hull(data)
@@ -637,8 +681,24 @@ class Exporter():
 
         # Do a final check to make sure that every value has something in it
         # in the vertex etc data
-        if not (all(verts) and all(uvs) and all(normals) and all(tangents)):
-            raise ValueError('There was an error parsing the mesh...')
+        if (
+            not is_coll_mesh
+                and not (
+                    all(verts) and all(uvs) and all(normals) and all(tangents)
+                )
+        ):
+            bad = []
+            if not all(verts):
+                print(f'bad verts: {verts}')
+            if not all(uvs):
+                print(f'bad uvs: {uvs}')
+            if not all(normals):
+                print(f'bad normals: {normals}')
+            if not all(tangents):
+                print(f'bad tangents: {tangents}')
+
+            raise ValueError(
+                f'There was an error parsing the mesh... bad: {" ".join(bad)}')
 
         """
         # Apply rotation and normal matrices on vertices and normal vectors
@@ -816,13 +876,15 @@ class Exporter():
                 # We'll give them some "fake" vertex data which consists of
                 # no actual vertex data, but an index that doesn't point to
                 # anything.
-
-                chverts, chindexes = generate_hull(ob.data, True)
+                verts, norms, tangs, luvs, indexes, chverts, _ = self.mesh_parser(ob, True)  # noqa
 
                 # Reset Transforms on meshes
 
+                optdict['Vertices'] = verts
+                optdict['Indexes'] = indexes
+                optdict['Normals'] = norms
+                optdict['Tangents'] = tangs
                 optdict['CHVerts'] = chverts
-                optdict['CHIndexes'] = chindexes
             # Handle Primitives
             elif colType == "Box":
                 optdict['Width'] = dims[0] / factor[0]

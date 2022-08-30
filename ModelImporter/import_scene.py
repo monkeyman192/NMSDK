@@ -9,7 +9,7 @@ from typing import List
 import bpy
 from bpy.types import Armature
 import bmesh  # pylint: disable=import-error
-from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
+from mathutils import Color, Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
 
 # Internal imports
 from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
@@ -23,7 +23,7 @@ from .readers import (read_metadata, read_gstream,  # noqa pylint: disable=relat
 from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
 from .mesh_utils import BB_transform_matrix
-from ..utils.io import get_NMS_dir  # noqa pylint: disable=relative-beyond-top-level
+from ..utils.io import get_NMS_dir, base_path  # noqa pylint: disable=relative-beyond-top-level
 from ..utils.bpyutils import SceneOp, edit_object, select_object  # noqa pylint: disable=relative-beyond-top-level
 
 VERT_TYPE_MAP = {5121: {'size': 1, 'func': bytes_to_ubyte},
@@ -160,6 +160,8 @@ class ImportScene():
             self.requires_render = False
             return
         self.directory = op.dirname(self.scene_node_data.Name)
+        self.local_root_folder = base_path(self.local_directory,
+                                           self.directory)
         # remove the name of the top level object
         self.scene_node_data.info['Name'] = None
         # Try and find the geometry file locally.
@@ -429,12 +431,13 @@ class ImportScene():
 
             # Assign the bind matrix so we can do easy lookup of it later for
             # applying animations.
-            # Ironically, the inverse bind matrix is strored uninverted, and the
-            # bind matrix is stored inverted...
+            # Ironically, the inverse bind matrix is strored uninverted, and
+            # the bind matrix is stored inverted...
             self.inv_bind_matrices[scene_node.Name] = inv_bind_matrix
 
             # Let's create the bone now
-            # All changes to Bones have to be in EDIT mode or _bad things happen_
+            # All changes to Bones have to be in EDIT mode or _bad things
+            # happen_
             with edit_object(armature) as data:
                 bone = data.edit_bones.new(scene_node.Name)
                 bone.use_inherit_rotation = True
@@ -457,7 +460,8 @@ class ImportScene():
                 """
 
                 if scene_node.parent.Type == 'JOINT':
-                    bone.matrix = self.inv_bind_matrices[scene_node.parent.Name]
+                    bone.matrix = self.inv_bind_matrices[
+                        scene_node.parent.Name]
 
                 bone.tail = inv_bind_matrix.inverted().to_translation()
 
@@ -465,12 +469,13 @@ class ImportScene():
                     bone.tail = bone.head + Vector([0, 10 ** (-4), 0])
 
                 if scene_node.parent.Type == 'JOINT':
-                    bone.parent = armature.data.edit_bones[scene_node.parent.Name]
+                    bone.parent = armature.data.edit_bones[
+                        scene_node.parent.Name]
 
                 bone.use_connect = True
 
-                # NMS defines some bones used in animations with 0 transform, eg.
-                # Toy Cube.
+                # NMS defines some bones used in animations with 0 transform,
+                # eg. Toy Cube.
                 # This causes bone creation to fail, we need to move the tail
                 # slightly.
                 # Note that MMD Tools would have to deal with this too.
@@ -679,6 +684,9 @@ class ImportScene():
         light = bpy.data.lights.new(name, 'POINT')
 
         # Apply a number of settings relating to the light
+        # light.color = Color((float(scene_node.Attribute('COL_R')),
+        #                      float(scene_node.Attribute('COL_G')),
+        #                      float(scene_node.Attribute('COL_B'))))
         light.color = (float(scene_node.Attribute('COL_R')),
                        float(scene_node.Attribute('COL_G')),
                        float(scene_node.Attribute('COL_B')))
@@ -898,9 +906,10 @@ class ImportScene():
         for face in scene_node.faces:
             try:
                 bm.faces.new(
-                    (bm.verts[face[0]],
-                    bm.verts[face[1]],
-                    bm.verts[face[2]]
+                    (
+                        bm.verts[face[0]],
+                        bm.verts[face[1]],
+                        bm.verts[face[2]]
                     )
                 )
             except ValueError:
@@ -959,9 +968,9 @@ class ImportScene():
         self.scene_ctx.select_object(mesh_obj)
         uvs = scene_node.verts[UVS]
         uv_layers = mesh_obj.data.uv_layers.active.data
-        for idx, loop in enumerate(mesh_obj.data.loops):
+        for loop in mesh_obj.data.loops:
             uv = uvs[loop.vertex_index]
-            uv_layers[idx].uv = (uv[0], 1 - uv[1])
+            uv_layers[loop.index].uv = (uv[0], 1 - uv[1])
 
         # Add vertex colour
         if COLOURS in scene_node.verts.keys():
@@ -969,12 +978,12 @@ class ImportScene():
             if not mesh_obj.data.vertex_colors:
                 mesh_obj.data.vertex_colors.new()
             colour_loops = mesh_obj.data.vertex_colors.active.data
-            for idx, loop in enumerate(mesh_obj.data.loops):
+            for loop in mesh_obj.data.loops:
                 colour = colours[loop.vertex_index]
-                colour_loops[idx].color = (colour[0] / 255,
-                                           colour[1] / 255,
-                                           colour[2] / 255,
-                                           0)
+                colour_loops[loop.index].color = (colour[0] / 255,
+                                                  colour[1] / 255,
+                                                  colour[2] / 255,
+                                                  0)
 
         # Add vertexes to mesh groups
         if self.mesh_binding_data is not None:
@@ -1000,7 +1009,8 @@ class ImportScene():
         material = None
         if mat_path is not None:
             if mat_path not in self.materials:
-                material = create_material_node(mat_path)
+                material = create_material_node(mat_path,
+                                                self.local_root_folder)
                 if material:
                     self.materials[mat_path] = material
             mesh_obj.NMSMesh_props.material_path = scene_node.Attribute(
@@ -1105,18 +1115,17 @@ class ImportScene():
         elif size // 3 == 2:
             fmt = '<HHH'
         else:
-            err = ("An error has ocurred. Here is the object information:\n" +
-                   "Mesh name: {0}\n".format(mesh.Name) +
-                   "Mesh indexes: {0}\n".format(face_count * 3) +
-                   "Mesh metadata: {0}\n".format(mesh.metadata) +
-                   "In geometry file: {0}".format(self.geometry_file))
+            err = ("An error has ocurred. Here is the object information:\n"
+                   + "Mesh name: {0}\n".format(mesh.Name)
+                   + "Mesh indexes: {0}\n".format(face_count * 3)
+                   + "Mesh metadata: {0}\n".format(mesh.metadata)
+                   + "In geometry file: {0}".format(self.geometry_file))
             raise MeshError(err)
         with open(self.geometry_stream_file, 'rb') as f:
             f.seek(mesh.metadata.idx_off)
             for _ in range(face_count):
                 face = struct.unpack(fmt, f.read(size))
                 mesh.faces.append(face)
-                
 
     def _deserialize_vertex_data(self, mesh: SceneNodeData):
         """ Take the raw vertex data and generate a list of actual vertex data.
@@ -1204,6 +1213,12 @@ class ImportScene():
         return real_path
 
     def _get_path(self, fpath):
+        # First, try and find the file locally:
+        local_path = op.join(self.local_root_folder, fpath)
+        if op.exists(local_path):
+            return local_path
+        # Otherwise, fallback to returning the filepath relative to the PCBANKS
+        # folder.
         try:
             return op.join(self.PCBANKS_dir, fpath)
         except ValueError:

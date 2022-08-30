@@ -55,11 +55,15 @@ def base_path(abs_path: str, rel_path: str):
             a_parts.pop(-1)
         else:
             raise ValueError(f"{rel_path} doesn't stem from {abs_path}")
-    return op.join(a_parts)
+    return op.join(*a_parts)
 
 
-def realize_path(fpath: str) -> str:
-    """ Return the provided path relativized to the PCBANKS folder. """
+def realize_path(fpath: str, local_root_directory: str) -> str:
+    """ Return the provided path relativized to the PCBANKS folder or the local
+    root directory if it exists. """
+    local_path = op.join(local_root_directory, fpath)
+    if op.exists(local_path):
+        return local_path
     # Get the NMS directory. This has to have been initialized already
     base = get_NMS_dir("")
     if base == "":
