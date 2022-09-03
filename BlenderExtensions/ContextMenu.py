@@ -124,7 +124,7 @@ class AddSphereCollisionNode(Operator):
             # Create a new sphere for collisions
             mesh = bpy.data.meshes.new('sphere')
             bm = bmesh.new()
-            bmesh.ops.create_icosphere(bm, subdivisions=4, diameter=1.0)
+            bmesh.ops.create_icosphere(bm, subdivisions=4, radius=0.5)
             bm.to_mesh(mesh)
             bm.free()
             sphere = bpy.data.objects.new('sphere', mesh)

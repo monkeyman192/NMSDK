@@ -55,7 +55,11 @@ def base_path(abs_path: str, rel_path: str):
             a_parts.pop(-1)
         else:
             raise ValueError(f"{rel_path} doesn't stem from {abs_path}")
-    return op.join(*a_parts)
+    if a_parts:
+        return op.join(*a_parts)
+    else:
+        print(f'There may be an issue with the paths: {abs_path}, {rel_path}')
+        return ''
 
 
 def realize_path(fpath: str, local_root_directory: str) -> str:

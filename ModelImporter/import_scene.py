@@ -370,7 +370,9 @@ class ImportScene():
                     else:
                         added_obj = self._add_primitive_collision_to_scene(obj)
             elif obj.Type == 'LIGHT':
-                added_obj = self._add_light_to_scene(obj)
+                # TODO: FIXME
+                pass
+                # added_obj = self._add_light_to_scene(obj)
             # Get the added object and give it its scene node data so that it
             # can be rexported in a more faithful way.
             if added_obj:
@@ -1147,7 +1149,9 @@ class ImportScene():
             read_funcs.append(VERT_TYPE_MAP[ve['type']]['func'])
         num_verts = mesh.metadata.vert_size / self.stride
         if not num_verts % 1 == 0:
-            raise ValueError('Something has gone wrong!!!')
+            raise ValueError(f'Error with {mesh.Name}: # of verts '
+                             f'({mesh.metadata.vert_size}) isn\'t consistent '
+                             'with the stride value.')
         with open(self.geometry_stream_file, 'rb') as f:
             f.seek(mesh.metadata.vert_off)
             for _ in range(int(num_verts)):

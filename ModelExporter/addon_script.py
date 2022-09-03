@@ -535,6 +535,7 @@ class Exporter():
 
     # Main Mesh parser
     def mesh_parser(self, ob, is_coll_mesh: bool = False):
+        print(f'parsing mesh {ob.name}')
         bpy.context.view_layer.objects.active = ob
         chverts = []        # convex hull vert data
         # Matrices
@@ -580,11 +581,6 @@ class Exporter():
         else:
             tri_indexes = poly_indexes
 
-        # we can actually just get the indexes by flattening the tri_indexes
-        # now:
-        for tri in tri_indexes:
-            indexes.extend(tri)
-
         # TODO: if there is normal data, use it. Otherwise determine the
         # normals based on the face normal of the polygon.
 
@@ -608,37 +604,10 @@ class Exporter():
 
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        # Iterate over the polygons as it allows us to get the indexes of the
-        # vertices as well as normals, and will allow use to calculate the
-        # tangents also.
-        # for poly in data.polygons:
-        #     norm = poly.normal
-        #     for i, idx in enumerate(poly.vertices):
-        #         # Loop over the indices
-        #         if not verts[idx]:
-        #             v = data.vertices[idx].co
-        #             verts[idx] = (v[0], v[1], v[2], 1)
-        #         if not uvs[idx]:
-        #             uv = uv_layer_data[idx].uv
-        #             uvs[idx] = (uv[0], 1 - uv[1], 0, 1)
-        #         if not normals[idx]:
-        #             normals[idx] = (norm[0], norm[1], norm[2], 1)
-        #         if not tangents[idx]:
-        #             _idxs = get_surr(poly.vertices, i)
-        #             tang = calc_tangents(
-        #                 tuple(data.vertices[j].co for j in _idxs),
-        #                 tuple(uv_layer_data[j].uv for j in _idxs),
-        #                 norm)
-        #             tangents[idx] = (tang[0], tang[1], tang[2], 1)
-        #         if colours and not colours[idx]:
-        #             vcol = colour_data[idx].color
-        #             colours[idx] = (int(255 * vcol[0]),
-        #                             int(255 * vcol[1]),
-        #                             int(255 * vcol[2]))
-
         for poly in data.polygons:
             norm = poly.normal
             poly_verts = []
+            _modified_poly_verts = []
             poly_indexes = []
             for _loop_index in poly.loop_indices:
                 poly_verts.append(data.loops[_loop_index].vertex_index)
@@ -646,6 +615,11 @@ class Exporter():
             for i in range(poly.loop_total):
                 vi = poly_verts[i]
                 li = poly_indexes[i]
+                # Flag which indicates that the vert needs to be duplicated in
+                # the exported mesh. This will happen when a vert which is
+                # shared by multiple tri's has a different uv value depending
+                # on the tri it's used by.
+                vert_needs_split = False
                 # Loop over the indices
                 if not verts[vi]:
                     v = data.vertices[vi].co
@@ -657,8 +631,18 @@ class Exporter():
                 if not uvs[vi]:
                     uv = uv_layer_data[li].uv
                     uvs[vi] = (uv[0], 1 - uv[1], 0, 1)
+                else:
+                    # Calculate the ev value to write then compare it to what
+                    # we have already to see if we need to split the vert.
+                    uv = uv_layer_data[li].uv
+                    uv = (uv[0], 1 - uv[1], 0, 1)
+                    if uv != uvs[vi]:
+                        vert_needs_split = True
+                        uvs.append(uv)
                 if not normals[vi]:
                     normals[vi] = (norm[0], norm[1], norm[2], 1)
+                elif vert_needs_split:
+                    normals.append((norm[0], norm[1], norm[2], 1))
                 if not tangents[vi]:
                     # TODO: fix
                     if poly.loop_total == 3:
@@ -666,12 +650,35 @@ class Exporter():
                             tuple(data.vertices[j].co for j in poly_verts),
                             tuple(uv_layer_data[j].uv for j in poly_indexes),
                             norm)
-                    tangents[vi] = (tang[0], tang[1], tang[2], 1)
+                        tangents[vi] = (tang[0], tang[1], tang[2], 1)
+                elif vert_needs_split:
+                    if poly.loop_total == 3:
+                        tang = calc_tangents(
+                            tuple(data.vertices[j].co for j in poly_verts),
+                            tuple(uv_layer_data[j].uv for j in poly_indexes),
+                            norm)
+                    tangents.append((tang[0], tang[1], tang[2], 1))
                 if colours and not colours[vi]:
                     vcol = colour_data[li].color
                     colours[vi] = (int(255 * vcol[0]),
                                    int(255 * vcol[1]),
                                    int(255 * vcol[2]))
+                if vert_needs_split:
+                    # If the vert got split, we need to add an extra index also
+                    # This will be 1 less than the length as we have already
+                    # added the new uv value to the list up above.
+                    new_idx = len(uvs) - 1
+                    # Change the value of the index in the poly_verts list so
+                    # that when we write the tri it will be correct.
+                    if not _modified_poly_verts:
+                        _modified_poly_verts = poly_verts[:]
+                    _modified_poly_verts[i] = new_idx
+                    # If we split the vert, add it to the end of the vert list.
+                    verts.append(verts[vi])
+            if _modified_poly_verts:
+                indexes += _modified_poly_verts
+            else:
+                indexes += poly_verts
 
         # finally, let's find the convex hull data of the mesh:
         chverts = generate_hull(data)
@@ -687,18 +694,34 @@ class Exporter():
                     all(verts) and all(uvs) and all(normals) and all(tangents)
                 )
         ):
-            bad = []
+            print(f'Part {ob.name} has some issues:')
+            print('-------------------------------')
             if not all(verts):
-                print(f'bad verts: {verts}')
+                bad_idxs = []
+                for i, val in enumerate(verts):
+                    if val is None:
+                        bad_idxs.append(i)
+                print(f'bad vert indexes: ({", ".join(bad_idxs[:100])})')
             if not all(uvs):
-                print(f'bad uvs: {uvs}')
+                bad_idxs = []
+                for i, val in enumerate(uvs):
+                    if val is None:
+                        bad_idxs.append(i)
+                print(f'bad uv indexes: ({", ".join(bad_idxs[:100])})')
             if not all(normals):
-                print(f'bad normals: {normals}')
+                bad_idxs = []
+                for i, val in enumerate(normals):
+                    if val is None:
+                        bad_idxs.append(i)
+                print(f'bad normal indexes: ({", ".join(bad_idxs[:100])})')
             if not all(tangents):
-                print(f'bad tangents: {tangents}')
+                bad_idxs = []
+                for i, val in enumerate(tangents):
+                    if val is None:
+                        bad_idxs.append(i)
+                print(f'bad tangent indexes: ({", ".join(bad_idxs[:100])})')
 
-            raise ValueError(
-                f'There was an error parsing the mesh... bad: {" ".join(bad)}')
+            raise ValueError('There was an error parsing the mesh...')
 
         """
         # Apply rotation and normal matrices on vertices and normal vectors
@@ -708,6 +731,9 @@ class Exporter():
             apply_local_transform(ROT_X_MAT, tangents, use_norm_mat=True)
             apply_local_transform(ROT_X_MAT, chverts, normalize=False)
         """
+
+        print(f'Exported with {len(verts)} verts, {len(uvs)} uvs, '
+              f'{len(normals)} normals, {len(indexes)} indexes')
 
         return verts, normals, tangents, uvs, indexes, chverts, colours
 
