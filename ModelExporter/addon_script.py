@@ -604,6 +604,15 @@ class Exporter():
 
         bpy.ops.object.mode_set(mode='OBJECT')
 
+        # TODO: We can detect dangling vertexes/ones which don't belong to a
+        # face by using:
+        # [v for v in bm.verts if not v.link_faces]
+        # `link_faces` is a property of a bmesh.types.BMVert object.
+        # Can probably filter to remove these either permanently or just adjust
+        # the exported data to not include them (but then may need to adjust the
+        # counts all over the place which may be tricky.)
+        # TBD once I get a model with this issue I can test with.
+
         for poly in data.polygons:
             norm = poly.normal
             poly_verts = []
@@ -644,13 +653,17 @@ class Exporter():
                 elif vert_needs_split:
                     normals.append((norm[0], norm[1], norm[2], 1))
                 if not tangents[vi]:
-                    # TODO: fix
                     if poly.loop_total == 3:
                         tang = calc_tangents(
                             tuple(data.vertices[j].co for j in poly_verts),
                             tuple(uv_layer_data[j].uv for j in poly_indexes),
                             norm)
                         tangents[vi] = (tang[0], tang[1], tang[2], 1)
+                    else:
+                        print('This mesh is not currently supported.')
+                        print('If you see this message please raise an issue '
+                              'on discord and attach this blend file.')
+                        raise NotImplementedError('Polygons need to be tris')
                 elif vert_needs_split:
                     if poly.loop_total == 3:
                         tang = calc_tangents(
@@ -658,11 +671,17 @@ class Exporter():
                             tuple(uv_layer_data[j].uv for j in poly_indexes),
                             norm)
                     tangents.append((tang[0], tang[1], tang[2], 1))
-                if colours and not colours[vi]:
-                    vcol = colour_data[li].color
-                    colours[vi] = (int(255 * vcol[0]),
-                                   int(255 * vcol[1]),
-                                   int(255 * vcol[2]))
+                if export_colours:
+                    if not colours[vi]:
+                        vcol = colour_data[li].color
+                        colours[vi] = (int(255 * vcol[0]),
+                                    int(255 * vcol[1]),
+                                    int(255 * vcol[2]))
+                    elif vert_needs_split:
+                        vcol = colour_data[li].color
+                        colours.append((int(255 * vcol[0]),
+                                        int(255 * vcol[1]),
+                                        int(255 * vcol[2])))
                 if vert_needs_split:
                     # If the vert got split, we need to add an extra index also
                     # This will be 1 less than the length as we have already
@@ -694,34 +713,40 @@ class Exporter():
                     all(verts) and all(uvs) and all(normals) and all(tangents)
                 )
         ):
+            bad = []
             print(f'Part {ob.name} has some issues:')
             print('-------------------------------')
             if not all(verts):
                 bad_idxs = []
                 for i, val in enumerate(verts):
                     if val is None:
-                        bad_idxs.append(i)
+                        bad_idxs.append(str(i))
                 print(f'bad vert indexes: ({", ".join(bad_idxs[:100])})')
+                bad.append('verts')
             if not all(uvs):
                 bad_idxs = []
                 for i, val in enumerate(uvs):
                     if val is None:
-                        bad_idxs.append(i)
+                        bad_idxs.append(str(i))
                 print(f'bad uv indexes: ({", ".join(bad_idxs[:100])})')
+                bad.append('uvs')
             if not all(normals):
                 bad_idxs = []
                 for i, val in enumerate(normals):
                     if val is None:
-                        bad_idxs.append(i)
+                        bad_idxs.append(str(i))
                 print(f'bad normal indexes: ({", ".join(bad_idxs[:100])})')
+                bad.append('normals')
             if not all(tangents):
                 bad_idxs = []
                 for i, val in enumerate(tangents):
                     if val is None:
-                        bad_idxs.append(i)
+                        bad_idxs.append(str(i))
                 print(f'bad tangent indexes: ({", ".join(bad_idxs[:100])})')
+                bad.append('tangents')
 
-            raise ValueError('There was an error parsing the mesh...')
+            raise ValueError('There was an error parsing the mesh... '
+                             f'Bad: {", ".join(bad)}. Scroll up to see details')
 
         """
         # Apply rotation and normal matrices on vertices and normal vectors
@@ -732,8 +757,15 @@ class Exporter():
             apply_local_transform(ROT_X_MAT, chverts, normalize=False)
         """
 
-        print(f'Exported with {len(verts)} verts, {len(uvs)} uvs, '
-              f'{len(normals)} normals, {len(indexes)} indexes')
+        if not is_coll_mesh:
+            print(f'Exported with {len(verts)} verts, {len(uvs)} uvs, '
+                f'{len(normals)} normals, {len(indexes)} indexes')
+            if isinstance(colours, list):
+                print(f'Also exported {len(colours)} colours')
+            else:
+                print(f'Colours is: {colours}')
+        else:
+            print(f'Exported collisions with {len(verts)} verts')
 
         return verts, normals, tangents, uvs, indexes, chverts, colours
 
@@ -1051,7 +1083,7 @@ class Exporter():
             actualname = get_obj_name(ob, None)
             # Get Color
             if actualname:
-                col = tuple(ob.color)
+                col = tuple(ob.data.color)
             print("colour: {}".format(col))
             # Get Intensity
             intensity = ob.NMSLight_props.intensity_value

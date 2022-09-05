@@ -20,7 +20,7 @@ from array import array
 # Internal imports
 from ..NMS.classes import (TkAttachmentData, TkGeometryData, List,
                            TkVertexElement, TkVertexLayout, Vector4f)
-from ..NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES
+from ..NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES, COLOURS
 from ..serialization.mbincompiler import mbinCompiler
 from ..serialization.StreamCompiler import StreamData, TkMeshMetaData
 from ..serialization.serializers import (serialize_index_stream,
@@ -145,6 +145,8 @@ class Export():
         # This dictionary contains all the information for the geometry file
         self.GeometryData = odict()
 
+        self.preprocess_streams()
+
         if (not self.preserve_node_info
                 or (self.preserve_node_info
                     and self.export_original_geom_data)):
@@ -154,8 +156,6 @@ class Export():
 
             # generate the geometry stream data now
             self.serialize_data()
-
-        self.preprocess_streams()
 
         # This will just be some default entity with physics data
         # This is created with the Physics Component Data by default
@@ -263,11 +263,12 @@ class Export():
         metadata = odict()
         for name in self.mesh_names:
             vertex_data.append(serialize_vertex_stream(
-                verts=self.vertex_stream[name],
-                uvs=self.uv_stream[name],
-                normals=self.n_stream[name],
-                tangents=self.t_stream[name],
-                colours=self.c_stream[name]))
+                requires=self.stream_list,
+                Vertices=self.vertex_stream[name],
+                UVs=self.uv_stream[name],
+                Normals=self.n_stream[name],
+                Tangents=self.t_stream[name],
+                Colours=self.c_stream[name]))
             new_indexes = self.index_stream[name]
             if max(new_indexes) > 2 ** 16:
                 indexes = array('I', new_indexes)

@@ -72,7 +72,6 @@ class TkMeshData():
 
     def __bytes__(self):
         b = self.ID
-        print(self.hash, self.vertex_size, self.index_size)
         b += pack('<QII', self.hash, self.vertex_size, self.index_size)
         b += self.list_data
         return b

@@ -60,8 +60,10 @@ class NMSMaterialProperties(bpy.types.PropertyGroup):
 
 
 class NMSLightProperties(bpy.types.PropertyGroup):
-    intensity_value: FloatProperty(name="Intensity",
-                                   description="Intensity of the light.")
+    intensity_value: FloatProperty(
+        name="Intensity",
+        description="Intensity of the light.",
+        default=1000, min=0)
     FOV_value: FloatProperty(
         name="FOV", description="Field of View of the lightsource.",
         default=360, min=0, max=360)

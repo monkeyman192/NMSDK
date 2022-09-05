@@ -3,6 +3,7 @@ import os.path as op
 import struct
 from math import radians
 import subprocess
+import time
 from typing import List
 
 # Blender imports
@@ -370,9 +371,7 @@ class ImportScene():
                     else:
                         added_obj = self._add_primitive_collision_to_scene(obj)
             elif obj.Type == 'LIGHT':
-                # TODO: FIXME
-                pass
-                # added_obj = self._add_light_to_scene(obj)
+                added_obj = self._add_light_to_scene(obj)
             # Get the added object and give it its scene node data so that it
             # can be rexported in a more faithful way.
             if added_obj:
@@ -695,14 +694,14 @@ class ImportScene():
         light.use_nodes = True
         # Divide by some arbitary amount... This will need to be played with...
         light.falloff_type = 'INVERSE_SQUARE'
-        intensity = float(scene_node.Attribute('INTENSITY')) / 100
+        light_intensity = float(scene_node.Attribute('INTENSITY'))
+        intensity = light_intensity / 100
         light.node_tree.nodes['Emission'].inputs[1].default_value = intensity
         light_obj = bpy.data.objects.new(name, light)
         light_obj.NMSNode_props.node_types = TYPE_MAP[scene_node.Type]
         # This is pretty much just a hack until I can get the value directly
         # from the node. This is just easier really...
-        light_obj.NMSLight_props.intensity_value = float(
-            scene_node.Attribute('INTENSITY'))
+        light_obj.NMSLight_props.intensity_value = light_intensity
 
         self.local_objects[scene_node] = light_obj
 

@@ -63,3 +63,9 @@ REV_SEMANTICS = {VERTS: 'Vertices',
                  COLOURS: 'Colours',
                  BLENDINDEX: 'BlendIndex',
                  BLENDWEIGHT: 'BlendWeight'}
+
+SERIALIZE_FMT_MAP = {VERTS: 0,
+                     UVS: 0,
+                     NORMS: 1,
+                     TANGS: 1,
+                     COLOURS: 2}
