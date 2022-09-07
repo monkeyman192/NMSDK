@@ -767,6 +767,12 @@ class NMS_Export_Operator(Operator, ExportHelper):
         main_exporter = Exporter(export_path, self.export_directory,
                                  self.group_name, scene_name, keywords)
         status = main_exporter.state
+        if main_exporter.warnings:
+            invalid_lights = main_exporter.warnings.get('light_is_mesh', [])
+            invalid_lights_msg = ('The following lights are meshes: '
+                                  f'{", ".join(invalid_lights)}')
+            self.report({'WARNING'}, invalid_lights_msg)
+            print(invalid_lights_msg)
         if status == {'FINISHED'}:
             self.report({'INFO'}, "Models Exported Successfully")
         return status

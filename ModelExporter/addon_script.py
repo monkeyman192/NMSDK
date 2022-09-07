@@ -5,6 +5,8 @@ import os.path as op
 import shutil
 # blender imports
 import bpy
+from bpy.types import Mesh as BlenderMesh
+from bpy.types import Light as BlenderLight
 import bmesh
 from idprop.types import IDPropertyGroup
 from mathutils import Matrix, Vector
@@ -139,9 +141,9 @@ def create_sampler(image, sampler_name: str, texture_dir: str,
         else:
             new_fname = f'{force_material_name}.{type_}.DDS'.upper()
     else:
-        # TODO: Need to check if the image.filepath is only a single filename.
-        # If so, we don't need to split (or take the 0th element of the split)
-        new_fname = op.splitext(op.split(image.filepath)[1])[0] + '.DDS'
+        # Clean the file name a bit and then extract the actual name from it.
+        fpath = op.normpath(image.filepath.lstrip('/\\'))
+        new_fname = op.splitext(op.basename(fpath))[0] + '.DDS'
     relpath = op.join(texture_dir, new_fname)
     out_tex_path = op.join(output_dir, relpath)
 
@@ -207,6 +209,7 @@ class Exporter():
         self.settings = settings
 
         self.state = None
+        self.warnings = {}
 
         self.material_dict = {}
         self.material_ids = []
@@ -630,14 +633,14 @@ class Exporter():
                 # on the tri it's used by.
                 vert_needs_split = False
                 # Loop over the indices
-                if not verts[vi]:
+                if verts[vi] is None:
                     v = data.vertices[vi].co
                     verts[vi] = (v[0], v[1], v[2], 1)
                 if is_coll_mesh:
                     # If we are parsing the collision mesh, we don't need to
                     # try and get any data other than the verts and indexes
                     continue
-                if not uvs[vi]:
+                if uvs[vi] is None:
                     uv = uv_layer_data[li].uv
                     uvs[vi] = (uv[0], 1 - uv[1], 0, 1)
                 else:
@@ -648,11 +651,11 @@ class Exporter():
                     if uv != uvs[vi]:
                         vert_needs_split = True
                         uvs.append(uv)
-                if not normals[vi]:
+                if normals[vi] is None:
                     normals[vi] = (norm[0], norm[1], norm[2], 1)
                 elif vert_needs_split:
                     normals.append((norm[0], norm[1], norm[2], 1))
-                if not tangents[vi]:
+                if tangents[vi] is None:
                     if poly.loop_total == 3:
                         tang = calc_tangents(
                             tuple(data.vertices[j].co for j in poly_verts),
@@ -675,8 +678,8 @@ class Exporter():
                     if not colours[vi]:
                         vcol = colour_data[li].color
                         colours[vi] = (int(255 * vcol[0]),
-                                    int(255 * vcol[1]),
-                                    int(255 * vcol[2]))
+                                       int(255 * vcol[1]),
+                                       int(255 * vcol[2]))
                     elif vert_needs_split:
                         vcol = colour_data[li].color
                         colours.append((int(255 * vcol[0]),
@@ -705,64 +708,45 @@ class Exporter():
             # If we created a temporary data object then delete it
             del data
 
-        # Do a final check to make sure that every value has something in it
-        # in the vertex etc data
-        if (
-            not is_coll_mesh
-                and not (
-                    all(verts) and all(uvs) and all(normals) and all(tangents)
-                )
-        ):
-            bad = []
-            print(f'Part {ob.name} has some issues:')
-            print('-------------------------------')
+        # Check to see if any of the meshes are missing values. If they are,
+        # then fill them in with the original values.
+        if not is_coll_mesh:
+            # Might as well put the actual vert data since we know it anyway.
             if not all(verts):
-                bad_idxs = []
-                for i, val in enumerate(verts):
-                    if val is None:
-                        bad_idxs.append(str(i))
-                print(f'bad vert indexes: ({", ".join(bad_idxs[:100])})')
-                bad.append('verts')
+                bad_verts_count = 0
+                for i, v in enumerate(verts):
+                    if v is None:
+                        _vert = data.vertices[i].co
+                        verts[i] = (_vert[0], _vert[1], _vert[2], 1)
+                        bad_verts_count += 1
+                if bad_verts_count:
+                    print((f'Found {bad_verts_count} verts not belonging to '
+                           'any faces. Consider removing them.'))
+            # For the rest, put empty data as it's not worth calculating for
+            # points that won't be seen.
             if not all(uvs):
-                bad_idxs = []
-                for i, val in enumerate(uvs):
-                    if val is None:
-                        bad_idxs.append(str(i))
-                print(f'bad uv indexes: ({", ".join(bad_idxs[:100])})')
-                bad.append('uvs')
+                for i, v in enumerate(uvs):
+                    if v is None:
+                        uvs[i] = (0, 0, 0, 1)
             if not all(normals):
-                bad_idxs = []
-                for i, val in enumerate(normals):
-                    if val is None:
-                        bad_idxs.append(str(i))
-                print(f'bad normal indexes: ({", ".join(bad_idxs[:100])})')
-                bad.append('normals')
+                for i, v in enumerate(normals):
+                    if v is None:
+                        normals[i] = (0, 0, 0, 1)
             if not all(tangents):
-                bad_idxs = []
-                for i, val in enumerate(tangents):
-                    if val is None:
-                        bad_idxs.append(str(i))
-                print(f'bad tangent indexes: ({", ".join(bad_idxs[:100])})')
-                bad.append('tangents')
-
-            raise ValueError('There was an error parsing the mesh... '
-                             f'Bad: {", ".join(bad)}. Scroll up to see details')
-
-        """
-        # Apply rotation and normal matrices on vertices and normal vectors
-        if ob.rotation_mode != 'QUATERNION':
-            apply_local_transform(ROT_X_MAT, verts, normalize=False)
-            apply_local_transform(ROT_X_MAT, normals, use_norm_mat=True)
-            apply_local_transform(ROT_X_MAT, tangents, use_norm_mat=True)
-            apply_local_transform(ROT_X_MAT, chverts, normalize=False)
-        """
+                for i, v in enumerate(tangents):
+                    if v is None:
+                        tangents[i] = (0, 0, 0, 1)
+            if export_colours and not all(colours):
+                for i, v in enumerate(colours):
+                    if v is None:
+                        colours[i] = (0, 0, 0)
 
         if not is_coll_mesh:
             print(f'Exported with {len(verts)} verts, {len(uvs)} uvs, '
-                f'{len(normals)} normals, {len(indexes)} indexes')
+                  f'{len(normals)} normals, {len(indexes)} indexes')
             if isinstance(colours, list):
                 print(f'Also exported {len(colours)} colours')
-            else:
+            elif colours:
                 print(f'Colours is: {colours}')
         else:
             print(f'Exported collisions with {len(verts)} verts')
@@ -1083,8 +1067,14 @@ class Exporter():
             actualname = get_obj_name(ob, None)
             # Get Color
             if actualname:
-                col = tuple(ob.data.color)
-            print("colour: {}".format(col))
+                if isinstance(ob.data, BlenderMesh):
+                    col = tuple(ob.color)
+                    if 'light_is_mesh' in self.warnings:
+                        self.warnings['light_is_mesh'].append(actualname)
+                    else:
+                        self.warnings['light_is_mesh'] = [actualname, ]
+                elif isinstance(ob.data, BlenderLight):
+                    col = tuple(ob.data.color)
             # Get Intensity
             intensity = ob.NMSLight_props.intensity_value
 
