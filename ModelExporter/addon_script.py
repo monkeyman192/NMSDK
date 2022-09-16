@@ -704,9 +704,6 @@ class Exporter():
 
         # finally, let's find the convex hull data of the mesh:
         chverts = generate_hull(data)
-        if data_is_fake:
-            # If we created a temporary data object then delete it
-            del data
 
         # Check to see if any of the meshes are missing values. If they are,
         # then fill them in with the original values.
@@ -741,6 +738,10 @@ class Exporter():
                     if v is None:
                         colours[i] = (0, 0, 0)
 
+        if data_is_fake:
+            # If we created a temporary data object then delete it
+            del data
+
         if not is_coll_mesh:
             print(f'Exported with {len(verts)} verts, {len(uvs)} uvs, '
                   f'{len(normals)} normals, {len(indexes)} indexes')
@@ -749,7 +750,8 @@ class Exporter():
             elif colours:
                 print(f'Colours is: {colours}')
         else:
-            print(f'Exported collisions with {len(verts)} verts')
+            print(f'Exported collisions with {len(verts)} verts, '
+                  f'{len(indexes)} indexes')
 
         return verts, normals, tangents, uvs, indexes, chverts, colours
 
