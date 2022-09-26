@@ -20,7 +20,7 @@ from array import array
 # Internal imports
 from ..NMS.classes import (TkAttachmentData, TkGeometryData, List,
                            TkVertexElement, TkVertexLayout, Vector4f)
-from ..NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES, COLOURS
+from ..NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES
 from ..serialization.mbincompiler import mbinCompiler
 from ..serialization.StreamCompiler import StreamData, TkMeshMetaData
 from ..serialization.serializers import (serialize_index_stream,
@@ -391,7 +391,7 @@ class Export():
 
         # Also add the bounded hull vert start and ends
         for name, obj in self.Model.mesh_colls.items():
-            length = len(obj.CHVerts)
+            length = len(obj.Vertices)
             start = self.GeometryData['BoundHullVertEd'][-1]
             end = start + length
             self.GeometryData['BoundHullVertSt'].append(start)
@@ -655,7 +655,10 @@ class Export():
         self.GeometryData['MeshAABBMin'] = List()
         self.GeometryData['MeshAABBMax'] = List()
 
-        for obj in self.Model.Meshes.values():
+        # Combine the meshes
+        objs = [*self.Model.Meshes.values(), *self.Model.mesh_colls.values()]
+
+        for obj in objs:
             v_stream = obj.Vertices
             x_verts = [i[0] for i in v_stream]
             y_verts = [i[1] for i in v_stream]

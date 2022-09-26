@@ -28,8 +28,9 @@ class TkMeshMetaData():
 
     def __bytes__(self):
         b = self.ID
-        b += pack('<QIIIIQ', self.hash, self.vert_size, self.vert_offset,
+        b += pack('<QIIII?', self.hash, self.vert_size, self.vert_offset,
                   self.index_size, self.index_offset, 0)
+        b += b'\xFE\xFE\xFE\xFE\xFE\xFE\xFE'  # The end padding is 7 0xFE's
         return b
 
     @property

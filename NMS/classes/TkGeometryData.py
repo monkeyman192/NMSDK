@@ -1,6 +1,5 @@
 # TkGeometryData struct
 
-from collections import OrderedDict
 from io import BufferedWriter
 from struct import pack
 
@@ -54,13 +53,7 @@ class TkGeometryData(Struct):
         return data
 
     def serialize(self, output: BufferedWriter):
-        # list header ending
-        lst_end = b'\x01\x00\x00\x00'
-
-        bytes_in_list = 0
         curr_offset = 0xE0
-
-        list_data = OrderedDict()
 
         if self.data['IndexCount'] % 2 != 0 or self.data['IndexCount'] > 32767:
             # in this case we have an odd number of verts. set the Indices16Bit
@@ -126,8 +119,9 @@ class TkGeometryData(Struct):
             if name in ('JointBindings', 'JointExtents', 'JointMirrorPairs',
                         'JointMirrorAxes', 'SkinMatrixLayout'):
                 # For now, we will have this as 0 always...
-                # Instead of removing this from the outer list, I'll leave it in
-                # case we want to change this or add this functionality later.
+                # Instead of removing this from the outer list, I'll leave it
+                # in case we want to change this or add this functionality
+                # later.
                 pass
             else:
                 output.write(self.serialize_list(name))
@@ -160,7 +154,9 @@ class TkGeometryData(Struct):
         output.write(index_buffer_data)
         if output.tell() != curr_offset:
             output.seek(empty_offsets['IndexBuffer'], 0)
-            output.write(pack('<Q', curr_offset - empty_offsets['IndexBuffer']))
+            output.write(
+                pack('<Q', curr_offset - empty_offsets['IndexBuffer'])
+            )
             output.seek(0, 2)
 
         curr_offset = output.tell()

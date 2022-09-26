@@ -69,7 +69,11 @@ class List():
         return bytes(data)
 
     def __str__(self):
-        return 'List of containing {0} elements'.format(len(self))
+        if len(self) > 0:
+            return (f'List of {self.subElements[0].__class__.__name__} '
+                    f'containing {len(self)} element(s)')
+        else:
+            return 'Empty List'
 
     def __repr__(self):
         return str(self)
@@ -78,9 +82,9 @@ class List():
         # returns the total length of the data when it would be serialized
         # (TOTAL. ie. size of each element * length of list)
         try:
-            return len(self.subElements[0])*len(self)
+            return len(self.subElements[0]) * len(self)
         except TypeError:
-            return 4*len(self)
+            return 4 * len(self)
         except IndexError:
             return 0
 

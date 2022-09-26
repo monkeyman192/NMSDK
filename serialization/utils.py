@@ -8,7 +8,7 @@ def float_to_hex(num):
 
 
 # TODO: Rename
-def list_header(offset, size, end = b'\x01\x00\x00\x00'):
+def list_header(offset, size, end=b'\x01\x00\x00\x00'):
     """ Generate the list header.
 
     Parameters
@@ -69,9 +69,11 @@ def pad(input_data, length, pad_char=b'\x00', null_terminated=False):
 def to_chr(string):
     # this is a string of hex data
     out_string = ''
-    for i in range(0, len(string)-1, 2):
+    for i in range(0, len(string) - 1, 2):
         # bit messy but seems to be needed to get all the characters..
-        out_string += bytes((int(string[i: i+2], 16),)).decode("windows-1252")
+        out_string += bytes((int(string[i: i + 2], 16),)).decode(
+            "windows-1252"
+        )
     return out_string
 
 
