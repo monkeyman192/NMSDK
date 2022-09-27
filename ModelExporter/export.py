@@ -195,7 +195,8 @@ class Export():
         # write all the files
         self.write()
 
-        self.convert_to_mbin()
+        if not self.settings.get('no_convert', False):
+            self.convert_to_mbin()
 
     def create_paths(self):
         # check whether the require paths exist and make them

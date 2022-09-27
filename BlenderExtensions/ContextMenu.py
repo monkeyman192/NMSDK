@@ -2,6 +2,7 @@
 
 # stdlib imports
 from copy import copy
+import math
 
 # Local imports
 from ..utils.misc import get_root_node, clone_node
@@ -12,6 +13,9 @@ import bmesh
 import bpy
 from bpy.types import Menu, Operator
 from mathutils import Matrix
+
+
+CONE_ROTATION_MAT = Matrix.Rotation(math.radians(90), 4, 'X')
 
 
 class AddReferenceNode(Operator):
@@ -160,7 +164,7 @@ class AddCylinderCollisionNode(Operator):
             bm = bmesh.new()
             bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True,
                                   radius1=0.5, radius2=0.5, depth=1.0,
-                                  segments=20, matrix=Matrix())
+                                  segments=20, matrix=CONE_ROTATION_MAT)
             bm.to_mesh(mesh)
             bm.free()
             cylinder = bpy.data.objects.new('cylinder', mesh)

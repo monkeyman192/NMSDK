@@ -940,13 +940,8 @@ class Exporter():
                                          0.5 * dims[1] / factor[1],
                                          0.5 * dims[2] / factor[2]])
             elif colType == "Cylinder":
-                #optdict['Radius'] = min([0.5*dims[0]/factor[0],
-                                         #0.5*dims[2]/factor[2]])
-                #<--Kibs Fix-->
                 optdict['Radius'] = min([dims[0] / factor[0],
                                          dims[1] / factor[1]])
-                #optdict['Height'] = dims[1]/factor[1]
-                #<--Kibs Fix-->
                 optdict['Height'] = dims[2] / factor[2]
             elif colType == "Capsule":
                 optdict['Radius'] = min([dims[0] / factor[0],

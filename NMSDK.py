@@ -50,43 +50,51 @@ class ImportSceneOperator(Operator):
         name='Clear scene',
         description='Whether or not to clear the currently exiting scene in '
                     'blender.',
-        default=True)
+        default=True,
+    )
 
     draw_hulls: BoolProperty(
         name='Draw bounded hulls',
         description='Whether or not to draw the points that make up the '
                     'bounded hulls of the materials. This is only for research'
                     '/debugging, so can safely be left as False.',
-        default=False)
+        default=False,
+    )
     import_collisions: BoolProperty(
         name='Import collisions',
         description='Whether or not to import the collision objects.',
-        default=True)
+        default=True,
+    )
     show_collisions: BoolProperty(
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
-        default=False)
+        default=False,
+    )
     import_recursively: BoolProperty(
         name='Import recursively',
         description='Whether or not to import reference nodes automatically.\n'
                     'For large scenes with many referenced scenes it is better'
                     ' to set this as False to avoid long wait times, and then '
                     'only import the scenes you want after it has loaded.',
-        default=True)
+        default=True,
+    )
     # Animation related properties
     import_bones: BoolProperty(
         name='Import bones',
         description="Whether or not to import the models' bones",
-        default=False)
+        default=False,
+    )
     import_anims: BoolProperty(
         name='Import animations',
         description='Whether or not to import animations for this scene',
-        default=False)
+        default=False,
+    )
     max_anims: IntProperty(
         name='Max loaded animations',
         description='Maximum number of animations to load',
         default=10,
-        soft_min=-1)
+        soft_min=-1,
+    )
 
     def execute(self, context):
         keywords = self.as_keywords()
@@ -120,17 +128,20 @@ class ExportSceneOperator(Operator):
 
     output_directory: StringProperty(
         name="Output Directory",
-        description="The directory the exported data is to be placed in.")
+        description="The directory the exported data is to be placed in."
+    )
     export_directory: StringProperty(
         name="Export Directory",
         description="The base path relative to the PCBANKS folder under which "
                     "all models will be exported.",
-        default="CUSTOMMODELS")
+        default="CUSTOMMODELS",
+    )
     group_name: StringProperty(
         name="Group Name",
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes "
-                    "group_name/scene_name).")
+                    "group_name/scene_name).",
+    )
     scene_name: StringProperty(
         name="Scene Name",
         description="Name of the scene to be exported.")
@@ -141,23 +152,36 @@ class ExportSceneOperator(Operator):
                     "\nNote that this will not currently export any geometry "
                     "data, so adding mesh collisions to an existing scene is "
                     "not currently possible.",
-        default=False)
+        default=False,
+    )
     AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
                     "be exported directly to an ENTITY file in the specified "
                     "location with the project name. Anything else in the "
                     "project is ignored",
-        default=False)
+        default=False,
+    )
     no_vert_colours: BoolProperty(
         name="Don't export vertex colours",
         description="Ticking this box will force vertex colours to not be "
                     "exported. Use this if you have accidentally added vertex "
                     "colours to a mesh and don't know how to get rid of them.",
-        default=False)
+        default=False,
+    )
+    no_convert: BoolProperty(
+        name="Don't convert files with MBINCompiler",
+        description="Ticking this will mean MBINCompiler will not be run on "
+                    "the produced files. This will leave a mix of .mbin and "
+                    ".exml files. This is generally not recommended unless "
+                    "you are trying to quickly test something as the .exml "
+                    "files will be not formatted nicely.",
+        default=False,
+    )
     idle_anim: StringProperty(
         name="Idle animation name",
-        description="The name of the animation that is the idle animation.")
+        description="The name of the animation that is the idle animation.",
+    )
 
     def execute(self, context):
         set_import_export_defaults(self, context)
@@ -622,7 +646,8 @@ class NMSDKDefaultSettings(PropertyGroup):
         """ Save the current settings. """
         settings = {'export_directory': self.export_directory,
                     'group_name': self.group_name,
-                    'PCBANKS_directory': self.PCBANKS_directory}
+                    'PCBANKS_directory': self.PCBANKS_directory,
+                    'MBINCompiler_path': self.MBINCompiler_path}
         write_settings(settings)
 
 
@@ -645,11 +670,13 @@ class NMS_Export_Operator(Operator, ExportHelper):
         name="Export Directory",
         description="The base path relative to the PCBANKS folder under which "
                     "all models will be exported.",
-        default="CUSTOMMODELS")
+        default="CUSTOMMODELS",
+    )
     group_name: StringProperty(
         name="Group Name",
         description="Group name so that models that all belong in the same "
-                    "folder are placed there (path becomes group_name/name)")
+                    "folder are placed there (path becomes group_name/name)",
+    )
     preserve_node_info: BoolProperty(
         name="Preserve Node Info",
         description="If the exported scene was originally imported, preserve "
@@ -657,29 +684,43 @@ class NMS_Export_Operator(Operator, ExportHelper):
                     "\nNote that this will not currently export any geometry "
                     "data, so adding mesh collisions to an existing scene is "
                     "not currently possible.",
-        default=False)
+        default=False,
+    )
     reexport_geometry: BoolProperty(
         name="Re-export geometry data",
         description="(BETA) Whether or not to re-export the geometry data for "
                     "the current scene. This is not guaranteed to be the same "
                     "as the source geometry, however it should be sufficiently"
-                    " close.")
+                    " close.",
+    )
     AT_only: BoolProperty(
         name="ActionTriggers Only",
         description="If this box is ticked, all the action trigger data will "
                     "be exported directly to an ENTITY file in the specified "
                     "location with the project name. Anything else in the "
                     "project is ignored",
-        default=False)
+        default=False,
+    )
     no_vert_colours: BoolProperty(
         name="Don't export vertex colours",
         description="Ticking this box will force vertex colours to not be "
                     "exported. Use this if you have accidentally added vertex "
                     "colours to a mesh and don't know how to get rid of them.",
-        default=False)
+        default=False,
+    )
+    no_convert: BoolProperty(
+        name="Don't convert files with MBINCompiler",
+        description="Ticking this will mean MBINCompiler will not be run on "
+                    "the produced files. This will leave a mix of .mbin and "
+                    ".exml files. This is generally not recommended unless "
+                    "you are trying to quickly test something as the .exml "
+                    "files will be not formatted nicely.",
+        default=False,
+    )
     idle_anim: StringProperty(
         name="Idle animation name",
-        description="The name of the animation that is the idle animation.")
+        description="The name of the animation that is the idle animation.",
+    )
     export_anims: BoolProperty(
         name="Export animations",
         description="Whether to export animations",
@@ -690,25 +731,29 @@ class NMS_Export_Operator(Operator, ExportHelper):
                     "folder in the same location as the CUSTOMMODELS folder "
                     "called 'CUSTOMTEXTURES'. Otherwise the textures will be "
                     "located in a TEXTURES folder within the scene folder.",
-        default=False)
+        default=False,
+    )
     shared_texture_folder: StringProperty(
         name="Shared texture folder",
         description="The base path relative to the PCBANKS folder under which "
                     "all textures will be exported.",
-        default="CUSTOMTEXTURES")
+        default="CUSTOMTEXTURES",
+    )
     overwrite_textures: BoolProperty(
         name="Overwrite existing textures",
         description="If selected then force the exporter to overwrite any "
                     "existing .DDS files\nthat are created during the export "
                     "process.",
-        default=False)
+        default=False,
+    )
     rename_textures: BoolProperty(
         name="Rename textures based on material name",
         description="If selected then all textures are renamed when moved/"
                     "converted\nto be in the form "
                     "{material name}.{texture type}.DDS\n"
                     "(Only for masks and normals)",
-        default=False)
+        default=False,
+    )
 
     # ExportHelper mixin class uses this.
     filename_ext = ""
@@ -736,6 +781,7 @@ class NMS_Export_Operator(Operator, ExportHelper):
             layout.prop(self, 'reexport_geometry')
         layout.prop(self, 'AT_only')
         layout.prop(self, 'no_vert_colours')
+        layout.prop(self, 'no_convert')
 
         # Texture settings
         textures_box = layout.box()
