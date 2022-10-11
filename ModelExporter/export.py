@@ -16,7 +16,6 @@ import bpy
 import os
 import subprocess
 from collections import OrderedDict as odict
-from shutil import copy2
 from array import array
 # Internal imports
 from ..NMS.classes import (TkAttachmentData, TkGeometryData, List,
@@ -79,8 +78,8 @@ class Export():
         self.c_stream = odict()
         self.chvertex_stream = odict()
         # mesh collision convex hull data
-        self.ch_indexes = odict()
-        self.ch_verts = odict()
+        self.mesh_coll_indexes = odict()
+        self.mesh_coll_verts = odict()
         # a dictionary of the bounds of just mesh objects. This will be used
         # for the scene files
         self.mesh_bounds = odict()
@@ -93,6 +92,8 @@ class Export():
         # Make some settings values more easily accessible.
         self.preserve_node_info = self.settings.get('preserve_node_info',
                                                     False)
+        self.export_original_geom_data = self.settings.get('reexport_geometry',
+                                                           False)
 
         # a list of any extra properties to go in each entity
         # self.Entities = []
@@ -107,8 +108,8 @@ class Export():
             self.t_stream[mesh.Name] = mesh.Tangents
             if self.Model.has_vertex_colours:
                 if mesh.Colours is None:
-                    self.c_stream[mesh.Name] = ([[0, 0, 0, 0]] *
-                                                len(mesh.Vertices))
+                    self.c_stream[mesh.Name] = (
+                        [[0, 0, 0, 0]] * len(mesh.Vertices))
                 else:
                     self.c_stream[mesh.Name] = mesh.Colours
             else:
@@ -144,15 +145,17 @@ class Export():
         # This dictionary contains all the information for the geometry file
         self.GeometryData = odict()
 
-        if not self.preserve_node_info:
+        self.preprocess_streams()
+
+        if (not self.preserve_node_info
+                or (self.preserve_node_info
+                    and self.export_original_geom_data)):
             self.geometry_stream = StreamData(
                 '{}.GEOMETRY.DATA.MBIN.PC'.format(
                     os.path.join(self.basepath, self.scene_name)))
 
             # generate the geometry stream data now
             self.serialize_data()
-
-        self.preprocess_streams()
 
         # This will just be some default entity with physics data
         # This is created with the Physics Component Data by default
@@ -166,9 +169,6 @@ class Export():
         # this creates the VertexLayout and SmallVertexLayout properties
         self.create_vertex_layouts()
 
-        # Material defaults
-        self.process_materials()
-
         self.process_nodes()
         # make this last to make sure flattening each stream doesn't affect
         # other data.
@@ -176,7 +176,9 @@ class Export():
 
         # Assign each of the class objects that contain all of the data their
         # data
-        if not self.preserve_node_info:
+        if (not self.preserve_node_info
+                or (self.preserve_node_info
+                    and self.export_original_geom_data)):
             self.TkGeometryData = TkGeometryData(**self.GeometryData)
             self.TkGeometryData.make_elements(main=True)
         self.Model.construct_data()
@@ -193,14 +195,13 @@ class Export():
         # write all the files
         self.write()
 
-        self.convert_to_mbin()
+        if not self.settings.get('no_convert', False):
+            self.convert_to_mbin()
 
     def create_paths(self):
         # check whether the require paths exist and make them
         if not os.path.exists(self.ent_path):
             os.makedirs(self.ent_path)
-        if not os.path.exists(self.texture_path):
-            os.makedirs(self.texture_path)
         if not os.path.exists(self.anims_path) and len(self.anim_data) > 1:
             os.makedirs(self.anims_path)
 
@@ -263,11 +264,12 @@ class Export():
         metadata = odict()
         for name in self.mesh_names:
             vertex_data.append(serialize_vertex_stream(
-                verts=self.vertex_stream[name],
-                uvs=self.uv_stream[name],
-                normals=self.n_stream[name],
-                tangents=self.t_stream[name],
-                colours=self.c_stream[name]))
+                requires=self.stream_list,
+                Vertices=self.vertex_stream[name],
+                UVs=self.uv_stream[name],
+                Normals=self.n_stream[name],
+                Tangents=self.t_stream[name],
+                Colours=self.c_stream[name]))
             new_indexes = self.index_stream[name]
             if max(new_indexes) > 2 ** 16:
                 indexes = array('I', new_indexes)
@@ -306,7 +308,7 @@ class Export():
         v_stream_lens = list(self.v_stream_lens.values())
         self.vert_bounds = odict(zip(self.mesh_names,
                                      [(sum(v_stream_lens[:i]),
-                                       sum(v_stream_lens[:i+1])-1)
+                                       sum(v_stream_lens[:i + 1]) - 1)
                                       for i in range(self.num_mesh_objs)]))
         # bounded hull data
         ch_stream_lens = list(self.ch_stream_lens.values())
@@ -325,12 +327,16 @@ class Export():
 
         # get the convex hull index and vertex data
         for name, obj in self.Model.mesh_colls.items():
-            self.ch_indexes[name] = obj.CHIndexes
-            self.ch_verts[name] = obj.CHVerts
+            self.mesh_coll_indexes[name] = obj.Indexes
+            self.mesh_coll_verts[name] = obj.Vertices
 
         # get the total lengths for the geometry data
-        num_mesh_col_idxs = sum([len(x) for x in self.ch_indexes.values()])
-        num_mesh_col_verts = sum([len(x) for x in self.ch_verts.values()])
+        num_mesh_col_idxs = sum(
+            [len(x) for x in self.mesh_coll_indexes.values()]
+        )
+        num_mesh_col_verts = sum(
+            [len(x) for x in self.mesh_coll_verts.values()]
+        )
 
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = sum(
@@ -360,20 +366,25 @@ class Export():
 
         # create the list of mesh collision index data
         batch_offset = 0
-        for name in self.ch_verts.keys():
+        for name in self.mesh_coll_verts.keys():
             # For each mesh collision determine the start verts and indexes
             start_verts = self.GeometryData['MeshVertREnd'][-1] + 1
             start_idxs = batch_offset
-            end_verts = start_verts + len(self.ch_verts[name]) - 1
-            batch_offset = start_idxs + len(self.ch_indexes[name])
+            end_verts = start_verts + len(self.mesh_coll_verts[name]) - 1
+            batch_offset = start_idxs + len(self.mesh_coll_indexes[name])
             self.GeometryData['MeshVertRStart'].append(start_verts)
             self.GeometryData['MeshVertREnd'].append(end_verts)
             hull_verts[name] = (start_verts, end_verts)
-            hull_batches[name] = (start_idxs, len(self.ch_indexes[name]))
+            hull_batches[name] = (
+                start_idxs,
+                len(self.mesh_coll_indexes[name])
+            )
             # Add the mesh collision indexes
             self.index_stream[name] = [mesh_index_end + x for x in
-                                       self.ch_indexes[name]]
-            mesh_index_end = mesh_index_end + max(self.ch_indexes[name]) + 1
+                                       self.mesh_coll_indexes[name]]
+            mesh_index_end = (
+                mesh_index_end + max(self.mesh_coll_indexes[name]) + 1
+            )
         # Fix up the index values for the actual mesh data
         for name, batch in self.batches.items():
             self.batches[name] = [batch[0] + batch_offset,
@@ -381,7 +392,7 @@ class Export():
 
         # Also add the bounded hull vert start and ends
         for name, obj in self.Model.mesh_colls.items():
-            length = len(obj.CHVerts)
+            length = len(obj.Vertices)
             start = self.GeometryData['BoundHullVertEd'][-1]
             end = start + length
             self.GeometryData['BoundHullVertSt'].append(start)
@@ -394,7 +405,7 @@ class Export():
         self.GeometryData['BoundHullVerts'] = list()
         for name in self.mesh_names:
             hull_data += self.chvertex_stream[name]
-        for verts in self.ch_verts.values():
+        for verts in self.mesh_coll_verts.values():
             hull_data.extend(verts)
         for vert in hull_data:
             self.GeometryData['BoundHullVerts'].append(Vector4f(x=vert[0],
@@ -521,7 +532,7 @@ class Export():
                         data = {'WIDTH': obj.Width, 'HEIGHT': obj.Height,
                                 'DEPTH': obj.Depth}
                     elif obj.CType == 'Sphere':
-                        data = {'RADIUS': obj.Radius}
+                        data = {'RADIUS': 2 * obj.Radius}
                     elif obj.CType in ('Capsule', 'Cylinder'):
                         data = {'RADIUS': obj.Radius, 'HEIGHT': obj.Height}
                 elif obj._Type == 'MODEL':
@@ -529,7 +540,7 @@ class Export():
                     data = {'GEOMETRY': self.rel_named_path + ".GEOMETRY.MBIN"}
                 elif obj._Type in ['REFERENCE', 'LIGHT', 'JOINT']:
                     data = None
-            obj.create_attributes(data)
+            obj.create_attributes(data, self.export_original_geom_data)
 
     def create_vertex_layouts(self):
         # sort out what streams are given and create appropriate vertex layouts
@@ -547,7 +558,7 @@ class Export():
                                                       Instancing="PerVertex",
                                                       PlatformData=""))
                 # Also write the small vertex data
-                Offset = 8*sID
+                Offset = 8 * sID
                 SmallVertexElements.append(
                     TkVertexElement(SemanticID=sID,
                                     Size=4,
@@ -613,6 +624,9 @@ class Export():
                         # in the case this fails there is an index error caused
                         # by collisions. In this case just add a default value
                         VertexStream.extend((0, 0, 0, 1))
+                    except TypeError:
+                        print(f'{name} mesh has an error!')
+                        raise
 
         self.GeometryData['VertexStream'] = VertexStream
         self.GeometryData['SmallVertexStream'] = SmallVertexStream
@@ -642,7 +656,10 @@ class Export():
         self.GeometryData['MeshAABBMin'] = List()
         self.GeometryData['MeshAABBMax'] = List()
 
-        for obj in self.Model.Meshes.values():
+        # Combine the meshes
+        objs = [*self.Model.Meshes.values(), *self.Model.mesh_colls.values()]
+
+        for obj in objs:
             v_stream = obj.Vertices
             x_verts = [i[0] for i in v_stream]
             y_verts = [i[1] for i in v_stream]
@@ -660,39 +677,13 @@ class Export():
                 self.mesh_bounds[obj.Name] = {'x': x_bounds, 'y': y_bounds,
                                               'z': z_bounds}
 
-    def process_materials(self):
-        """ Process the material data and gives the textures the correct paths.
-        """
-        for material in self.materials:
-            if not isinstance(material, str):
-                # in this case we are given actual material data, not just a
-                # string path location
-                samplers = material['Samplers']
-                # this will have the order Diffuse, Masks, Normal and be a List
-                if samplers is not None:
-                    for sample in samplers.subElements:
-                        # this will be a TkMaterialSampler object
-                        # this should be the current absolute path to the
-                        # image, we want to move it to the correct relative
-                        # path
-                        t_path = str(sample['Map'])
-                        new_path = os.path.join(
-                            self.texture_path,
-                            os.path.basename(t_path).upper())
-                        try:
-                            copy2(t_path, new_path)
-                        except FileNotFoundError:
-                            # in this case the path is probably broken, just
-                            # set as empty if it wasn't before
-                            new_path = ""
-                        f_name, ext = os.path.splitext(new_path)
-                        sample['Map'] = f_name + ext.upper()
-
     def write(self):
         """ Write all of the files required for the scene. """
         # We only need to write the geometry data if we aren't preserving
         # imported node data.
-        if not self.preserve_node_info:
+        if (not self.preserve_node_info
+                or (self.preserve_node_info
+                    and self.export_original_geom_data)):
             mbinc = mbinCompiler(
                 self.TkGeometryData,
                 "{}.GEOMETRY.MBIN.PC".format(self.abs_name_path))

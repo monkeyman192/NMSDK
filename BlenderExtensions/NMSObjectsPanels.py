@@ -60,8 +60,10 @@ class NMSMaterialProperties(bpy.types.PropertyGroup):
 
 
 class NMSLightProperties(bpy.types.PropertyGroup):
-    intensity_value: FloatProperty(name="Intensity",
-                                   description="Intensity of the light.")
+    intensity_value: FloatProperty(
+        name="Intensity",
+        description="Intensity of the light.",
+        default=1000, min=0)
     FOV_value: FloatProperty(
         name="FOV", description="Field of View of the lightsource.",
         default=360, min=0, max=360)
@@ -76,6 +78,12 @@ class NMSAnimationProperties(bpy.types.PropertyGroup):
         name="Animation Type", description="Type of animation",
         items=[("OneShot", "OneShot", "Animation runs once (per trigger)"),
                ("Loop", "Loop", "Animation loops continuously")])
+
+
+class NMSJointProperties(bpy.types.PropertyGroup):
+    joint_id: IntProperty(
+        name="Joint Index",
+        description="The index of the joint, used for animation purposes.")
 
 
 class NMSLocatorProperties(bpy.types.PropertyGroup):
@@ -331,6 +339,30 @@ class NMSDK_PT_LocatorPropertyPanel(bpy.types.Panel):
         row.prop(obj.NMSLocator_props, "has_entity")
 
 
+class NMSDK_PT_JointPropertyPanel(bpy.types.Panel):
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "NMS Joint Properties"
+    bl_idname = "NMSDK_PT_JointPropertyPanel"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+    @classmethod
+    def poll(cls, context):
+        if (getParentRefScene(context.object) is not None and
+                context.object.NMSNode_props.node_types == 'Joint'):
+            return True
+        else:
+            return False
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+        row = layout.row()
+        row.label(text="Joint Index: ")
+        row.label(text=str(obj.NMSJoint_props.joint_id))
+
+
 class NMSDK_PT_RotationPropertyPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "NMS Rotation Properties"
@@ -439,6 +471,7 @@ classes = (NMSNodeProperties,
            NMSReferenceProperties,
            NMSLocatorProperties,
            NMSLightProperties,
+           NMSJointProperties,
            NMSRotationProperties,
            NMSAnimationProperties,
            NMSCollisionProperties,
@@ -451,6 +484,7 @@ panel_classes = (NMSDK_PT_NodePropertyPanel,
                  NMSDK_PT_LocatorPropertyPanel,
                  NMSDK_PT_RotationPropertyPanel,
                  NMSDK_PT_LightPropertyPanel,
+                 NMSDK_PT_JointPropertyPanel,
                  NMSDK_PT_AnimationPropertyPanel,
                  NMSDK_PT_CollisionPropertyPanel,
                  NMSDK_PT_DescriptorPropertyPanel)
@@ -473,6 +507,8 @@ class NMSPanels():
             type=NMSReferenceProperties)
         bpy.types.Object.NMSLocator_props = bpy.props.PointerProperty(
             type=NMSLocatorProperties)
+        bpy.types.Object.NMSJoint_props = bpy.props.PointerProperty(
+            type=NMSJointProperties)
         bpy.types.Object.NMSRotation_props = bpy.props.PointerProperty(
             type=NMSRotationProperties)
         bpy.types.Object.NMSLight_props = bpy.props.PointerProperty(
@@ -489,6 +525,9 @@ class NMSPanels():
 
     @staticmethod
     def unregister():
+        # unregister the panels
+        for cls_ in reversed(panel_classes):
+            unregister_class(cls_)
         # unregister the property classes
         for cls_ in reversed(classes):
             unregister_class(cls_)
@@ -499,10 +538,8 @@ class NMSPanels():
         del bpy.types.Object.NMSReference_props
         del bpy.types.Object.NMSRotation_props
         del bpy.types.Object.NMSLocator_props
+        del bpy.types.Object.NMSJoint_props
         del bpy.types.Object.NMSLight_props
         del bpy.types.Object.NMSAnimation_props
         del bpy.types.Object.NMSCollision_props
         del bpy.types.Object.NMSDescriptor_props
-        # unregister the panels
-        for cls_ in reversed(panel_classes):
-            unregister_class(cls_)

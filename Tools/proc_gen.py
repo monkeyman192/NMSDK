@@ -158,7 +158,7 @@ class GUI(Frame):
         number_len = len(str(length))
         # add 1 for the underscore
         if len(self.proc_name.get()) + number_len + 1 > 16:
-            short_name = self.proc_name.get().upper()[:16-number_len-1]
+            short_name = self.proc_name.get().upper()[:16 - number_len - 1]
             if messagebox.askyesno(
                 "Name Error", ("The name you have entered, '{0}', is too long."
                                "\n You can continue with a default shortened "

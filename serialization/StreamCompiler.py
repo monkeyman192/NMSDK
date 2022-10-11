@@ -23,13 +23,14 @@ class TkMeshMetaData():
 
     def read(self, data):
         self.ID = data.read(0x80)
-        self.hash, self.vertex_size, _, self.index_size, _ = unpack(
-            '<QIIII', data.read(0x18))
+        self.hash, self.vertex_size, _, self.index_size, _, _ = unpack(
+            '<QIIIIQ', data.read(0x20))
 
     def __bytes__(self):
         b = self.ID
-        b += pack('<QIIII', self.hash, self.vert_size, self.vert_offset,
-                  self.index_size, self.index_offset)
+        b += pack('<QIIII?', self.hash, self.vert_size, self.vert_offset,
+                  self.index_size, self.index_offset, 0)
+        b += b'\xFE\xFE\xFE\xFE\xFE\xFE\xFE'  # The end padding is 7 0xFE's
         return b
 
     @property
@@ -57,8 +58,10 @@ class TkMeshData():
         self.hash = hash
         self.vertex_size = vert_size
         self.index_size = index_size
-        self.list_data = (b'\x00'*8 + pack('<I', vert_size + index_size) +
-                          b'\x01\xFE\xFE\xFE')
+        self.list_data = (
+            b'\x00' * 8
+            + pack('<I', vert_size + index_size)
+            + b'\x01\xFE\xFE\xFE')
 
     def read(self, data):
         self.ID = data.read(0x80)
@@ -70,7 +73,6 @@ class TkMeshData():
 
     def __bytes__(self):
         b = self.ID
-        print(self.hash, self.vertex_size, self.index_size)
         b += pack('<QII', self.hash, self.vertex_size, self.index_size)
         b += self.list_data
         return b

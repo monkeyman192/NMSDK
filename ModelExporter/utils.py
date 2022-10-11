@@ -3,6 +3,7 @@
 # stdlib imports
 from array import array
 from hashlib import sha256
+from typing import Tuple
 # blender imports
 import bpy
 from mathutils import Matrix, Vector
@@ -101,8 +102,8 @@ def get_children(obj, obj_types=ALL_TYPES, condition=lambda x: True,
                 curr_children.append(child.name)
             else:
                 curr_children.append(child)
-        curr_children += get_children(child, list(), obj_types, condition,
-                                      just_names)
+        curr_children += get_children(child, obj_types, condition, just_names,
+                                      flatten)
     return curr_children
 
 
@@ -194,77 +195,26 @@ def apply_local_transforms(rotmat, verts, norms, tangents, chverts):
         chverts[i] = Vector4f(x=chvert[0], y=chvert[1], z=chvert[2], t=1.0)
 
 
-def calc_tangents(faces, verts, norms, uvs):
-    """ Calculate the tangents.
-
-    Parameters
-    ----------
-    faces : Unknown
-    verts : Unknown
-    norms : Unknown
-    uvs : Unknown
-
-    Returns
-    -------
-    tangents : Unknown
+def calc_tangents(verts: Tuple[Vector],
+                  uvs: Tuple[Vector],
+                  normal: Vector) -> Vector:
+    """ Calculate the tangents of 3 consecutive points in a polygon.
+    This is a bit different to normal tangent calculation as we are not doing
+    it based on tris, but polygons.
+    This gives very close results to the games files, but not exactly the same.
     """
-    tangents = []
-    # Init tangents
-    for i in range(len(verts)):
-        tangents.append(Vector((0, 0, 0, 0)))
-    # We assume that verts length will be a multiple of 3 since
-    # the mesh has been triangulated
+    deltaPos1 = verts[1] - verts[0]
+    deltaPos2 = verts[2] - verts[0]
 
-    trisNum = len(faces)
-    # Iterate in triangles
-    for i in range(trisNum):
-        tri = faces[i]
-        vert_1 = tri[0]
-        vert_2 = tri[1]
-        vert_3 = tri[2]
+    deltaUV1 = uvs[1] - uvs[0]
+    deltaUV2 = uvs[2] - uvs[0]
 
-        # Get Point Positions
-        P0 = Vector((verts[vert_1]))
-        P1 = Vector((verts[vert_2])) - P0
-        P2 = Vector((verts[vert_3])) - P0
-
-        P0_uv = Vector((uvs[vert_1]))
-        P1_uv = Vector((uvs[vert_2])) - P0_uv
-        P2_uv = Vector((uvs[vert_3])) - P0_uv
-        # Keep only the 1st uvmap
-        P1_uv = P1_uv.xy
-        P2_uv = P2_uv.xy
-
-        # Matrix determinant
-        D = P1_uv[0] * P2_uv[1] - P2_uv[0] * P1_uv[1]
-        D = 1.0 / max(D, 0.0001)  # Store the inverse right away
-
-        # Apply equation
-        tang = D * (P2_uv[1] * P1 - P1_uv[1] * P2)
-
-        # Orthogonalize Gram-Shmidt
-        n = Vector(norms[vert_1])
-        tang = tang - n * tang.dot(n)
-        # tang.normalize()
-
-        # Add to existing
-        # Vert_1
-        tangents[vert_1] += tang
-        # Vert_2
-        tangents[vert_2] += tang
-        # Vert_3
-        # tang3 = Vector(tangents[vert_3]) + tang;
-        # tang3.normalize()
-        tangents[vert_3] += tang
-
-    # Fix tangents
-    for i in range(len(verts)):
-        tang = tangents[i]
-        tang.normalize()
-        # (tangents[i].x, tangents[i].z, -tangents[i].y, 1.0)
-        tangents[i] = (tangents[i].x, tangents[i].y, tangents[i].z, 1.0)
-
-    return tangents
+    D = (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x)
+    r = 1 / max(D, 0.0001)
+    tang = r * (deltaUV2.y * deltaPos1 - deltaUV1.y * deltaPos2)
+    t = tang - (normal * normal.dot(tang))
+    t.normalize()
+    return t
 
 
 def transform_to_NMS_coords(ob):
@@ -284,3 +234,16 @@ def transform_to_NMS_coords(ob):
     Minv[3] = Vector((0.0, 0.0, 0.0, 1.0))
 
     return (M @ ob.matrix_local @ Minv).decompose()
+
+
+def get_surr(arr: list, idx: int) -> tuple:
+    """ Get the previous, current, and next fvalue in an array, wrapping at the
+    end of the array. """
+    if len(arr) < 3:
+        raise ValueError('Array to small for this to make sense...')
+    if idx == 0:
+        return (arr[-1], arr[0], arr[1])
+    elif idx == len(arr) - 1:
+        return (arr[-2], arr[-1], arr[0])
+    else:
+        return (arr[idx - 1], arr[idx], arr[idx + 1])

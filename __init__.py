@@ -1,9 +1,9 @@
 bl_info = {
     "name": "No Man's Sky Development Kit",
     "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 22),
-    "blender": (2, 82, 0),
-    "location": "File > Export",
+    "version": (0, 9, 23),
+    "blender": (3, 2, 0),
+    "location": "File > Export/Import",
     "description": "Create NMS scene structures and export to NMS File format",
     "warning": "",
     "wiki_url": "https://monkeyman192.github.io/NMSDK/",
@@ -102,7 +102,7 @@ def unregister():
         unregister_class(cls)
     del bpy.types.Scene.nmsdk_settings
     del bpy.types.Scene.nmsdk_default_settings
-    del bpy.types.Scene.anim_data
+    del bpy.types.Scene.nmsdk_anim_data
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
     NMSPanels.unregister()

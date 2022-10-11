@@ -1,14 +1,19 @@
 # stdlib imports
-import os.path as op
 from math import radians, degrees
+import os
+import os.path as op
+import shutil
 # blender imports
 import bpy
+from bpy.types import Mesh as BlenderMesh
+from bpy.types import Light as BlenderLight
 import bmesh
 from idprop.types import IDPropertyGroup
 from mathutils import Matrix, Vector
 # Internal imports
+from .utils import get_surr, calc_tangents
 from ..utils.misc import CompareMatrices, get_obj_name
-from .utils import apply_local_transform, transform_to_NMS_coords
+from ..utils.image_convert import convert_image
 from .animations import process_anims
 from .export import Export
 from .Descriptor import Descriptor
@@ -38,10 +43,25 @@ def triangulate_mesh(mesh):
     """
     bm = bmesh.new()
     bm.from_mesh(mesh)
-    bmesh.ops.triangulate(bm, faces=bm.faces)
+    data = bmesh.ops.triangulate(bm, faces=bm.faces, ngon_method='EAR_CLIP')
+    faces = data['faces']
+    face_mapping = data['face_map']
+    # This face mapping should be able to be used to map the new triangles back
+    # to the original polygons so that we can group them. When grouping we need
+    # to ensure that each subsequent value contains 2 of the previous values so
+    # that the triangulation method works. Or we can potentially just make some
+    # improvements to the method that determines if the triangles are part of
+    # a polygon.
+
+    # Create a new list of the tris sorted by polygon.
+    _poly_tris = sorted(face_mapping.items(), key=lambda x: x[1].index)
+    face_idxs = []
+    for face, _ in _poly_tris:
+        face_idxs.append(tuple(x.index for x in face.verts))
     bm.to_mesh(mesh)
     bm.free()
     del bm
+    return face_idxs
 
 
 def generate_hull(mesh, determine_indexes=False):
@@ -89,6 +109,67 @@ def generate_hull(mesh, determine_indexes=False):
         return chverts
 
 
+def create_sampler(image, sampler_name: str, texture_dir: str,
+                   output_dir: str, force_overwrite: bool = False,
+                   force_material_name: str = None):
+    """ Create a sampler using the specified image and paths.
+
+    Parameters
+    ----------
+    image
+        A Blender Image object. Extracted from the shader node and contains a
+        bunch of info.
+    sampler_name
+        The name of the sampler. One of ('gDiffuseMap', 'gNormalMap',
+        'gMasksMap').
+    texture_dir
+        The path relative to output_dir that the textures will be stored in.
+    output_dir
+        The root output directory.
+    """
+    if not image.filepath:
+        raise Exception(
+            f"Missing Image in Texture: {image.name}")
+
+    type_ = sampler_name[1:-3].lower()
+    # Determine before we convert what it should be called and where it should
+    # be located. This way we can determine if it exists before we convert to
+    # allow us to skip converting if we don't want to if it already exists.
+    if force_material_name is not None:
+        if type_ == 'diffuse':
+            new_fname = f'{force_material_name}.DDS'.upper()
+        else:
+            new_fname = f'{force_material_name}.{type_}.DDS'.upper()
+    else:
+        # Clean the file name a bit and then extract the actual name from it.
+        fpath = op.normpath(image.filepath.lstrip('/\\'))
+        new_fname = op.splitext(op.basename(fpath))[0] + '.DDS'
+    relpath = op.join(texture_dir, new_fname)
+    out_tex_path = op.join(output_dir, relpath)
+
+    if op.exists(out_tex_path) and not force_overwrite:
+        print(f'Found existing texture at {out_tex_path}. Using this.')
+        return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=True)
+
+    # If the textures are packed into the blend file, unpack them.
+    if len(image.packed_files) > 0:
+        image.unpack(method="WRITE_LOCAL")
+
+    if op.splitext(image.filepath)[1].lower() != '.dds':
+        tex_path = convert_image(image.filepath_from_user(),
+                                 out_tex_path,
+                                 sampler_name[1:-3].lower(),
+                                 tuple(image.size))
+    else:
+        # In this case we already have the image in .dds format. Just move it.
+        tex_path = image.filepath_from_user()
+        shutil.copy(tex_path, out_tex_path)
+    if op.exists(out_tex_path):
+        return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=True)
+    else:
+        raise FileNotFoundError(f'Texture not written to {out_tex_path}')
+
+
 """ Main exporter class with all the other functions contained in one place """
 
 
@@ -124,10 +205,11 @@ class Exporter():
         self.global_scene.frame_set(0)
         self.output_directory = output_directory
         self.export_dir = export_directory
-        self.export_fname = scene_name
+        self.export_fname = scene_name.replace(' ', '_')
         self.settings = settings
 
         self.state = None
+        self.warnings = {}
 
         self.material_dict = {}
         self.material_ids = []
@@ -186,7 +268,7 @@ class Exporter():
             self.anim_node_data[obj.name] = self.get_animated_children(obj)
 
         self.scene_anim_data = dict()
-        if len(bpy.data.actions) != 0:
+        if len(bpy.data.actions) != 0 and self.settings.get('export_anims'):
             self.scene_anim_data = process_anims(self.anim_node_data)
 
         # Go over each object in the list of nodes that are to be exported
@@ -196,6 +278,8 @@ class Exporter():
                 name = get_obj_name(obj, self.export_fname)
             self.scene_directory = op.join(self.export_dir,
                                            self.group_name)
+            self.inner_scene_path = op.join(self.scene_directory, name)
+            print(f'inner scene path: {self.inner_scene_path}')
             # Sort out any descriptors
             descriptor = None
             if obj.NMSReference_props.is_proc:
@@ -249,7 +333,6 @@ class Exporter():
         return objects
 
     def parse_material(self, ob):
-        # TODO: This will all become obsolete at some point
         # This function returns a tkmaterialdata object with all necessary
         # material information
 
@@ -262,7 +345,10 @@ class Exporter():
             # otherwise parse the actual material data
             slot = ob.material_slots[0]
             mat = slot.material
-            print(mat.name)
+            if len(ob.material_slots) > 1:
+                print('WARNING: More than one material slot was found for '
+                      f'{ob}. Only the first will be used. If you want '
+                      'multiple split the mesh by material and try again.')
 
             # find any additional material flags specificed by the user
             add_matflags = set()
@@ -272,14 +358,34 @@ class Exporter():
                     # subtract 1 to account for the index start in the struct
                     add_matflags.add(i - 1)
 
-            proj_path = bpy.path.abspath('//')
-
             # Create the material
             matflags = List()
             matsamplers = List()
             matuniforms = List()
 
-            tslots = mat.texture_slots
+            # Find the texture nodes
+            tslots = [x for x in mat.node_tree.nodes if x.type == 'TEX_IMAGE']
+            # Try and determine which of the nodes belongs to which texture
+            diffuse_image = None
+            normal_image = None
+            mask_image = None
+            for ts in tslots:
+                if ('diffuse' in ts.image.name.lower()
+                        or 'diffuse' in ts.label.lower()):
+                    diffuse_image = ts.image
+                elif ('normal' in ts.image.name.lower()
+                        or 'normal' in ts.label.lower()):
+                    normal_image = ts.image
+                elif ('mask' in ts.image.name.lower()
+                        or 'mask' in ts.label.lower()):
+                    mask_image = ts.image
+
+            if not any([diffuse_image, normal_image, mask_image]):
+                raise Exception(
+                    f"No texture files found for material {mat.name}.\n"
+                    "Please ensure that it has textures and the nodes in the "
+                    "node tree are labelled correctly (ie. diffuse in the "
+                    "label for the diffuse texture, etc.")
 
             # Fetch Uniforms
             matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
@@ -302,69 +408,67 @@ class Exporter():
                                                                  y=0.0,
                                                                  z=0.0,
                                                                  t=0.0)))
-            # Fetch Diffuse
-            texpath = ""
-            if tslots[0]:
+
+            if self.settings.get('use_shared_textures'):
+                texture_dir = self.settings.get('shared_texture_folder')
+            else:
+                texture_dir = os.path.join(self.inner_scene_path, 'TEXTURES')
+
+            if any([diffuse_image, mask_image, normal_image]):
+                os.makedirs(op.join(self.output_directory, texture_dir),
+                            exist_ok=True)
+
+            texture_overwrite_name = None
+            if self.settings.get('rename_textures', False):
+                texture_overwrite_name = mat.name
+            # Sort out Diffuse
+            if diffuse_image:
                 # Set _F01_DIFFUSEMAP
                 add_matflags.add(0)
-                # matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[0]))
-                # Create gDiffuseMap Sampler
+                # Add the sampler to the list
+                matsamplers.append(create_sampler(
+                    diffuse_image, "gDiffuseMap", texture_dir,
+                    self.output_directory,
+                    self.settings.get('overwrite_textures', False),
+                    texture_overwrite_name
+                ))
 
-                tex = tslots[0].texture
-                # Check if there is no texture loaded
-                if not tex.type == 'IMAGE':
-                    raise Exception("Missing Image in Texture: " + tex.name)
+            # Sort out Mask
+            if mask_image:
+                # Set _F25_ROUGHNESS_MASK
+                add_matflags.add(24)
+                # Set _F39_METALLIC_MASK
+                add_matflags.add(38)
+                # Add the sampler to the list
+                matsamplers.append(create_sampler(
+                    mask_image, "gMasksMap", texture_dir,
+                    self.output_directory,
+                    self.settings.get('overwrite_textures', False),
+                    texture_overwrite_name
+                ))
 
-                texpath = op.join(proj_path, tex.image.filepath[2:])
-            print(texpath)
-            sampl = TkMaterialSampler(Name="gDiffuseMap", Map=texpath,
-                                      IsSRGB=True)
-            matsamplers.append(sampl)
+            # Sort out Normal Map
+            if normal_image:
+                # Set _F03_NORMALMAP
+                add_matflags.add(2)
+                # Add the sampler to the list
+                matsamplers.append(create_sampler(
+                    normal_image, "gNormalMap", texture_dir,
+                    self.output_directory,
+                    self.settings.get('overwrite_textures', False),
+                    texture_overwrite_name
+                ))
 
             # Check shadeless status
+            # TODO: Not compatible with 2.8x
+            """
             if (mat.use_shadeless):
                 # Set _F07_UNLIT
                 add_matflags.add(6)
+            """
 
-            # Fetch Mask
-            texpath = ""
-            if tslots[1]:
-                # Create gMaskMap Sampler
-
-                tex = tslots[1].texture
-                # Check if there is no texture loaded
-                if not tex.type == 'IMAGE':
-                    raise Exception("Missing Image in Texture: " + tex.name)
-
-                texpath = op.join(proj_path, tex.image.filepath[2:])
-
-            sampl = TkMaterialSampler(Name="gMasksMap", Map=texpath,
-                                      IsSRGB=False)
-            matsamplers.append(sampl)
-
-            # Fetch Normal Map
-            texpath = ""
-            if tslots[2]:
-                # Set _F03_NORMALMAP
-                add_matflags.add(2)
-                # Create gNormalMap Sampler
-
-                tex = tslots[2].texture
-                # Check if there is no texture loaded
-                if not tex.type == 'IMAGE':
-                    raise Exception("Missing Image in Texture: " + tex.name)
-
-                texpath = op.join(proj_path, tex.image.filepath[2:])
-
-            sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath,
-                                      IsSRGB=False)
-            matsamplers.append(sampl)
-
-            add_matflags.add(24)
-            add_matflags.add(38)
-            add_matflags.add(46)
-
-            lst = list(add_matflags)        # convert to list so we can order
+            # convert to list so we can order
+            lst = list(add_matflags)
             lst.sort()
             for flag in lst:
                 matflags.append(
@@ -433,15 +537,9 @@ class Exporter():
         return descriptor_struct
 
     # Main Mesh parser
-    def mesh_parser(self, ob):
+    def mesh_parser(self, ob, is_coll_mesh: bool = False):
+        print(f'parsing mesh {ob.name}')
         bpy.context.view_layer.objects.active = ob
-        # Lists
-        indexes = []
-        verts = []
-        uvs = []
-        normals = []
-        tangents = []
-        colours = []
         chverts = []        # convex hull vert data
         # Matrices
         # object_matrix_wrld = ob.matrix_world
@@ -450,71 +548,210 @@ class Exporter():
         # norm_mat = rot_x_mat.inverted().transposed()
 
         data = ob.data
-        data_is_temp = False
+        data_is_fake = False
         # Raise exception if UV Map is missing
-        uvcount = len(data.uv_layers)
-        if uvcount < 1:
-            raise Exception("Missing UV Map")
+        if not is_coll_mesh:
+            uvcount = len(data.uv_layers)
+            if uvcount < 1:
+                raise Exception(f"Object {ob.name} missing UV map")
 
-        uv_layer_name = data.uv_layers.active.name
+        # Lists
+        _num_verts = len(data.vertices)
+        indexes = []
+        verts = [None] * _num_verts
+        if not is_coll_mesh:
+            uvs = [None] * _num_verts
+            normals = [None] * _num_verts
+            tangents = [None] * _num_verts
+            colours = [None] * _num_verts
+        else:
+            # For mesh collisions we don't need any of this data, but we do
+            # need to return it.
+            uvs = normals = tangents = colours = None
 
-        # Calculate the tangents and normals from the uv map
-        try:
-            data.calc_tangents(uvmap=uv_layer_name)
-        except RuntimeError:
+        # Get the polys before the mesh is triangulated
+        poly_indexes = [tuple(p.vertices) for p in data.polygons]
+        # We can check to see if the mesh needs to be triangulated cheaply by
+        # checking to see if the lengths of all the polys are 3.
+        if not all([len(x) == 3 for x in poly_indexes]):
             data = ob.to_mesh(preserve_all_data_layers=True)
-            data_is_temp = True
-            triangulate_mesh(data)
-            data.calc_tangents(uvmap=uv_layer_name)
+            data_is_fake = True
+            tri_indexes = triangulate_mesh(data)
+            # The trinagulated data is in a weird order it seems. We can make
+            # it look a lot more like how it looks in the games files. It
+            # won't be perfect... But pretty close!
+            tri_indexes.sort(key=lambda x: x[0])
+        else:
+            tri_indexes = poly_indexes
+
+        # TODO: if there is normal data, use it. Otherwise determine the
+        # normals based on the face normal of the polygon.
+
+        # TODO: Once we have the normal, we can calculate the tangent.
+        # Unfortunately the algorithm isn't exactly correct, but it seems
+        # pretty close...
 
         # Need to assign UV data *after* any possible triangulation
-        uv_layer_data = data.uv_layers.active.data
+        if not is_coll_mesh:
+            uv_layer_data = data.uv_layers.active.data
 
         # Determine if the model has colour data
         export_colours = bool(len(data.vertex_colors))
         # If we have an overwrite to say not to export them then don't
         if self.settings.get('no_vert_colours', False):
             export_colours = False
-        if export_colours:
+        if export_colours and not is_coll_mesh:
             colour_data = data.vertex_colors.active.data
         else:
             colours = None
 
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        # Iterate over all the MeshLoops of the mesh
-        for ml in data.loops:
-            index = ml.index
-            vert_index = ml.vertex_index
-            indexes.append(index)
-            vert = data.vertices[vert_index].co
-            verts.append((vert[0], vert[1], vert[2], 1))
-            uv = uv_layer_data[index].uv
-            uvs.append((uv[0], 1 - uv[1], 0, 1))
-            normal = ml.normal
-            normals.append((normal[0], normal[1], normal[2], 1))
-            tangent = ml.tangent
-            tangents.append((tangent[0], tangent[1], tangent[2], 1))
-            if export_colours:
-                vcol = colour_data[index].color
-                colours.append([int(255 * vcol[0]),
-                                int(255 * vcol[1]),
-                                int(255 * vcol[2])])
+        # TODO: We can detect dangling vertexes/ones which don't belong to a
+        # face by using:
+        # [v for v in bm.verts if not v.link_faces]
+        # `link_faces` is a property of a bmesh.types.BMVert object.
+        # Can probably filter to remove these either permanently or just adjust
+        # the exported data to not include them (but then may need to adjust the
+        # counts all over the place which may be tricky.)
+        # TBD once I get a model with this issue I can test with.
+
+        for poly in data.polygons:
+            norm = poly.normal
+            poly_verts = []
+            _modified_poly_verts = []
+            poly_indexes = []
+            for _loop_index in poly.loop_indices:
+                poly_verts.append(data.loops[_loop_index].vertex_index)
+                poly_indexes.append(data.loops[_loop_index].index)
+            for i in range(poly.loop_total):
+                vi = poly_verts[i]
+                li = poly_indexes[i]
+                # Flag which indicates that the vert needs to be duplicated in
+                # the exported mesh. This will happen when a vert which is
+                # shared by multiple tri's has a different uv value depending
+                # on the tri it's used by.
+                vert_needs_split = False
+                # Loop over the indices
+                if verts[vi] is None:
+                    v = data.vertices[vi].co
+                    verts[vi] = (v[0], v[1], v[2], 1)
+                if is_coll_mesh:
+                    # If we are parsing the collision mesh, we don't need to
+                    # try and get any data other than the verts and indexes
+                    continue
+                if uvs[vi] is None:
+                    uv = uv_layer_data[li].uv
+                    uvs[vi] = (uv[0], 1 - uv[1], 0, 1)
+                else:
+                    # Calculate the ev value to write then compare it to what
+                    # we have already to see if we need to split the vert.
+                    uv = uv_layer_data[li].uv
+                    uv = (uv[0], 1 - uv[1], 0, 1)
+                    if uv != uvs[vi]:
+                        vert_needs_split = True
+                        uvs.append(uv)
+                if normals[vi] is None:
+                    normals[vi] = (norm[0], norm[1], norm[2], 1)
+                elif vert_needs_split:
+                    normals.append((norm[0], norm[1], norm[2], 1))
+                if tangents[vi] is None:
+                    if poly.loop_total == 3:
+                        tang = calc_tangents(
+                            tuple(data.vertices[j].co for j in poly_verts),
+                            tuple(uv_layer_data[j].uv for j in poly_indexes),
+                            norm)
+                        tangents[vi] = (tang[0], tang[1], tang[2], 1)
+                    else:
+                        print('This mesh is not currently supported.')
+                        print('If you see this message please raise an issue '
+                              'on discord and attach this blend file.')
+                        raise NotImplementedError('Polygons need to be tris')
+                elif vert_needs_split:
+                    if poly.loop_total == 3:
+                        tang = calc_tangents(
+                            tuple(data.vertices[j].co for j in poly_verts),
+                            tuple(uv_layer_data[j].uv for j in poly_indexes),
+                            norm)
+                    tangents.append((tang[0], tang[1], tang[2], 1))
+                if export_colours:
+                    if not colours[vi]:
+                        vcol = colour_data[li].color
+                        colours[vi] = (int(255 * vcol[0]),
+                                       int(255 * vcol[1]),
+                                       int(255 * vcol[2]))
+                    elif vert_needs_split:
+                        vcol = colour_data[li].color
+                        colours.append((int(255 * vcol[0]),
+                                        int(255 * vcol[1]),
+                                        int(255 * vcol[2])))
+                if vert_needs_split:
+                    # If the vert got split, we need to add an extra index also
+                    # This will be 1 less than the length as we have already
+                    # added the new uv value to the list up above.
+                    new_idx = len(uvs) - 1
+                    # Change the value of the index in the poly_verts list so
+                    # that when we write the tri it will be correct.
+                    if not _modified_poly_verts:
+                        _modified_poly_verts = poly_verts[:]
+                    _modified_poly_verts[i] = new_idx
+                    # If we split the vert, add it to the end of the vert list.
+                    verts.append(verts[vi])
+            if _modified_poly_verts:
+                indexes += _modified_poly_verts
+            else:
+                indexes += poly_verts
 
         # finally, let's find the convex hull data of the mesh:
         chverts = generate_hull(data)
-        if data_is_temp:
+
+        # Check to see if any of the meshes are missing values. If they are,
+        # then fill them in with the original values.
+        if not is_coll_mesh:
+            # Might as well put the actual vert data since we know it anyway.
+            if not all(verts):
+                bad_verts_count = 0
+                for i, v in enumerate(verts):
+                    if v is None:
+                        _vert = data.vertices[i].co
+                        verts[i] = (_vert[0], _vert[1], _vert[2], 1)
+                        bad_verts_count += 1
+                if bad_verts_count:
+                    print((f'Found {bad_verts_count} verts not belonging to '
+                           'any faces. Consider removing them.'))
+            # For the rest, put empty data as it's not worth calculating for
+            # points that won't be seen.
+            if not all(uvs):
+                for i, v in enumerate(uvs):
+                    if v is None:
+                        uvs[i] = (0, 0, 0, 1)
+            if not all(normals):
+                for i, v in enumerate(normals):
+                    if v is None:
+                        normals[i] = (0, 0, 0, 1)
+            if not all(tangents):
+                for i, v in enumerate(tangents):
+                    if v is None:
+                        tangents[i] = (0, 0, 0, 1)
+            if export_colours and not all(colours):
+                for i, v in enumerate(colours):
+                    if v is None:
+                        colours[i] = (0, 0, 0)
+
+        if data_is_fake:
             # If we created a temporary data object then delete it
             del data
 
-        """
-        # Apply rotation and normal matrices on vertices and normal vectors
-        if ob.rotation_mode != 'QUATERNION':
-            apply_local_transform(ROT_X_MAT, verts, normalize=False)
-            apply_local_transform(ROT_X_MAT, normals, use_norm_mat=True)
-            apply_local_transform(ROT_X_MAT, tangents, use_norm_mat=True)
-            apply_local_transform(ROT_X_MAT, chverts, normalize=False)
-        """
+        if not is_coll_mesh:
+            print(f'Exported with {len(verts)} verts, {len(uvs)} uvs, '
+                  f'{len(normals)} normals, {len(indexes)} indexes')
+            if isinstance(colours, list):
+                print(f'Also exported {len(colours)} colours')
+            elif colours:
+                print(f'Colours is: {colours}')
+        else:
+            print(f'Exported collisions with {len(verts)} verts, '
+                  f'{len(indexes)} indexes')
 
         return verts, normals, tangents, uvs, indexes, chverts, colours
 
@@ -564,7 +801,7 @@ class Exporter():
         # TODO: this is currently only true for models that are imported then
         # modified then exported again.
         trans, rot_q, scale = ob.matrix_local.decompose()
-        rot = rot_q.to_euler('ZXY')
+        rot = rot_q.to_euler('XYZ')
 
         transform = TkTransformData(TransX=trans[0],
                                     TransY=trans[1],
@@ -683,31 +920,33 @@ class Exporter():
                 # We'll give them some "fake" vertex data which consists of
                 # no actual vertex data, but an index that doesn't point to
                 # anything.
-
-                chverts, chindexes = generate_hull(ob.data, True)
+                verts, norms, tangs, luvs, indexes, chverts, _ = self.mesh_parser(ob, True)  # noqa
 
                 # Reset Transforms on meshes
 
+                optdict['Vertices'] = verts
+                optdict['Indexes'] = indexes
+                optdict['Normals'] = norms
+                optdict['Tangents'] = tangs
                 optdict['CHVerts'] = chverts
-                optdict['CHIndexes'] = chindexes
             # Handle Primitives
             elif colType == "Box":
-                optdict['Width'] = dims[0]/factor[0]
-                optdict['Depth'] = dims[2]/factor[2]
-                optdict['Height'] = dims[1]/factor[1]
+                optdict['Width'] = dims[0] / factor[0]
+                optdict['Depth'] = dims[2] / factor[2]
+                optdict['Height'] = dims[1] / factor[1]
             elif colType == "Sphere":
                 # take the minimum value to find the 'base' size (effectively)
-                optdict['Radius'] = min([0.5*dims[0]/factor[0],
-                                         0.5*dims[1]/factor[1],
-                                         0.5*dims[2]/factor[2]])
+                optdict['Radius'] = min([0.5 * dims[0] / factor[0],
+                                         0.5 * dims[1] / factor[1],
+                                         0.5 * dims[2] / factor[2]])
             elif colType == "Cylinder":
-                optdict['Radius'] = min([0.5*dims[0]/factor[0],
-                                         0.5*dims[2]/factor[2]])
-                optdict['Height'] = dims[1]/factor[1]
+                optdict['Radius'] = min([dims[0] / factor[0],
+                                         dims[1] / factor[1]])
+                optdict['Height'] = dims[2] / factor[2]
             elif colType == "Capsule":
-                optdict['Radius'] = min([dims[0]/factor[0],
-                                         dims[2]/factor[2]])
-                optdict['Height'] = dims[1]/factor[1]
+                optdict['Radius'] = min([dims[0] / factor[0],
+                                         dims[2] / factor[2]])
+                optdict['Height'] = dims[1] / factor[1]
             else:
                 raise Exception("Unsupported Collision")
 
@@ -724,7 +963,7 @@ class Exporter():
                 if child.name.upper() == 'ROTATION':
                     # take the properties of the rotation vector and give it
                     # to the mesh as part of it's entity data
-                    axis = child.rotation_quaternion*Vector((0, 0, 1))
+                    axis = child.rotation_quaternion * Vector((0, 0, 1))
                     print(axis)
                     rotation_data = TkRotationComponentData(
                         Speed=child.NMSRotation_props.speed,
@@ -760,9 +999,7 @@ class Exporter():
                 newob.Material = ob.NMSMesh_props.material_path
             else:
                 try:
-                    slot = ob.material_slots[0]
-                    mat = slot.material
-                    print(mat.name)
+                    mat = ob.material_slots[0].material
                     if mat.name not in self.material_dict:
                         print("Parsing Material " + mat.name)
                         material_ob = self.parse_material(ob)
@@ -770,7 +1007,6 @@ class Exporter():
                     else:
                         material_ob = self.material_dict[mat.name]
 
-                    print(material_ob)
                     # Attach material to Mesh
                     newob.Material = material_ob
                 # TODO: Determine if this is the right error
@@ -816,17 +1052,26 @@ class Exporter():
         elif ob.NMSNode_props.node_types == 'Joint':
             actualname = get_obj_name(ob, None)
             self.joints += 1
+            joint_num = ob.NMSJoint_props.joint_id or self.joints
+
             newob = Joint(Name=actualname,
                           Transform=transform,
-                          JointIndex=self.joints,
+                          JointIndex=joint_num,
                           orig_node_data=orig_node_data)
 
         # Light Objects
         elif ob.NMSNode_props.node_types == 'Light':
             actualname = get_obj_name(ob, None)
             # Get Color
-            col = tuple(ob.data.color)
-            print("colour: {}".format(col))
+            if actualname:
+                if isinstance(ob.data, BlenderMesh):
+                    col = tuple(ob.color)
+                    if 'light_is_mesh' in self.warnings:
+                        self.warnings['light_is_mesh'].append(actualname)
+                    else:
+                        self.warnings['light_is_mesh'] = [actualname, ]
+                elif isinstance(ob.data, BlenderLight):
+                    col = tuple(ob.data.color)
             # Get Intensity
             intensity = ob.NMSLight_props.intensity_value
 
@@ -837,7 +1082,8 @@ class Exporter():
                           FOV=ob.NMSLight_props.FOV_value,
                           orig_node_data=orig_node_data)
 
-        parent.add_child(newob)
+        if newob:
+            parent.add_child(newob)
 
         # add the local entity data to the global dict:
         self.global_entitydata[ob.name] = entitydata
@@ -863,7 +1109,7 @@ class Exporter():
             Name of the scene that contains the animations.
         """
         # Do nothing if there are no animations
-        if len(bpy.data.actions) == 0:
+        if len(bpy.data.actions) == 0 or not self.anim_controller_obj:
             return
         # First, check to see if there is an idle animation
         idle_anim = self.settings.get('idle_anim', '')

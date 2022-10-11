@@ -9,16 +9,19 @@ class mbinCompiler():
         # this is the struct containing all the data that needs to be
         # serialized
         self.struct = NMSstruct
+        self.out_name = out_name
         self.output = open('{}'.format(out_name), 'wb')
-        self.list_worker = ListWorker()
 
     def header(self):
         data = bytearray()
         # return the header bytes (0x60 long)
-        data.extend(b'\xDD\xDD\xDD\xDD')        # magic
-        data.extend(serialize(2500))               # version
-        # TODO: change this to the correct GUID?
-        data.extend(pad(b'CUSTOMGEOMETRY', 0x10))      # custom name thing
+        data.extend(b'\xDD\xDD\xDD\xDD')                                # magic
+        data.extend(serialize(2500))                                  # version
+        data.extend(b'\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF')    # 0x8 bytes of 0xFF
+        if hasattr(self.struct, 'GUID'):
+            data.extend(serialize(self.struct.GUID, '<Q'))        # Actual GUID
+        else:
+            data.extend(b'CSTMGEOM')                        # custom name thing
         template_name = 'c' + '{}'.format(self.struct.name)
         data.extend(pad(template_name.encode('utf-8'), 0x40))     # struct name
         data.extend(b'\xFE\xFE\xFE\xFE\xFE\xFE\xFE\xFE')
@@ -29,11 +32,9 @@ class mbinCompiler():
         # we will keep track of the current location and also the current
         # expected final location
         # so that list data can be placed there
-        self.output.write(self.header())
-        # add on the size of the struct to know where the current finish is
-        self.list_worker['end'] = 0x60 + len(self.struct)
-        self.struct.serialize(self.output)
-        self.output.close()
+        with open(self.out_name, 'wb') as f:
+            f.write(self.header())
+            self.struct.serialize(f)
 
 
 class ListWorker():

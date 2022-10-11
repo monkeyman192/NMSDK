@@ -188,9 +188,15 @@ class Object():
             for entity in self.ExtraEntityData[entityname]:
                 self.EntityData[entityname].append(entity)
 
-    def original_attribute(self, name: str) -> Optional[tuple]:
+    def original_attribute(self, name: str,
+                           ignore_original: bool = False) -> Optional[tuple]:
         """ Returns the value of an attibute from the original imported value,
         or None if there isn't a value. """
+        # Create a short-cut in case we actually want to not use an original
+        # value. We will use this when we want to re-export the geometry data
+        # for an originally imported mesh.
+        if ignore_original:
+            return None
         attribs = self.orig_node_data.get('Attributes', [])
         for attr in attribs:
             if attr.get('Name', '') == name:
@@ -224,7 +230,7 @@ class Locator(Object):
         self._Type = "LOCATOR"
         self.HasAttachment = kwargs.get('HasAttachment', False)
 
-    def create_attributes(self, data: dict):
+    def create_attributes(self, data: dict, ignore_original: bool = False):
         if data is not None:
             self.Attributes = List(TkSceneNodeAttributeData(
                 Name='ATTACHMENT', Value=data['ATTACHMENT']))
@@ -239,13 +245,16 @@ class Light(Object):
         self.Colour = kwargs.get('Colour', (1, 1, 1))
         self.FOV = kwargs.get('FOV', 360.0)
 
-    def create_attributes(self, data: dict):
+    def create_attributes(self, data: dict, ignore_original: bool = False):
         self.Attributes = List(
             TkSceneNodeAttributeData(Name='FOV',
                                      Value=self.FOV,
                                      fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='FALLOFF',
                                      Value='quadratic'),
+            TkSceneNodeAttributeData(Name='FALLOFF_RATE',
+                                     Value=2,
+                                     fmt='{0:.6f}'),
             TkSceneNodeAttributeData(Name='INTENSITY',
                                      Value=self.Intensity,
                                      fmt='{0:.6f}'),
@@ -276,9 +285,11 @@ class Joint(Object):
         self._Type = "JOINT"
         self.JointIndex = kwargs.get("JointIndex", 1)
 
-    def create_attributes(self, data: dict):
+    def create_attributes(self, data: dict, ignore_original: bool = False):
         self.Attributes = List(TkSceneNodeAttributeData(
-            Name='JOINTINDEX', Value=self.JointIndex))
+            Name='JOINTINDEX',
+            Value=self.JointIndex,
+            orig=self.original_attribute('JOINTINDEX')))
 
 
 class Emitter(Object):
@@ -286,12 +297,12 @@ class Emitter(Object):
         super(Emitter, self).__init__(Name, **kwargs)
         self._Type = "EMITTER"
 
-    def create_attributes(self, data: dict):
+    def create_attributes(self, data: dict, ignore_original: bool = False):
         if data is not None:
-            self.Attributes = List(TkSceneNodeAttributeData(
-                Name='MATERIAL', Value=data['MATERIAL']),
-                                   TkSceneNodeAttributeData(
-                Name='DATA', Value=data['DATA']))
+            self.Attributes = List(
+                TkSceneNodeAttributeData(Name='MATERIAL',
+                                         Value=data['MATERIAL']),
+                TkSceneNodeAttributeData(Name='DATA', Value=data['DATA']))
 
 
 class Mesh(Object):
@@ -317,38 +328,38 @@ class Mesh(Object):
         # find out what streams have been provided
         self.determine_included_streams()
 
-    def create_attributes(self, data: dict):
+    def create_attributes(self, data: dict, ignore_original: bool = False):
         # data will be just the information required for the Attributes
         self.Attributes = List(
             TkSceneNodeAttributeData(Name='BATCHSTARTPHYSI',
                                      Value=data['BATCHSTART'],
                                      orig=self.original_attribute(
-                                         'BATCHSTARTPHYSI')),
+                                         'BATCHSTARTPHYSI', ignore_original)),
             TkSceneNodeAttributeData(Name='VERTRSTARTPHYSI',
                                      Value=data['VERTRSTART'],
                                      orig=self.original_attribute(
-                                         'VERTRSTARTPHYSI')),
+                                         'VERTRSTARTPHYSI', ignore_original)),
             TkSceneNodeAttributeData(Name='VERTRENDPHYSICS',
                                      Value=data['VERTREND'],
                                      orig=self.original_attribute(
-                                         'VERTRENDPHYSICS')),
+                                         'VERTRENDPHYSICS', ignore_original)),
             TkSceneNodeAttributeData(Name='BATCHSTARTGRAPH',
                                      Value=0,
                                      orig=self.original_attribute(
-                                         'BATCHSTARTGRAPH')),
+                                         'BATCHSTARTGRAPH', ignore_original)),
             TkSceneNodeAttributeData(Name='BATCHCOUNT',
                                      Value=data['BATCHCOUNT'],
                                      orig=self.original_attribute(
-                                         'BATCHCOUNT')),
+                                         'BATCHCOUNT', ignore_original)),
             TkSceneNodeAttributeData(Name='VERTRSTARTGRAPH',
                                      Value=0,
                                      orig=self.original_attribute(
-                                         'VERTRSTARTGRAPH')),
+                                         'VERTRSTARTGRAPH', ignore_original)),
             TkSceneNodeAttributeData(Name='VERTRENDGRAPHIC',
                                      Value=(data['VERTREND'] -
                                             data['VERTRSTART']),
                                      orig=self.original_attribute(
-                                         'VERTRENDGRAPHIC')),
+                                         'VERTRENDGRAPHIC', ignore_original)),
             TkSceneNodeAttributeData(Name='FIRSTSKINMAT',
                                      Value=0,
                                      orig=self.original_attribute(
@@ -399,7 +410,8 @@ class Mesh(Object):
                                      Value=data['MATERIAL'],
                                      orig=self.original_attribute('MATERIAL')),
             TkSceneNodeAttributeData(Name='MESHLINK',
-                                     Value=self.Name + 'Shape'))
+                                     Value=self.Name + 'Shape',
+                                     orig=self.original_attribute('MESHLINK')))
         if self.HasAttachment:
             self.Attributes.append(
                 TkSceneNodeAttributeData(Name='ATTACHMENT',
@@ -415,8 +427,11 @@ class Collision(Object):
             # We will only be passed the convex hull verts
             self.IsMesh = True
             self.Material = None
+            self.Vertices = kwargs.get('Vertices', None)
+            self.Indexes = kwargs.get('Indexes', None)
+            self.Normals = kwargs.get('Normals', None)
+            self.Tangents = kwargs.get('Tangents', None)
             self.CHVerts = kwargs.get('CHVerts', None)
-            self.CHIndexes = kwargs.get('CHIndexes', None)
         else:
             # just give all 4 values. The required ones will be non-zero (deal
             # with later in the main file...)
@@ -425,7 +440,7 @@ class Collision(Object):
             self.Depth = kwargs.get('Depth', 0)
             self.Radius = kwargs.get('Radius', 0)
 
-    def create_attributes(self, data: dict):
+    def create_attributes(self, data: dict, ignore_original: bool = False):
         self.Attributes = List(TkSceneNodeAttributeData(Name="TYPE",
                                                         Value=self.CType))
         if self.CType == 'Mesh':
@@ -507,7 +522,7 @@ class Model(Object):
         self.lod_distances = kwargs.get('lod_distances', [])
         self._was_imported = self.orig_node_data != dict()
 
-    def create_attributes(self, data: dict):
+    def create_attributes(self, data: dict, ignore_original: bool = False):
         # Data will be just the information required for the Attributes.
         self.Attributes = List(
             TkSceneNodeAttributeData(Name='GEOMETRY',
@@ -551,6 +566,6 @@ class Reference(Object):
                                      "Enter in the path of the SCENE.MBIN you "
                                      "want to reference here.")
 
-    def create_attributes(self, data: dict):
+    def create_attributes(self, data: dict, ignore_original: bool = False):
         self.Attributes = List(TkSceneNodeAttributeData(Name='SCENEGRAPH',
                                                         Value=self.Scenegraph))

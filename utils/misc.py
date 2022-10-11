@@ -1,6 +1,8 @@
 # Blender imports
 import bpy
 
+FORBIDDEN_CHARS = '()'
+
 
 def clone_node(node, include_children=False, new_parent=None):
     """ Create a clone of the provided "node".
@@ -16,11 +18,15 @@ def clone_node(node, include_children=False, new_parent=None):
     """
     # Copy the node then assign it its new parent.
     new_node = node.copy()
+    orig_local = node.matrix_local
+    orig_world = node.matrix_world
     # If there is no new_parent, then it will be the same as the parent of the
     # original node by default.
     if not new_parent:
         new_parent = node.parent
     new_node.parent = new_parent
+    new_node.matrix_world = orig_world
+    new_node.matrix_local = orig_local
     bpy.context.scene.collection.objects.link(new_node)
     if include_children:
         # Go over the children and clone them, assigning the parent as the
@@ -97,6 +103,8 @@ def getParentRefScene(obj):
 
 def get_root_node(obj):
     """ Returns the root node for the NMS scene. """
+    if not obj:
+        return None
     if obj.parent is None and obj.NMSNode_props.node_types == 'Reference':
         return obj
     if obj.parent is not None:
@@ -139,3 +147,12 @@ def truncate_float(val):
         return 0
     else:
         return new_val
+
+
+def clean_name(name):
+    """ Return a cleaned version of the node name. This will remove a number of
+    disallowed character, and replace spaces with underscores. """
+    name = name.replace(' ', '_')
+    for char in FORBIDDEN_CHARS:
+        name = name.replace(char, '')
+    return name

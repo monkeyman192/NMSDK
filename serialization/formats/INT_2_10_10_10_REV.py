@@ -21,6 +21,8 @@ def read_int_2_10_10_10_rev(verts):
     # calculate the norm of the x,y,z components of the array
     norm = (output[0]**2 + output[1]**2 + output[2]**2)**0.5
     # then normalise
+    if not norm:
+        return [0, 0, 0, 1]
     for i in range(3):
         output[i] = output[i]/norm
     return output
