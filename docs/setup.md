@@ -15,7 +15,7 @@ To make exporting easier, NMSDK will automatically convert all produced `.exml` 
 
 #### Blender
 
-NMSDK requires a version of blender greater than or equal to 2.80.
+NMSDK requires a version of blender greater than or equal to 3.2
 
 #### MBINCompiler
 
@@ -27,5 +27,5 @@ anywhere by Blender.
 The most recent release of *MBINCompiler* can be found on the [MBINCompiler releases](https://github.com/monkeyman192/MBINCompiler/releases) page.
 
 For NMSDK to be able to use *MBINCompiler*, the program needs to be registered to the path so that it can be called from anywhere on your computer.
-Open the folder containing the `MBINCompiler.exe` you just downloaded, open this folder in command line, then enter `MBINCompiler.exe register`.
+Open the folder containing the `MBINCompiler.exe` you just downloaded, open this folder as admin in command line, then enter `MBINCompiler.exe register`.
 This will add the folder the `.exe` is in to the system path, allowing NMSDK to be able to access the program from anywhere.

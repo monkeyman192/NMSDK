@@ -2,12 +2,14 @@
 
 ## Releases:
 
-### Current - v0.9.23
+### Current - v0.9.23 (12/10/2022)
 
  - Many changes have been made to material handling on export:
    - Diffuse, Mask and Normal textures are now picked up from shader nodes and exported (and converted if need be)
    - These textures can be exported to either a local (within the context of an export) or shared texture directory.
  - A long standing bug was identified in the serialisation of geometry files which has been fixed.
+ - Re-wrote export algorithm to match how the game works. This will be used in most cases except when the mesh being exported has complex uvs which result in islands. In this case the old method will be used since the uvs are not unique on vertexes.
+ - MANY other various bug fixes and improvements.
 
 ### Past:
 

@@ -19,7 +19,7 @@ To make exporting easier, NMSDK will automatically convert all produced `.exml` 
 
 #### Blender
 
-NMSDK requires a version of Blender greater than or equal to 2.93
+NMSDK requires a version of Blender greater than or equal to 3.2
 
 #### MBINCompiler
 
@@ -31,7 +31,7 @@ anywhere by Blender.
 If you already have a version of *MBINCompiler* on your computer, ensure it is the latest version. This can be found on the [MBINCompiler releases](https://github.com/monkeyman192/MBINCompiler/releases) page.
 
 For NMSDK to be able to use *MBINCompiler*, the program needs to be registered to the path so that it can be called from anywhere on your computer.
-Open the folder containing the `MBINCompiler.exe` you just downloaded, open this folder in command line, then enter `MBINCompiler.exe register`.
+Open the folder containing the `MBINCompiler.exe` you just downloaded, open this folder as admin in command line, then enter `MBINCompiler.exe register`.
 This will add the folder the `.exe` is in to the system path, allowing NMSDK to be able to access the program from anywhere.
 
 ---
@@ -63,6 +63,7 @@ This script uses the Blender that is assigned to open .blend files - do Blender.
 ### Credits
 
  - Primarily coded and maintained by monkeyman192.
- - All functionality for extracting data from blender provided by Gregkwaste.
+ - Original functionality for extracting data from blender provided by Gregkwaste.
  - Thanks to GmrLeon for their assistance in converting structs to python for the entity construction.
  - And big thanks to MsrSgtShooterPerson for the fantastic banner!
+ - Thanks to everyone in the [NMS Modding discord](https://discord.gg/22ZAU9H) who has helped bug fix.
