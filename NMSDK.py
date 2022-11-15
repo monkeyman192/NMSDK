@@ -432,7 +432,9 @@ def get_anim_names_not_none(self, context):
         names = list(context.scene.nmsdk_anim_data.loaded_anims)
         if 'None' in names:
             names.remove('None')
-        return list(tuple([name] * 3) for name in names)
+        if names:
+            return list(tuple([name] * 3) for name in names)
+        return [('None', 'None', 'None')]
     except KeyError:
         return [('None', 'None', 'None')]
 

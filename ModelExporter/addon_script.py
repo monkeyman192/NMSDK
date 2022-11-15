@@ -143,7 +143,7 @@ def create_sampler(image, sampler_name: str, texture_dir: str,
     else:
         # Clean the file name a bit and then extract the actual name from it.
         fpath = op.normpath(image.filepath.lstrip('/\\'))
-        new_fname = op.splitext(op.basename(fpath))[0] + '.DDS'
+        new_fname = op.splitext(op.basename(fpath))[0].upper() + '.DDS'
     relpath = op.join(texture_dir, new_fname)
     out_tex_path = op.join(output_dir, relpath)
 
