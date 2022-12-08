@@ -7,6 +7,7 @@ from .Empty import Empty  # noqa
 from .Object import (Locator, Light, Mesh, Joint, Emitter, Collision, Model,  # noqa
                      Reference)
 from .Vector4f import Vector4f  # noqa
+from .Vector3f import Vector3f  # noqa
 from .Quaternion import Quaternion  # noqa
 from .NMSString0x10 import NMSString0x10  # noqa
 from .NMSString0x20 import NMSString0x20  # noqa

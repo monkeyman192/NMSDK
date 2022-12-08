@@ -120,8 +120,7 @@ class NMSDK_PT_AnimationsPanel(bpy.types.Panel):
                          icon='FILE_REFRESH', emboss=False, text=" ")
         else:
             try:
-                anim_choice_text = 'Current animation: {0}'.format(
-                    context.scene['curr_anim'])
+                anim_choice_text = f'''"{context.scene['curr_anim']}" playing'''
             except KeyError:
                 anim_choice_text = 'Select an animation'
             row = layout.row(align=True)

@@ -148,10 +148,21 @@ class Object():
         # returns the NodeData attribute
         return self.NodeData
 
+    def sort_func(self, obj):
+        if isinstance(obj, Joint):
+            # Sort joints by their joint index
+            return obj.JointIndex
+        elif isinstance(obj, Collision):
+            # Sort collisions as last always.
+            return float("inf")
+        else:
+            return 9999999
+
     def construct_data(self):
         # iterate through all the children and create a TkSceneNode for every
         # child with the appropriate properties.
 
+        self.Children.sort(key=self.sort_func)
         # If we have been imported then we want to preserve the order of
         # nodes as they were in the original scene file.
         if self.was_imported:

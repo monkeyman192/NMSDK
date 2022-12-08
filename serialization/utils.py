@@ -98,7 +98,7 @@ def quat_drop_component(arr):
     return max_loc
 
 
-def bytes_to_quat(data):
+def bytes_to_quat(data) -> tuple:
     """ Reads a byte array to a quaternion. """
     c_x, c_y, c_z = unpack('<HHH', data.read(0x6))
     # Get most significant bit

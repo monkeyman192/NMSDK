@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import namedtuple, UserList
 import struct
 from typing import Tuple
 
@@ -45,35 +45,36 @@ def read_anim(fname):
                         'TransIndex': trans_index,
                         'ScaleIndex': scale_index}
                 anim_data['NodeData'].append(data)
-        # AnimFrameData
-        anim_data['AnimFrameData'] = list()
+        
+        # Do some initial length determinations of each of the animation types
+        # so that we can more easily compose all the animation data when we read
+        # it.
+        anim_rot_count = 0
+        anim_tra_count = 0
+        anim_sca_count = 0
+        _AnimFrameData_pos = f.tell()
         with ListHeader(f) as anim_frame_data:
-            for _ in range(anim_frame_data.count):
-                frame_data = dict()
+            # If there is actually animation data, get the counts of each of the
+            # types
+            if anim_frame_data.count != 0:
                 with ListHeader(f) as rot_data:
-                    rot_data_lst = list()
-                    for _ in range(int(rot_data.count // 3)):
-                        rot_data_lst.append(bytes_to_quat(f))
-                    frame_data['Rotation'] = rot_data_lst  # reads 0x6 bytes
+                    anim_rot_count = rot_data.count // 3
                 with ListHeader(f) as trans_data:
-                    trans_data_lst = list()
-                    for _ in range(trans_data.count):
-                        trans_data_lst.append(
-                            struct.unpack('<ffff', f.read(0x10)))
-                    frame_data['Translation'] = trans_data_lst
+                    anim_tra_count = trans_data.count
                 with ListHeader(f) as scale_data:
-                    scale_data_lst = list()
-                    for _ in range(scale_data.count):
-                        scale_data_lst.append(
-                            struct.unpack('<ffff', f.read(0x10)))
-                    frame_data['Scale'] = scale_data_lst
-                anim_data['AnimFrameData'].append(frame_data)
+                    anim_sca_count = scale_data.count
+        f.seek(_AnimFrameData_pos, 0)
+
+        # Next, read the still frame data so that we may have the static
+        # components of the animation frame beforehand.
+        f.seek(0x10, 1)
+
         # StillFrameData
         still_frame_data = dict()
         with ListHeader(f) as rot_data:
             rot_data_lst = list()
             for _ in range(int(rot_data.count // 3)):
-                rot_data_lst.append(bytes_to_quat(f))  # reads 0x6 bytes
+                rot_data_lst.append(bytes_to_quat(f))
             still_frame_data['Rotation'] = rot_data_lst
         with ListHeader(f) as trans_data:
             trans_data_lst = list()
@@ -88,6 +89,33 @@ def read_anim(fname):
                     struct.unpack('<ffff', f.read(0x10)))
             still_frame_data['Scale'] = scale_data_lst
         anim_data['StillFrameData'] = still_frame_data
+
+        # Go back to the AnimFrameData location so we can finally read it.
+        f.seek(_AnimFrameData_pos, 0)
+
+        # AnimFrameData
+        anim_data['AnimFrameData'] = list()
+        with ListHeader(f) as anim_frame_data:
+            for _ in range(anim_frame_data.count):
+                frame_data = dict()
+                with ListHeader(f) as rot_data:
+                    rot_data_lst = list()
+                    for _ in range(int(rot_data.count // 3)):
+                        rot_data_lst.append(bytes_to_quat(f))
+                    frame_data['Rotation'] = rot_data_lst
+                with ListHeader(f) as trans_data:
+                    trans_data_lst = list()
+                    for _ in range(trans_data.count):
+                        trans_data_lst.append(
+                            struct.unpack('<ffff', f.read(0x10)))
+                    frame_data['Translation'] = trans_data_lst
+                with ListHeader(f) as scale_data:
+                    scale_data_lst = list()
+                    for _ in range(scale_data.count):
+                        scale_data_lst.append(
+                            struct.unpack('<ffff', f.read(0x10)))
+                    frame_data['Scale'] = scale_data_lst
+                anim_data['AnimFrameData'].append(frame_data)
 
         return anim_data
 

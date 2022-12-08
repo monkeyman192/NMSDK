@@ -561,7 +561,7 @@ class _ChangeAnimation(Operator):
                     obj.animation_data.action = None
 
         # Set the final frame count
-        context.scene.frame_end = frame_count
+        context.scene.frame_end = int(frame_count)
         return {'FINISHED'}
 
     def invoke(self, context, event):

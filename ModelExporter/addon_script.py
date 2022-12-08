@@ -3,6 +3,8 @@ from math import radians, degrees
 import os
 import os.path as op
 import shutil
+from typing import Union
+
 # blender imports
 import bpy
 from bpy.types import Mesh as BlenderMesh
@@ -11,7 +13,7 @@ import bmesh
 from idprop.types import IDPropertyGroup
 from mathutils import Matrix, Vector
 # Internal imports
-from .utils import get_surr, calc_tangents
+from .utils import calc_tangents
 from ..utils.misc import CompareMatrices, get_obj_name
 from ..utils.image_convert import convert_image
 from .animations import process_anims
@@ -31,6 +33,17 @@ from .ActionTriggerParser import ParseNodes
 
 
 ROT_X_MAT = Matrix.Rotation(radians(-90), 4, 'X')
+
+
+def node_sort(data: Union[tuple[str, int], str]) -> Union[int, float]:
+    """ Simple function to sort joints and nodes into the correct order.
+    We always want joints at the front and ordered by their joint_id.
+    Other nodes will just get shuffled to the back but kept in their order.
+    """
+    if isinstance(data, tuple):
+        return data[1]
+    else:
+        return float('inf')
 
 
 def triangulate_mesh(mesh):
@@ -262,14 +275,53 @@ class Exporter():
         # A dictionary to contains the names of all the nodes in a given NMS
         # scene that either contain animation data or have a local
         # transformation matrix that is not the identity.
-        self.anim_node_data = dict()
+        anim_node_data = dict()
         # Populate this dictionary
         for obj in self.export_scenes:
-            self.anim_node_data[obj.name] = self.get_animated_children(obj)
+            animated_node_data = []
+            # Go over all the nodes in the scene and get the joint data first so
+            # that we can know what order to put the non-joint nodes in.
+            joint_mapping = dict()
+            child_counts = dict()
+            joint_count = 0
+            for child in obj.children_recursive:
+                if child.NMSNode_props.node_types == "Joint":
+                    joint_count += 1
+                    # If it's a joint, find the correct location within the list
+                    # to place it based on the joint_id.
+                    insert_index = 0
+                    # Loop over the existing data, and once we find a joint
+                    # which has an index higher than the one we currently have,
+                    # then we insert this current joint into the list before it.
+                    for i, _obj in enumerate(animated_node_data):
+                        if isinstance(_obj, tuple):
+                            if _obj[1] > child.NMSJoint_props.joint_id:
+                                insert_index = i
+                                break
+                    animated_node_data.insert(insert_index, (child.name, child.NMSJoint_props.joint_id))
+                    joint_mapping[child.name] = (child.name, child.NMSJoint_props.joint_id)
+                elif (not CompareMatrices(child.matrix_local,
+                                          Matrix.Identity(4),
+                                          1E-6) or
+                      child.animation_data is not None):
+                    try:
+                        parent_name = joint_mapping.get(child.parent.name,
+                                                        child.parent.name)
+                        idx = animated_node_data.index(parent_name)
+                        child_count = child_counts.get(parent_name, 0)
+                        animated_node_data.insert(idx + 1 + child_count, child.name)
+                        child_counts[parent_name] = child_count + 1
+                    except ValueError:
+                        animated_node_data.append(child.name)
+            animated_node_data.sort(key=node_sort)
+            for i, _obj in enumerate(animated_node_data):
+                if isinstance(_obj, tuple):
+                    animated_node_data[i] = _obj[0]
+            anim_node_data[obj.name] = animated_node_data
 
         self.scene_anim_data = dict()
         if len(bpy.data.actions) != 0 and self.settings.get('export_anims'):
-            self.scene_anim_data = process_anims(self.anim_node_data)
+            self.scene_anim_data = process_anims(anim_node_data)
 
         # Go over each object in the list of nodes that are to be exported
         for obj in self.export_scenes:
@@ -318,19 +370,6 @@ class Exporter():
         for obj in bpy.context.selected_objects:
             obj.select = False
         ob.select = True
-
-    # TODO: I thought this was fixed so this function was no longer needed...
-    def get_animated_children(self, parent):
-        objects = list()
-        for child in parent.children:
-            if (not CompareMatrices(child.matrix_local, Matrix.Identity(4),
-                                    1E-6) or
-                    child.animation_data is not None):
-                # we want every object that either has animation data, or has a
-                # transform that isn't the identity transform
-                objects.append(child.name)
-            objects.extend(self.get_animated_children(child))
-        return objects
 
     def parse_material(self, ob):
         # This function returns a tkmaterialdata object with all necessary
@@ -541,11 +580,6 @@ class Exporter():
         print(f'parsing mesh {ob.name}')
         bpy.context.view_layer.objects.active = ob
         chverts = []        # convex hull vert data
-        # Matrices
-        # object_matrix_wrld = ob.matrix_world
-        # ob.matrix_world = rot_x_mat*ob.matrix_world
-        # scale_mat = Matrix.Scale(1, 4)
-        # norm_mat = rot_x_mat.inverted().transposed()
 
         data = ob.data
         data_is_fake = False
@@ -836,7 +870,8 @@ class Exporter():
                 entitydata[ob.NMSEntity_props.name_or_path] = list()
                 if ob.NMSEntity_props.has_action_triggers:
                     entitydata[ob.NMSEntity_props.name_or_path].append(
-                        ParseNodes())
+                        ParseNodes()
+                    )
                 # and ob.EntityStructs
                 # this could potentially be it's own class?
                 for struct in ob.EntityStructs:

@@ -1,6 +1,7 @@
 # stdlib imports
 from collections import OrderedDict as odict
 from collections import namedtuple
+from typing import Optional
 
 # Blender imports
 import bpy
@@ -14,6 +15,11 @@ from .readers import read_anim  # pylint: disable=relative-beyond-top-level
 DATA_PATH_MAP = {'Rotation': 'rotation_quaternion',
                  'Translation': 'location',
                  'Scale': 'scale'}
+
+# Named tuples which are used to simplify the creation of animation channels.
+location = namedtuple('location', ['x', 'y', 'z'])
+rotation = namedtuple('rotation', ['x', 'y', 'z', 'w'])
+scale = namedtuple('scale', ['x', 'y', 'z'])
 
 
 class AnimationHandler(bpy.types.Operator):
@@ -46,7 +52,7 @@ class AnimationHandler(bpy.types.Operator):
         return self.execute(context)
 
     # TODO: Add the ability to add the 'None' animation. This will back in an
-    # action which is the rest post so that it can actually be set correctly
+    # action which is the rest pose so that it can actually be set correctly
     # from the animation selection menu.
 
     def _add_animation_to_scene(self, anim_name, anim_data):
@@ -88,6 +94,13 @@ class AnimationHandler(bpy.types.Operator):
             try:
                 obj = self.scn.objects[name]
             except KeyError:
+                # Skip this object and move on to the next
+                continue
+
+            # The animation data for non-joints is the globals values. It will
+            # be determined by the transforms of the joints, so we don't want to
+            # actually animate it.
+            if not obj.NMSNode_props.node_types == 'Joint':
                 continue
 
             obj.animation_data_create()
@@ -96,10 +109,14 @@ class AnimationHandler(bpy.types.Operator):
                 name=action_name)
             # set the action to have a fake user
             obj.animation_data.action.use_fake_user = True
-            fcurves = self._create_anim_channels(obj, action_name)
-            self._apply_animdata_to_fcurves(fcurves, data, anim_data, False)
+            animated_props = list(data['anim'].keys())
+            fcurves = self._create_anim_channels(
+                obj, action_name, animated_props
+            )
+            self._apply_animdata_to_fcurves(fcurves, data, anim_data)
 
         # If we have a mesh with joint bindings, also animate the armature
+        # TODO: Fix this...
         if self.scn.nmsdk_anim_data.has_bound_mesh:
             armature = bpy.data.objects['Armature']
             armature.animation_data_create()
@@ -175,56 +192,21 @@ class AnimationHandler(bpy.types.Operator):
                             self._apply_pose_data(bone, DATA_PATH_MAP[key],
                                                   i, action_name)
 
-    def _apply_animdata_to_fcurves(self, fcurves, mapping, anim_data,
-                                   use_null_transform):
+    def _apply_animdata_to_fcurves(self, fcurves, mapping, anim_data):
         """ Apply the supplied animation data to the fcurves.
 
         Parameters
         ----------
-        fcurves : tuple of namedtuples.
+        fcurves
             A Tuple containing the location, rotation and scaling nameduples.
-        mapping : dict
+        mapping
             Information describing what components are still frame and which
             are animated.
-        anim_data : dict
+        anim_data
             The actual animation data
-        use_null_transform : bool
-            If true, then the joints shouldn't be animated as there are bones
-            which will provide the animation data.
         """
         loc, rot, sca = fcurves
         num_frames = anim_data['FrameCount']
-        # If we are using the null transforms, just make all animations still
-        # frame.
-        if use_null_transform:
-            self._apply_stillframe_data(loc.x, 0, num_frames)
-            self._apply_stillframe_data(loc.y, 0, num_frames)
-            self._apply_stillframe_data(loc.z, 0, num_frames)
-            self._apply_stillframe_data(rot.x, 0, num_frames)
-            self._apply_stillframe_data(rot.y, 0, num_frames)
-            self._apply_stillframe_data(rot.z, 0, num_frames)
-            self._apply_stillframe_data(rot.w, 1, num_frames)
-            self._apply_stillframe_data(sca.x, 1, num_frames)
-            self._apply_stillframe_data(sca.y, 1, num_frames)
-            self._apply_stillframe_data(sca.z, 1, num_frames)
-            return
-        # Apply still frame data first.
-        still_data = mapping['still']
-        for key, value in still_data.items():
-            data = anim_data['StillFrameData'][key][value]
-            if key == 'Translation':
-                self._apply_stillframe_data(loc.x, data[0], num_frames)
-                self._apply_stillframe_data(loc.y, data[1], num_frames)
-                self._apply_stillframe_data(loc.z, data[2], num_frames)
-            elif key == 'Rotation':
-                self._apply_stillframe_data(rot.x, data[0], num_frames)
-                self._apply_stillframe_data(rot.y, data[1], num_frames)
-                self._apply_stillframe_data(rot.z, data[2], num_frames)
-                self._apply_stillframe_data(rot.w, data[3], num_frames)
-            elif key == 'Scale':
-                self._apply_stillframe_data(sca.x, data[0], num_frames)
-                self._apply_stillframe_data(sca.y, data[1], num_frames)
-                self._apply_stillframe_data(sca.z, data[2], num_frames)
         animated_data = mapping['anim']
         for key, value in animated_data.items():
             if key == 'Translation':
@@ -259,69 +241,77 @@ class AnimationHandler(bpy.types.Operator):
     def _apply_animframe_data(self, fcurve, data, frame):
         fcurve.keyframe_points[int(frame)].co = float(frame), float(data)
 
-    def _apply_stillframe_data(self, fcurve, data, num_frame):
-        fcurve.keyframe_points.add(2)
-        fcurve.keyframe_points[0].co = 0.0, float(data)
-        fcurve.keyframe_points[0].interpolation = 'CONSTANT'
-        fcurve.keyframe_points[1].co = float(num_frame - 1), float(data)
-        fcurve.keyframe_points[1].interpolation = 'CONSTANT'
-
     def _apply_pose_data(self, bone, _type, frame, name):
         bone.keyframe_insert(data_path=_type, frame=frame, group=name)
 
-    def _create_anim_channels(self, obj, anim_name):
+    def _create_anim_channels(
+        self,
+        obj,
+        anim_name: str,
+        animated_props: list[str]
+    ) -> tuple[
+        Optional[namedtuple],
+        Optional[namedtuple],
+        Optional[namedtuple]
+    ]:
         """ Generate all the channels required for the animation.
 
         Parameters
         ----------
         obj : Blender object
             The object to create the anim channels on.
-        anim_name : str
+        anim_name
             Name of the animation so that all fcurves are in the same group.
+        animated_props
+            A list of the keys in DATA_PATH_MAP which are actually animated.
 
         Returns
         -------
         Tuple of collections.namedtuple's:
             (location, rotation, scale)
         """
-        location = namedtuple('location', ['x', 'y', 'z'])
-        rotation = namedtuple('rotation', ['x', 'y', 'z', 'w'])
-        scale = namedtuple('scale', ['x', 'y', 'z'])
-        loc_x = obj.animation_data.action.fcurves.new(data_path='location',
-                                                      index=0,
-                                                      action_group=anim_name)
-        loc_y = obj.animation_data.action.fcurves.new(data_path='location',
-                                                      index=1,
-                                                      action_group=anim_name)
-        loc_z = obj.animation_data.action.fcurves.new(data_path='location',
-                                                      index=2,
-                                                      action_group=anim_name)
-        loc = location(loc_x, loc_y, loc_z)
-        rot_w = obj.animation_data.action.fcurves.new(
-            data_path='rotation_quaternion',
-            index=0,
-            action_group=anim_name)
-        rot_x = obj.animation_data.action.fcurves.new(
-            data_path='rotation_quaternion',
-            index=1,
-            action_group=anim_name)
-        rot_y = obj.animation_data.action.fcurves.new(
-            data_path='rotation_quaternion',
-            index=2,
-            action_group=anim_name)
-        rot_z = obj.animation_data.action.fcurves.new(
-            data_path='rotation_quaternion',
-            index=3,
-            action_group=anim_name)
-        rot = rotation(rot_x, rot_y, rot_z, rot_w)
-        sca_x = obj.animation_data.action.fcurves.new(data_path='scale',
-                                                      index=0,
-                                                      action_group=anim_name)
-        sca_y = obj.animation_data.action.fcurves.new(data_path='scale',
-                                                      index=1,
-                                                      action_group=anim_name)
-        sca_z = obj.animation_data.action.fcurves.new(data_path='scale',
-                                                      index=2,
-                                                      action_group=anim_name)
-        sca = scale(sca_x, sca_y, sca_z)
+        # Set defaults
+        loc = None
+        rot = None
+        sca = None
+        if 'Translation' in animated_props:
+            loc_x = obj.animation_data.action.fcurves.new(data_path='location',
+                                                        index=0,
+                                                        action_group=anim_name)
+            loc_y = obj.animation_data.action.fcurves.new(data_path='location',
+                                                        index=1,
+                                                        action_group=anim_name)
+            loc_z = obj.animation_data.action.fcurves.new(data_path='location',
+                                                        index=2,
+                                                        action_group=anim_name)
+            loc = location(loc_x, loc_y, loc_z)
+        if 'Rotation' in animated_props:
+            rot_w = obj.animation_data.action.fcurves.new(
+                data_path='rotation_quaternion',
+                index=0,
+                action_group=anim_name)
+            rot_x = obj.animation_data.action.fcurves.new(
+                data_path='rotation_quaternion',
+                index=1,
+                action_group=anim_name)
+            rot_y = obj.animation_data.action.fcurves.new(
+                data_path='rotation_quaternion',
+                index=2,
+                action_group=anim_name)
+            rot_z = obj.animation_data.action.fcurves.new(
+                data_path='rotation_quaternion',
+                index=3,
+                action_group=anim_name)
+            rot = rotation(rot_x, rot_y, rot_z, rot_w)
+        if 'Scale' in animated_props:
+            sca_x = obj.animation_data.action.fcurves.new(data_path='scale',
+                                                        index=0,
+                                                        action_group=anim_name)
+            sca_y = obj.animation_data.action.fcurves.new(data_path='scale',
+                                                        index=1,
+                                                        action_group=anim_name)
+            sca_z = obj.animation_data.action.fcurves.new(data_path='scale',
+                                                        index=2,
+                                                        action_group=anim_name)
+            sca = scale(sca_x, sca_y, sca_z)
         return (loc, rot, sca)

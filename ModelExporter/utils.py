@@ -7,8 +7,6 @@ from typing import Tuple
 # blender imports
 import bpy
 from mathutils import Matrix, Vector
-# Internal imports
-from ..NMS.classes import Vector4f
 
 
 ALL_TYPES = ['Reference', 'Mesh', 'Locator', 'Collision', 'Light', 'Joint']
@@ -168,31 +166,6 @@ def apply_local_transform(rotmat, data, normalize=True, use_norm_mat=False):
         if normalize:
             _data.normalize()
         data[i] = (_data[0], _data[1], _data[2], 1.0)
-
-
-# TODO: !REMOVE
-def apply_local_transforms(rotmat, verts, norms, tangents, chverts):
-    norm_mat = rotmat.inverted().transposed()
-
-    for i in range(len(verts)):
-        # Load Vertex
-        vert = rotmat * Vector((verts[i]))
-        # Store Transformed
-        verts[i] = (vert[0], vert[1], vert[2], 1.0)
-        # Load Normal
-        norm = norm_mat * Vector((norms[i]))
-        norm.normalize()
-        # Store Transformed normal
-        norms[i] = (norm[0], norm[1], norm[2], 1.0)
-        # Load Tangent
-        tang = norm_mat * Vector((tangents[i]))
-        tang.normalize()
-        # Store Transformed tangent
-        tangents[i] = (tang[0], tang[1], tang[2], 1.0)
-    for i in range(len(chverts)):
-        chvert = rotmat * Vector((chverts[i]))
-        # chvert = chverts[i]
-        chverts[i] = Vector4f(x=chvert[0], y=chvert[1], z=chvert[2], t=1.0)
 
 
 def calc_tangents(verts: Tuple[Vector],

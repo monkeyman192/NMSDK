@@ -21,7 +21,7 @@ from ..NMS.material_node import create_material_node  # noqa pylint: disable=rel
 from .readers import (read_metadata, read_gstream,  # noqa pylint: disable=relative-beyond-top-level
                       read_entity_animation_data, read_mesh_binding_data,
                       read_descriptor)
-from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
+from ..utils.utils import exml_to_dict, condensed_scene_tree  # noqa pylint: disable=relative-beyond-top-level
 from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
 from .mesh_utils import BB_transform_matrix
 from ..utils.io import get_NMS_dir, base_path  # noqa pylint: disable=relative-beyond-top-level
@@ -149,6 +149,7 @@ class ImportScene():
                 self.requires_render = False
                 return
         self.data = exml_to_dict(exml_fpath)
+        # condensed_scene_tree(self.data)
 
         if self.data is None:
             raise ValueError('Cannot load scene file...')
@@ -254,7 +255,7 @@ class ImportScene():
         # Find out how many animations have been found in this scene.
         # If the total number is greater than 10 then we don't want to render
         # them all as it gets too slow to import a scene then.
-        print('Found {0} animations to be loaded!'.format(len(local_anims)))
+        print(f'Found {len(local_anims)} animation(s) to be loaded')
 
         # Update the global animation data dictionary
         _loadable_anim_data.update(local_anims)
@@ -496,7 +497,6 @@ class ImportScene():
                 bone.use_inherit_rotation = True
                 bone.use_inherit_scale = True
                 bone.use_local_location = True
-                bone.connected = True
                 if scene_node.parent.Name in armature.data.edit_bones:
                     bone.parent = armature.data.edit_bones[
                         scene_node.parent.Name]
@@ -674,6 +674,14 @@ class ImportScene():
                 print("The reference node {0} has a reference to a path "
                       "that doesn't exist ({1})".format(name, ref_scene_path))
 
+        # Check to see if the parent object is a joint or has the
+        # `_joint_descendent` property.
+        if empty_obj.parent:
+            if empty_obj.parent.NMSNode_props.node_types == "Joint":
+                empty_obj["_joint_descendent"] = True
+            elif empty_obj.parent.get("_joint_descendent", False):
+                empty_obj["_joint_descendent"] = True
+
         return empty_obj
 
     def _add_light_to_scene(self, scene_node: SceneNodeData,
@@ -732,6 +740,12 @@ class ImportScene():
         self.scene_ctx.link_object(light_obj)
         self.dep_graph.update()
 
+        if light_obj.parent:
+            if light_obj.parent.NMSNode_props.node_types == "Joint":
+                light_obj["_joint_descendent"] = True
+            elif light_obj.parent.get("_joint_descendent", False):
+                light_obj["_joint_descendent"] = True
+
         return light_obj
 
     def _add_mesh_collision_to_scene(self, scene_node: SceneNodeData):
@@ -776,6 +790,12 @@ class ImportScene():
             bh_obj.hide_set(True)
         # Never show the object in the render.
         bh_obj.hide_render = True
+
+        if bh_obj.parent:
+            if bh_obj.parent.NMSNode_props.node_types == "Joint":
+                bh_obj["_joint_descendent"] = True
+            elif bh_obj.parent.get("_joint_descendent", False):
+                bh_obj["_joint_descendent"] = True
 
         return bh_obj
 
@@ -870,6 +890,12 @@ class ImportScene():
             coll_obj.hide_set(True)
         # never show the object in the render
         coll_obj.hide_render = True
+
+        if coll_obj.parent:
+            if coll_obj.parent.NMSNode_props.node_types == "Joint":
+                coll_obj["_joint_descendent"] = True
+            elif coll_obj.parent.get("_joint_descendent", False):
+                coll_obj["_joint_descendent"] = True
 
         return coll_obj
 
@@ -1052,6 +1078,12 @@ class ImportScene():
 
         if self.settings.get('draw_bounding_box', False):
             self._add_bounds_to_scene(scene_node)
+
+        if mesh_obj.parent:
+            if mesh_obj.parent.NMSNode_props.node_types == "Joint":
+                mesh_obj["_joint_descendent"] = True
+            elif mesh_obj.parent.get("_joint_descendent", False):
+                mesh_obj["_joint_descendent"] = True
 
         return mesh_obj
 

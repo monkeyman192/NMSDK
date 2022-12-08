@@ -1,24 +1,27 @@
 import bpy
 
 # Internal imports
-from .utils import transform_to_NMS_coords, get_actions_with_name
+from ..utils.constants import UNDO_COORDINATE_TRANFORM
+from .utils import get_actions_with_name
 from ..NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
-from ..NMS.classes import List, Vector4f, Quaternion
+from ..NMS.classes import List, Vector3f, Quaternion
 
 
-def process_anims(anim_node_data):
+def process_anims(
+    anim_node_data: dict[str, list[str]],
+) -> dict[str, TkAnimMetadata]:
     """ Get all the data for all animations in the global scene, and sort them.
 
     Parameters
     ----------
-    anim_node_data : dict
+    anim_node_data
         key: name of NMS scene
         value: list of child objects in this scene that need to be included in
                the animation data.
 
     Returns
     -------
-    anim_data : dict
+    anim_data
         key: name of the NMS scene
         value: dict
             key: name of the animation
@@ -34,7 +37,7 @@ def process_anims(anim_node_data):
         # Get the list of all the actions with the base name.
         actions = get_actions_with_name(anim_name)
 
-        print('Processing animation {0}'.format(anim_name))
+        print(f'Processing animation {anim_name}')
 
         action_frames = None
 
@@ -50,9 +53,9 @@ def process_anims(anim_node_data):
                 obj_name = action.name.split('.', 1)[1]
             except IndexError:
                 raise ValueError(
-                    'The action {0} has an invalid name. Please fix it '
-                    'manually or by running the fix actions tool in the '
-                    'NMSDK settings panel.'.format(action.name))
+                    f'The action {action.name} has an invalid name. Please fix '
+                    'it manually or by running the fix actions tool in the '
+                    'NMSDK settings panel.')
             # Add the name of the object to the list of objects that are
             # animated in this action
             objs_in_action.append(obj_name)
@@ -101,6 +104,12 @@ def process_anims(anim_node_data):
         # The index for animated objects will be real, but the one for
         # still types will not be. They will need the `anim_<~>` variable
         # added to them
+
+        # Note that if an object is considered to be animated and isn't a joint,
+        # Then the data put in the animation file will be all the components
+        # that are animated across the union of the _varying sets for each joint.
+        # (it seems...)
+
         for scene_name, animated_objs in anim_node_data.items():
             if not set(objs_in_action).issubset(set(animated_objs)):
                 # We only want to generate data for animations that are
@@ -109,6 +118,10 @@ def process_anims(anim_node_data):
             scene_anim_data = dict()
 
             for obj_name in animated_objs:
+                # Determine if the current node is the child of a joint.
+                # If it is then we need to use the current world matrix for the
+                # data and we will consider it animated.
+                # is_child_of_joint = bpy.context.scene.objects[obj_name].get("_joint_descendent")
                 varying = varying_components.get(obj_name, set())
                 if 'rotation' in varying:
                     rot_index = anim_rot
@@ -141,7 +154,7 @@ def process_anims(anim_node_data):
                 if 'scale' not in varying:
                     sca_index += anim_sca
                 # add the anim node data
-                NodeData.append(TkAnimNodeData(Node=obj_name.upper(),
+                NodeData.append(TkAnimNodeData(Node=obj_name,
                                                RotIndex=str(rot_index),
                                                TransIndex=str(loc_index),
                                                ScaleIndex=str(sca_index)))
@@ -163,23 +176,29 @@ def process_anims(anim_node_data):
 
                 for obj_name in animated_objs:
                     obj = bpy.data.objects[obj_name]
-                    # TODO: is it better to just get the data directly from
-                    # the fcurve.co??
-                    trans, rot_q, scale = transform_to_NMS_coords(obj)
+                    # TODO: For models with lots of animations, it may be better
+                    # To extract the data from the fcurves. Getting to this info
+                    # is a bit annoying though, so for now we'll just use this.
+                    if obj.NMSNode_props.node_types == "Joint":
+                        trans = obj.location
+                        rot_q = obj.rotation_quaternion
+                        scale = obj.scale
+                    elif obj.get("_joint_descendent", False):
+                        trans, rot_q, scale = (
+                            UNDO_COORDINATE_TRANFORM @ obj.matrix_world
+                        ).decompose()
 
                     # Add the location data
                     if 'location' in varying_components.get(obj_name,
                                                             set()):
-                        Translations.append(Vector4f(x=trans.x,
+                        Translations.append(Vector3f(x=trans.x,
                                                      y=trans.y,
-                                                     z=trans.z,
-                                                     t=1.0))
+                                                     z=trans.z))
                     else:
                         if frame == 0:
-                            stillTranslations.append(Vector4f(x=trans.x,
+                            stillTranslations.append(Vector3f(x=trans.x,
                                                               y=trans.y,
-                                                              z=trans.z,
-                                                              t=1.0))
+                                                              z=trans.z))
                     # Add the rotation data
                     if 'rotation' in varying_components.get(obj_name,
                                                             set()):
@@ -195,16 +214,14 @@ def process_anims(anim_node_data):
                                                              w=rot_q.w))
                     # Add the scale data
                     if 'scale' in varying_components.get(obj_name, set()):
-                        Scales.append(Vector4f(x=scale.x,
+                        Scales.append(Vector3f(x=scale.x,
                                                y=scale.y,
-                                               z=scale.z,
-                                               t=1.0))
+                                               z=scale.z))
                     else:
                         if frame == 0:
-                            stillScales.append(Vector4f(x=scale.x,
+                            stillScales.append(Vector3f(x=scale.x,
                                                         y=scale.y,
-                                                        z=scale.z,
-                                                        t=1.0))
+                                                        z=scale.z))
                 FrameData = TkAnimNodeFrameData(Rotations=Rotations,
                                                 Translations=Translations,
                                                 Scales=Scales)

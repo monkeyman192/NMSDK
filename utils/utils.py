@@ -1,6 +1,9 @@
 import xml.etree.ElementTree as ET
 
 
+SEP = '  '
+
+
 def exml_to_dict(fpath: str) -> dict:
     tree = ET.parse(fpath)
     root = tree.getroot()
@@ -26,3 +29,10 @@ def element_to_dict(node: ET.Element) -> dict:
             # It's just a value.
             data[elem.get('name')] = elem.get('value')
     return data
+
+
+def condensed_scene_tree(tree: dict, depth: int = 0):
+    """ print a stripped down version of the scene tree. """
+    print(SEP * depth + tree['Name'] + ' : ' + tree['Type'])
+    for child in  tree['Children']:
+        condensed_scene_tree(child, depth + 1)
