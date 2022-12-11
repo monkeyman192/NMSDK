@@ -905,7 +905,7 @@ class Exporter():
                 if ob.NMSEntity_props.custom_physics:
                     entitydata[ob.NMSEntity_props.name_or_path].append(
                         TkPhysicsComponentData(
-                            VolumeTriggerType=TkVolumeTriggerType(
+                            TriggerVolumeType=TkVolumeTriggerType(
                                 VolumeTriggerType=ob.NMSPhysics_props.VolumeTriggerType)))  # noqa
 
         # Main switch to identify meshes or locators/references

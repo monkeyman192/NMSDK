@@ -14,7 +14,7 @@ class TkAnimationComponentData(Struct):
         self.data['Anims'] = kwargs.get('Anims', List())
         # This will always just be empty for now...
         self.data['Trees'] = kwargs.get('Trees', List())
-        self.data['NetSyncAnimation'] = kwargs.get('NetSyncAnimation', False)
+        self.data['NetSyncAnimations'] = kwargs.get('NetSyncAnimations', False)
         self.data['JointLODOverrides'] = kwargs.get('JointLODOverrides',
                                                     List())
         """ End of the struct contents"""

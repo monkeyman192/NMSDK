@@ -1,7 +1,7 @@
 bl_info = {
     "name": "No Man's Sky Development Kit",
     "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, 24),
+    "version": (0, 9, '24-pre2'),
     "blender": (3, 2, 0),
     "location": "File > Export/Import",
     "description": "Create NMS scene structures and export to NMS File format",
