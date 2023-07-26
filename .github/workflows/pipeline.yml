@@ -31,7 +31,7 @@ jobs:
       - name: Build release
         run: |
           python ./tools/build.py
-          cp /build/nmsdk.zip nmsdk.zip
+          cp build/nmsdk.zip nmsdk.zip
       - name: Get NMSDK tag version
         id: get_nmsdk_version
         run: echo "version=$(Tools/read_nmsdk_version.sh)" >> $GITHUB_OUTPUT
