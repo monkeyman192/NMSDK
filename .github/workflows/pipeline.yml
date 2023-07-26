@@ -28,12 +28,12 @@ jobs:
         run: mkdocs build
       - name: Build release
         run: python ./tools/build.py
-      - name: Upload zip for release
+      - name: Upload plugin zip for release
         uses: actions/upload-artifact@v3
         with:
           name: NMSDK
           path: build/nmsdk.zip
-      - name: Upload binary for release
+      - name: Upload website for release
         uses: actions/upload-artifact@v3
         with:
           name: NMSDK_site
