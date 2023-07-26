@@ -68,3 +68,5 @@ textures/*
 # Ignore any logs produced by pytest
 std.err
 std.out
+
+html_docs/*
