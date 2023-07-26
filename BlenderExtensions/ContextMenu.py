@@ -12,7 +12,7 @@ from ..ModelExporter.utils import get_children
 import bmesh
 import bpy
 from bpy.types import Menu, Operator
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 
 
 CONE_ROTATION_MAT = Matrix.Rotation(math.radians(90), 4, 'X')
@@ -128,7 +128,7 @@ class AddSphereCollisionNode(Operator):
             # Create a new sphere for collisions
             mesh = bpy.data.meshes.new('sphere')
             bm = bmesh.new()
-            bmesh.ops.create_icosphere(bm, subdivisions=4, radius=0.5)
+            bmesh.ops.create_icosphere(bm, subdivisions=4, radius=1)
             bm.to_mesh(mesh)
             bm.free()
             sphere = bpy.data.objects.new('sphere', mesh)
@@ -174,6 +174,50 @@ class AddCylinderCollisionNode(Operator):
             cylinder.parent = obj
             bpy.context.scene.collection.objects.link(cylinder)
             cylinder.rotation_mode = 'QUATERNION'
+
+        return {'FINISHED'}
+
+
+class AddCapsuleCollisionNode(Operator):
+    """Add a new NMS capsule collision node"""
+    bl_idname = "nmsdk.add_capsule_collision_node"
+    bl_label = "Capsule collision node"
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        selected_objs = getattr(context, "selected_objects", None)
+        if not selected_objs:
+            self.report({'ERROR_INVALID_INPUT'},
+                        'Please select an object to add a child node to')
+            return {'FINISHED'}
+        # Create a new empty reference node.
+        for obj in selected_objs:
+            # Create a new capsule for collisions
+            mesh = bpy.data.meshes.new('capsule')
+            bm = bmesh.new()
+
+            cap = bmesh.ops.create_icosphere(
+                bm, subdivisions=4, radius=1,
+                matrix=Matrix.Scale(0.25, 4, Vector((0, 1, 0))))
+            # select the top set of verts
+            for bmvert in cap['verts']:
+                if bmvert.co[1] > 0:
+                    bmvert.co[1] += 0.25
+                elif bmvert.co[1] < 0:
+                    bmvert.co[1] -= 0.25
+
+            bm.to_mesh(mesh)
+            bm.free()
+            capsule = bpy.data.objects.new('capsule', mesh)
+            capsule.NMSNode_props.node_types = 'Collision'
+            capsule.NMSCollision_props.collision_types = 'Capsule'
+            capsule.matrix_world = Matrix()
+            capsule.parent = obj
+            bpy.context.scene.collection.objects.link(capsule)
+            capsule.rotation_mode = 'QUATERNION'
 
         return {'FINISHED'}
 
@@ -290,6 +334,8 @@ class NMSDK_MT_add_NMS_Scenenodes(Menu):
         row.operator('nmsdk.add_sphere_collision_node')
         row = layout.row()
         row.operator('nmsdk.add_cylinder_collision_node')
+        row = layout.row()
+        row.operator('nmsdk.add_capsule_collision_node')
 
 
 class NMSDK_MT_clone_NMS_Scenenodes(Menu):
@@ -338,6 +384,7 @@ classes = (NMSDK_OT_move_to_parent,
            AddBoxCollisionNode,
            AddSphereCollisionNode,
            AddCylinderCollisionNode,
+           AddCapsuleCollisionNode,
            AddLocatorNode,
            NMSDK_MT_add_NMS_Scenenodes,
            NMSDK_MT_clone_NMS_Scenenodes,

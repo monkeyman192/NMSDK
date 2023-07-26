@@ -232,7 +232,10 @@ class Object():
             return orig_name_hash
         byte_name = bytes(self.Name, encoding='utf-8')
         # do bit operation to ensure it's always unsigned
-        return crc32(byte_name) & 0xFFFFFFFF
+        # return crc32(byte_name) & 0xFFFFFFFF
+        # For now, just return 0 since this always seems to be safer than the
+        # value we calculate.
+        return 0
 
 
 class Locator(Object):

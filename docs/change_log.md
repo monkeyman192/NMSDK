@@ -5,6 +5,8 @@
 ### Current - v0.9.24
 
  - Fix exporting of texture filenames to always be upper case. [#90](https://github.com/monkeyman192/NMSDK/issues/90).
+ - Add capsule primitive type to context menu for adding NMS primitive collisions.
+ - 
 
 ### Past:
 

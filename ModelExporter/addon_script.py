@@ -977,7 +977,7 @@ class Exporter():
             elif colType == "Cylinder":
                 optdict['Radius'] = min([dims[0] / factor[0],
                                          dims[1] / factor[1]])
-                optdict['Height'] = dims[2] / factor[2]
+                optdict['Height'] = dims[1] / factor[1]
             elif colType == "Capsule":
                 optdict['Radius'] = min([dims[0] / factor[0],
                                          dims[2] / factor[2]])

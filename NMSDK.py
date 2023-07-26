@@ -930,6 +930,9 @@ class NMS_Import_Operator(Operator, ImportHelper):
             return {'CANCELLED'}
         importer = ImportScene(fdir, parent_obj=None, ref_scenes=dict(),
                                settings=keywords)
+        if not hasattr(importer, "scene_node_data"):
+            raise Exception(
+                "An Error occurred, please see the logs for more details.")
         importer.render_scene()
         status = importer.state
         self.report({'INFO'}, "Models Imported Successfully")
