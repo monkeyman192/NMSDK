@@ -28,6 +28,8 @@ jobs:
         run: mkdocs build
       - name: Build release
         run: python ./tools/build.py
+      - name: Get NMSDK tag version
+        run: echo "VERSION=$(Tools/read_nmsdk_version.sh)" >> $GITHUB_ENV
       - name: Upload plugin zip for release
         uses: actions/upload-artifact@v3
         with:
@@ -49,10 +51,8 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: NMSDK
-      - name: Get NMSDK tag version
-        run: |
-          echo "VERSION=$(Tools/read_nmsdk_version.sh)" >> $GITHUB_ENV
-          echo "TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+      - name: Get tagged version
+        run: echo "TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
         shell: bash
       - name: Upload resources if version matches
         if: env.VERSION == env.TAG
