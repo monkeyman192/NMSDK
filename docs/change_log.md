@@ -2,11 +2,16 @@
 
 ## Releases:
 
-### Current - v0.9.24
+### v0.9.25
 
- - Fix exporting of texture filenames to always be upper case. [#90](https://github.com/monkeyman192/NMSDK/issues/90).
+ - Update code to work with Blender 4.0
 
 ### Past:
+
+### v0.9.24 (27/07/2023)
+
+ - Fix exporting of texture filenames to always be upper case. [#90](https://github.com/monkeyman192/NMSDK/issues/90).
+ - Fix issue with textures not being applied to multiple meshes [#98](https://github.com/monkeyman192/NMSDK/pull/98) c/o @zagibu
 
 ### v0.9.23 (12/10/2022)
 

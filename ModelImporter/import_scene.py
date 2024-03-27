@@ -98,6 +98,7 @@ class ImportScene():
         self.local_objects = dict()
 
         self.requires_render = True
+        self.has_errors = False
         self.scn = bpy.context.scene
         self.scene_ctx = SceneOp(bpy.context)
 
@@ -147,7 +148,9 @@ class ImportScene():
                       'registered on the path.')
                 print('Import failed')
                 self.requires_render = False
-                return
+                raise OSError("MBINCompiler failed to run. See System Console "
+                              "for more details. "
+                              "(Window > Toggle System Console)")
         self.data = exml_to_dict(exml_fpath)
 
         if self.data is None:
@@ -693,7 +696,6 @@ class ImportScene():
                        float(scene_node.Attribute('COL_B')))
         light.use_nodes = True
         # Divide by some arbitary amount... This will need to be played with...
-        light.falloff_type = 'INVERSE_SQUARE'
         light_intensity = float(scene_node.Attribute('INTENSITY'))
         intensity = light_intensity / 100
         light.node_tree.nodes['Emission'].inputs[1].default_value = intensity

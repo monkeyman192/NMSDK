@@ -113,7 +113,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
             _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
-                img.colorspace_settings.name = 'XYZ'
+                img.colorspace_settings.name = 'sRGB'
             mask_texture = nodes.new(type='ShaderNodeTexImage')
             mask_texture.name = mask_texture.label = 'Texture Image - Mask'
             mask_texture.image = img
@@ -157,7 +157,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
             # gMaterialParamsVec4.x
             # #ifdef _F40_SUBSURFACE_MASK
             if 39 in mat_data['Flags']:
-                links.new(principled_BSDF.inputs['Subsurface'],
+                links.new(principled_BSDF.inputs['Subsurface Weight'],
                           separate_rgb.outputs['R'])
             if 43 in mat_data['Flags']:
                 # lfMetallic = lMasks.b;
@@ -169,7 +169,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
             _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
-                img.colorspace_settings.name = 'XYZ'
+                img.colorspace_settings.name = 'sRGB'
             normal_texture = nodes.new(type='ShaderNodeTexImage')
             normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
             normal_texture.image = img
