@@ -569,7 +569,7 @@ class ImportScene():
                     j = 3 - empty_obj.NMSReference_props.num_lods
                     for _ in range(j):
                         lods.append(0)
-                empty_obj.NMSReference_props.lod_levels = lods
+                empty_obj.NMSReference_props.lod_levels = lods[:3]
                 empty_obj.NMSReference_props.has_lods = True
 
             # Add a custom property so that if it is exported with the

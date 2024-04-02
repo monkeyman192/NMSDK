@@ -3,7 +3,6 @@
 # as child objects.
 
 from typing import Optional
-from zlib import crc32
 
 from .TkSceneNodeData import TkSceneNodeData
 from .TkSceneNodeAttributeData import TkSceneNodeAttributeData
@@ -14,6 +13,19 @@ from .List import List
 from collections import OrderedDict as odict
 
 TYPES = ['MESH', 'LOCATOR', 'COLLISION', 'MODEL', 'REFERENCE']
+
+
+def jenkins_one_at_a_time(data: str) -> int:
+    # https://en.wikipedia.org/wiki/Jenkins_hash_function#one_at_a_time
+    hash = 0
+    for char in data.upper():
+        hash = (hash + ord(char)) & 0xFFFFFFFF
+        hash = (hash + (hash << 10)) & 0xFFFFFFFF
+        hash = (hash ^ (hash >> 6)) & 0xFFFFFFFF
+    hash = (hash + (hash << 3)) & 0xFFFFFFFF
+    hash = (hash ^ (hash >> 11)) & 0xFFFFFFFF
+    hash = (hash + (hash << 15)) & 0xFFFFFFFF
+    return hash
 
 
 class Object():
@@ -219,9 +231,7 @@ class Object():
         orig_name_hash = self.orig_node_data.get('NameHash', None)
         if orig_name_hash:
             return orig_name_hash
-        byte_name = bytes(self.Name, encoding='utf-8')
-        # do bit operation to ensure it's always unsigned
-        return crc32(byte_name) & 0xFFFFFFFF
+        return jenkins_one_at_a_time(self.Name)
 
 
 class Locator(Object):
