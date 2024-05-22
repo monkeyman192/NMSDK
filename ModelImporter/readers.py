@@ -1,27 +1,35 @@
 from collections import namedtuple
+from contextvars import ContextVar
 import struct
 from typing import Tuple
 
 # TODO: move to the serialization folder?
 
 from ..serialization.utils import (read_list_header, read_string, # noqa pylint: disable=relative-beyond-top-level
-                                   bytes_to_quat, read_bool)
+                                   bytes_to_quat, read_bool, read_uint32,
+                                   returned_read)
 from ..serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL  # noqa pylint: disable=relative-beyond-top-level
+from ..NMS.LOOKUPS import VersionedOffsets
 from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
 
 
+# gstream_info = namedtuple(
+#     'gstream_info',
+#     ['vert_size', 'vert_off', 'idx_size', 'idx_off', 'dbl_buff']
+# )
 gstream_info = namedtuple(
-    'gstream_info',
-    ['vert_size', 'vert_off', 'idx_size', 'idx_off', 'dbl_buff']
-)
-gstream_info_old = namedtuple(
     'gstream_info',
     ['vert_size', 'vert_off', 'idx_size', 'idx_off']
 )
 
 
-def read_anim(fname):
+ctx_geom_guid: ContextVar[int] = ContextVar(
+    "GeometryGUID",
+    default=0x7E2C6C00A113D11F,
+)
+
+
+def read_anim(fname):  # TODO: FIX!
     """ Reads an anim file. """
     anim_data = dict()
 
@@ -92,7 +100,7 @@ def read_anim(fname):
         return anim_data
 
 
-def read_entity_animation_data(fname: str) -> dict:
+def read_entity_animation_data(fname: str) -> dict:  # TODO: Fix
     """ Read an entity file.
 
     This will currently only support reading the animation data from the
@@ -149,46 +157,48 @@ def read_material(fname):
 
     # Read the data directly from the mbin
     with open(fname, 'rb') as f:
+        f.seek(0x10)
+        guid = struct.unpack("<Q", f.read(0x8))[0]
+        ofs = VersionedOffsets.TkMaterialData[guid]
+        sample_ofs = VersionedOffsets.TkMaterialSampler[guid]
+        uniform_ofs = VersionedOffsets.TkMaterialUniform[guid]
         f.seek(0x60)
         # get name
-        data['Name'] = read_string(f, 0x80)
+        data["Name"] = read_string(f, 0x80, ofs["Name"], True)
         # get metamaterial, introduced in 2.61
-        data['Metamaterial'] = read_string(f, 0x100)
+        data["Metamaterial"] = read_string(f, 0x100, ofs["Metamaterial"], True)
         # get class
-        data['Class'] = read_string(f, 0x20)
+        data['Class'] = read_string(f, 0x20, ofs["Class"], True)
         # get whether it casts a shadow
-        f.seek(0x4, 1)
-        data['CastShadow'] = read_bool(f)
+        data['CastShadow'] = read_bool(f, ofs["CastShadow"], True)
         # save pointer for Flags Uniforms Samplers list headers
-        list_header_first = f.tell() + 0x1 + 0x80 + 0x80 + 0x2
         # get material flags
         data['Flags'] = list()
-        f.seek(list_header_first)
+        f.seek(0x60 + ofs["Flags"])
         list_offset, list_count = read_list_header(f)
         f.seek(list_offset, 1)
         for i in range(list_count):
             data['Flags'].append(struct.unpack('<I', f.read(0x4))[0])
         # get uniforms
         data['Uniforms'] = dict()
-        f.seek(list_header_first + 0x10)
+        f.seek(0x60 + ofs["Uniforms"])
         list_offset, list_count = read_list_header(f)
         f.seek(list_offset, 1)
-        for i in range(list_count):
-            name = read_string(f, 0x20)
-            value = struct.unpack('<ffff', f.read(0x10))
+        for _ in range(list_count):
+            name = read_string(f, 0x20, uniform_ofs["Name"], True)
+            value = returned_read(f, "<ffff", 0x10, uniform_ofs["Values"])
             data['Uniforms'][name] = value
-            f.seek(0x10, 1)
+            f.seek(uniform_ofs["_size"], 1)
         # get samplers (texture paths)
         data['Samplers'] = dict()
-        f.seek(list_header_first + 0x20)
+        f.seek(0x60 + ofs["Samplers"])
         list_offset, list_count = read_list_header(f)
         f.seek(list_offset, 1)
         for i in range(list_count):
-            name = read_string(f, 0x20)
-            Map = read_string(f, 0x80)
-            data['Samplers'][name] = Map
+            name = read_string(f, 0x20, sample_ofs["Name"], True)
+            data['Samplers'][name] = read_string(f, 0x80, sample_ofs["Map"], True)
             if i != list_count - 1:
-                f.seek(0x38, 1)
+                f.seek(sample_ofs["_size"], 1)
 
     return data
 
@@ -201,33 +211,35 @@ def read_mesh_binding_data(fname):
     data : dict
         All the relevant data from the geometry file
     """
+    geometry_offsets = VersionedOffsets.TkGeometryData[ctx_geom_guid.get()]
     data = dict()
     with open(fname, 'rb') as f:
         # First, check that there is data to read. If not, then return nothing
-        f.seek(0x78)
+        f.seek(0x60 + geometry_offsets['JointBindings'] + 0x8)
         if struct.unpack('<I', f.read(0x4))[0] == 0:
             return
         # Read joint binding data
-        f.seek(0x70)
+        f.seek(0x60 + geometry_offsets['JointBindings'])
+        jo = VersionedOffsets.TkJointBindingData[ctx_geom_guid.get()]
         data['JointBindings'] = list()
         with ListHeader(f) as JointBindings:
             for _ in range(JointBindings.count):
                 jb_data = dict()
-                fmt = '<' + 'f' * 0x10
-                jb_data['InvBindMatrix'] = struct.unpack(fmt, f.read(0x40))
-                jb_data['BindTranslate'] = struct.unpack('<fff', f.read(0xC))
-                jb_data['BindRotate'] = struct.unpack('<ffff', f.read(0x10))
-                jb_data['BindScale'] = struct.unpack('<fff', f.read(0xC))
+                jb_data['InvBindMatrix'] = returned_read(f, '<' + 'f' * 0x10, 0x40, jo['InvBindMatrix'])
+                jb_data['BindTranslate'] = returned_read(f, '<fff', 0xC, jo['BindTranslate'])
+                jb_data['BindRotate'] = returned_read(f, '<ffff', 0x10, jo['BindRotate'])
+                jb_data['BindScale'] = returned_read(f, '<fff', 0xC, jo['BindScale'])
                 data['JointBindings'].append(jb_data)
+                f.seek(jo['_size'])
         # skip to the skin matrix layout data
-        f.seek(0xB0)
+        f.seek(0x60 + geometry_offsets['SkinMatrixLayout'])
         with ListHeader(f) as SkinMatrixLayout:
             fmt = '<' + 'I' * SkinMatrixLayout.count
             data_size = 4 * SkinMatrixLayout.count
             data['SkinMatrixLayout'] = struct.unpack(fmt, f.read(data_size))
 
         # skip to the MeshBaseSkinMat data
-        f.seek(0x100)
+        f.seek(0x60 + geometry_offsets['MeshBaseSkinMat'])
         with ListHeader(f) as MeshBaseSkinMat:
             fmt = '<' + 'I' * MeshBaseSkinMat.count
             data_size = 4 * MeshBaseSkinMat.count
@@ -244,40 +256,41 @@ def read_metadata(fname):
     data : dict (str: namedtuple)
         Mapping between the names of the meshes and their metadata
     """
-    data = dict()
-    old_fmt = False
+    data: dict[str, list[gstream_info]] = dict()
     with open(fname, 'rb') as f:
         # Let's get the GUID to see what version we are looking at.
         f.seek(0x10)
         guid = struct.unpack('<Q', f.read(0x8))[0]
-        # Let's check what it is. The current is 0x71E36E603CED2E6E
+        ctx_geom_guid.set(guid)
+        # Let's check what it is. The current is 0x7E2C6C00A113D11F
         # Ones before this we will consider "old format".
-        if guid == 0xCD49AC37B4729513:
-            old_fmt = True
+        geometry_offsets = VersionedOffsets.TkGeometryData[ctx_geom_guid.get()]
+        rel_offset = geometry_offsets["StreamMetaDataArray"]
         # move to the start of the StreamMetaDataArray header
-        f.seek(0x190)
+        f.seek(0x60 + rel_offset)
+        TkMeshMetaData_offsets = VersionedOffsets.TkMeshMetaData[ctx_geom_guid.get()]
         # find how far to jump
         list_offset, list_count = read_list_header(f)
         f.seek(list_offset, 1)
         for _ in range(list_count):
             # read the ID in and strip it to be just the string and no padding.
-            string = read_string(f, 0x80).upper()
-            # skip the hash
-            f.seek(0x8, 1)
+            string = read_string(
+                f, 0x80, TkMeshMetaData_offsets["IdString"], True
+            ).upper()
             # read in the actual data we want
-            if not old_fmt:
-                read_data = struct.unpack('<IIII?', f.read(0x11))
-                # Skip the last 7 padding bytes (0xFE's)
-                f.seek(0x7, 1)
-                gstream_info_ = gstream_info
-            else:
-                read_data = struct.unpack('<IIII', f.read(0x10))
-                gstream_info_ = gstream_info_old
+            VertexDataSize = read_uint32(f, TkMeshMetaData_offsets["VertexDataSize"])
+            VertexDataOffset = read_uint32(f, TkMeshMetaData_offsets["VertexDataOffset"])
+            IndexDataSize = read_uint32(f, TkMeshMetaData_offsets["IndexDataSize"])
+            IndexDataOffset = read_uint32(f, TkMeshMetaData_offsets["IndexDataOffset"])
+            # DoubleBufferGeometry = read_bool(f, TkMeshMetaData_offsets["DoubleBufferGeometry"], True)
+            gstream_info_ = gstream_info(VertexDataSize, VertexDataOffset, IndexDataSize, IndexDataOffset)
             if string not in data:
-                data[string] = gstream_info_(*read_data)
+                data[string] = gstream_info_
             else:
                 data[string] = [data[string]]
-                data[string].append(gstream_info_(*read_data))
+                data[string].append(gstream_info_)
+            # Seek to the end of the chunk.
+            f.seek(TkMeshMetaData_offsets["_size"], 1)
     return data
 
 

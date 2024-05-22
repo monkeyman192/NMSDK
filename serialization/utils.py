@@ -1,3 +1,4 @@
+from io import BufferedReader
 from struct import pack, unpack
 from math import sqrt
 
@@ -173,16 +174,44 @@ def read_list_header(data, return_to_start=True):
     return offset, count
 
 
-def read_string(data, length):
+def returned_read(buff: BufferedReader, fmt: str, size: int, offset: int = 0):
+    orig_pos = buff.tell()
+    buff.seek(offset, 1)
+    data = unpack(fmt, buff.read(size))
+    buff.seek(orig_pos)
+    return data
+
+
+def read_string(data: BufferedReader, length: int, offset: int = 0,
+                return_to_start: bool = False) -> str:
     """ Read a null terminated string. """
+    orig_pos = data.tell()
+    data.seek(offset, 1)
     fmt = str(length) + 's'
-    string = unpack(fmt, data.read(length))[0].split(b'\x00')[0]
-    return string.decode()
+    string: bytes = unpack(fmt, data.read(length))[0].split(b'\x00')[0]
+    ret = string.decode()
+    if return_to_start:
+        data.seek(orig_pos)
+    return ret
 
 
-def read_bool(data):
+def read_uint32(data: BufferedReader, offset: int = 0, return_to_start: bool = True):
+    orig_pos = data.tell()
+    data.seek(offset, 1)
+    val = unpack("<I", data.read(4))[0]
+    if return_to_start:
+        data.seek(orig_pos)
+    return val
+
+
+def read_bool(data: BufferedReader, offset: int = 0, return_to_start: bool = False):
     """ Read a single boolean value. """
-    return unpack('?', data.read(1))[0]
+    orig_pos = data.tell()
+    data.seek(offset, 1)
+    val = unpack('?', data.read(1))[0]
+    if return_to_start:
+        data.seek(orig_pos)
+    return val
 
 
 def serialize(x, fmt=None):
