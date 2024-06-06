@@ -18,14 +18,14 @@ import subprocess
 from collections import OrderedDict as odict
 from array import array
 # Internal imports
-from ..NMS.classes import (TkAttachmentData, TkGeometryData, List,
+from NMS.classes import (TkAttachmentData, TkGeometryData, List,
                            TkVertexElement, TkVertexLayout, Vector4f)
-from ..NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES
-from ..serialization.mbincompiler import mbinCompiler
-from ..serialization.StreamCompiler import StreamData, TkMeshMetaData
-from ..serialization.serializers import (serialize_index_stream,
+from NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES
+from serialization.mbincompiler import mbinCompiler
+from serialization.StreamCompiler import StreamData, TkMeshMetaData
+from serialization.serializers import (serialize_index_stream,
                                          serialize_vertex_stream)
-from .utils import nmsHash, traverse
+from ModelExporter.utils import nmsHash, traverse
 
 
 class Export():

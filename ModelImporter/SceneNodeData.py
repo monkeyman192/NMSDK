@@ -1,4 +1,3 @@
-from collections import Counter
 import math
 
 from mathutils import Matrix, Euler

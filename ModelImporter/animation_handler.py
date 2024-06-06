@@ -8,7 +8,7 @@ from bpy.props import StringProperty
 from mathutils import Vector, Quaternion
 
 # Internal imports
-from .readers import read_anim  # pylint: disable=relative-beyond-top-level
+from ModelImporter.readers import read_anim
 
 
 DATA_PATH_MAP = {'Rotation': 'rotation_quaternion',

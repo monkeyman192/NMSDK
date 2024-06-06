@@ -4,10 +4,10 @@
 
 __author__ = "monkeyman192"
 
-from ..utils.misc import get_obj_name
-from ..NMS.classes import (List, TkModelDescriptorList, NMSString0x80,
+from utils.misc import get_obj_name
+from NMS.classes import (List, TkModelDescriptorList, NMSString0x80,
                            TkResourceDescriptorList, TkResourceDescriptorData)
-from .utils import get_children
+from ModelExporter.utils import get_children
 
 
 # main external container. This is only slightly different to the Node_Data

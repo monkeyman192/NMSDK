@@ -5,7 +5,7 @@ from bpy.utils import register_class, unregister_class
 from bpy.props import (StringProperty, BoolProperty, EnumProperty,
                        FloatProperty, IntVectorProperty, FloatVectorProperty,
                        IntProperty)
-from ..utils.misc import getParentRefScene
+from utils.misc import getParentRefScene
 
 """ Various properties for each of the different node types """
 

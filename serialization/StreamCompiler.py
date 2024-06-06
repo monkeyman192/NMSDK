@@ -2,7 +2,7 @@
 
 from struct import pack, unpack
 
-from .utils import pad, read_list_header, read_list_data, list_header
+from serialization.utils import pad, read_list_header, read_list_data, list_header
 
 
 class TkMeshMetaData():

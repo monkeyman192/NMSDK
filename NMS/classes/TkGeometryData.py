@@ -6,7 +6,7 @@ from struct import pack
 from .Struct import Struct
 from .List import List
 from .TkVertexLayout import TkVertexLayout
-from ...serialization.utils import serialize, list_header
+from serialization.utils import serialize, list_header
 
 
 PADDING_BYTE = b'\xFE'

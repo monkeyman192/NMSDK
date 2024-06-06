@@ -1,7 +1,7 @@
 __author__ = "monkeyman192"
 __version__ = "0.5"
 
-from .utils import serialize, pad
+from serialization.utils import serialize, pad
 
 
 class mbinCompiler():

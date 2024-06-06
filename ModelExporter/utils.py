@@ -8,7 +8,7 @@ from typing import Tuple
 import bpy
 from mathutils import Matrix, Vector
 # Internal imports
-from ..NMS.classes import Vector4f
+from NMS.classes import Vector4f
 
 
 ALL_TYPES = ['Reference', 'Mesh', 'Locator', 'Collision', 'Light', 'Joint']

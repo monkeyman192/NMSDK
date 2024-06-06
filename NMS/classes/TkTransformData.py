@@ -2,7 +2,7 @@
 
 from .Struct import Struct
 
-from ...utils.misc import truncate_float
+from utils.misc import truncate_float
 
 
 class TkTransformData(Struct):
