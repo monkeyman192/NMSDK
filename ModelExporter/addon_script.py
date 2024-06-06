@@ -11,23 +11,23 @@ import bmesh
 from idprop.types import IDPropertyGroup
 from mathutils import Matrix, Vector
 # Internal imports
-from .utils import get_surr, calc_tangents
-from ..utils.misc import CompareMatrices, get_obj_name
-from ..utils.image_convert import convert_image
-from .animations import process_anims
-from .export import Export
-from .Descriptor import Descriptor
-from ..NMS.classes import (TkMaterialData, TkMaterialFlags,
+from ModelExporter.utils import get_surr, calc_tangents
+from utils.misc import CompareMatrices, get_obj_name
+from utils.image_convert import convert_image
+from ModelExporter.animations import process_anims
+from ModelExporter.export import Export
+from ModelExporter.Descriptor import Descriptor
+from NMS.classes import (TkMaterialData, TkMaterialFlags,
                            TkVolumeTriggerType, TkMaterialSampler,
                            TkTransformData, TkMaterialUniform,
                            TkRotationComponentData, TkPhysicsComponentData)
-from ..NMS.classes import TkAnimationComponentData, TkAnimationData
-from ..NMS.classes import List, Vector4f
-from ..NMS.classes import TkAttachmentData
-from ..NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
+from NMS.classes import TkAnimationComponentData, TkAnimationData
+from NMS.classes import List, Vector4f
+from NMS.classes import TkAttachmentData
+from NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
                            Joint)
-from ..NMS.LOOKUPS import MATERIALFLAGS
-from .ActionTriggerParser import ParseNodes
+from NMS.LOOKUPS import MATERIALFLAGS
+from ModelExporter.ActionTriggerParser import ParseNodes
 
 
 ROT_X_MAT = Matrix.Rotation(radians(-90), 4, 'X')

@@ -2,15 +2,18 @@ from collections import namedtuple
 from contextvars import ContextVar
 import struct
 from typing import Tuple
+import os.path as op
 
 # TODO: move to the serialization folder?
 
-from ..serialization.utils import (read_list_header, read_string, # noqa pylint: disable=relative-beyond-top-level
+from serialization.utils import (read_list_header, read_string, # noqa pylint: disable=relative-beyond-top-level
                                    bytes_to_quat, read_bool, read_uint32,
                                    returned_read)
-from ..serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import VersionedOffsets
-from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
+from serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
+from NMS.LOOKUPS import VersionedOffsets
+from utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
+
+from serialization.NMS_Structures import TkMaterialData, MBINHeader
 
 
 # gstream_info = namedtuple(
@@ -153,54 +156,11 @@ def read_material(fname):
         Mapping between the texture type (one of DIFFUSE, MASKS, NORMAL) and
         the path to the texture
     """
-    data = dict()
-
-    # Read the data directly from the mbin
-    with open(fname, 'rb') as f:
-        f.seek(0x10)
-        guid = struct.unpack("<Q", f.read(0x8))[0]
-        ofs = VersionedOffsets.TkMaterialData[guid]
-        sample_ofs = VersionedOffsets.TkMaterialSampler[guid]
-        uniform_ofs = VersionedOffsets.TkMaterialUniform[guid]
-        f.seek(0x60)
-        # get name
-        data["Name"] = read_string(f, 0x80, ofs["Name"], True)
-        # get metamaterial, introduced in 2.61
-        data["Metamaterial"] = read_string(f, 0x100, ofs["Metamaterial"], True)
-        # get class
-        data['Class'] = read_string(f, 0x20, ofs["Class"], True)
-        # get whether it casts a shadow
-        data['CastShadow'] = read_bool(f, ofs["CastShadow"], True)
-        # save pointer for Flags Uniforms Samplers list headers
-        # get material flags
-        data['Flags'] = list()
-        f.seek(0x60 + ofs["Flags"])
-        list_offset, list_count = read_list_header(f)
-        f.seek(list_offset, 1)
-        for i in range(list_count):
-            data['Flags'].append(struct.unpack('<I', f.read(0x4))[0])
-        # get uniforms
-        data['Uniforms'] = dict()
-        f.seek(0x60 + ofs["Uniforms"])
-        list_offset, list_count = read_list_header(f)
-        f.seek(list_offset, 1)
-        for _ in range(list_count):
-            name = read_string(f, 0x20, uniform_ofs["Name"], True)
-            value = returned_read(f, "<ffff", 0x10, uniform_ofs["Values"])
-            data['Uniforms'][name] = value
-            f.seek(uniform_ofs["_size"], 1)
-        # get samplers (texture paths)
-        data['Samplers'] = dict()
-        f.seek(0x60 + ofs["Samplers"])
-        list_offset, list_count = read_list_header(f)
-        f.seek(list_offset, 1)
-        for i in range(list_count):
-            name = read_string(f, 0x20, sample_ofs["Name"], True)
-            data['Samplers'][name] = read_string(f, 0x80, sample_ofs["Map"], True)
-            if i != list_count - 1:
-                f.seek(sample_ofs["_size"], 1)
-
-    return data
+    if not op.exists(fname):
+        return None
+    with open(fname, "rb") as f:
+        header = MBINHeader.read(f)
+        return TkMaterialData[header.header_guid].read(f)
 
 
 def read_mesh_binding_data(fname):

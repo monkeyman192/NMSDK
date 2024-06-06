@@ -1,7 +1,7 @@
 bl_info = {
     "name": "No Man's Sky Development Kit",
     "author": "gregkwaste, monkeyman192",
-    "version": (0, 9, "25b"),
+    "version": (0, 9, "25c"),
     "blender": (4, 0, 0),
     "location": "File > Export/Import",
     "description": "Create NMS scene structures and export to NMS File format",
@@ -14,6 +14,12 @@ bl_info = {
 import bpy
 from bpy.utils import register_class, unregister_class
 from bpy.props import PointerProperty
+
+# Inject the directory this file is in into the sys.path so that the imports
+# become significantly nicer...
+import sys
+import os.path as op
+sys.path.append(op.dirname(__file__))
 
 # External API operators
 from .NMSDK import ImportSceneOperator, ImportMeshOperator, ExportSceneOperator

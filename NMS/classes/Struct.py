@@ -8,10 +8,10 @@ from collections import OrderedDict
 import struct
 from binascii import hexlify
 # internal imports
-from .String import String
-from ...serialization.utils import to_chr
-from .Empty import Empty
-from .List import List
+from NMS.classes.String import String
+from serialization.utils import to_chr
+from NMS.classes.Empty import Empty
+from NMS.classes.List import List
 
 
 class Struct():

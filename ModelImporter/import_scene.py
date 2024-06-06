@@ -3,7 +3,6 @@ import os.path as op
 import struct
 from math import radians
 import subprocess
-import time
 from typing import List
 
 # Blender imports
@@ -13,19 +12,21 @@ import bmesh  # pylint: disable=import-error
 from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
 
 # Internal imports
-from ..serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
+from serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
                                      bytes_to_int_2_10_10_10_rev)
-from ..serialization.utils import read_list_header, returned_read  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT, VersionedOffsets  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.material_node import create_material_node  # noqa pylint: disable=relative-beyond-top-level
-from .readers import (read_metadata, read_gstream,  # noqa pylint: disable=relative-beyond-top-level
+from serialization.utils import read_list_header, returned_read  # noqa pylint: disable=relative-beyond-top-level
+from NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT, VersionedOffsets  # noqa pylint: disable=relative-beyond-top-level
+from NMS.material_node import create_material_node  # noqa pylint: disable=relative-beyond-top-level
+from ModelImporter.readers import (read_metadata, read_gstream,  # noqa pylint: disable=relative-beyond-top-level
                       read_entity_animation_data, read_mesh_binding_data,
                       read_descriptor, ctx_geom_guid)  # TODO: Move ctx_geom_guid somewhere better...
-from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
-from .SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
-from .mesh_utils import BB_transform_matrix
-from ..utils.io import get_NMS_dir, base_path  # noqa pylint: disable=relative-beyond-top-level
-from ..utils.bpyutils import SceneOp, edit_object, select_object  # noqa pylint: disable=relative-beyond-top-level
+from utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
+from ModelImporter.SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
+from ModelImporter.mesh_utils import BB_transform_matrix
+from utils.io import get_NMS_dir, base_path  # noqa pylint: disable=relative-beyond-top-level
+from utils.bpyutils import SceneOp, edit_object, select_object  # noqa pylint: disable=relative-beyond-top-level
+
+from serialization.NMS_Structures import TkSceneNodeData, TkSceneNodeData_map, MBINHeader
 
 VERT_TYPE_MAP = {5121: {'size': 1, 'func': bytes_to_ubyte},
                  5131: {'size': 2, 'func': bytes_to_half},
@@ -105,12 +106,10 @@ class ImportScene():
         # Find the local name of the scene (relative to the NMS PCBANKS dir)
         # This needs to be read from the mbin file, so ensure we are either
         # reading from it or construct the name.
-        with open(mbin_fpath, 'rb') as fobj:
-            fobj.seek(0x10)
-            guid = struct.unpack("<Q", fobj.read(0x8))[0]
-            ofs = VersionedOffsets.TkSceneNodeData[guid]
-            fobj.seek(0x60 + ofs["Name"])
-            self.scene_name = fobj.read(0x80).decode().replace('\x00', '')
+        with open(mbin_fpath, 'rb') as f:
+            header = MBINHeader.read(f)
+            self.scene_node_data = TkSceneNodeData_map[header.header_guid].read(f)
+            self.scene_name = self.scene_node_data.Name
         print('Loading {0}'.format(self.scene_name))
 
         # To optimise loading of referenced scenes, check to see if the current
@@ -185,8 +184,7 @@ class ImportScene():
 
         self.descriptor_data = dict()
 
-        self.geometry_stream_file = self.geometry_file.replace('GEOMETRY',
-                                                               'GEOMETRY.DATA')
+        self.geometry_stream_file = self.geometry_file.replace('GEOMETRY', 'GEOMETRY.DATA')
 
         # get the information about what data the geometry file contains
 
