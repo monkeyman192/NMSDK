@@ -40,6 +40,12 @@ TYPE_MAP = {'MESH': 'Mesh', 'LOCATOR': 'Locator', 'REFERENCE': 'Reference',
             'JOINT': 'Joint', 'LIGHT': 'Light'}
 
 
+BLENDER_MAJOR_VERSION, BLENDER_MINOR_VERSION, BLENDER_REVISION_VERSION = bpy.app.version
+if BLENDER_MAJOR_VERSION >= 4 and BLENDER_MINOR_VERSION >= 2:
+    RENDER_ENGINE = "BLENDER_EEVEE_NEXT"
+else:
+    RENDER_ENGINE = "BLENDER_EEVEE"
+
 class MeshError(Exception):
     pass
 
@@ -139,7 +145,7 @@ class ImportScene():
         self.bind_matrices = dict()
 
         # change to render with cycles
-        self.scn.render.engine = 'BLENDER_EEVEE'
+        self.scn.render.engine = RENDER_ENGINE
 
         if not op.exists(exml_fpath):
             retcode = subprocess.call(
