@@ -21,17 +21,17 @@ class TkMaterialFlags(datatype):
 class TkMaterialUniform(datatype):
     Values: Annotated[tuple[float, float, float, float], Field(Vector4f)]
     ExtendedValues: Annotated[list[tuple[float, float, float, float]], Field(NMS_list[Vector4f])]
-    Name: Annotated[str, Field(bt.string, 0x20)]
+    Name: Annotated[str, Field(VariableSizeString)]
 
 
 @dataclass
 class TkMaterialSampler(datatype):
     MaterialAlternativeId: Annotated[str, Field(astring, 0x20)]
+    Map: Annotated[str, Field(VariableSizeString)]
+    Name: Annotated[str, Field(VariableSizeString)]
     Anisotropy: Annotated[int, Field(bt.int32)]
     TextureAddressMode: Annotated[int, Field(bt.uint32)]
     TextureFilterMode: Annotated[int, Field(bt.uint32)]
-    Map: Annotated[str, Field(bt.string, 0x80)]
-    Name: Annotated[str, Field(bt.string, 0x20)]
     IsCube: Annotated[bool, Field(bt.boolean)]
     IsSRGB: Annotated[bool, Field(bt.boolean)]
     UseCompression: Annotated[bool, Field(bt.boolean)]
@@ -110,33 +110,38 @@ class TkJointMirrorAxis(datatype):
 
 @dataclass
 class TkMeshMetaData(datatype):
+    IdString: Annotated[str, Field(VariableSizeString)]
     Hash: Annotated[int, Field(bt.uint64)]
     IndexDataOffset: Annotated[int, Field(bt.int32)]
     IndexDataSize: Annotated[int, Field(bt.int32)]
     VertexDataOffset: Annotated[int, Field(bt.int32)]
     VertexDataSize: Annotated[int, Field(bt.int32)]
-    IdString: Annotated[str, Field(bt.string, 0x80)]
     DoubleBufferGeometry: Annotated[bool, Field(bt.boolean)]
 
+
+
+# TODO: Could make class generic which may be a little cleaner...
 
 @dataclass
 class TkGeometryData(datatype):
     SmallVertexLayout: Annotated[TkVertexLayout, Field(TkVertexLayout)]
     VertexLayout: Annotated[TkVertexLayout, Field(TkVertexLayout)]
-    BoundHullVertEd: Annotated[list[int], Field(NMS_list[int])]
+    BoundHullVertEd: Annotated[list[int], Field(NMS_list[bt.int32])]
     BoundHullVerts: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
-    BoundHullVertSt: Annotated[list[int], Field(NMS_list[int])]
-    IndexBuffer: Annotated[list[int], Field(NMS_list[int])]
+    BoundHullVertSt: Annotated[list[int], Field(NMS_list[bt.int32])]
+    IndexBuffer: Annotated[list[int], Field(NMS_list[bt.int32])]
     JointBindings: Annotated[list[TkJointBindingData], Field(NMS_list[TkJointBindingData])]
     JointExtents: Annotated[list[TkJointExtentData], Field(NMS_list[TkJointExtentData])]
     JointMirrorAxes: Annotated[list[TkJointMirrorAxis], Field(NMS_list[TkJointMirrorAxis])]
-    JointMirrorPairs: Annotated[list[int], Field(NMS_list[int])]
+    JointMirrorPairs: Annotated[list[int], Field(NMS_list[bt.int32])]
     MeshAABBMax: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
     MeshAABBMin: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
-    MeshBaseSkinMat: Annotated[list[int], Field(NMS_list[int])]
-    MeshVertREnd: Annotated[list[int], Field(NMS_list[int])]
-    MeshVertRStart: Annotated[list[int], Field(NMS_list[int])]
-    SkinMatrixLayout: Annotated[list[int], Field(NMS_list[int])]
+    MeshBaseSkinMat: Annotated[list[int], Field(NMS_list[bt.int32])]
+    MeshVertREnd: Annotated[list[int], Field(NMS_list[bt.int32])]
+    MeshVertRStart: Annotated[list[int], Field(NMS_list[bt.int32])]
+    ProcGenNodeNames: Annotated[str, Field(VariableSizeString)]
+    ProcGenParentId: Annotated[list[int], Field(NMS_list[bt.int32])]
+    SkinMatrixLayout: Annotated[list[int], Field(NMS_list[bt.int32])]
     StreamMetaDataArray: Annotated[list[TkMeshMetaData], Field(NMS_list[TkMeshMetaData])]
     CollisionIndexCount: Annotated[int, Field(bt.int32)]
     IndexCount: Annotated[int, Field(bt.int32)]
@@ -144,13 +149,40 @@ class TkGeometryData(datatype):
     VertexCount: Annotated[int, Field(bt.int32)]
 
 
+# @dataclass
+# class TkGeometryData_32bit(datatype):
+#     SmallVertexLayout: Annotated[TkVertexLayout, Field(TkVertexLayout)]
+#     VertexLayout: Annotated[TkVertexLayout, Field(TkVertexLayout)]
+#     BoundHullVertEd: Annotated[list[int], Field(NMS_list[bt.int32])]
+#     BoundHullVerts: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
+#     BoundHullVertSt: Annotated[list[int], Field(NMS_list[bt.int32])]
+#     IndexBuffer: Annotated[list[int], Field(NMS_list[bt.int32])]
+#     JointBindings: Annotated[list[TkJointBindingData], Field(NMS_list[TkJointBindingData])]
+#     JointExtents: Annotated[list[TkJointExtentData], Field(NMS_list[TkJointExtentData])]
+#     JointMirrorAxes: Annotated[list[TkJointMirrorAxis], Field(NMS_list[TkJointMirrorAxis])]
+#     JointMirrorPairs: Annotated[list[int], Field(NMS_list[bt.int32])]
+#     MeshAABBMax: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
+#     MeshAABBMin: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
+#     MeshBaseSkinMat: Annotated[list[int], Field(NMS_list[bt.int32])]
+#     MeshVertREnd: Annotated[list[int], Field(NMS_list[bt.int32])]
+#     MeshVertRStart: Annotated[list[int], Field(NMS_list[bt.int32])]
+#     ProcGenNodeNames: Annotated[str, Field(VariableSizeString)]
+#     ProcGenParentId: Annotated[list[int], Field(NMS_list[bt.int32])]
+#     SkinMatrixLayout: Annotated[list[int], Field(NMS_list[bt.int32])]
+#     StreamMetaDataArray: Annotated[list[TkMeshMetaData], Field(NMS_list[TkMeshMetaData])]
+#     CollisionIndexCount: Annotated[int, Field(bt.int32)]
+#     IndexCount: Annotated[int, Field(bt.int32)]
+#     Indices16Bit: Annotated[int, Field(bt.int32)]
+#     VertexCount: Annotated[int, Field(bt.int32)]
+
+
 @dataclass
 class TkMeshData(datatype):
+    IdString: Annotated[str, Field(VariableSizeString)]
     MeshDataStream: Annotated[list[bytes], Field(NMS_list[bytes])]
     Hash: Annotated[int, Field(bt.uint64)]
     IndexDataSize: Annotated[int, Field(bt.int32)]
     VertexDataSize: Annotated[int, Field(bt.int32)]
-    IdString: Annotated[str, Field(bt.string, 0x80)]
 
 
 @dataclass
@@ -188,6 +220,7 @@ class TkSceneNodeData(sc.TkSceneNodeData_T, datatype):
     Type: Annotated[str, Field(bt.string, length=0x10)]
     Transform: Annotated[TkTransformData, Field(TkTransformData)]
     NameHash: Annotated[int, Field(bt.uint32)]
+    PlatformExclusion: Annotated[int, Field(bt.int8)]
 
 
 TkSceneNodeData.__annotations__["Children"] = Annotated[list[TkSceneNodeData], Field(NMS_list[TkSceneNodeData])]

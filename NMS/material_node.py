@@ -14,9 +14,8 @@ def create_material_node(mat_path: str, local_root_directory: str):
     if mat_data is None:
         # no texture data so just exit this function.
         return
-    # create a new material
-    mat_name = mat_data.Name
-    mat = bpy.data.materials.new(name=mat_name)
+    # Create a new material
+    mat = bpy.data.materials.new(name=mat_data.Name)
 
     uniforms = {x.Name: x for x in mat_data.Uniforms}
 

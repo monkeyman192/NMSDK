@@ -35,6 +35,20 @@ class datatype(metaclass=AlignedData):
         else:
             return type(self).alignment
 
+    @property
+    def size(self):
+        if hasattr(self, "_size"):
+            return self._size
+        _size = 0
+        for name, type_ in self.__annotations__.items():
+            if name.startswith("_"):
+                continue
+            try:
+                _size += type_.size
+            except:
+                print(name)
+                raise
+
     @classmethod
     def deserialize(cls, buf: BufferedReader):
         raise NotImplementedError

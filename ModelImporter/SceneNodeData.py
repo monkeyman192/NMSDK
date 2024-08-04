@@ -2,9 +2,14 @@ import math
 
 from mathutils import Matrix, Euler
 
+from serialization.NMS_Structures import TkSceneNodeData
 
 class SceneNodeData():
-    def __init__(self, info, parent: 'SceneNodeData' = None):
+    """ Our own internal representation of the TkSceneNodeData class.
+    This makes no attempt to map fields directly to the fields in that class,
+    but will instead be a version-independent representation of it.
+    """
+    def __init__(self, info: TkSceneNodeData, parent: 'SceneNodeData' = None):
         self.info = info
         self.parent = parent
         self.verts = dict()
@@ -13,18 +18,17 @@ class SceneNodeData():
         self.bounded_hull = list()
         # The metadata will be read from the geometry file later.
         self.metadata = None
-        self.children = list()
-        children = self.info.pop('Children')
-        for child in children:
+        self.children: list[SceneNodeData] = []
+        # Slightly wasteful but greatly simplifies things...
+        for child in self.info.Children:
             self.children.append(SceneNodeData(child, self))
 
 # region public methods
 
     def Attribute(self, name, astype=str):
         # Doesn't support AltID's
-        for attrib in self.info['Attributes']:
-            if attrib['Name'] == name:
-                return astype(attrib['Value'])
+        if (attrib := self.info.attributes.get(name)) is not None:
+            return astype(attrib)
 
     def iter(self):
         """ Returns an ordered iterable list of SceneNodeData objects. """
@@ -67,20 +71,27 @@ class SceneNodeData():
 
     @property
     def Name(self) -> str:
-        return self.info['Name']
+        return self.info.Name
 
     @property
     def Transform(self) -> dict:
-        trans = (float(self.info['Transform']['TransX']),
-                 float(self.info['Transform']['TransY']),
-                 float(self.info['Transform']['TransZ']))
-        rot = (math.radians(float(self.info['Transform']['RotX'])),
-               math.radians(float(self.info['Transform']['RotY'])),
-               math.radians(float(self.info['Transform']['RotZ'])))
-        scale = (float(self.info['Transform']['ScaleX']),
-                 float(self.info['Transform']['ScaleY']),
-                 float(self.info['Transform']['ScaleZ']))
-        return {'Trans': trans, 'Rot': rot, 'Scale': scale}
+        trans = (
+            self.info.Transform.TransX,
+            self.info.Transform.TransY,
+            self.info.Transform.TransZ,
+        )
+        rot = (
+            math.radians(self.info.Transform.RotX),
+            math.radians(self.info.Transform.RotY),
+            math.radians(self.info.Transform.RotZ),
+        )
+        scale = (
+            self.info.Transform.ScaleX,
+            self.info.Transform.ScaleY,
+            self.info.Transform.ScaleZ,
+        )
+        k = {'Trans': trans, 'Rot': rot, 'Scale': scale}
+        return k
 
     @property
     def matrix_local(self) -> Matrix:
@@ -112,4 +123,4 @@ class SceneNodeData():
 
     @property
     def Type(self):
-        return self.info['Type']
+        return self.info.Type

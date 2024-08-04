@@ -1,4 +1,5 @@
 # stdlib imports
+from dataclasses import asdict
 import os.path as op
 import struct
 from math import radians
@@ -12,21 +13,19 @@ import bmesh  # pylint: disable=import-error
 from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
 
 # Internal imports
-from serialization.formats import (bytes_to_half, bytes_to_ubyte,  # noqa pylint: disable=relative-beyond-top-level
-                                     bytes_to_int_2_10_10_10_rev)
-from serialization.utils import read_list_header, returned_read  # noqa pylint: disable=relative-beyond-top-level
-from NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT, VersionedOffsets  # noqa pylint: disable=relative-beyond-top-level
-from NMS.material_node import create_material_node  # noqa pylint: disable=relative-beyond-top-level
-from ModelImporter.readers import (read_metadata, read_gstream,  # noqa pylint: disable=relative-beyond-top-level
-                      read_entity_animation_data, read_mesh_binding_data,
-                      read_descriptor, ctx_geom_guid)  # TODO: Move ctx_geom_guid somewhere better...
-from utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
-from ModelImporter.SceneNodeData import SceneNodeData  # noqa pylint: disable=relative-beyond-top-level
+from serialization.formats import bytes_to_half, bytes_to_ubyte, bytes_to_int_2_10_10_10_rev
+from NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT
+from NMS.material_node import create_material_node
+from ModelImporter.readers import (
+    read_gstream, read_entity_animation_data, read_descriptor, gstream_info
+)
+from utils.utils import exml_to_dict
+from ModelImporter.SceneNodeData import SceneNodeData
 from ModelImporter.mesh_utils import BB_transform_matrix
-from utils.io import get_NMS_dir, base_path  # noqa pylint: disable=relative-beyond-top-level
-from utils.bpyutils import SceneOp, edit_object, select_object  # noqa pylint: disable=relative-beyond-top-level
+from utils.io import get_NMS_dir, base_path
+from utils.bpyutils import SceneOp, edit_object, select_object
 
-from serialization.NMS_Structures import TkSceneNodeData, TkSceneNodeData_map, MBINHeader
+from serialization.NMS_Structures import TkSceneNodeData, MBINHeader, TkGeometryData
 
 VERT_TYPE_MAP = {5121: {'size': 1, 'func': bytes_to_ubyte},
                  5131: {'size': 2, 'func': bytes_to_half},
@@ -113,9 +112,9 @@ class ImportScene():
         # This needs to be read from the mbin file, so ensure we are either
         # reading from it or construct the name.
         with open(mbin_fpath, 'rb') as f:
-            header = MBINHeader.read(f)
-            self.scene_node_data = TkSceneNodeData_map[header.header_guid].read(f)
-            self.scene_name = self.scene_node_data.Name
+            MBINHeader.read(f)
+            self._scene_node_data = TkSceneNodeData.read(f)
+            self.scene_name = self._scene_node_data.Name
         print('Loading {0}'.format(self.scene_name))
 
         # To optimise loading of referenced scenes, check to see if the current
@@ -159,11 +158,8 @@ class ImportScene():
                 raise OSError("MBINCompiler failed to run. See System Console "
                               "for more details. "
                               "(Window > Toggle System Console)")
-        self.data = exml_to_dict(exml_fpath)
 
-        if self.data is None:
-            raise ValueError('Cannot load scene file...')
-        self.scene_node_data = SceneNodeData(self.data)
+        self.scene_node_data = SceneNodeData(self._scene_node_data)
         # Once we have loaded this, we need to do a sanity check to make sure
         # that the scene file actually has an associated geometry file.
         # Some do not (such as emitter scenes, more of which were added in the
@@ -175,7 +171,7 @@ class ImportScene():
         self.local_root_folder = base_path(self.local_directory,
                                            self.directory)
         # remove the name of the top level object
-        self.scene_node_data.info['Name'] = None
+        self.scene_node_data.info.Name = None
         # Try and find the geometry file locally.
         self.geometry_file = op.join(
             self.local_directory,
@@ -194,65 +190,51 @@ class ImportScene():
 
         # get the information about what data the geometry file contains
 
-        with open(self.geometry_file, 'rb') as f:
-            f.seek(0x10)
-            guid = struct.unpack("<Q", f.read(0x8))[0]
-            ctx_geom_guid.set(guid)
+        with open(self.geometry_file, "rb") as f:
+            header = MBINHeader.read(f)
+            geometry_data = TkGeometryData.read(f)
 
-            ofs = VersionedOffsets.TkGeometryData[guid]
-            v_ofs = VersionedOffsets.TkVertexLayout[guid]
-            ve_ofs = VersionedOffsets.TkVertexElement[guid]
+        if geometry_data.Indices16Bit:
+            self.mesh_indexes = []
+            for idx_val in geometry_data.IndexBuffer:
+                self.mesh_indexes.extend((idx_val & 0xFFFF, idx_val >> 16))
+        else:
+            self.mesh_indexes = geometry_data.IndexBuffer
+        self.CollisionIndexCount = geometry_data.CollisionIndexCount
+        self.Indices16Bit = geometry_data.Indices16Bit
+        self.count = geometry_data.VertexLayout.ElementCount
+        self.stride = geometry_data.VertexLayout.Stride
+        for ve in geometry_data.VertexLayout.VertexElements:
+            self.vertex_elements.append(
+                {
+                    "semID": ve.SemanticID,
+                    "size": ve.Size,
+                    "type": ve.Type,
+                    "offset": ve.Offset,
+                }
+            )
 
-            # Return to the start of the file to make jumping to offsets easier...
-            f.seek(0)
+        self.mesh_binding_data = {
+            "JointBindings": geometry_data.JointBindings,
+            "SkinMatrixLayout": geometry_data.SkinMatrixLayout,
+            "MeshBaseSkinMat": geometry_data.MeshBaseSkinMat,
+        }
 
-            # Check to see if we have any mesh collision data
-            self.CollisionIndexCount = returned_read(f, "<I", 0x4, 0x60 + ofs["CollisionIndexCount"])[0]
-            # Determine if the index data is 16bit or 32 bit (2 or 4 bytes)
-            self.Indices16Bit = bool(returned_read(f, "<I", 0x4, 0x60 + ofs["Indices16Bit"])[0])
-            f.seek(0x60 + ofs["IndexBuffer"])
-            list_offset, _ = read_list_header(f)
-            f.seek(list_offset, 1)
-            if self.Indices16Bit:
-                fmt = 'H'
-                self.index_stride = 2
-            else:
-                fmt = 'I'
-                self.index_stride = 4
-            if self.CollisionIndexCount != 0:
-                # Read all the mesh index data into a single list
-                self.mesh_indexes = struct.unpack(
-                    '<' + fmt * self.CollisionIndexCount,
-                    f.read(self.CollisionIndexCount * self.index_stride))
-            else:
-                self.mesh_indexes = list()
-
-            f.seek(0x60 + ofs["VertexLayout"])
-            self.count = returned_read(f, "<I", 0x4, v_ofs["ElementCount"])[0]
-            self.stride = returned_read(f, "<I", 0x4, v_ofs["Stride"])[0]
-            f.seek(v_ofs["VertexElements"], 1)
-            list_offset, list_count = read_list_header(f)
-            f.seek(list_offset, 1)
-            # jump to the actual TkVertexElement data
-            for _ in range(list_count):
-                data = dict()
-                data['semID'] = returned_read(f, "<I", 0x4, ve_ofs["SemanticID"])[0]
-                data['size'] = returned_read(f, "<I", 0x4, ve_ofs["Size"])[0]
-                data['type'] = returned_read(f, "<I", 0x4, ve_ofs["Type"])[0]
-                data['offset'] = returned_read(f, "<I", 0x4, ve_ofs["Offset"])[0]
-                self.vertex_elements.append(data)
-                f.seek(ve_ofs["_size"], 1)
-
-        self.mesh_binding_data = read_mesh_binding_data(self.geometry_file)
-
-        self.scn.nmsdk_anim_data.has_bound_mesh = (
-            self.mesh_binding_data is not None)
+        self.scn.nmsdk_anim_data.has_bound_mesh = len(geometry_data.JointBindings) == 0
 
         # load all the bounded hull data
-        self._load_bounded_hulls()
+        self.bh_data = geometry_data.BoundHullVerts
 
         # load all the mesh metadata
-        self.mesh_metadata = read_metadata(self.geometry_file)
+        self.mesh_metadata = {
+            x.IdString: gstream_info(
+                x.VertexDataSize,
+                x.VertexDataOffset,
+                x.IndexDataSize,
+                x.IndexDataOffset
+            )
+            for x in geometry_data.StreamMetaDataArray
+        }
 
 # region public methods
 
@@ -358,8 +340,7 @@ class ImportScene():
             if self.settings.get('clear_scene', True):
                 self._clear_prev_scene()
             added_obj = self._add_empty_to_scene(self.scene_node_data)
-            added_obj['scene_node'] = {'idx': 0,
-                                       'data': self.scene_node_data.info}
+            # added_obj['scene_node'] = {'idx': 0, 'data': asdict(self.scene_node_data.info)}
         # Get all the joints in the scene
         for obj in self.scene_node_data.iter():
             if obj.Type == 'JOINT':
@@ -396,8 +377,8 @@ class ImportScene():
                 added_obj = self._add_light_to_scene(obj)
             # Get the added object and give it its scene node data so that it
             # can be rexported in a more faithful way.
-            if added_obj:
-                added_obj['scene_node'] = {'idx': i, 'data': obj.info}
+            # if added_obj:
+            #     added_obj['scene_node'] = {'idx': i, 'data': asdict(obj.info)}
 
         # We will add an armature to the scene irrespective of whether we have
         # any animations, only if we are asked to import bones.
@@ -968,6 +949,7 @@ class ImportScene():
                 else:
                     # In this case the parent object doesn't exist (maybe it is
                     # corrupt?). Skip this object.
+                    print(f"Warning: Couldn't find the approriate parent for {scene_node.Name}")
                     return
             else:
                 # Direct child of loaded scene
@@ -1279,18 +1261,6 @@ class ImportScene():
             return mesh_metadata[self.name_clash_orders[node_name]]
         else:
             return mesh_metadata
-
-    def _load_bounded_hulls(self):
-        """ Load the bounded hull data. """
-        ofs = VersionedOffsets.TkGeometryData[ctx_geom_guid.get()]
-        with open(self.geometry_file, 'rb') as f:
-            f.seek(0x60 + ofs["BoundHullVerts"])
-            list_offset, list_count = read_list_header(f)
-            f.seek(list_offset, 1)
-            for _ in range(list_count):
-                self.bh_data.append(struct.unpack('<fff', f.read(0xC)))
-                # Skip 't' component.
-                f.seek(0x4, 1)
 
     def _load_mesh(self, mesh: SceneNodeData):
         """ Load the mesh data from the geometry stream file."""

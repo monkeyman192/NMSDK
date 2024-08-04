@@ -81,12 +81,13 @@ class Vector4f(datatype):
 
 
 class MBINHeader(datatype):
-    header_magic: Annotated[int, Field(bt.uint32)] = 0xDDDDDDDD
-    header_version: Annotated[int, Field(bt.uint32)] = 0xCB2
-    header_timestamp: Annotated[int, Field(bt.uint64)] = 0xFFFFFFFFFFFFFFFF
+    _size = 0x20
+    header_magic: Annotated[int, Field(bt.uint64)] = 0xCCCCCCCCCCCCCCCC
+    header_version: Annotated[int, Field(bt.uint16)] = 3300
+    header_mbin_version: Annotated[int, Field(bt.uint16)] = 4
+    header_namehash: Annotated[int, Field(bt.uint32)] = 0
     header_guid: Annotated[int, Field(bt.uint64)] = 0
-    header_name: Annotated[str, Field(bt.string, length=0x40)] = "cTkDummy"
-    header_end_padding: Annotated[int, Field(bt.uint64)] = 0
+    header_timestamp: Annotated[int, Field(bt.uint64)] = 0
 
 
 class astring(bt.string):

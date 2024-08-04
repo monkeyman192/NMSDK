@@ -9,6 +9,9 @@ gstream_info = namedtuple(
 )
 
 
+# Useful regex: Annotated\[([^,]+).*
+
+
 class TkSceneNodeAttributeData_T:
     Name: str
     Value: str
@@ -34,19 +37,6 @@ class TkSceneNodeData_T:
     Transform: TkTransformData_T
     NameHash: int
 
-    _metadata: gstream_info
-    _verts: dict
-    _faces: list
-    _bounded_hull: list
-
-    @property
-    def verts(self):
-        return self._verts
-    
-    @verts.setter
-    def verts(self, value):
-        self._verts = value
-
     @cached_property
     def attributes(self):
         return {attr.Name: attr.Value for attr in self.Attributes}
@@ -59,3 +49,82 @@ class TkSceneNodeData_T:
                 yield child
             for subchild in child.iter(filter_type):
                 yield subchild
+
+
+class TkVertexElement_T:
+    PlatformData: int
+    Instancing: int
+    Normalise: int
+    Offset: int
+    SemanticID: int
+    Size: int
+    Type: int
+
+
+class TkVertexLayout_T:
+    VertexElements: list[TkVertexElement_T]
+    PlatformData: int
+    ElementCount: int
+    Stride: int
+
+
+class TkJointBindingData_T:
+    InvBindMatrix: list[float]
+    BindRotate: list[float]
+    BindScale: list[float]
+    BindTranslate: list[float]
+
+
+class TkJointExtentData_T:
+    JointExtentCenter: list[float]
+    JointExtentMax: list[float]
+    JointExtentMin: list[float]
+    JointExtentStdDev: list[float]
+
+
+class TkJointMirrorAxis_T:
+    MirrorAxisMode: int
+    RotAdjustW: float
+    RotAdjustX: float
+    RotAdjustY: float
+    RotAdjustZ: float
+    RotMirrorAxisX: float
+    RotMirrorAxisY: float
+    RotMirrorAxisZ: float
+    TransMirrorAxisX: float
+    TransMirrorAxisY: float
+    TransMirrorAxisZ: float
+
+
+class TkMeshMetaData_T:
+    Hash: int
+    IndexDataOffset: int
+    IndexDataSize: int
+    VertexDataOffset: int
+    VertexDataSize: int
+    IdString: str
+    DoubleBufferGeometry: bool
+
+
+class TkGeometryData_T:
+    SmallVertexLayout: TkVertexLayout_T
+    VertexLayout: TkVertexLayout_T
+    BoundHullVertEd: list[int]
+    BoundHullVerts: list[tuple[float, float, float, float]]
+    BoundHullVertSt: list[int]
+    IndexBuffer: list[int]
+    JointBindings: list[TkJointBindingData_T]
+    JointExtents: list[TkJointExtentData_T]
+    JointMirrorAxes: list[TkJointMirrorAxis_T]
+    JointMirrorPairs: list[int]
+    MeshAABBMax: list[tuple[float, float, float, float]]
+    MeshAABBMin: list[tuple[float, float, float, float]]
+    MeshBaseSkinMat: list[int]
+    MeshVertREnd: list[int]
+    MeshVertRStart: list[int]
+    SkinMatrixLayout: list[int]
+    StreamMetaDataArray: list[TkMeshMetaData_T]
+    CollisionIndexCount: int
+    IndexCount: int
+    Indices16Bit: int
+    VertexCount: int
