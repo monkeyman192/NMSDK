@@ -1,5 +1,3 @@
-from .Structures import TkMaterialData
-from .Structures import TkSceneNodeData
-from .Structures import TkGeometryData
+from .Structures import TkMaterialData, TkSceneNodeData, TkGeometryData, TkAnimMetadata, NAMEHASH_MAPPING
 
 from .NMS_types import MBINHeader  # noqa

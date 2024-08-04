@@ -3,6 +3,7 @@ import struct
 from typing import Annotated, Type, TypeVar
 import types
 
+from serialization.utils import bytes_to_quat
 from serialization.cereal_bin.structdata import datatype, Field
 import serialization.cereal_bin.basic_types as bt
 
@@ -78,6 +79,35 @@ class NMS_list(datatype):
 class Vector4f(datatype):
     _alignment = 0x10
     _format = "ffff"
+
+
+class Quaternion_list(datatype):
+    @classmethod
+    def deserialize(cls, buf: BufferedReader) -> list[int]:
+        start = buf.tell()
+        offset, size, _ = struct.unpack("<QII", buf.read(0x10))
+        ret = buf.tell()
+        buf.seek(start + offset)
+        data = []
+        for _ in range(size // 3):
+            data.append(bytes_to_quat(buf))
+        buf.seek(ret)
+        return data
+
+    # TODO: Write
+    # @classmethod
+    # def serialize(cls, buf: BufferedWriter, value):
+    #     ptr = buf.tell()
+    #     buf.write(struct.pack("<QII", 0, 0, 0xAAAAAA01))
+    #     yield
+    #     cls._list_type._write_padding(buf)
+    #     offset = buf.tell()
+    #     size = len(value)
+    #     if size != 0:
+    #         for v in value:
+    #             cls._list_type._write(buf, v)
+    #         buf.seek(ptr)
+    #         buf.write(struct.pack("<QI", offset - ptr, size))
 
 
 class MBINHeader(datatype):

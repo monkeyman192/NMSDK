@@ -22,12 +22,13 @@ class SceneNodeData():
         # Slightly wasteful but greatly simplifies things...
         for child in self.info.Children:
             self.children.append(SceneNodeData(child, self))
+        self.attributes = {x.Name: x.Value for x in self.info.Attributes}
 
 # region public methods
 
     def Attribute(self, name, astype=str):
         # Doesn't support AltID's
-        if (attrib := self.info.attributes.get(name)) is not None:
+        if (attrib := self.attributes.get(name)) is not None:
             return astype(attrib)
 
     def iter(self):

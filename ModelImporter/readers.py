@@ -1,5 +1,4 @@
 from collections import namedtuple
-from contextvars import ContextVar
 import struct
 from typing import Tuple
 import os.path as op
@@ -10,31 +9,25 @@ from serialization.utils import (read_list_header, read_string, # noqa pylint: d
                                    bytes_to_quat, read_bool, read_uint32,
                                    returned_read)
 from serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
-from NMS.LOOKUPS import VersionedOffsets
 from utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
 
-from serialization.NMS_Structures import TkMaterialData, MBINHeader
+from serialization.NMS_Structures import TkMaterialData, MBINHeader, NAMEHASH_MAPPING, TkAnimMetadata
 
 
-# gstream_info = namedtuple(
-#     'gstream_info',
-#     ['vert_size', 'vert_off', 'idx_size', 'idx_off', 'dbl_buff']
-# )
 gstream_info = namedtuple(
     'gstream_info',
     ['vert_size', 'vert_off', 'idx_size', 'idx_off']
 )
 
 
-ctx_geom_guid: ContextVar[int] = ContextVar(
-    "GeometryGUID",
-    default=0x7E2C6C00A113D11F,
-)
-
-
 def read_anim(fname):  # TODO: FIX!
     """ Reads an anim file. """
-    anim_data = dict()
+    # anim_data = dict()
+
+    with open(fname, "rb") as f:
+        header = MBINHeader.read(f)
+        assert header.header_namehash == NAMEHASH_MAPPING["TkAnimMetadata"]
+        return TkAnimMetadata.read(f)
 
     with open(fname, 'rb') as f:
         f.seek(0x60)

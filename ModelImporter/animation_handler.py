@@ -9,6 +9,7 @@ from mathutils import Vector, Quaternion
 
 # Internal imports
 from ModelImporter.readers import read_anim
+from serialization.NMS_Structures import TkAnimMetadata
 
 
 DATA_PATH_MAP = {'Rotation': 'rotation_quaternion',
@@ -37,8 +38,8 @@ class AnimationHandler(bpy.types.Operator):
     def execute(self, context):
         print(f'Adding animation: {self.anim_name}')
         self.scn = bpy.context.scene
-        self.anim_data = read_anim(self.anim_path)
-        self._add_animation_to_scene(self.anim_name, self.anim_data)
+        anim_data = read_anim(self.anim_path)
+        self._add_animation_to_scene(self.anim_name, anim_data)
         self.scn.nmsdk_anim_data.loaded_anims.append(self.anim_name)
         return {'FINISHED'}
 
@@ -49,32 +50,32 @@ class AnimationHandler(bpy.types.Operator):
     # action which is the rest post so that it can actually be set correctly
     # from the animation selection menu.
 
-    def _add_animation_to_scene(self, anim_name, anim_data):
+    def _add_animation_to_scene(self, anim_name: str, anim_data: TkAnimMetadata):
         # First, let's find out what animation data each object has
         # We do this by looking at the indexes of the rotation, translation and
         # scale data and see whether that lies within the AnimNodeData or the
         # StillFrameData
         node_data_map = odict()
-        rot_anim_len = len(anim_data['AnimFrameData'][0]['Rotation'])
-        trans_anim_len = len(anim_data['AnimFrameData'][0]['Translation'])
-        scale_anim_len = len(anim_data['AnimFrameData'][0]['Scale'])
-        for node_data in anim_data['NodeData']:
+        rot_anim_len = len(anim_data.AnimFrameData[0].Rotation)
+        trans_anim_len = len(anim_data.AnimFrameData[0].Translation)
+        scale_anim_len = len(anim_data.AnimFrameData[0].Scale)
+        for node_data in anim_data.NodeData:
             data = {'anim': dict(), 'still': dict()}
             # For each node, check to see if the data is in the animation data
             # or in the still frame data
-            rotIndex = int(node_data['RotIndex'])
+            rotIndex = node_data.RotIndex
             if rotIndex >= rot_anim_len:
                 rotIndex -= rot_anim_len
                 data['still']['Rotation'] = rotIndex
             else:
                 data['anim']['Rotation'] = rotIndex
-            transIndex = int(node_data['TransIndex'])
+            transIndex = node_data.TransIndex
             if transIndex >= trans_anim_len:
                 transIndex -= trans_anim_len
                 data['still']['Translation'] = transIndex
             else:
                 data['anim']['Translation'] = transIndex
-            scaleIndex = int(node_data['ScaleIndex'])
+            scaleIndex = node_data.ScaleIndex
             if scaleIndex >= scale_anim_len:
                 scaleIndex -= scale_anim_len
                 data['still']['Scale'] = scaleIndex
@@ -175,8 +176,8 @@ class AnimationHandler(bpy.types.Operator):
                             self._apply_pose_data(bone, DATA_PATH_MAP[key],
                                                   i, action_name)
 
-    def _apply_animdata_to_fcurves(self, fcurves, mapping, anim_data,
-                                   use_null_transform):
+    def _apply_animdata_to_fcurves(self, fcurves, mapping: dict, anim_data: TkAnimMetadata,
+                                   use_null_transform: bool):
         """ Apply the supplied animation data to the fcurves.
 
         Parameters
@@ -186,14 +187,14 @@ class AnimationHandler(bpy.types.Operator):
         mapping : dict
             Information describing what components are still frame and which
             are animated.
-        anim_data : dict
+        anim_data
             The actual animation data
         use_null_transform : bool
             If true, then the joints shouldn't be animated as there are bones
             which will provide the animation data.
         """
         loc, rot, sca = fcurves
-        num_frames = anim_data['FrameCount']
+        num_frames = anim_data.FrameCount
         # If we are using the null transforms, just make all animations still
         # frame.
         if use_null_transform:
@@ -211,7 +212,7 @@ class AnimationHandler(bpy.types.Operator):
         # Apply still frame data first.
         still_data = mapping['still']
         for key, value in still_data.items():
-            data = anim_data['StillFrameData'][key][value]
+            data = getattr(anim_data.StillFrameData, key)[value]
             if key == 'Translation':
                 self._apply_stillframe_data(loc.x, data[0], num_frames)
                 self._apply_stillframe_data(loc.y, data[1], num_frames)
@@ -240,8 +241,8 @@ class AnimationHandler(bpy.types.Operator):
                 sca.x.keyframe_points.add(num_frames)
                 sca.y.keyframe_points.add(num_frames)
                 sca.z.keyframe_points.add(num_frames)
-            for i, frame in enumerate(anim_data['AnimFrameData']):
-                data = frame[key][value]
+            for i, frame in enumerate(anim_data.AnimFrameData):
+                data = getattr(frame, key)[value]
                 if key == 'Translation':
                     self._apply_animframe_data(loc.x, data[0], i)
                     self._apply_animframe_data(loc.y, data[1], i)
@@ -269,7 +270,7 @@ class AnimationHandler(bpy.types.Operator):
     def _apply_pose_data(self, bone, _type, frame, name):
         bone.keyframe_insert(data_path=_type, frame=frame, group=name)
 
-    def _create_anim_channels(self, obj, anim_name):
+    def _create_anim_channels(self, obj, anim_name: str):
         """ Generate all the channels required for the animation.
 
         Parameters

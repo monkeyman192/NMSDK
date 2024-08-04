@@ -1,12 +1,10 @@
-from typing import Annotated, Optional
+from typing import Annotated
 from dataclasses import dataclass
-from functools import cached_property
 
 from serialization.cereal_bin.structdata import datatype, Field
 import serialization.cereal_bin.basic_types as bt
 
-from serialization.NMS_Structures.NMS_types import Vector4f, NMS_list, astring, VariableSizeString
-import serialization.NMS_Structures.Structures_core as sc
+from serialization.NMS_Structures.NMS_types import Vector4f, NMS_list, astring, VariableSizeString, Quaternion_list
 
 
 # Materials structures
@@ -149,33 +147,6 @@ class TkGeometryData(datatype):
     VertexCount: Annotated[int, Field(bt.int32)]
 
 
-# @dataclass
-# class TkGeometryData_32bit(datatype):
-#     SmallVertexLayout: Annotated[TkVertexLayout, Field(TkVertexLayout)]
-#     VertexLayout: Annotated[TkVertexLayout, Field(TkVertexLayout)]
-#     BoundHullVertEd: Annotated[list[int], Field(NMS_list[bt.int32])]
-#     BoundHullVerts: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
-#     BoundHullVertSt: Annotated[list[int], Field(NMS_list[bt.int32])]
-#     IndexBuffer: Annotated[list[int], Field(NMS_list[bt.int32])]
-#     JointBindings: Annotated[list[TkJointBindingData], Field(NMS_list[TkJointBindingData])]
-#     JointExtents: Annotated[list[TkJointExtentData], Field(NMS_list[TkJointExtentData])]
-#     JointMirrorAxes: Annotated[list[TkJointMirrorAxis], Field(NMS_list[TkJointMirrorAxis])]
-#     JointMirrorPairs: Annotated[list[int], Field(NMS_list[bt.int32])]
-#     MeshAABBMax: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
-#     MeshAABBMin: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
-#     MeshBaseSkinMat: Annotated[list[int], Field(NMS_list[bt.int32])]
-#     MeshVertREnd: Annotated[list[int], Field(NMS_list[bt.int32])]
-#     MeshVertRStart: Annotated[list[int], Field(NMS_list[bt.int32])]
-#     ProcGenNodeNames: Annotated[str, Field(VariableSizeString)]
-#     ProcGenParentId: Annotated[list[int], Field(NMS_list[bt.int32])]
-#     SkinMatrixLayout: Annotated[list[int], Field(NMS_list[bt.int32])]
-#     StreamMetaDataArray: Annotated[list[TkMeshMetaData], Field(NMS_list[TkMeshMetaData])]
-#     CollisionIndexCount: Annotated[int, Field(bt.int32)]
-#     IndexCount: Annotated[int, Field(bt.int32)]
-#     Indices16Bit: Annotated[int, Field(bt.int32)]
-#     VertexCount: Annotated[int, Field(bt.int32)]
-
-
 @dataclass
 class TkMeshData(datatype):
     IdString: Annotated[str, Field(VariableSizeString)]
@@ -194,13 +165,13 @@ class TkGeometryStreamData(datatype):
 
 
 @dataclass
-class TkSceneNodeAttributeData(sc.TkSceneNodeAttributeData_T, datatype):
+class TkSceneNodeAttributeData(datatype):
     Name: Annotated[str, Field(bt.string, length=0x10)]
     Value: Annotated[str, Field(VariableSizeString)]
 
 
 @dataclass
-class TkTransformData(sc.TkTransformData_T, datatype):
+class TkTransformData(datatype):
     RotX: Annotated[float, Field(bt.single)]
     RotY: Annotated[float, Field(bt.single)]
     RotZ: Annotated[float, Field(bt.single)]
@@ -213,7 +184,7 @@ class TkTransformData(sc.TkTransformData_T, datatype):
 
 
 @dataclass
-class TkSceneNodeData(sc.TkSceneNodeData_T, datatype):
+class TkSceneNodeData(datatype):
     Attributes: Annotated[list[TkSceneNodeAttributeData], Field(NMS_list[TkSceneNodeAttributeData])]
     Children: list["TkSceneNodeData"]
     Name: Annotated[str, Field(VariableSizeString)]
@@ -224,3 +195,39 @@ class TkSceneNodeData(sc.TkSceneNodeData_T, datatype):
 
 
 TkSceneNodeData.__annotations__["Children"] = Annotated[list[TkSceneNodeData], Field(NMS_list[TkSceneNodeData])]
+
+
+# Animation related
+
+@dataclass
+class TkAnimNodeFrameData(datatype):
+    Rotations: Annotated[tuple[float, float, float, float], Field(Quaternion_list)]
+    Scales: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
+    Translations: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
+
+
+@dataclass
+class TkAnimNodeData(datatype):
+    RotIndex: Annotated[int, Field(bt.int32)]
+    ScaleIndex: Annotated[int, Field(bt.int32)]
+    TransIndex: Annotated[int, Field(bt.int32)]
+    Node: Annotated[str, Field(bt.string, length=0x40)]
+
+
+@dataclass
+class TkAnimMetadata(datatype):
+    StillFrameData: Annotated[TkAnimNodeFrameData, Field(TkAnimNodeFrameData)]
+    AnimFrameData: Annotated[list[TkAnimNodeFrameData], Field(NMS_list[TkAnimNodeFrameData])]
+    NodeData: Annotated[list[TkAnimNodeData], Field(NMS_list[TkAnimNodeData])]
+    FrameCount: Annotated[int, Field(bt.int32)]
+    NodeCount: Annotated[int, Field(bt.int32)]
+    Has30HzFrames: Annotated[bool, Field(bt.boolean)]
+
+
+NAMEHASH_MAPPING = {
+    "TkAnimMetadata": 0x8E7F1986,
+    "TkSceneNodeData": 0x3DB87E47,
+    "TkGeometryData": 0x819C3220,
+    "TkGeometryStreamData": 0x40025754,
+    "TkMaterialData": 0x4737D48A,
+}
