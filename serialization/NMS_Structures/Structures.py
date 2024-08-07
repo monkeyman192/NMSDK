@@ -127,7 +127,8 @@ class TkGeometryData(datatype):
     BoundHullVertEd: Annotated[list[int], Field(NMS_list[bt.int32])]
     BoundHullVerts: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
     BoundHullVertSt: Annotated[list[int], Field(NMS_list[bt.int32])]
-    IndexBuffer: Annotated[list[int], Field(NMS_list[bt.int32])]
+    # TODO: See if it's possible to read directly with numpy.
+    IndexBuffer: Annotated[list[int], Field(NMS_list[bt.int32], deferred_loading=True)]
     JointBindings: Annotated[list[TkJointBindingData], Field(NMS_list[TkJointBindingData])]
     JointExtents: Annotated[list[TkJointExtentData], Field(NMS_list[TkJointExtentData])]
     JointMirrorAxes: Annotated[list[TkJointMirrorAxis], Field(NMS_list[TkJointMirrorAxis])]
@@ -137,7 +138,7 @@ class TkGeometryData(datatype):
     MeshBaseSkinMat: Annotated[list[int], Field(NMS_list[bt.int32])]
     MeshVertREnd: Annotated[list[int], Field(NMS_list[bt.int32])]
     MeshVertRStart: Annotated[list[int], Field(NMS_list[bt.int32])]
-    ProcGenNodeNames: Annotated[str, Field(VariableSizeString)]
+    ProcGenNodeNames: Annotated[list[str], Field(NMS_list[VariableSizeString])]
     ProcGenParentId: Annotated[list[int], Field(NMS_list[bt.int32])]
     SkinMatrixLayout: Annotated[list[int], Field(NMS_list[bt.int32])]
     StreamMetaDataArray: Annotated[list[TkMeshMetaData], Field(NMS_list[TkMeshMetaData])]

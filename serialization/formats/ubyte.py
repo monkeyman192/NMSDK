@@ -1,11 +1,11 @@
 import struct
 
 
-def bytes_to_ubyte(bytes_: bytes) -> list:
+def bytes_to_ubyte(bytes_: bytes) -> tuple:
     """ Read an array of bytes into a list of unsigned bytes. """
     fmt = '<' + 'B' * len(bytes_)
     data = struct.unpack(fmt, bytes_)
-    return [int(n) for n in data]
+    return tuple(int(n) for n in data)
 
 
 def ubytes_to_bytes(lst: list, target_length=4) -> bytes:

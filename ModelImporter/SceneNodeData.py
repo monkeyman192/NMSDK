@@ -1,6 +1,7 @@
 import math
 
 from mathutils import Matrix, Euler
+import numpy as np
 
 from serialization.NMS_Structures import TkSceneNodeData
 
@@ -12,9 +13,16 @@ class SceneNodeData():
     def __init__(self, info: TkSceneNodeData, parent: 'SceneNodeData' = None):
         self.info = info
         self.parent = parent
-        self.verts = dict()
+        self.verts: dict[str, list[tuple]] = dict()
         self.idxs = list()
         self.faces = list()
+
+        # Temporary numpy versions of data...
+        self.np_verts: np.array = None
+        self.np_uvs: np.array = None
+        self.np_norms: np.array = None
+        self.np_idxs: np.array = None
+
         self.bounded_hull = list()
         # The metadata will be read from the geometry file later.
         self.metadata = None

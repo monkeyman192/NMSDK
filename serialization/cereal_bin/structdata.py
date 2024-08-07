@@ -180,6 +180,7 @@ class Field:
     datatype: datatype
     length: Optional[int] = None
     encoding: Optional[str] = None
+    deferred_loading: bool = False
 
 
 T = TypeVar("T", bound=datatype)
