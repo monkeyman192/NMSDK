@@ -15,7 +15,7 @@ import bmesh  # pylint: disable=import-error
 from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
 
 # Internal imports
-from serialization.formats import bytes_to_half, bytes_to_ubyte, bytes_to_int_2_10_10_10_rev, np_read_int_2_10_10_10_rev
+from serialization.formats import np_read_int_2_10_10_10_rev
 from NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT, REV_SEMANTICS
 from NMS.material_node import create_material_node
 from ModelImporter.readers import (
@@ -28,9 +28,9 @@ from utils.bpyutils import SceneOp, edit_object, select_object
 
 from serialization.NMS_Structures import TkSceneNodeData, MBINHeader, TkGeometryData, NAMEHASH_MAPPING
 
-VERT_TYPE_MAP = {5121: {'size': 1, 'func': bytes_to_ubyte, 'np_fmt': "4B"},
-                 5131: {'size': 2, 'func': bytes_to_half, 'np_fmt': "4e"},
-                 36255: {'size': 1, 'func': bytes_to_int_2_10_10_10_rev, 'np_fmt': np.int32}}
+VERT_TYPE_MAP = {5121: {'size': 1, 'np_fmt': "4B"},
+                 5131: {'size': 2, 'np_fmt': "4e"},
+                 36255: {'size': 1, 'np_fmt': np.int32}}
 ROT_MATRIX = Matrix.Rotation(radians(90), 4, 'X')
 DATA_PATH_MAP = {'Rotation': 'rotation_quaternion',
                  'Translation': 'location',
@@ -388,9 +388,6 @@ class ImportScene():
             # if added_obj:
             #     added_obj['scene_node'] = {'idx': i, 'data': asdict(obj.info)}
 
-        t2 = time.perf_counter()
-        print(f"Took {t2 - t1:.05f} to fully render")
-
         # We will add an armature to the scene irrespective of whether we have
         # any animations, only if we are asked to import bones.
         import_bones = (self.settings.get("import_bones", False) or
@@ -413,6 +410,9 @@ class ImportScene():
         # If the loaded scene is a proc-gen scene, load the info in.
         if self.scn['scene_node'].NMSReference_props.is_proc:
             self._apply_proc_gen_info()
+
+        t2 = time.perf_counter()
+        print(f"Took {t2 - t1:.05f}s to fully render")
 
         self.state = {'FINISHED'}
 
@@ -911,7 +911,7 @@ class ImportScene():
         """
         name = scene_node.Name
         mesh = bpy.data.meshes.new(name)
-        vert_count = len(scene_node.verts[VERTS])
+        vert_count = len(scene_node.np_verts) // 3
         idx_count = len(scene_node.np_idxs)
         face_count = idx_count // 3
         mesh.vertices.add(vert_count)
@@ -998,8 +998,8 @@ class ImportScene():
                 mesh_obj.vertex_groups.new(name=joint.Name)
             if len(skin_mats) != 0:
                 for i, vert in enumerate(mesh_obj.data.vertices):
-                    blend_indices = scene_node.verts[BLENDINDEX][i]
-                    blend_weights = scene_node.verts[BLENDWEIGHT][i]
+                    blend_indices = scene_node.np_blendIndex[i]
+                    blend_weights = scene_node.np_blendWeight[i][0: 3]
                     for j, bw in enumerate(blend_weights):
                         if bw != 0:
                             mesh_obj.vertex_groups[blend_indices[j]].add(
@@ -1137,23 +1137,15 @@ class ImportScene():
         mesh
             SceneNodeData of type MESH to get the vertex data of.
         """
-        semIDs = list()
-        read_sizes = list()
-        read_funcs = list()
         names: list[str] = []
         np_fmts: list[str] = []
         for ve in self.vertex_elements:
-            # TODO: Maybe don't import tangents? Not sure if they are used
-            # anyway...
-            mesh.verts[ve['semID']] = list()
-            semIDs.append(ve['semID'])
-            read_sizes.append(ve['size'] * VERT_TYPE_MAP[ve['type']]['size'])
-            read_funcs.append(VERT_TYPE_MAP[ve['type']]['func'])
+            _size = ve['size'] * VERT_TYPE_MAP[ve['type']]['size']
             np_fmt = VERT_TYPE_MAP[ve['type']]['np_fmt']
             if np_fmt is not None:
                 np_fmts.append(np_fmt)
             else:
-                np_fmts.append(f"S{read_sizes[-1]}")
+                np_fmts.append(f"S{_size}")
             names.append(REV_SEMANTICS[ve['semID']])
         num_verts = mesh.metadata.vert_size / self.stride
         np_dtype = np.dtype({"names": names, "formats": np_fmts})
@@ -1161,12 +1153,6 @@ class ImportScene():
             raise ValueError(f'Error with {mesh.Name}: # of verts '
                              f'({mesh.metadata.vert_size}) isn\'t consistent '
                              'with the stride value.')
-        with open(self.geometry_stream_file, 'rb') as f:
-            f.seek(mesh.metadata.vert_off)
-            for _ in range(int(num_verts)):
-                for i in range(self.count):
-                    # Skip 't' component.
-                    mesh.verts[semIDs[i]].append(read_funcs[i](f.read(read_sizes[i]))[:-1])
 
         with open(self.geometry_stream_file, "rb") as f:
             vert_data = np.rec.fromfile(f, np_dtype, int(num_verts), offset=mesh.metadata.vert_off)
@@ -1177,7 +1163,11 @@ class ImportScene():
                 mesh.np_uvs = vert_data.UVs[:, :2]
             if "Normals" in names:
                 mesh.np_norms = np_read_int_2_10_10_10_rev(vert_data.Normals)
-            # TODO: Handle Colours as well as blend index...
+            if "BlendIndex" in names:
+                mesh.np_blendIndex = vert_data.BlendIndex
+            if "BlendWeight" in names:
+                mesh.np_blendWeight = vert_data.BlendWeight
+            # TODO: Handle Colours as well
 
     def _find_joint(self, index=None, name=None):
         """ Return the joint with the specified index. """

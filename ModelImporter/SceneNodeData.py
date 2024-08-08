@@ -22,6 +22,8 @@ class SceneNodeData():
         self.np_uvs: np.array = None
         self.np_norms: np.array = None
         self.np_idxs: np.array = None
+        self.np_blendIndex: np.array = None
+        self.np_blendWeight: np.array = None
 
         self.bounded_hull = list()
         # The metadata will be read from the geometry file later.
