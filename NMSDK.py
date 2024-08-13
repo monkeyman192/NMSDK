@@ -10,11 +10,11 @@ from bpy.types import Operator, PropertyGroup
 from mathutils import Matrix
 
 # internal imports
-from .ModelImporter.import_scene import ImportScene
-from .ModelExporter.addon_script import Exporter
-from .ModelExporter.utils import get_all_actions_in_scene, get_all_actions
-from .utils.settings import read_settings, write_settings
-from .BlenderExtensions.UIWidgets import ShowMessageBox
+from ModelImporter.import_scene import ImportScene
+from ModelExporter.addon_script import Exporter
+from ModelExporter.utils import get_all_actions_in_scene, get_all_actions
+from utils.settings import read_settings, write_settings
+from BlenderExtensions.UIWidgets import ShowMessageBox
 
 
 def set_import_export_defaults(cls, context):

@@ -3,29 +3,29 @@ from mathutils import Vector
 
 import os.path as op
 
-from .LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2  # noqa pylint: disable=relative-beyond-top-level
-from ..ModelImporter.readers import read_material  # noqa pylint: disable=relative-beyond-top-level
-from ..utils.io import realize_path  # noqa pylint: disable=relative-beyond-top-level
+from NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2
+from ModelImporter.readers import read_material
+from utils.io import realize_path
 
 
 def create_material_node(mat_path: str, local_root_directory: str):
     # Read the material data directly from the material MBIN
     mat_data = read_material(mat_path)
-    if mat_data is None or mat_data == dict():
+    if mat_data is None:
         # no texture data so just exit this function.
         return
-    # create a new material
-    mat_name = mat_data.pop('Name')
-    mat = bpy.data.materials.new(name=mat_name)
+    # Create a new material
+    mat = bpy.data.materials.new(name=mat_data.Name)
 
-    uniforms = mat_data['Uniforms']
+    uniforms = {x.Name: x for x in mat_data.Uniforms}
+
+    flags = [x.MaterialFlag for x in mat_data.Flags]
 
     # Since we are using cycles we want to have node-based materials
     mat.use_nodes = True
 
     # Add some material settings:
-    CastShadow = mat_data['CastShadow']
-    if CastShadow:
+    if mat_data.CastShadow:
         mat.shadow_method = 'OPAQUE'
 
     nodes = mat.node_tree.nodes
@@ -41,28 +41,31 @@ def create_material_node(mat_path: str, local_root_directory: str):
     FRAGMENT_COLOUR0 = principled_BSDF.outputs['BSDF']
 
     # Set up some constants
-    if 61 in mat_data['Flags']:
+    if 61 in flags:
         kfAlphaThreshold = 0.1
         kfAlphaThresholdMax = 0.5
-    elif 10 in mat_data['Flags']:
+    elif 10 in flags:
         kfAlphaThreshold = 0.45
         kfAlphaThresholdMax = 0.8
     else:
         kfAlphaThreshold = 0.0001
 
-    if 0 not in mat_data['Flags']:
+    if 0 not in flags:
         rgb_input = nodes.new(type='ShaderNodeRGB')
-        rgb_input.outputs[0].default_value[0] = uniforms['gMaterialColourVec4'][0]  # noqa
-        rgb_input.outputs[0].default_value[1] = uniforms['gMaterialColourVec4'][1]  # noqa
-        rgb_input.outputs[0].default_value[2] = uniforms['gMaterialColourVec4'][2]  # noqa
-        rgb_input.outputs[0].default_value[3] = uniforms['gMaterialColourVec4'][3]  # noqa
+        mat_colour = uniforms['gMaterialColourVec4'].Values
+        rgb_input.outputs[0].default_value[0] = mat_colour[0]
+        rgb_input.outputs[0].default_value[1] = mat_colour[1]
+        rgb_input.outputs[0].default_value[2] = mat_colour[2]
+        rgb_input.outputs[0].default_value[3] = mat_colour[3]
         lColourVec4 = rgb_input.outputs['Color']
 
     # TODO: restructure all this to be as similar to the actual shaders as
     # possible
 
+    samplers = {x.Name: x.Map for x in mat_data.Samplers}
+
     # create the diffuse, mask and normal nodes and give them their images
-    for tex_type, tex_path in mat_data['Samplers'].items():
+    for tex_type, tex_path in samplers.items():
         img = None
         if tex_type == DIFFUSE:
             # texture
@@ -74,12 +77,11 @@ def create_material_node(mat_path: str, local_root_directory: str):
             diffuse_texture.image = img
             diffuse_texture.location = (-600, 300)
             lColourVec4 = diffuse_texture.outputs['Color']
-            if 15 in mat_data['Flags']:
+            if 15 in flags:
                 # #ifdef _F16_DIFFUSE2MAP
-                if 16 not in mat_data['Flags']:
+                if 16 not in flags:
                     # #ifndef _F17_MULTIPLYDIFFUSE2MAP
-                    diffuse2_path = realize_path(
-                        mat_data['Samplers'][DIFFUSE2], local_root_directory)
+                    diffuse2_path = realize_path(samplers[DIFFUSE2], local_root_directory)
                     if op.exists(diffuse2_path):
                         img = bpy.data.images.load(diffuse2_path)
                     diffuse2_texture = nodes.new(type='ShaderNodeTexImage')
@@ -99,15 +101,15 @@ def create_material_node(mat_path: str, local_root_directory: str):
                     print('Note: Please post on discord the model you are'
                           ' importing so I can fix this!!!')
             # #ifndef _F44_IMPOSTER
-            if 43 not in mat_data['Flags']:
+            if 43 not in flags:
                 # #ifdef _F39_METALLIC_MASK
-                if 38 in mat_data['Flags']:
+                if 38 in flags:
                     links.new(principled_BSDF.inputs['Metallic'],
                               diffuse_texture.outputs['Alpha'])
                 else:
                     # use the default value from the file
                     if 'gMaterialParamsVec4' in uniforms:
-                        principled_BSDF.inputs['Metallic'].default_value = uniforms['gMaterialParamsVec4'][2]  # noqa
+                        principled_BSDF.inputs['Metallic'].default_value = uniforms['gMaterialParamsVec4'].Values[2]  # noqa
         elif tex_type == MASKS:
             # texture
             _path = realize_path(tex_path, local_root_directory)
@@ -124,9 +126,9 @@ def create_material_node(mat_path: str, local_root_directory: str):
             separate_rgb.location = (-400, 0)
             links.new(separate_rgb.inputs['Image'],
                       mask_texture.outputs['Color'])
-            if 43 not in mat_data['Flags']:
+            if 43 not in flags:
                 # #ifndef _F44_IMPOSTER
-                if 24 in mat_data['Flags']:
+                if 24 in flags:
                     # #ifdef _F25_ROUGHNESS_MASK
                     # lfRoughness = 1 - lMasks.g
                     # subtract the green channel from 1:
@@ -144,8 +146,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
                 # lfRoughness *= lUniforms.mpCustomPerMaterial->gMaterialParamsVec4.x;  # noqa
                 mult_param_x = nodes.new(type="ShaderNodeMath")
                 mult_param_x.operation = 'MULTIPLY'
-                mult_param_x.inputs[1].default_value = uniforms[
-                    'gMaterialParamsVec4'][0]
+                mult_param_x.inputs[1].default_value = uniforms['gMaterialParamsVec4'].Values[0]
                 links.new(mult_param_x.inputs[0], lfRoughness)
                 lfRoughness = mult_param_x.outputs['Value']
             if lfRoughness is not None:
@@ -156,10 +157,10 @@ def create_material_node(mat_path: str, local_root_directory: str):
 
             # gMaterialParamsVec4.x
             # #ifdef _F40_SUBSURFACE_MASK
-            if 39 in mat_data['Flags']:
+            if 39 in flags:
                 links.new(principled_BSDF.inputs['Subsurface Weight'],
                           separate_rgb.outputs['R'])
-            if 43 in mat_data['Flags']:
+            if 43 in flags:
                 # lfMetallic = lMasks.b;
                 links.new(principled_BSDF.inputs['Metallic'],
                           separate_rgb.outputs['B'])
@@ -198,11 +199,11 @@ def create_material_node(mat_path: str, local_root_directory: str):
             links.new(principled_BSDF.inputs['Normal'],
                       normal_map.outputs['Normal'])
 
-            if 42 in mat_data['Flags']:
+            if 42 in flags:
                 # lTexCoordsVec4.xy *= lUniforms.mpCustomPerMesh->gCustomParams01Vec4.z;  # noqa
                 normal_scale = nodes.new(type='ShaderNodeMapping')
                 normal_scale.location = (-1000, -300)
-                scale = uniforms['gCustomParams01Vec4'][2]
+                scale = uniforms['gCustomParams01Vec4'].Values[2]
                 normal_scale.inputs['Scale'].default_value = Vector((scale, scale, scale))  # noqa
                 tex_coord = nodes.new(type='ShaderNodeTexCoord')
                 tex_coord.location = (-1200, -300)
@@ -215,7 +216,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
     # Apply some final transforms to the data before connecting it to the
     # Material output node
 
-    if 20 in mat_data['Flags'] or 28 in mat_data['Flags']:
+    if 20 in flags or 28 in flags:
         # #ifdef _F21_VERTEXCOLOUR
         # lColourVec4 *= IN( mColourVec4 );
         col_attribute = nodes.new(type='ShaderNodeAttribute')
@@ -229,12 +230,12 @@ def create_material_node(mat_path: str, local_root_directory: str):
                   mix_colour.outputs['Color'])
         lColourVec4 = mix_colour.outputs['Color']
 
-    if (8 in mat_data['Flags'] or 10 in mat_data['Flags'] or
-            21 in mat_data['Flags']):
+    if (8 in flags or 10 in flags or
+            21 in flags):
         # Handle transparency
         alpha_mix = nodes.new(type='ShaderNodeMixShader')
         alpha_shader = nodes.new(type='ShaderNodeBsdfTransparent')
-        if 0 in mat_data['Flags']:
+        if 0 in flags:
             # If there is a diffuse texture we use this to get rid of
             # transparent pixels
             discard_node = nodes.new(type="ShaderNodeMath")
@@ -245,7 +246,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
             links.new(discard_node.inputs[0], lColourVec4_a)
             lColourVec4_a = discard_node.outputs['Value']
 
-            if 10 in mat_data['Flags']:
+            if 10 in flags:
                 clamp_node = nodes.new(type='ShaderNodeClamp')
                 clamp_node.clamp_type = 'RANGE'
                 clamp_node.location = (500, -300)
@@ -272,7 +273,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
 
         FRAGMENT_COLOUR0 = alpha_mix.outputs['Shader']
 
-    if 50 in mat_data['Flags']:
+    if 50 in flags:
         # #ifdef _F51_DECAL_DIFFUSE
         # FRAGMENT_COLOUR0 = vec4( lOutColours0Vec4.xyz, lColourVec4.a );
         alpha_mix_decal = nodes.new(type='ShaderNodeMixShader')
@@ -297,7 +298,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
     # link some nodes up according to the uberfragment.bin shader
     # TODO: fix this at some point...
     # https://blender.stackexchange.com/questions/21533/totally-white-shadeless-material-in-cycles
-    # if 6 in mat_data['Flags']:
+    # if 6 in flags:
     #    mat.use_shadeless = True
 
     return mat

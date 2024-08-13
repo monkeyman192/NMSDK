@@ -66,11 +66,11 @@ def binary16(f):
     return struct.pack('<H', (sign << 15) | (e16 << 10) | f16)
 
 
-def bytes_to_half(bytes_):
+def bytes_to_half(bytes_) -> tuple:
     """ Read an array of bytes into a list of half's."""
     fmt = '<' + 'H' * (len(bytes_) // 2)
     data = struct.unpack(fmt, bytes_)
-    return [_float_from_unsigned16(n) for n in data]
+    return tuple(_float_from_unsigned16(n) for n in data)
 
 
 def _float_from_unsigned16(n):

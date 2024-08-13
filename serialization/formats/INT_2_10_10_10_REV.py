@@ -1,13 +1,13 @@
 # some functions to process the openGL data type INT_2_10_10_10_REV
 
 import struct
-
+import numpy as np
 
 def bytes_to_int_2_10_10_10_rev(bytes_):
     return read_int_2_10_10_10_rev(struct.unpack('<I', bytes_)[0])
 
 
-def read_int_2_10_10_10_rev(verts):
+def read_int_2_10_10_10_rev(verts: int):
     # this is returns a list of the form [x, y, z, w]
     sel = 0b1111111111
     output = []
@@ -26,6 +26,30 @@ def read_int_2_10_10_10_rev(verts):
     for i in range(3):
         output[i] = output[i]/norm
     return output
+
+
+SEL_0 = 0b1111111111
+SEL_10 = 0b1111111111 << 10
+SEL_20 = 0b1111111111 << 20
+MASK = 512
+
+
+def np_read_int_2_10_10_10_rev(verts):
+    """ Optimized version of the code to read the data type.
+    The input array will be a row array and this will return a 2D array with 3 rows which will need to be
+    flattened later."""
+    a = fixed_twos_complement((verts & SEL_0) >> 0)
+    b = fixed_twos_complement((verts & SEL_10) >> 10)
+    c = fixed_twos_complement((verts & SEL_20) >> 20)
+    d = np.vstack([a, b, c])
+    # Divide each element by the norm of the values.
+    norm = np.linalg.norm(d, axis=0)
+    return d / norm[None, :]
+
+
+def fixed_twos_complement(input_value):
+    """Calculates a two's complement integer from the given input value"""
+    return -(input_value & MASK) + (input_value & ~MASK)
 
 
 def twos_complement(input_value, num_bits):

@@ -1,29 +1,33 @@
 from collections import namedtuple
 import struct
 from typing import Tuple
+import os.path as op
 
 # TODO: move to the serialization folder?
 
-from ..serialization.utils import (read_list_header, read_string, # noqa pylint: disable=relative-beyond-top-level
-                                   bytes_to_quat, read_bool)
-from ..serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
-from ..NMS.LOOKUPS import DIFFUSE, MASKS, NORMAL  # noqa pylint: disable=relative-beyond-top-level
-from ..utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
+from serialization.utils import (read_list_header, read_string, # noqa pylint: disable=relative-beyond-top-level
+                                   bytes_to_quat, read_bool, read_uint32,
+                                   returned_read)
+from serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
+from utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
+
+from serialization.NMS_Structures import TkMaterialData, MBINHeader, NAMEHASH_MAPPING, TkAnimMetadata
 
 
 gstream_info = namedtuple(
-    'gstream_info',
-    ['vert_size', 'vert_off', 'idx_size', 'idx_off', 'dbl_buff']
-)
-gstream_info_old = namedtuple(
     'gstream_info',
     ['vert_size', 'vert_off', 'idx_size', 'idx_off']
 )
 
 
-def read_anim(fname):
+def read_anim(fname):  # TODO: FIX!
     """ Reads an anim file. """
-    anim_data = dict()
+    # anim_data = dict()
+
+    with open(fname, "rb") as f:
+        header = MBINHeader.read(f)
+        assert header.header_namehash == NAMEHASH_MAPPING["TkAnimMetadata"]
+        return TkAnimMetadata.read(f)
 
     with open(fname, 'rb') as f:
         f.seek(0x60)
@@ -92,7 +96,7 @@ def read_anim(fname):
         return anim_data
 
 
-def read_entity_animation_data(fname: str) -> dict:
+def read_entity_animation_data(fname: str) -> dict:  # TODO: Fix
     """ Read an entity file.
 
     This will currently only support reading the animation data from the
@@ -145,140 +149,11 @@ def read_material(fname):
         Mapping between the texture type (one of DIFFUSE, MASKS, NORMAL) and
         the path to the texture
     """
-    data = dict()
-
-    # Read the data directly from the mbin
-    with open(fname, 'rb') as f:
-        f.seek(0x60)
-        # get name
-        data['Name'] = read_string(f, 0x80)
-        # get metamaterial, introduced in 2.61
-        data['Metamaterial'] = read_string(f, 0x100)
-        # get class
-        data['Class'] = read_string(f, 0x20)
-        # get whether it casts a shadow
-        f.seek(0x4, 1)
-        data['CastShadow'] = read_bool(f)
-        # save pointer for Flags Uniforms Samplers list headers
-        list_header_first = f.tell() + 0x1 + 0x80 + 0x80 + 0x2
-        # get material flags
-        data['Flags'] = list()
-        f.seek(list_header_first)
-        list_offset, list_count = read_list_header(f)
-        f.seek(list_offset, 1)
-        for i in range(list_count):
-            data['Flags'].append(struct.unpack('<I', f.read(0x4))[0])
-        # get uniforms
-        data['Uniforms'] = dict()
-        f.seek(list_header_first + 0x10)
-        list_offset, list_count = read_list_header(f)
-        f.seek(list_offset, 1)
-        for i in range(list_count):
-            name = read_string(f, 0x20)
-            value = struct.unpack('<ffff', f.read(0x10))
-            data['Uniforms'][name] = value
-            f.seek(0x10, 1)
-        # get samplers (texture paths)
-        data['Samplers'] = dict()
-        f.seek(list_header_first + 0x20)
-        list_offset, list_count = read_list_header(f)
-        f.seek(list_offset, 1)
-        for i in range(list_count):
-            name = read_string(f, 0x20)
-            Map = read_string(f, 0x80)
-            data['Samplers'][name] = Map
-            if i != list_count - 1:
-                f.seek(0x38, 1)
-
-    return data
-
-
-def read_mesh_binding_data(fname):
-    """ Read the data relating to mesh/joint bindings from the geometry file.
-
-    Returns
-    -------
-    data : dict
-        All the relevant data from the geometry file
-    """
-    data = dict()
-    with open(fname, 'rb') as f:
-        # First, check that there is data to read. If not, then return nothing
-        f.seek(0x78)
-        if struct.unpack('<I', f.read(0x4))[0] == 0:
-            return
-        # Read joint binding data
-        f.seek(0x70)
-        data['JointBindings'] = list()
-        with ListHeader(f) as JointBindings:
-            for _ in range(JointBindings.count):
-                jb_data = dict()
-                fmt = '<' + 'f' * 0x10
-                jb_data['InvBindMatrix'] = struct.unpack(fmt, f.read(0x40))
-                jb_data['BindTranslate'] = struct.unpack('<fff', f.read(0xC))
-                jb_data['BindRotate'] = struct.unpack('<ffff', f.read(0x10))
-                jb_data['BindScale'] = struct.unpack('<fff', f.read(0xC))
-                data['JointBindings'].append(jb_data)
-        # skip to the skin matrix layout data
-        f.seek(0xB0)
-        with ListHeader(f) as SkinMatrixLayout:
-            fmt = '<' + 'I' * SkinMatrixLayout.count
-            data_size = 4 * SkinMatrixLayout.count
-            data['SkinMatrixLayout'] = struct.unpack(fmt, f.read(data_size))
-
-        # skip to the MeshBaseSkinMat data
-        f.seek(0x100)
-        with ListHeader(f) as MeshBaseSkinMat:
-            fmt = '<' + 'I' * MeshBaseSkinMat.count
-            data_size = 4 * MeshBaseSkinMat.count
-            data['MeshBaseSkinMat'] = struct.unpack(fmt, f.read(data_size))
-
-    return data
-
-
-def read_metadata(fname):
-    """ Reads all the metadata from the gstream file.
-
-    Returns
-    -------
-    data : dict (str: namedtuple)
-        Mapping between the names of the meshes and their metadata
-    """
-    data = dict()
-    old_fmt = False
-    with open(fname, 'rb') as f:
-        # Let's get the GUID to see what version we are looking at.
-        f.seek(0x10)
-        guid = struct.unpack('<Q', f.read(0x8))[0]
-        # Let's check what it is. The current is 0x71E36E603CED2E6E
-        # Ones before this we will consider "old format".
-        if guid == 0xCD49AC37B4729513:
-            old_fmt = True
-        # move to the start of the StreamMetaDataArray header
-        f.seek(0x190)
-        # find how far to jump
-        list_offset, list_count = read_list_header(f)
-        f.seek(list_offset, 1)
-        for _ in range(list_count):
-            # read the ID in and strip it to be just the string and no padding.
-            string = read_string(f, 0x80).upper()
-            # skip the hash
-            f.seek(0x8, 1)
-            # read in the actual data we want
-            if not old_fmt:
-                read_data = struct.unpack('<IIII?', f.read(0x11))
-                # Skip the last 7 padding bytes (0xFE's)
-                f.seek(0x7, 1)
-                gstream_info_ = gstream_info
-            else:
-                read_data = struct.unpack('<IIII', f.read(0x10))
-                gstream_info_ = gstream_info_old
-            if string not in data:
-                data[string] = gstream_info_(*read_data)
-            else:
-                data[string] = [data[string]]
-                data[string].append(gstream_info_(*read_data))
-    return data
+    if not op.exists(fname):
+        return None
+    with open(fname, "rb") as f:
+        header = MBINHeader.read(f)
+        return TkMaterialData.read(f)
 
 
 def read_gstream(fname: str, info: namedtuple) -> Tuple[bytes, bytes]:

@@ -1,9 +1,9 @@
 import bpy
 
 # Internal imports
-from .utils import transform_to_NMS_coords, get_actions_with_name
-from ..NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
-from ..NMS.classes import List, Vector4f, Quaternion
+from ModelExporter.utils import transform_to_NMS_coords, get_actions_with_name
+from NMS.classes import (TkAnimMetadata, TkAnimNodeData, TkAnimNodeFrameData)
+from NMS.classes import List, Vector4f, Quaternion
 
 
 def process_anims(anim_node_data):

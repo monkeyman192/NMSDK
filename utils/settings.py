@@ -7,7 +7,7 @@ import os
 from platform import system as os_name
 
 # local imports
-from .io import get_MBINCompiler_path  # noqa
+from utils.io import get_MBINCompiler_path
 
 
 _os_name = os_name()

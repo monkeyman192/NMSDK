@@ -1,7 +1,7 @@
 from typing import List
 
-from ..NMS.LOOKUPS import SERIALIZE_FMT_MAP, REV_SEMANTICS
-from .formats import write_half, write_int_2_10_10_10_rev, ubytes_to_bytes
+from NMS.LOOKUPS import SERIALIZE_FMT_MAP, REV_SEMANTICS
+from serialization.formats import write_half, write_int_2_10_10_10_rev, ubytes_to_bytes
 
 
 def serialize_vertex_stream(requires: List[str], **kwargs):

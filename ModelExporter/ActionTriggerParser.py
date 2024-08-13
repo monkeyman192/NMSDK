@@ -1,7 +1,6 @@
 import bpy
 
-from ..NMS.classes import (GcTriggerActionComponentData, GcActionTrigger, List,
-                           GcActionTriggerState)
+from NMS.classes import (GcTriggerActionComponentData, GcActionTrigger, List, GcActionTriggerState)
 
 
 def ParseNodes():

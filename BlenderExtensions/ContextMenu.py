@@ -5,8 +5,8 @@ from copy import copy
 import math
 
 # Local imports
-from ..utils.misc import get_root_node, clone_node
-from ..ModelExporter.utils import get_children
+from utils.misc import get_root_node, clone_node
+from ModelExporter.utils import get_children
 
 # Blender imports
 import bmesh
