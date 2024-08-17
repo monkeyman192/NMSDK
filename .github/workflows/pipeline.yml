@@ -17,9 +17,9 @@ jobs:
     outputs:
       nmsdk_version: ${{ steps.get_nmsdk_version.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python 3.9
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.9"
       - name: Install dependencies
@@ -31,18 +31,18 @@ jobs:
       - name: Build release
         run: |
           python ./tools/build.py
-          cp build/nmsdk.zip nmsdk.zip
+          Expand-Archive build/nmsdk.zip -DestinationPath ./nmsdk
       - name: Get NMSDK tag version
         id: get_nmsdk_version
         run: echo "version=$(Tools/read_nmsdk_version.sh)" >> $GITHUB_OUTPUT
         shell: bash
       - name: Upload plugin zip for release
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: NMSDK
-          path: nmsdk.zip
+          path: nmsdk
       - name: Upload website for release
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: NMSDK_site
           path: html_docs/*
@@ -64,7 +64,7 @@ jobs:
         shell: bash
       - name: Upload resources if version matches
         if: env.VERSION == env.TAG
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: "${{ env.TAG }}"
           tag_name: ${{ env.TAG }}
