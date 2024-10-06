@@ -31,6 +31,7 @@ class VariableSizeString(datatype):
         buf.write(struct.pack("<QII", 0, 0, 0xAAAAAA01))
         yield
         offset = buf.tell()
+        value = str(value)
         size = len(value)
         if size != 0:
             buf.write(struct.pack(f"{size + 1}s", value.encode() + b"\x00"))

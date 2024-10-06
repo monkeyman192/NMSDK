@@ -4,9 +4,7 @@
 
 from typing import Optional
 
-from .TkSceneNodeData import TkSceneNodeData
-from .TkSceneNodeAttributeData import TkSceneNodeAttributeData
-from .TkTransformData import TkTransformData
+from serialization.NMS_Structures.Structures import TkSceneNodeAttributeData, TkSceneNodeData, TkTransformData
 from .TkMaterialData import TkMaterialData
 from .TkPhysicsComponentData import TkPhysicsComponentData
 from .List import List
@@ -45,11 +43,10 @@ class Object():
         # If this isn't specified the default value will be used.
         self.Transform = kwargs.get('Transform', TkTransformData())
 
-        # default to None so that it is handled properly if there are none.
-        self.Attributes = None
+        self.Attributes: list[TkSceneNodeAttributeData] = []
 
         # just a normal list so it is easier to iterate over
-        self.Children = []
+        self.Children: list['Object'] = []
         # set to None by default. Every child will have this set to something
         # when it is added as a child.
         self.Parent = None
@@ -169,21 +166,17 @@ class Object():
         if self.was_imported:
             self.Children.sort(key=lambda x: x.orig_node_idx)
         # Call each child's process function
-        if len(self.Children) != 0:
-            self.Child_Nodes = List()
-            for child in self.Children:
-                child.construct_data()
-                # this will return the self.NodeData object in the child Object
-                self.Child_Nodes.append(child.get_data())
-        else:
-            self.Child_Nodes = None
-
+        child_nodes: list[TkSceneNodeData] = []
+        for child in self.Children:
+            child.construct_data()
+            # this will return the self.NodeData object in the child Object
+            child_nodes.append(child.get_data())
         self.NodeData = TkSceneNodeData(Name=self.Name,
                                         NameHash=self.NameHash,
                                         Type=self._Type,
                                         Transform=self.Transform,
                                         Attributes=self.Attributes,
-                                        Children=self.Child_Nodes)
+                                        Children=child_nodes)
 
     def rebuild_entity(self):
         # this is used to rebuild the entity data in case something else is
@@ -200,8 +193,21 @@ class Object():
             for entity in self.ExtraEntityData[entityname]:
                 self.EntityData[entityname].append(entity)
 
-    def original_attribute(self, name: str,
-                           ignore_original: bool = False) -> Optional[tuple]:
+    def original(
+        self,
+        name: str,
+        fallback: str = "",
+        ignore_original: bool = False
+    ) -> Optional[str]:
+        if ignore_original:
+            return fallback
+        attribs = self.orig_node_data.get('Attributes', [])
+        for attr in attribs:
+            if attr.get('Name', '') == name:
+                return str(attr['Value'])
+        return str(fallback)
+
+    def original_attribute(self, name: str, ignore_original: bool = False) -> Optional[tuple]:
         """ Returns the value of an attibute from the original imported value,
         or None if there isn't a value. """
         # Create a short-cut in case we actually want to not use an original
@@ -242,8 +248,11 @@ class Locator(Object):
 
     def create_attributes(self, data: dict, ignore_original: bool = False):
         if data is not None:
-            self.Attributes = List(TkSceneNodeAttributeData(
-                Name='ATTACHMENT', Value=data['ATTACHMENT']))
+            self.Attributes = [
+                TkSceneNodeAttributeData(
+                    Name='ATTACHMENT', Value=str(data['ATTACHMENT'])
+                )
+            ]
 
 
 class Light(Object):
@@ -256,37 +265,31 @@ class Light(Object):
         self.FOV = kwargs.get('FOV', 360.0)
 
     def create_attributes(self, data: dict, ignore_original: bool = False):
-        self.Attributes = List(
+        self.Attributes = [
             TkSceneNodeAttributeData(Name='FOV',
-                                     Value=self.FOV,
-                                     fmt='{0:.6f}'),
+                                     Value=f'{self.FOV:.6f}'),
             TkSceneNodeAttributeData(Name='FALLOFF',
                                      Value='quadratic'),
             TkSceneNodeAttributeData(Name='FALLOFF_RATE',
-                                     Value=2,
-                                     fmt='{0:.6f}'),
+                                     Value='2.000000'),
             TkSceneNodeAttributeData(Name='INTENSITY',
-                                     Value=self.Intensity,
-                                     fmt='{0:.6f}'),
+                                     Value=f'{self.Intensity:.6f}'),
             TkSceneNodeAttributeData(Name='COL_R',
-                                     Value=self.Colour[0],
-                                     fmt='{0:.6f}'),
+                                     Value=f'{self.Colour[0]:.6f}'),
             TkSceneNodeAttributeData(Name='COL_G',
-                                     Value=self.Colour[1],
-                                     fmt='{0:.6f}'),
+                                     Value=f'{self.Colour[1]:.6f}'),
             TkSceneNodeAttributeData(Name='COL_B',
-                                     Value=self.Colour[2],
-                                     fmt='{0:.6f}'),
+                                     Value=f'{self.Colour[2]:.6f}'),
             # These two values will be hard-coded until they are understood
             # well enough to modify them to be anything other than their
             # default values.
             TkSceneNodeAttributeData(Name='COOKIE_IDX',
-                                     Value=-1),
+                                     Value='-1'),
             TkSceneNodeAttributeData(Name='VOLUMETRIC',
-                                     Value=0,
-                                     fmt='{0:.6f}'),
+                                     Value='0.000000'),
             TkSceneNodeAttributeData(Name='MATERIAL',
-                                     Value='MATERIALS/LIGHT.MATERIAL.MBIN'))
+                                     Value='MATERIALS/LIGHT.MATERIAL.MBIN')
+        ]
 
 
 class Joint(Object):
@@ -296,10 +299,12 @@ class Joint(Object):
         self.JointIndex = kwargs.get("JointIndex", 1)
 
     def create_attributes(self, data: dict, ignore_original: bool = False):
-        self.Attributes = List(TkSceneNodeAttributeData(
-            Name='JOINTINDEX',
-            Value=self.JointIndex,
-            orig=self.original_attribute('JOINTINDEX')))
+        self.Attributes = [
+            TkSceneNodeAttributeData(
+                Name='JOINTINDEX',
+                Value=str(self.original('JOINTINDEX', self.JointIndex)),
+            )
+        ]
 
 
 class Emitter(Object):
@@ -309,10 +314,11 @@ class Emitter(Object):
 
     def create_attributes(self, data: dict, ignore_original: bool = False):
         if data is not None:
-            self.Attributes = List(
+            self.Attributes = [
                 TkSceneNodeAttributeData(Name='MATERIAL',
-                                         Value=data['MATERIAL']),
-                TkSceneNodeAttributeData(Name='DATA', Value=data['DATA']))
+                                         Value=str(data['MATERIAL'])),
+                TkSceneNodeAttributeData(Name='DATA', Value=str(data['DATA']))
+            ]
 
 
 class Mesh(Object):
@@ -340,88 +346,96 @@ class Mesh(Object):
 
     def create_attributes(self, data: dict, ignore_original: bool = False):
         # data will be just the information required for the Attributes
-        self.Attributes = List(
-            TkSceneNodeAttributeData(Name='BATCHSTARTPHYSI',
-                                     Value=data['BATCHSTART'],
-                                     orig=self.original_attribute(
-                                         'BATCHSTARTPHYSI', ignore_original)),
-            TkSceneNodeAttributeData(Name='VERTRSTARTPHYSI',
-                                     Value=data['VERTRSTART'],
-                                     orig=self.original_attribute(
-                                         'VERTRSTARTPHYSI', ignore_original)),
-            TkSceneNodeAttributeData(Name='VERTRENDPHYSICS',
-                                     Value=data['VERTREND'],
-                                     orig=self.original_attribute(
-                                         'VERTRENDPHYSICS', ignore_original)),
-            TkSceneNodeAttributeData(Name='BATCHSTARTGRAPH',
-                                     Value=0,
-                                     orig=self.original_attribute(
-                                         'BATCHSTARTGRAPH', ignore_original)),
-            TkSceneNodeAttributeData(Name='BATCHCOUNT',
-                                     Value=data['BATCHCOUNT'],
-                                     orig=self.original_attribute(
-                                         'BATCHCOUNT', ignore_original)),
-            TkSceneNodeAttributeData(Name='VERTRSTARTGRAPH',
-                                     Value=0,
-                                     orig=self.original_attribute(
-                                         'VERTRSTARTGRAPH', ignore_original)),
-            TkSceneNodeAttributeData(Name='VERTRENDGRAPHIC',
-                                     Value=(data['VERTREND'] -
-                                            data['VERTRSTART']),
-                                     orig=self.original_attribute(
-                                         'VERTRENDGRAPHIC', ignore_original)),
-            TkSceneNodeAttributeData(Name='FIRSTSKINMAT',
-                                     Value=0,
-                                     orig=self.original_attribute(
-                                         'FIRSTSKINMAT')),
-            TkSceneNodeAttributeData(Name='LASTSKINMAT',
-                                     Value=0,
-                                     orig=self.original_attribute(
-                                         'LASTSKINMAT')),
-            TkSceneNodeAttributeData(Name='LODLEVEL',
-                                     Value=self.LodLevel,
-                                     orig=self.original_attribute('LODLEVEL')),
-            TkSceneNodeAttributeData(Name='BOUNDHULLST',
-                                     Value=data.get('BOUNDHULLST', 0),
-                                     orig=self.original_attribute(
-                                         'BOUNDHULLST')),
-            TkSceneNodeAttributeData(Name='BOUNDHULLED',
-                                     Value=data.get('BOUNDHULLED', 0),
-                                     orig=self.original_attribute(
-                                         'BOUNDHULLED')),
-            TkSceneNodeAttributeData(Name='AABBMINX',
-                                     Value=data.get('AABBMINX', 0),
-                                     fmt='{0:.6f}',
-                                     orig=self.original_attribute('AABBMINX')),
-            TkSceneNodeAttributeData(Name='AABBMINY',
-                                     Value=data.get('AABBMINY', 0),
-                                     fmt='{0:.6f}',
-                                     orig=self.original_attribute('AABBMINY')),
-            TkSceneNodeAttributeData(Name='AABBMINZ',
-                                     Value=data.get('AABBMINZ', 0),
-                                     fmt='{0:.6f}',
-                                     orig=self.original_attribute('AABBMINZ')),
-            TkSceneNodeAttributeData(Name='AABBMAXX',
-                                     Value=data.get('AABBMAXX', 0),
-                                     fmt='{0:.6f}',
-                                     orig=self.original_attribute('AABBMAXX')),
-            TkSceneNodeAttributeData(Name='AABBMAXY',
-                                     Value=data.get('AABBMAXY', 0),
-                                     fmt='{0:.6f}',
-                                     orig=self.original_attribute('AABBMAXY')),
-            TkSceneNodeAttributeData(Name='AABBMAXZ',
-                                     Value=data.get('AABBMAXZ', 0),
-                                     fmt='{0:.6f}',
-                                     orig=self.original_attribute('AABBMAXZ')),
-            TkSceneNodeAttributeData(Name='HASH',
-                                     Value=data.get('HASH', 0),
-                                     orig=self.original_attribute('HASH')),
-            TkSceneNodeAttributeData(Name='MATERIAL',
-                                     Value=data['MATERIAL'],
-                                     orig=self.original_attribute('MATERIAL')),
-            TkSceneNodeAttributeData(Name='MESHLINK',
-                                     Value=self.Name + 'Shape',
-                                     orig=self.original_attribute('MESHLINK')))
+        self.Attributes = [
+            TkSceneNodeAttributeData(
+                Name='BATCHSTARTPHYSI',
+                Value=self.original('BATCHSTARTPHYSI', data['BATCHSTART'], ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='VERTRSTARTPHYSI',
+                Value=self.original('VERTRSTARTPHYSI', data['VERTRSTART'], ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='VERTRENDPHYSICS',
+                Value=self.original('VERTRENDPHYSICS', data['VERTREND'], ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='BATCHSTARTGRAPH',
+                Value=self.original('BATCHSTARTGRAPH', 0, ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='BATCHCOUNT',
+                Value=self.original('BATCHCOUNT', data['BATCHCOUNT'], ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='VERTRSTARTGRAPH',
+                Value=self.original('VERTRSTARTGRAPH', 0, ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='VERTRENDGRAPHIC',
+                Value=self.original(
+                    'VERTRENDGRAPHIC',
+                    data['VERTREND'] - data['VERTRSTART'],
+                    ignore_original,
+                )
+            ),
+            TkSceneNodeAttributeData(
+                Name='FIRSTSKINMAT',
+                Value=self.original('FIRSTSKINMAT', 0, ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='LASTSKINMAT',
+                Value=self.original('LASTSKINMAT', 0, ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='LODLEVEL',
+                Value=self.original('LODLEVEL', self.LodLevel, ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='BOUNDHULLST',
+                Value=self.original('BOUNDHULLST', data.get('BOUNDHULLST', 0), ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='BOUNDHULLED',
+                Value=self.original('BOUNDHULLED', data.get('BOUNDHULLED', 0), ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='AABBMINX',
+                Value=self.original('AABBMINX', f"{data.get('AABBMINX', 0):.6f}", ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='AABBMINY',
+                Value=self.original('AABBMINY', f"{data.get('AABBMINY', 0):.6f}", ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='AABBMINZ',
+                Value=self.original('AABBMINZ', f"{data.get('AABBMINZ', 0):.6f}", ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='AABBMAXX',
+                Value=self.original('AABBMAXX', f"{data.get('AABBMAXX', 0):.6f}", ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='AABBMAXY',
+                Value=self.original('AABBMAXY', f"{data.get('AABBMAXY', 0):.6f}", ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='AABBMAXZ',
+                Value=self.original('AABBMAXZ', f"{data.get('AABBMAXZ', 0):.6f}", ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='HASH',
+                Value=self.original('HASH', data.get('HASH', "0"), ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='MATERIAL',
+                Value=self.original('MATERIAL', data['MATERIAL'], ignore_original)
+            ),
+            TkSceneNodeAttributeData(
+                Name='MESHLINK',
+                Value=self.original('MESHLINK', self.Name + 'Shape', ignore_original)
+            ),
+        ]
         if self.HasAttachment:
             self.Attributes.append(
                 TkSceneNodeAttributeData(Name='ATTACHMENT',
@@ -451,76 +465,96 @@ class Collision(Object):
             self.Radius = kwargs.get('Radius', 0)
 
     def create_attributes(self, data: dict, ignore_original: bool = False):
-        self.Attributes = List(TkSceneNodeAttributeData(Name="TYPE",
-                                                        Value=self.CType))
+        self.Attributes = [TkSceneNodeAttributeData(Name="TYPE",
+                                                    Value=self.CType)]
         if self.CType == 'Mesh':
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name='BATCHSTART',
-                                         Value=data['BATCHSTART'],
-                                         orig=self.original_attribute(
-                                             'BATCHSTART')))
+                TkSceneNodeAttributeData(
+                    Name='BATCHSTART',
+                    Value=self.original('BATCHSTART', data['BATCHSTART'])
+                )
+            )
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name='BATCHCOUNT',
-                                         Value=data['BATCHCOUNT'],
-                                         orig=self.original_attribute(
-                                             'BATCHCOUNT')))
+                TkSceneNodeAttributeData(
+                    Name='BATCHCOUNT',
+                    Value=self.original('BATCHCOUNT', data['BATCHCOUNT'])
+                )
+            )
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name='VERTRSTART',
-                                         Value=data['VERTRSTART'],
-                                         orig=self.original_attribute(
-                                             'VERTRSTART')))
+                TkSceneNodeAttributeData(
+                    Name='VERTRSTART',
+                    Value=self.original('VERTRSTART', data['VERTRSTART'])
+                )
+            )
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name='VERTREND',
-                                         Value=data['VERTREND'],
-                                         orig=self.original_attribute(
-                                             'VERTREND')))
+                TkSceneNodeAttributeData(
+                    Name='VERTREND',
+                    Value=self.original('VERTREND', data['VERTREND'])
+                )
+            )
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name='FIRSTSKINMAT',
-                                         Value=0,
-                                         orig=self.original_attribute(
-                                             'FIRSTSKINMAT')))
+                TkSceneNodeAttributeData(
+                    Name='FIRSTSKINMAT',
+                    Value=self.original('FIRSTSKINMAT', "0")
+                )
+            )
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name='LASTSKINMAT',
-                                         Value=0,
-                                         orig=self.original_attribute(
-                                             'LASTSKINMAT')))
+                TkSceneNodeAttributeData(
+                    Name='LASTSKINMAT',
+                    Value=self.original('LASTSKINMAT', "0")
+                )
+            )
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name='BOUNDHULLST',
-                                         Value=data.get('BOUNDHULLST', 0),
-                                         orig=self.original_attribute(
-                                             'BOUNDHULLST')))
+                TkSceneNodeAttributeData(
+                    Name='BOUNDHULLST',
+                    Value=self.original('BOUNDHULLST', data.get('BOUNDHULLST', "0"))
+                )
+            )
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name='BOUNDHULLED',
-                                         Value=data.get('BOUNDHULLED', 0),
-                                         orig=self.original_attribute(
-                                             'BOUNDHULLED')))
+                TkSceneNodeAttributeData(
+                    Name='BOUNDHULLED',
+                    Value=self.original('BOUNDHULLED', data.get('BOUNDHULLED', "0"))
+                )
+            )
         elif self.CType == 'Box':
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name="WIDTH",
-                                         Value=data['WIDTH'],
-                                         fmt='{0:.6f}'))
+                TkSceneNodeAttributeData(
+                    Name='WIDTH',
+                    Value=f'{data["WIDTH"]:.06f}',
+                )
+            )
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name="HEIGHT",
-                                         Value=data['HEIGHT'],
-                                         fmt='{0:.6f}'))
+                TkSceneNodeAttributeData(
+                    Name='HEIGHT',
+                    Value=f'{data["HEIGHT"]:.06f}',
+                )
+            )
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name="DEPTH",
-                                         Value=data['DEPTH'],
-                                         fmt='{0:.6f}'))
+                TkSceneNodeAttributeData(
+                    Name='DEPTH',
+                    Value=f'{data["DEPTH"]:.06f}',
+                )
+            )
         elif self.CType == 'Sphere':
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name="RADIUS",
-                                         Value=data['RADIUS'],
-                                         fmt='{0:.6f}'))
+                TkSceneNodeAttributeData(
+                    Name='RADIUS',
+                    Value=f'{data["RADIUS"]:.06f}',
+                )
+            )
         elif self.CType in ('Capsule', 'Cylinder'):
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name="RADIUS",
-                                         Value=data['RADIUS'],
-                                         fmt='{0:.6f}'))
+                TkSceneNodeAttributeData(
+                    Name='RADIUS',
+                    Value=f'{data["RADIUS"]:.06f}',
+                )
+            )
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name="HEIGHT",
-                                         Value=data['HEIGHT'],
-                                         fmt='{0:.6f}'))
+                TkSceneNodeAttributeData(
+                    Name='HEIGHT',
+                    Value=f'{data["HEIGHT"]:.06f}',
+                )
+            )
 
 
 class Model(Object):
@@ -534,9 +568,10 @@ class Model(Object):
 
     def create_attributes(self, data: dict, ignore_original: bool = False):
         # Data will be just the information required for the Attributes.
-        self.Attributes = List(
+        self.Attributes = [
             TkSceneNodeAttributeData(Name='GEOMETRY',
-                                     Value=data['GEOMETRY']))
+                                     Value=data['GEOMETRY'])
+        ]
         # Add the LOD info
         for i, dist in enumerate(self.lod_distances):
             self.Attributes.append(

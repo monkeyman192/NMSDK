@@ -21,6 +21,8 @@ from array import array
 from NMS.classes import (TkAttachmentData, TkGeometryData, List,
                            TkVertexElement, TkVertexLayout, Vector4f)
 from NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES
+from NMS.classes.Object import Model
+from serialization.NMS_Structures import MBINHeader
 from serialization.mbincompiler import mbinCompiler
 from serialization.StreamCompiler import StreamData, TkMeshMetaData
 from serialization.serializers import (serialize_index_stream,
@@ -54,7 +56,7 @@ class Export():
         A dictionaty containing various export settings. These will generally
         be set by the blender export helper.
     """
-    def __init__(self, export_directory, scene_directory, scene_name, model,
+    def __init__(self, export_directory, scene_directory, scene_name, model: Model,
                  anim_data=dict(), descriptor=None, settings=dict()):
         self.export_directory = export_directory
         self.scene_directory = scene_directory.upper()
@@ -183,9 +185,6 @@ class Export():
             self.TkGeometryData.make_elements(main=True)
         self.Model.construct_data()
         self.TkSceneNodeData = self.Model.get_data()
-        # get the model to create all the required data and this will continue
-        # on down the tree
-        self.TkSceneNodeData.make_elements(main=True)
         for material in self.materials:
             if not isinstance(material, str):
                 material.make_elements(main=True)
@@ -499,7 +498,7 @@ class Export():
                         'BATCHCOUNT']
                 else:
                     # We need to rename the mesh collision objects
-                    obj.Name = self.rel_named_path
+                    obj.Name = self.rel_named_path + "|Collision"
             else:
                 if obj._Type == 'LOCATOR':
                     if obj.HasAttachment:
@@ -527,7 +526,7 @@ class Export():
                     else:
                         data = None
                 elif obj._Type == 'COLLISION':
-                    obj.Name = self.rel_named_path
+                    obj.Name = self.rel_named_path + "|Collision"
                     if obj.CType == 'Box':
                         data = {'WIDTH': obj.Width, 'HEIGHT': obj.Height,
                                 'DEPTH': obj.Depth}
@@ -688,9 +687,14 @@ class Export():
                 self.TkGeometryData,
                 "{}.GEOMETRY.MBIN.PC".format(self.abs_name_path))
             mbinc.serialize()
-        print(f'Scene written to {self.abs_name_path}')
-        self.TkSceneNodeData.tree.write("{}.SCENE.exml".format(
-            self.abs_name_path))
+        scene_path = f"{self.abs_name_path}.SCENE.MBIN"
+        with open(scene_path, "wb") as f:
+            hdr = MBINHeader()
+            hdr.header_namehash = 0x3DB87E47
+            hdr.header_guid = 0x6A9DE02E8902AAC3
+            hdr.write(f)
+            self.TkSceneNodeData.write(f)
+        print(f'Scene written to {scene_path}')
         # Build all the descriptor exml data
         if self.descriptor is not None:
             descriptor = self.descriptor.to_exml()

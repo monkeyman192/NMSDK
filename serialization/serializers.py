@@ -4,6 +4,10 @@ from NMS.LOOKUPS import SERIALIZE_FMT_MAP, REV_SEMANTICS
 from serialization.formats import write_half, write_int_2_10_10_10_rev, ubytes_to_bytes
 
 
+def serialize_geometry_stream(data):
+    pass
+
+
 def serialize_vertex_stream(requires: List[str], **kwargs):
     """
     Return a serialized version of the vertex data

@@ -11,7 +11,7 @@ import bmesh
 from idprop.types import IDPropertyGroup
 from mathutils import Matrix, Vector
 # Internal imports
-from ModelExporter.utils import get_surr, calc_tangents
+from ModelExporter.utils import calc_tangents
 from utils.misc import CompareMatrices, get_obj_name
 from utils.image_convert import convert_image
 from ModelExporter.animations import process_anims
@@ -19,18 +19,35 @@ from ModelExporter.export import Export
 from ModelExporter.Descriptor import Descriptor
 from NMS.classes import (TkMaterialData, TkMaterialFlags,
                            TkVolumeTriggerType, TkMaterialSampler,
-                           TkTransformData, TkMaterialUniform,
-                           TkRotationComponentData, TkPhysicsComponentData)
+                           TkMaterialUniform, TkRotationComponentData, TkPhysicsComponentData)
 from NMS.classes import TkAnimationComponentData, TkAnimationData
 from NMS.classes import List, Vector4f
 from NMS.classes import TkAttachmentData
-from NMS.classes import (Model, Mesh, Locator, Reference, Collision, Light,
-                           Joint)
+from NMS.classes.Object import Object, Model, Mesh, Locator, Reference, Collision, Light, Joint
 from NMS.LOOKUPS import MATERIALFLAGS
 from ModelExporter.ActionTriggerParser import ParseNodes
+from serialization.NMS_Structures.Structures import TkTransformData
+
+import numpy as np
 
 
 ROT_X_MAT = Matrix.Rotation(radians(-90), 4, 'X')
+
+
+def triangulate_mesh_new(mesh):
+    """ Triangule the provided mesh.
+
+    Note
+    ----
+    This will modify the original mesh. To avoid this you should ALWAYS pass in
+    a temporary mesh object and do manipulations on this.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.triangulate(bm, faces=bm.faces, ngon_method='EAR_CLIP')
+    bm.to_mesh(mesh)
+    bm.free()
+    del bm
 
 
 def triangulate_mesh(mesh):
@@ -44,7 +61,6 @@ def triangulate_mesh(mesh):
     bm = bmesh.new()
     bm.from_mesh(mesh)
     data = bmesh.ops.triangulate(bm, faces=bm.faces, ngon_method='EAR_CLIP')
-    faces = data['faces']
     face_mapping = data['face_map']
     # This face mapping should be able to be used to map the new triangles back
     # to the original polygons so that we can group them. When grouping we need
@@ -555,6 +571,32 @@ class Exporter():
             if uvcount < 1:
                 raise Exception(f"Object {ob.name} missing UV map")
 
+        # is_triangulated = all([len(poly.vertices) == 3 for poly in data.polygons])
+        # if not is_triangulated:
+        #     triangulate_mesh_new(data)
+
+        # _num_verts = len(data.vertices)
+        # _num_indexes = len(data.loops)
+
+        # np_verts = np.empty((3 * _num_verts, 1))
+        # data.vertices.foreach_get("co", np_verts)
+        # np_indexes = np.empty((_num_indexes, 1))
+        # data.loops.foreach_get("vertex_index", np_indexes)
+        # if not is_coll_mesh:
+        #     np_uvs = np.empty((2 * _num_indexes, 1))
+        #     data.uv_layers.active.data.foreach_get("uv", np_uvs)
+        #     np_uvs = np_uvs.reshape((_num_indexes, 2))
+        #     np_uvs[..., 1] = 1 - np_uvs[..., 1]
+        #     np_uvs = np.hstack((np_uvs, np.zeros((_num_indexes, 1)), np.ones((_num_indexes, 1))))
+
+        # np_verts.reshape((_num_verts, 3))
+        # np_verts = np.hstack((np_verts, np.ones((_num_verts, 1))))
+
+        # print(np_verts)
+        # print(np_indexes)
+        # if not is_coll_mesh:
+        #     print(np_uvs)
+
         # Lists
         _num_verts = len(data.vertices)
         indexes = []
@@ -792,7 +834,7 @@ class Exporter():
                 properties[prop] = self.recurce_entity(prop_group, prop)
         return cls(**properties)
 
-    def parse_object(self, ob, parent):
+    def parse_object(self, ob, parent: Object):
         newob = None
         # Some objects (eg. imported bounded hulls) shouldn't be exported.
         # If the object has this custom property then ignore it.
@@ -881,8 +923,11 @@ class Exporter():
             # The object will have its name in the scene so that any data
             # required can be linked up. This name will be overwritten by the
             # exporter to be the path name of the scene.
-            optdict = {'Name': get_obj_name(ob, None),
-                       'orig_node_data': orig_node_data}
+            optdict = {
+                'Name': get_obj_name(ob, None),
+                'orig_node_data': orig_node_data,
+            }
+            print(optdict)
 
             # Let's do a check on the values of the scale and the dimensions.
             # We can have it so that the user can apply scale, even if by
@@ -920,7 +965,7 @@ class Exporter():
                 # We'll give them some "fake" vertex data which consists of
                 # no actual vertex data, but an index that doesn't point to
                 # anything.
-                verts, norms, tangs, luvs, indexes, chverts, _ = self.mesh_parser(ob, True)  # noqa
+                verts, norms, tangs, luvs, indexes, chverts, _ = self.mesh_parser(ob, True)
 
                 # Reset Transforms on meshes
 
@@ -954,7 +999,7 @@ class Exporter():
         elif ob.NMSNode_props.node_types == 'Mesh':
             # ACTUAL MESH
             # Parse object Geometry
-            verts, norms, tangs, luvs, indexes, chverts, colours = self.mesh_parser(ob)  # noqa
+            verts, norms, tangs, luvs, indexes, chverts, colours = self.mesh_parser(ob)
 
             # check whether the mesh has any child nodes we care about (such as
             # a rotation vector)
@@ -971,8 +1016,7 @@ class Exporter():
                     entitydata.append(rotation_data)
 
             # Create Mesh Object
-            actualname = get_obj_name(ob, None)
-            newob = Mesh(Name=actualname,
+            newob = Mesh(Name=get_obj_name(ob, None),
                          Transform=transform,
                          Vertices=verts,
                          UVs=luvs,
@@ -991,8 +1035,7 @@ class Exporter():
                     ob.NMSMesh_props.has_entity):
                 # tuple, first entry is the name of the entity, the second is
                 # the actual mesh object...
-                self.anim_controller_obj = (ob.NMSEntity_props.name_or_path,
-                                            newob)
+                self.anim_controller_obj = (ob.NMSEntity_props.name_or_path, newob)
 
             # Try to parse material
             if ob.NMSMesh_props.material_path != "":

@@ -128,7 +128,7 @@ class TkGeometryData(datatype):
     BoundHullVerts: Annotated[list[Vector4f], Field(NMS_list[Vector4f])]
     BoundHullVertSt: Annotated[list[int], Field(NMS_list[bt.int32])]
     # TODO: See if it's possible to read directly with numpy.
-    IndexBuffer: Annotated[list[int], Field(NMS_list[bt.int32], deferred_loading=True)]
+    IndexBuffer: Annotated[list[int], Field(NMS_list[bt.int32])]
     JointBindings: Annotated[list[TkJointBindingData], Field(NMS_list[TkJointBindingData])]
     JointExtents: Annotated[list[TkJointExtentData], Field(NMS_list[TkJointExtentData])]
     JointMirrorAxes: Annotated[list[TkJointMirrorAxis], Field(NMS_list[TkJointMirrorAxis])]
@@ -173,15 +173,15 @@ class TkSceneNodeAttributeData(datatype):
 
 @dataclass
 class TkTransformData(datatype):
-    RotX: Annotated[float, Field(bt.single)]
-    RotY: Annotated[float, Field(bt.single)]
-    RotZ: Annotated[float, Field(bt.single)]
-    ScaleX: Annotated[float, Field(bt.single)]
-    ScaleY: Annotated[float, Field(bt.single)]
-    ScaleZ: Annotated[float, Field(bt.single)]
-    TransX: Annotated[float, Field(bt.single)]
-    TransY: Annotated[float, Field(bt.single)]
-    TransZ: Annotated[float, Field(bt.single)]
+    RotX: Annotated[float, Field(bt.single)] = 0
+    RotY: Annotated[float, Field(bt.single)] = 0
+    RotZ: Annotated[float, Field(bt.single)] = 0
+    ScaleX: Annotated[float, Field(bt.single)] = 1
+    ScaleY: Annotated[float, Field(bt.single)] = 1
+    ScaleZ: Annotated[float, Field(bt.single)] = 1
+    TransX: Annotated[float, Field(bt.single)] = 0
+    TransY: Annotated[float, Field(bt.single)] = 0
+    TransZ: Annotated[float, Field(bt.single)] = 0
 
 
 @dataclass
@@ -192,7 +192,7 @@ class TkSceneNodeData(datatype):
     Type: Annotated[str, Field(bt.string, length=0x10)]
     Transform: Annotated[TkTransformData, Field(TkTransformData)]
     NameHash: Annotated[int, Field(bt.uint32)]
-    PlatformExclusion: Annotated[int, Field(bt.int8)]
+    PlatformExclusion: Annotated[int, Field(bt.int8)] = 0
 
 
 TkSceneNodeData.__annotations__["Children"] = Annotated[list[TkSceneNodeData], Field(NMS_list[TkSceneNodeData])]
