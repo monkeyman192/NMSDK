@@ -1,6 +1,7 @@
+from dataclasses import dataclass
 from io import BufferedWriter, BufferedReader
 import struct
-from typing import Annotated, Type, TypeVar
+from typing import Annotated, Type, TypeVar, Optional, Union
 import types
 
 from serialization.utils import bytes_to_quat
@@ -42,12 +43,19 @@ class VariableSizeString(datatype):
 class NMS_list(datatype):
     _alignment = 8
     _list_type: datatype
+    _end_padding: int = 0xAAAAAA01
 
-    def __class_getitem__(cls: Type["NMS_list"], type_: Type[T]):
+    def __class_getitem__(cls: Type["NMS_list"], extra_data: Union[Type[T], tuple[Type[T], Optional[int]]]):
+        if isinstance(extra_data, tuple):
+            type_, end_padding = extra_data
+        else:
+            type_ = extra_data
+            end_padding = 0xAAAAAA01
         _cls: Type[NMS_list[T]] = types.new_class(
             f"NMS_list[{type_}]", (cls,)
         )
         _cls._list_type = type_
+        _cls._end_padding = end_padding
         return _cls
 
     @classmethod
@@ -65,7 +73,7 @@ class NMS_list(datatype):
     @classmethod
     def serialize(cls, buf: BufferedWriter, value):
         ptr = buf.tell()
-        buf.write(struct.pack("<QII", 0, 0, 0xAAAAAA01))
+        buf.write(struct.pack("<QII", 0, 0, cls._end_padding))
         yield
         cls._list_type._write_padding(buf)
         offset = buf.tell()
@@ -111,6 +119,7 @@ class Quaternion_list(datatype):
     #         buf.write(struct.pack("<QI", offset - ptr, size))
 
 
+@dataclass
 class MBINHeader(datatype):
     _size = 0x20
     header_magic: Annotated[int, Field(bt.uint64)] = 0xCCCCCCCCCCCCCCCC

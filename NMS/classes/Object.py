@@ -335,6 +335,7 @@ class Mesh(Object):
         self.Tangents = kwargs.get('Tangents', None)
         self.CHVerts = kwargs.get('CHVerts', None)
         self.Colours = kwargs.get('Colours', None)
+        self.np_indexes = kwargs.get('np_indexes', None)
         self.IsMesh = True
         # this will be a list of length 2 with each element being a 4-tuple.
         self.BBox = kwargs.get('BBox', None)
@@ -456,6 +457,7 @@ class Collision(Object):
             self.Normals = kwargs.get('Normals', None)
             self.Tangents = kwargs.get('Tangents', None)
             self.CHVerts = kwargs.get('CHVerts', None)
+            self.np_indexes = kwargs.get('np_indexes', None)
         else:
             # just give all 4 values. The required ones will be non-zero (deal
             # with later in the main file...)

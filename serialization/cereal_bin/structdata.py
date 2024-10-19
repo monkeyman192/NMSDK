@@ -88,7 +88,12 @@ class datatype(metaclass=AlignedData):
                 fmt = cls._format
             try:
                 if hasattr(value, "__iter__"):
-                    buf.write(struct.pack(fmt, *value))
+                    if fmt.startswith("<"):
+                        fmt = fmt[1:]
+                    if len(fmt) > 1:
+                        buf.write(struct.pack("<" + fmt, *value))
+                    else:
+                        buf.write(struct.pack("<" + fmt * len(value), *value))
                 else:
                     buf.write(struct.pack(fmt, value))
             except struct.error:

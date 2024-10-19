@@ -16,7 +16,7 @@ class int8(datatype):
     _size = 1
 
 
-class uint16(datatype):
+class uint8(datatype):
     _format = "<B"
     _alignment = 1
     _size = 1

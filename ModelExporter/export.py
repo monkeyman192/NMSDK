@@ -12,19 +12,28 @@ __credits__ = ["monkeyman192", "gregkwaste"]
 # Blender imports
 import bpy
 
+import numpy as np
+
 # stdlib imports
 import os
 import subprocess
 from collections import OrderedDict as odict
 from array import array
+import struct
+from itertools import accumulate
 # Internal imports
-from NMS.classes import (TkAttachmentData, TkGeometryData, List,
-                           TkVertexElement, TkVertexLayout, Vector4f)
+from NMS.classes import TkAttachmentData, TkGeometryData
 from NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES
 from NMS.classes.Object import Model
 from serialization.NMS_Structures import MBINHeader
+from serialization.NMS_Structures.Structures import (
+    TkMeshData, TkGeometryStreamData, TkVertexLayout, TkVertexElement, TkMeshMetaData
+)
+from serialization.NMS_Structures.Structures import (
+    TkGeometryData as TkGeometryData_new,
+)
 from serialization.mbincompiler import mbinCompiler
-from serialization.StreamCompiler import StreamData, TkMeshMetaData
+from serialization.StreamCompiler import StreamData
 from serialization.serializers import (serialize_index_stream,
                                          serialize_vertex_stream)
 from ModelExporter.utils import nmsHash, traverse
@@ -91,6 +100,8 @@ class Export():
         self.hashes = odict()
         self.mesh_names = list()
 
+        self.np_index_data = np.array([], dtype=np.uint32)
+
         # Make some settings values more easily accessible.
         self.preserve_node_info = self.settings.get('preserve_node_info',
                                                     False)
@@ -100,14 +111,21 @@ class Export():
         # a list of any extra properties to go in each entity
         # self.Entities = []
 
+        self.np_indexes: list[np.ndarray] = []
+        self.np_index_lenths = []
+        self.np_index_maxs = []
+
         # extract the streams from the mesh objects.
-        for mesh in self.Model.Meshes.values():
+        for i, mesh in enumerate(self.Model.Meshes.values()):
             self.mesh_names.append(mesh.Name)
             self.index_stream[mesh.Name] = mesh.Indexes
             self.vertex_stream[mesh.Name] = mesh.Vertices
             self.uv_stream[mesh.Name] = mesh.UVs
             self.n_stream[mesh.Name] = mesh.Normals
             self.t_stream[mesh.Name] = mesh.Tangents
+            self.np_indexes.append(mesh.np_indexes)
+            self.np_index_lenths.append(mesh.np_indexes.size)
+            self.np_index_maxs.append(max(mesh.np_indexes) + 1)
             if self.Model.has_vertex_colours:
                 if mesh.Colours is None:
                     self.c_stream[mesh.Name] = (
@@ -122,24 +140,25 @@ class Export():
             if mesh.Material is not None:
                 self.materials.add(mesh.Material)
 
+        if sum(self.np_index_maxs) > 0xFFFF:
+            self.Indices16Bit = 0
+        else:
+            self.Indices16Bit = 1
+
         # for obj in self.Model.ListOfEntities:
         #    self.Entities.append(obj.EntityData)
 
         self.num_mesh_objs = len(self.Model.Meshes)
 
         # generate some variables relating to the paths
-        self.basepath = os.path.join(self.export_directory,
-                                     self.scene_directory)
-        self.texture_path = os.path.join(self.basepath, self.scene_name,
-                                         'TEXTURES')
+        self.basepath = os.path.join(self.export_directory, self.scene_directory)
+        self.texture_path = os.path.join(self.basepath, self.scene_name, 'TEXTURES')
         self.anims_path = os.path.join(self.basepath, 'ANIMS')
         # path location of the entity folder. Calling makedirs of this will
         # ensure all the folders are made in one go
-        self.ent_path = os.path.join(self.basepath, self.scene_name,
-                                     'ENTITIES')
+        self.ent_path = os.path.join(self.basepath, self.scene_name, 'ENTITIES')
         # The name of the scene relative to the PCBANKS folder
-        self.rel_named_path = os.path.join(self.scene_directory,
-                                           self.scene_name)
+        self.rel_named_path = os.path.join(self.scene_directory, self.scene_name)
         self.abs_name_path = os.path.join(self.basepath, self.scene_name)
 
         self.create_paths()
@@ -149,12 +168,12 @@ class Export():
 
         self.preprocess_streams()
 
+        self.gstream_fpath = f"{os.path.join(self.basepath, self.scene_name)}.GEOMETRY.DATA.MBIN.PC"
+
         if (not self.preserve_node_info
                 or (self.preserve_node_info
                     and self.export_original_geom_data)):
-            self.geometry_stream = StreamData(
-                '{}.GEOMETRY.DATA.MBIN.PC'.format(
-                    os.path.join(self.basepath, self.scene_name)))
+            self.geometry_stream = StreamData(self.gstream_fpath)
 
             # generate the geometry stream data now
             self.serialize_data()
@@ -178,11 +197,11 @@ class Export():
 
         # Assign each of the class objects that contain all of the data their
         # data
-        if (not self.preserve_node_info
-                or (self.preserve_node_info
-                    and self.export_original_geom_data)):
-            self.TkGeometryData = TkGeometryData(**self.GeometryData)
-            self.TkGeometryData.make_elements(main=True)
+        # if (not self.preserve_node_info
+        #         or (self.preserve_node_info
+        #             and self.export_original_geom_data)):
+        #     self.TkGeometryData = TkGeometryData(**self.GeometryData)
+        #     self.TkGeometryData.make_elements(main=True)
         self.Model.construct_data()
         self.TkSceneNodeData = self.Model.get_data()
         for material in self.materials:
@@ -259,40 +278,96 @@ class Export():
         directly to the gstream and geometry file constructors
         """
         vertex_data = []
-        index_data = []
-        metadata = odict()
-        for name in self.mesh_names:
-            vertex_data.append(serialize_vertex_stream(
+        vertex_sizes = []
+        index_sizes = []
+        mesh_datas: list[TkMeshData] = []
+        for i, name in enumerate(self.mesh_names):
+            v_data = serialize_vertex_stream(
                 requires=self.stream_list,
                 Vertices=self.vertex_stream[name],
                 UVs=self.uv_stream[name],
                 Normals=self.n_stream[name],
                 Tangents=self.t_stream[name],
-                Colours=self.c_stream[name]))
-            new_indexes = self.index_stream[name]
-            if max(new_indexes) > 2 ** 16:
-                indexes = array('I', new_indexes)
-            else:
-                indexes = array('H', new_indexes)
-            index_data.append(serialize_index_stream(indexes))
-            metadata[name] = self.mesh_metadata[name]
-        self.geometry_stream.create(metadata, vertex_data, index_data)
-        self.geometry_stream.save()     # offset data populated here
+                Colours=self.c_stream[name]
+            )
+            v_len = len(v_data)
+            vertex_data.append(v_data)
+            vertex_sizes.append(v_len)
+            # new_indexes = self.index_stream[name]
+            # # TODO: serialize the same way as they are in the actual data.
+            # # This will also fail I think if there are indexes > 0xFFFF since it will serialize some as H and
+            # # some as I
+            # if max(new_indexes) > 2 ** 16:
+            #     indexes = array('I', new_indexes)
+            # else:
+            #     indexes = array('H', new_indexes)
+            # i_data = serialize_index_stream(indexes)
+            i_data = self.np_indexes[i]
+            if self.Indices16Bit:
+                i_data = i_data.astype(np.uint16)
+            i_data = i_data.tobytes()
+            i_len = len(i_data)
+            index_sizes.append(i_len)
+            md = TkMeshData(
+                name,
+                v_data + i_data,
+                self.mesh_metadata[name]["hash"],
+                i_len,
+                v_len
+            )
+            mesh_datas.append(md)
+        gstream_data = TkGeometryStreamData(mesh_datas)
+
+        with open(self.gstream_fpath, "wb") as f:
+            hdr = MBINHeader()
+            hdr.header_namehash = 0x40025754
+            hdr.header_guid = 0x1D6CC846AC06B54C
+            hdr.write(f)
+            gstream_data.write(f)
+
+        offsets = []
+
+        # A bit of a hack, but we need the offsets of the index and vert data. We'll use this code to get it
+        # since it works.
+        with open(self.gstream_fpath, "rb") as f:
+            f.seek(0x28, 0)
+            entries = struct.unpack("<I", f.read(4))[0]
+
+            f.seek(0x30, 0)
+            for i in range(entries):
+                f.seek(0x10, 1)
+                curr_pos = f.tell()
+                offset = struct.unpack("<Q", f.read(8))[0]
+                # print(offset, )
+                abs_pos = curr_pos + offset
+                f.seek(0x10, 1)
+                _, vert_size = struct.unpack("<II", f.read(8))
+                offsets.append((abs_pos, abs_pos + vert_size))
 
         # while we are here we will generate the mesh metadata for the geometry
         # file.
-        metadata_list = List()
-        for i, m in enumerate(self.geometry_stream.metadata):
-            metadata = {
-                'ID': m.ID, 'hash': m.hash, 'vert_size': m.vertex_size,
-                'vert_offset': self.geometry_stream.data_offsets[2 * i],
-                'index_size': m.index_size,
-                'index_offset': self.geometry_stream.data_offsets[2 * i + 1]}
-            self.hashes[m.raw_ID] = m.hash
-            geom_metadata = TkMeshMetaData()
-            geom_metadata.create(**metadata)
-            metadata_list.append(geom_metadata)
-        self.GeometryData['StreamMetaDataArray'] = metadata_list
+        # metadata_list = List()
+        StreamMetaDataArray = []
+        for i, md in enumerate(mesh_datas):
+            StreamMetaDataArray.append(TkMeshMetaData(
+                md.IdString,
+                md.Hash,
+                offsets[i][1],
+                index_sizes[i],
+                offsets[i][0],
+                vertex_sizes[i],
+                False
+            ))
+            # metadata = {
+            #     'ID': m.ID, 'hash': m.hash, 'vert_size': m.vertex_size,
+            #     'vert_offset': self.geometry_stream.data_offsets[2 * i],
+            #     'index_size': m.index_size,
+            #     'index_offset': self.geometry_stream.data_offsets[2 * i + 1]}
+            # self.hashes[m.raw_ID] = m.hash
+            # geom_metadata = TkMeshMetaData()
+            # geom_metadata.create(**metadata)
+            # metadata_list.append(geom_metadata)
+        self.GeometryData['StreamMetaDataArray'] = StreamMetaDataArray
 
     def process_data(self):
         # This will do the main processing of the different streams.
@@ -328,6 +403,9 @@ class Export():
         for name, obj in self.Model.mesh_colls.items():
             self.mesh_coll_indexes[name] = obj.Indexes
             self.mesh_coll_verts[name] = obj.Vertices
+            self.np_indexes.append(obj.np_indexes)
+            self.np_index_lenths.append(obj.np_indexes.size)
+            self.np_index_maxs.append(max(obj.np_indexes) + 1)
 
         # get the total lengths for the geometry data
         num_mesh_col_idxs = sum(
@@ -351,11 +429,6 @@ class Export():
             self.hull_bounds[name][0] for name in self.mesh_names)
         self.GeometryData['BoundHullVertEd'] = list(
             self.hull_bounds[name][1] for name in self.mesh_names)
-        # TODO: fix this!! (should be if max > 2**16, not count)
-        if self.GeometryData['IndexCount'] > 2**16:
-            self.GeometryData['Indices16Bit'] = 0
-        else:
-            self.GeometryData['Indices16Bit'] = 1
 
         # Sort out mesh collision convex hull data
 
@@ -365,6 +438,7 @@ class Export():
 
         # create the list of mesh collision index data
         batch_offset = 0
+
         for name in self.mesh_coll_verts.keys():
             # For each mesh collision determine the start verts and indexes
             start_verts = self.GeometryData['MeshVertREnd'][-1] + 1
@@ -384,6 +458,9 @@ class Export():
             mesh_index_end = (
                 mesh_index_end + max(self.mesh_coll_indexes[name]) + 1
             )
+
+        self.GeometryData['Indices16Bit'] = self.Indices16Bit
+
         # Fix up the index values for the actual mesh data
         for name, batch in self.batches.items():
             self.batches[name] = [batch[0] + batch_offset,
@@ -407,10 +484,7 @@ class Export():
         for verts in self.mesh_coll_verts.values():
             hull_data.extend(verts)
         for vert in hull_data:
-            self.GeometryData['BoundHullVerts'].append(Vector4f(x=vert[0],
-                                                                y=vert[1],
-                                                                z=vert[2],
-                                                                t=1.0))
+            self.GeometryData['BoundHullVerts'].append((vert[0], vert[1], vert[2], 1.0))
 
         self.vert_bounds.update(hull_verts)
         self.hull_bounds.update(hull_indexes)
@@ -543,8 +617,8 @@ class Export():
 
     def create_vertex_layouts(self):
         # sort out what streams are given and create appropriate vertex layouts
-        VertexElements = List()
-        SmallVertexElements = List()
+        VertexElements = []
+        SmallVertexElements = []
         for sID in self.stream_list:
             # sID is the SemanticID
             if sID in [0, 1]:
@@ -554,8 +628,8 @@ class Export():
                                                       Type=5131,
                                                       Offset=Offset,
                                                       Normalise=0,
-                                                      Instancing="PerVertex",
-                                                      PlatformData=""))
+                                                      Instancing=0,
+                                                      PlatformData=0))
                 # Also write the small vertex data
                 Offset = 8 * sID
                 SmallVertexElements.append(
@@ -564,8 +638,8 @@ class Export():
                                     Type=5131,
                                     Offset=Offset,
                                     Normalise=0,
-                                    Instancing="PerVertex",
-                                    PlatformData=""))
+                                    Instancing=0,
+                                    PlatformData=0))
             # for the INT_2_10_10_10_REV stuff
             elif sID in [2, 3]:
                 Offset = self.offsets[sID]
@@ -574,8 +648,8 @@ class Export():
                                                       Type=36255,
                                                       Offset=Offset,
                                                       Normalise=0,
-                                                      Instancing="PerVertex",
-                                                      PlatformData=""))
+                                                      Instancing=0,
+                                                      PlatformData=0))
             elif sID == 4:
                 Offset = self.offsets[sID]
                 VertexElements.append(TkVertexElement(SemanticID=sID,
@@ -583,20 +657,22 @@ class Export():
                                                       Type=5121,
                                                       Offset=Offset,
                                                       Normalise=0,
-                                                      Instancing="PerVertex",
-                                                      PlatformData=""))
+                                                      Instancing=0,
+                                                      PlatformData=0))
 
         self.GeometryData['VertexLayout'] = TkVertexLayout(
             ElementCount=self.element_count,
             Stride=self.stride,
-            PlatformData="",
-            VertexElements=VertexElements)
+            PlatformData=0,
+            VertexElements=VertexElements,
+        )
         # TODO: do more generically
         self.GeometryData['SmallVertexLayout'] = TkVertexLayout(
             ElementCount=len(SmallVertexElements),
             Stride=0x8 * len(SmallVertexElements),
-            PlatformData="",
-            VertexElements=SmallVertexElements)
+            PlatformData=0,
+            VertexElements=SmallVertexElements,
+        )
 
     def mix_streams(self):
         # this combines all the input streams into one single stream with the
@@ -630,30 +706,36 @@ class Export():
         self.GeometryData['VertexStream'] = VertexStream
         self.GeometryData['SmallVertexStream'] = SmallVertexStream
 
-        # finally we can also flatten the index stream:
-        IndexBuffer = array('I')
-        # First write the mesh collision index buffer
-        for name in self.Model.mesh_colls.keys():
-            obj = self.index_stream[name]
-            IndexBuffer.extend(obj)
-        # Then write the normal mesh index buffer
-        for name in self.mesh_names:
-            obj = self.index_stream[name]
-            IndexBuffer.extend(obj)
-        # TODO: make this better (determine format correctly)
-        """
-        # let's convert to the correct type of array data type here
-        if not max(IndexBuffer) > 2**16:
-            IndexBuffer = array('H', IndexBuffer)
-        """
-        self.GeometryData['IndexBuffer'] = IndexBuffer
+        # Handle the index streams.
+        # First, we create a list which contains the cumulative count, and then we add this value to each
+        # array.
+        # We add 0 to the start to avoid adding anything to the first one.
+        addt_values = [0] + list(accumulate(self.np_index_maxs))
+        for i, addt in enumerate(addt_values[:-1]):
+            self.np_indexes[i] += addt
+        mesh_col_offset = len(self.mesh_names)
+
+        if self.Indices16Bit == 0:
+            dtype = np.uint32
+        else:
+            dtype = np.uint16
+
+        index_array = np.concatenate(
+            self.np_indexes[mesh_col_offset:] + self.np_indexes[:mesh_col_offset],
+            dtype=dtype,
+        )
+        index_array_bytes = index_array.tobytes()
+        if (dfct := (len(index_array_bytes) % 4)) != 0:
+            index_array_bytes += b"\x00" * (4 - dfct)
+
+        self.GeometryData['IndexBuffer'] = np.frombuffer(index_array_bytes, dtype=np.uint32)
 
     def get_bounds(self):
         # this analyses the vertex stream and finds the smallest bounding box
         # corners.
 
-        self.GeometryData['MeshAABBMin'] = List()
-        self.GeometryData['MeshAABBMax'] = List()
+        self.GeometryData['MeshAABBMin'] = []
+        self.GeometryData['MeshAABBMax'] = []
 
         # Combine the meshes
         objs = [*self.Model.Meshes.values(), *self.Model.mesh_colls.values()]
@@ -667,15 +749,14 @@ class Export():
             y_bounds = (min(y_verts), max(y_verts))
             z_bounds = (min(z_verts), max(z_verts))
 
-            self.GeometryData['MeshAABBMin'].append(
-                Vector4f(x=x_bounds[0], y=y_bounds[0], z=z_bounds[0], t=1))
-            self.GeometryData['MeshAABBMax'].append(
-                Vector4f(x=x_bounds[1], y=y_bounds[1], z=z_bounds[1], t=1))
+            self.GeometryData['MeshAABBMin'].append((x_bounds[0], y_bounds[0], z_bounds[0], 1))
+            self.GeometryData['MeshAABBMax'].append((x_bounds[1], y_bounds[1], z_bounds[1], 1))
             if obj._Type == "MESH":
                 # only add the meshes to the self.mesh_bounds dict:
                 self.mesh_bounds[obj.Name] = {'x': x_bounds, 'y': y_bounds,
                                               'z': z_bounds}
 
+    # TODO: Change this here too...
     def write(self):
         """ Write all of the files required for the scene. """
         # We only need to write the geometry data if we aren't preserving
@@ -683,10 +764,48 @@ class Export():
         if (not self.preserve_node_info
                 or (self.preserve_node_info
                     and self.export_original_geom_data)):
-            mbinc = mbinCompiler(
-                self.TkGeometryData,
-                "{}.GEOMETRY.MBIN.PC".format(self.abs_name_path))
-            mbinc.serialize()
+            # mbinc = mbinCompiler(
+            #     self.TkGeometryData,
+            #     "{}.GEOMETRY.MBIN.PC".format(self.abs_name_path))
+            # mbinc.serialize()
+
+            with open(f"{self.abs_name_path}.GEOMETRY.MBIN.PC", "wb") as f:
+                hdr = MBINHeader(
+                    header_magic = 0xDDDDDDDDDDDDDDDD,
+                    header_namehash = 0x819C3220,
+                    header_guid = 0x32F6AE7B03222A1F,
+                    header_timestamp = 0xFFFFFFFFFFFFFFFF,
+                )
+                hdr.write(f)
+                gd = self.GeometryData
+                print(gd["StreamMetaDataArray"])
+                thing = TkGeometryData_new(
+                    SmallVertexLayout=gd["SmallVertexLayout"],  # good
+                    VertexLayout=gd["VertexLayout"],  # good
+                    BoundHullVertEd=gd["BoundHullVertEd"],  # good
+                    BoundHullVerts=gd["BoundHullVerts"],  # good
+                    BoundHullVertSt=gd["BoundHullVertSt"],  # good
+                    IndexBuffer=gd["IndexBuffer"],
+                    JointBindings=[],
+                    JointExtents=[],
+                    JointMirrorAxes=[],
+                    JointMirrorPairs=[],
+                    MeshAABBMax=gd["MeshAABBMax"],  # good
+                    MeshAABBMin=gd["MeshAABBMin"],  # good
+                    MeshBaseSkinMat=[],
+                    MeshVertREnd=gd["MeshVertREnd"],  # good
+                    MeshVertRStart=gd["MeshVertRStart"],  # good
+                    ProcGenNodeNames=[],
+                    ProcGenParentId=[],
+                    SkinMatrixLayout=[],
+                    StreamMetaDataArray=gd["StreamMetaDataArray"],  # good
+                    CollisionIndexCount=gd["CollisionIndexCount"],  # good
+                    IndexCount=gd["IndexCount"],  # good
+                    Indices16Bit=self.Indices16Bit,  # good
+                    VertexCount=gd["VertexCount"],  # good
+                )
+                thing.write(f)
+
         scene_path = f"{self.abs_name_path}.SCENE.MBIN"
         with open(scene_path, "wb") as f:
             hdr = MBINHeader()

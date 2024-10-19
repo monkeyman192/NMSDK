@@ -576,12 +576,12 @@ class Exporter():
         #     triangulate_mesh_new(data)
 
         # _num_verts = len(data.vertices)
-        # _num_indexes = len(data.loops)
+        _num_indexes = len(data.loops)
 
         # np_verts = np.empty((3 * _num_verts, 1))
         # data.vertices.foreach_get("co", np_verts)
-        # np_indexes = np.empty((_num_indexes, 1))
-        # data.loops.foreach_get("vertex_index", np_indexes)
+        np_indexes = np.empty((_num_indexes, ), dtype=np.uint32)
+        data.loops.foreach_get("vertex_index", np_indexes)
         # if not is_coll_mesh:
         #     np_uvs = np.empty((2 * _num_indexes, 1))
         #     data.uv_layers.active.data.foreach_get("uv", np_uvs)
@@ -795,7 +795,7 @@ class Exporter():
             print(f'Exported collisions with {len(verts)} verts, '
                   f'{len(indexes)} indexes')
 
-        return verts, normals, tangents, uvs, indexes, chverts, colours
+        return verts, normals, tangents, uvs, indexes, chverts, colours, np_indexes
 
     def recurce_entity(self, parent, obj, list_element=None, index=0):
         # this will return the class object of the property recursively
@@ -927,7 +927,6 @@ class Exporter():
                 'Name': get_obj_name(ob, None),
                 'orig_node_data': orig_node_data,
             }
-            print(optdict)
 
             # Let's do a check on the values of the scale and the dimensions.
             # We can have it so that the user can apply scale, even if by
@@ -965,7 +964,7 @@ class Exporter():
                 # We'll give them some "fake" vertex data which consists of
                 # no actual vertex data, but an index that doesn't point to
                 # anything.
-                verts, norms, tangs, luvs, indexes, chverts, _ = self.mesh_parser(ob, True)
+                verts, norms, tangs, luvs, indexes, chverts, _, np_indexes = self.mesh_parser(ob, True)
 
                 # Reset Transforms on meshes
 
@@ -974,6 +973,7 @@ class Exporter():
                 optdict['Normals'] = norms
                 optdict['Tangents'] = tangs
                 optdict['CHVerts'] = chverts
+                optdict['np_indexes'] = np_indexes
             # Handle Primitives
             elif colType == "Box":
                 optdict['Width'] = dims[0] / factor[0]
@@ -999,7 +999,7 @@ class Exporter():
         elif ob.NMSNode_props.node_types == 'Mesh':
             # ACTUAL MESH
             # Parse object Geometry
-            verts, norms, tangs, luvs, indexes, chverts, colours = self.mesh_parser(ob)
+            verts, norms, tangs, luvs, indexes, chverts, colours, np_indexes = self.mesh_parser(ob)
 
             # check whether the mesh has any child nodes we care about (such as
             # a rotation vector)
@@ -1027,7 +1027,8 @@ class Exporter():
                          Colours=colours,
                          ExtraEntityData=entitydata,
                          HasAttachment=ob.NMSMesh_props.has_entity,
-                         orig_node_data=orig_node_data)
+                         orig_node_data=orig_node_data,
+                         np_indexes=np_indexes)
 
             # Check to see if the mesh's entity will be animation controller,
             # if so assign to the anim_controller_obj variable.

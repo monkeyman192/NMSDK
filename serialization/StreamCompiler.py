@@ -120,8 +120,7 @@ class StreamData():
         i = 0
         for key, value in ids.items():
             meta = TkMeshData()
-            meta.create(key, value['hash'], len(verts[i]),
-                        len(indexes[i]))
+            meta.create(key, value['hash'], len(verts[i]), len(indexes[i]))
             self.metadata.append(meta)
             i += 1
         self.count = i
