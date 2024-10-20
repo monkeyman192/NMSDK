@@ -865,7 +865,6 @@ class Exporter():
 
         # let's first sort out any entity data that is specified:
         if ob.NMSMesh_props.has_entity or ob.NMSLocator_props.has_entity:
-            print('this has an entity:', ob)
             # we need to pull information from two places:
             # ob.NMSEntity_props
             # check to see if the mesh's entity will get the action trigger

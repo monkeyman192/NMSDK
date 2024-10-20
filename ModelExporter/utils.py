@@ -117,11 +117,12 @@ def movetoindex(lst, i, index):
 def nmsHash(data):
     """
     Lazy hash function for mesh data
-    This is simply the last 16 hexadecimal digits of a sha256 hash
+    This is simply the last 16 hexadecimal digits of a sha256 hash.
+    Also just take the first 16 verts to save time...
     """
     if isinstance(data, list):
         d = array('f')
-        for verts in data:
+        for verts in data[:16]:
             d.extend(verts)
     else:
         d = data

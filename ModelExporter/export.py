@@ -309,7 +309,7 @@ class Export():
             i_len = len(i_data)
             index_sizes.append(i_len)
             md = TkMeshData(
-                name,
+                name.upper(),
                 v_data + i_data,
                 self.mesh_metadata[name]["hash"],
                 i_len,
@@ -338,7 +338,6 @@ class Export():
                 f.seek(0x10, 1)
                 curr_pos = f.tell()
                 offset = struct.unpack("<Q", f.read(8))[0]
-                # print(offset, )
                 abs_pos = curr_pos + offset
                 f.seek(0x10, 1)
                 _, vert_size = struct.unpack("<II", f.read(8))
@@ -350,7 +349,7 @@ class Export():
         StreamMetaDataArray = []
         for i, md in enumerate(mesh_datas):
             StreamMetaDataArray.append(TkMeshMetaData(
-                md.IdString,
+                md.IdString.upper(),
                 md.Hash,
                 offsets[i][1],
                 index_sizes[i],
@@ -778,7 +777,6 @@ class Export():
                 )
                 hdr.write(f)
                 gd = self.GeometryData
-                print(gd["StreamMetaDataArray"])
                 thing = TkGeometryData_new(
                     SmallVertexLayout=gd["SmallVertexLayout"],  # good
                     VertexLayout=gd["VertexLayout"],  # good

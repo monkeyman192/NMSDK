@@ -22,7 +22,7 @@ gstream_info = namedtuple(
 
 def read_anim(fname):  # TODO: FIX!
     """ Reads an anim file. """
-    # anim_data = dict()
+    anim_data = dict()
 
     with open(fname, "rb") as f:
         header = MBINHeader.read(f)
