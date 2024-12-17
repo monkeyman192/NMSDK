@@ -26,7 +26,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
 
     # Add some material settings:
     if mat_data.CastShadow:
-        mat.shadow_method = 'OPAQUE'
+        mat.use_transparent_shadow = False
 
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
