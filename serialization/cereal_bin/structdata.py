@@ -26,7 +26,7 @@ class AlignedData(type):
 
 
 class datatype(metaclass=AlignedData):
-    _ds = []
+    _deferred_structs = []
 
     @property
     def alignment(self):
@@ -75,7 +75,7 @@ class datatype(metaclass=AlignedData):
             if inspect.isgeneratorfunction(cls.serialize):
                 gen = cls.serialize(buf, value)
                 next(gen)
-                cls._ds.append(gen)
+                cls._deferred_structs.append(gen)
             else:
                 cls.serialize(buf, value)
             return
@@ -88,7 +88,12 @@ class datatype(metaclass=AlignedData):
                 fmt = cls._format
             try:
                 if hasattr(value, "__iter__"):
-                    buf.write(struct.pack(fmt, *value))
+                    if fmt.startswith("<"):
+                        fmt = fmt[1:]
+                    if len(fmt) > 1:
+                        buf.write(struct.pack("<" + fmt, *value))
+                    else:
+                        buf.write(struct.pack("<" + fmt * len(value), *value))
                 else:
                     buf.write(struct.pack(fmt, value))
             except struct.error:
@@ -115,7 +120,7 @@ class datatype(metaclass=AlignedData):
             else:
                 type_._write(buf, val)
         if _is_top:
-            for dv in self._ds:
+            for dv in self._deferred_structs:
                 try:
                     # Move to the end of the file every time
                     buf.seek(0, 2)

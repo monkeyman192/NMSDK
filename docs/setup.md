@@ -9,7 +9,7 @@ Removing the old version is particularly important if you had a very old version
 Open Blender and open the preferences window (`Edit` > `Preferences...`), and select `Install...` (it is at the top right of the window).
 Select the `.zip` file you just downloaded and blender should install it without any errors.
 
-To make exporting easier, NMSDK will automatically convert all produced `.exml` files to `.mbin` files. For this to work, *MBINCompiler* is required. See below for instructions on downloading and installing the latest version.
+To make exporting easier, NMSDK will automatically convert all produced `.mxml` files to `.mbin` files. For this to work, *MBINCompiler* is required. See below for instructions on downloading and installing the latest version.
 
 ### Prerequisites
 

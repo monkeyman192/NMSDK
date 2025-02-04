@@ -14,7 +14,7 @@ nmsdk_dir = op.normpath(op.join(op.dirname(__file__), '..', '..'))
 if nmsdk_dir not in sys.path:
     sys.path.append(nmsdk_dir)
 
-from utils.utils import exml_to_dict  # noqa pylint: E402
+from utils.utils import mxml_to_dict  # noqa pylint: E402
 from utils.io import convert_file  # noqa pylint: E402
 
 
@@ -60,9 +60,9 @@ with tempfile.TemporaryDirectory() as tempdir:
     assert op.exists(out_path)
     # Now, let's have a look at the scene and check that it matches the
     # original one (other than where modified)
-    # First we need to convert it to an exml file...
-    new_exml_scene = convert_file(out_path)
-    new_scene = exml_to_dict(new_exml_scene)
+    # First we need to convert it to an mxml file...
+    new_mxml_scene = convert_file(out_path)
+    new_scene = mxml_to_dict(new_mxml_scene)
     # Let's check to see if the new LOD values are there
     assert float(new_scene['Attributes'][1]['Value']) == 750.25
     assert float(new_scene['Attributes'][2]['Value']) == 1250
@@ -76,8 +76,8 @@ with tempfile.TemporaryDirectory() as tempdir:
     # And then remove it from the comparison
     del new_scene['Children'][0]['Transform']['ScaleY']
     # Then convert the original scene file...
-    orig_exml_scene = convert_file(ASTEROID_PATH)
-    orig_scene = exml_to_dict(orig_exml_scene)
+    orig_mxml_scene = convert_file(ASTEROID_PATH)
+    orig_scene = mxml_to_dict(orig_mxml_scene)
     # Delete the modified values from this scene too.
     del orig_scene['Attributes'][1:4]
     del orig_scene['Children'][0]['Transform']['ScaleY']
@@ -88,8 +88,8 @@ with tempfile.TemporaryDirectory() as tempdir:
     orig_descriptor = op.join(TEST_DATA_PATH,
                               ASTEROID_BASE_PATH,
                               'ASTEROIDXL.DESCRIPTOR.MBIN')
-    orig_descriptor = exml_to_dict(convert_file(orig_descriptor))
+    orig_descriptor = mxml_to_dict(convert_file(orig_descriptor))
     new_descriptor = op.join(tempdir, ASTEROID_BASE_PATH,
                              'ASTEROIDXL.DESCRIPTOR.MBIN')
-    new_descriptor = exml_to_dict(convert_file(new_descriptor))
+    new_descriptor = mxml_to_dict(convert_file(new_descriptor))
     assert orig_descriptor == new_descriptor

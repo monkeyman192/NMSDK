@@ -173,8 +173,8 @@ class ExportSceneOperator(Operator):
         name="Don't convert files with MBINCompiler",
         description="Ticking this will mean MBINCompiler will not be run on "
                     "the produced files. This will leave a mix of .mbin and "
-                    ".exml files. This is generally not recommended unless "
-                    "you are trying to quickly test something as the .exml "
+                    ".mxml files. This is generally not recommended unless "
+                    "you are trying to quickly test something as the .mxml "
                     "files will be not formatted nicely.",
         default=False,
     )
@@ -714,8 +714,8 @@ class NMS_Export_Operator(Operator, ExportHelper):
         name="Don't convert files with MBINCompiler",
         description="Ticking this will mean MBINCompiler will not be run on "
                     "the produced files. This will leave a mix of .mbin and "
-                    ".exml files. This is generally not recommended unless "
-                    "you are trying to quickly test something as the .exml "
+                    ".mxml files. This is generally not recommended unless "
+                    "you are trying to quickly test something as the .mxml "
                     "files will be not formatted nicely.",
         default=False,
     )
@@ -833,9 +833,9 @@ class NMS_Import_Operator(Operator, ImportHelper):
     bl_label = "Import from SCENE file"
 
     # ImportHelper mixin class uses this
-    filename_ext = ".EXML"
+    filename_ext = ".MXML"
     filter_glob: StringProperty(
-        default="*.scene.exml;*.SCENE.EXML;*.scene.mbin;*.SCENE.MBIN",
+        default="*.scene.mxml;*.SCENE.MXML;*.scene.mbin;*.SCENE.MBIN",
         options={"HIDDEN"})
 
     clear_scene: BoolProperty(

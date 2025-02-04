@@ -76,15 +76,13 @@ class ImportScene():
         # determine the PCBANKS directory
         self.PCBANKS_dir = get_NMS_dir(self.local_directory)
 
-        # Determine the type of file provided and get the exml and mbin file
+        # Determine the type of file provided and get the mxml and mbin file
         # paths for that file.
-        if ftype.lower() == '.exml':
+        if ftype.lower() == '.mxml':
             mbin_fpath = (op.join(self.local_directory, self.scene_basename) +
                           '.MBIN')
-            exml_fpath = fpath
+            mxml_fpath = fpath
         elif ftype.lower() == '.mbin':
-            exml_fpath = (op.join(self.local_directory, self.scene_basename) +
-                          '.EXML')
             mbin_fpath = fpath
         else:
             raise TypeError('Selected file is of the wrong format.')
@@ -150,17 +148,15 @@ class ImportScene():
         # change to render with cycles
         self.scn.render.engine = RENDER_ENGINE
 
-        if not op.exists(exml_fpath):
+        if not op.exists(mbin_fpath):
             retcode = subprocess.call(
-                [self.scn.nmsdk_default_settings.MBINCompiler_path, "-q", "-Q",
-                 fpath])
+                [self.scn.nmsdk_default_settings.MBINCompiler_path, "-q", "-Q", fpath]
+            )
             if retcode != 0:
-                print('MBINCompiler failed to run. Please ensure it is '
-                      'registered on the path.')
+                print('MBINCompiler failed to run. Please ensure it is registered on the path.')
                 print('Import failed')
                 self.requires_render = False
-                raise OSError("MBINCompiler failed to run. See System Console "
-                              "for more details. "
+                raise OSError("MBINCompiler failed to run. See System Console for more details. "
                               "(Window > Toggle System Console)")
 
         self.scene_node_data = SceneNodeData(self._scene_node_data)
@@ -235,7 +231,7 @@ class ImportScene():
 
         # load all the mesh metadata
         self.mesh_metadata = {
-            x.IdString: gstream_info(
+            x.IdString.upper(): gstream_info(
                 x.VertexDataSize,
                 x.VertexDataOffset,
                 x.IndexDataSize,
@@ -602,9 +598,9 @@ class ImportScene():
                 print(f'Now trying to find a descriptor at: {descriptor_path}')
             if op.exists(descriptor_path + '.MBIN'):
                 empty_obj.NMSReference_props.is_proc = True
-                # Also convert the .mbin to exml for parsing if the exml
+                # Also convert the .mbin to mxml for parsing if the mxml
                 # doesn't already exist.
-                if not op.exists(descriptor_path + '.EXML'):
+                if not op.exists(descriptor_path + '.MXML'):
                     retcode = subprocess.call(
                         [self.scn.nmsdk_default_settings.MBINCompiler_path,
                          "-q", "-Q", descriptor_path + '.MBIN'])
@@ -613,8 +609,7 @@ class ImportScene():
                               ' registered on the path.')
                         print('Import failed')
                         return
-                self.descriptor_data = read_descriptor(
-                    descriptor_path + '.EXML')
+                self.descriptor_data = read_descriptor(descriptor_path + '.MXML')
             else:
                 print("No descriptor found... Scene is not proc-gen")
             self.local_objects[self.scene_basename] = empty_obj

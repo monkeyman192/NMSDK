@@ -1,8 +1,6 @@
 # Custom TkSceneNodeData struct for PointLights
 
-from .List import List
-from .TkSceneNodeAttributeData import TkSceneNodeAttributeData
-from .TkTransformData import TkTransformData
+from serialization.NMS_Structures.Structures import TkSceneNodeAttributeData, TkTransformData
 
 
 class PointLight():
@@ -25,24 +23,19 @@ class PointLight():
         self.Type = "LIGHT"
 
     def process_attributes(self):
-        self.Attributes = List()
+        self.Attributes = []
         self.Attributes.append(TkSceneNodeAttributeData(Name="FOV",
-                                                        Value=self.FOV,
-                                                        fmt='{0:.6f}'))
+                                                        Value=f"{self.FOV:.6f}"))
         self.Attributes.append(TkSceneNodeAttributeData(Name="FALLOFF",
                                                         Value=self.Falloff))
         self.Attributes.append(TkSceneNodeAttributeData(Name="INTENSITY",
-                                                        Value=self.Intensity,
-                                                        fmt='{0:.6f}'))
+                                                        Value=f"{self.Intensity:.6f}"))
         self.Attributes.append(TkSceneNodeAttributeData(Name="COL_R",
-                                                        Value=self.Colour[0],
-                                                        fmt='{0:.6f}'))
+                                                        Value=f"{self.Colour[0]:.6f}"))
         self.Attributes.append(TkSceneNodeAttributeData(Name="COL_G",
-                                                        Value=self.Colour[1],
-                                                        fmt='{0:.6f}'))
+                                                        Value=f"{self.Colour[1]:.6f}"))
         self.Attributes.append(TkSceneNodeAttributeData(Name="COL_B",
-                                                        Value=self.Colour[2],
-                                                        fmt='{0:.6f}'))
+                                                        Value=f"{self.Colour[2]:.6f}"))
         self.Attributes.append(TkSceneNodeAttributeData(
             Name="MATERIAL",
             Value="MATERIALS/LIGHT.MATERIAL.MBIN"))

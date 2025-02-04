@@ -48,8 +48,8 @@ def base_path(abs_path: str, rel_path: str):
     For example, if abs_path is a/b/c/d, and rel_path is c/d, then this will
     return a/b
     """
-    a_parts = list(Path(abs_path).parts)
-    r_parts = Path(rel_path).parts
+    a_parts = list(Path(abs_path.lower()).parts)
+    r_parts = Path(rel_path.lower()).parts
     for part in r_parts[::-1]:
         if a_parts[-1] == part:
             a_parts.pop(-1)
@@ -79,10 +79,10 @@ def realize_path(fpath: str, local_root_directory: str) -> str:
 
 
 def convert_file(fpath: str) -> str:
-    """ Convert an mbin or exml file to an exml or mbin file and return the
+    """ Convert an mbin or mxml file to an mxml or mbin file and return the
     path of the produced file.
     """
-    exts = {'.MBIN': '.EXML', '.EXML': '.MBIN'}
+    exts = {'.MBIN': '.MXML', '.MXML': '.MBIN'}
     mbincompiler_path = bpy.context.scene.nmsdk_default_settings.MBINCompiler_path  # noqa
     retcode = subprocess.call(
         [mbincompiler_path, "-y", "-f", "-Q", fpath])

@@ -1,6 +1,7 @@
 # File containing a number of lookup tables to keep it out of the main data
 
-from collections import defaultdict
+import numpy as np
+
 
 MATERIALFLAGS = ['_F01_DIFFUSEMAP', '_F02_SKINNED', '_F03_NORMALMAP', '_F04_',
                  '_F05_INVERT_ALPHA', '_F06_BRIGHT_EDGE', '_F07_UNLIT',
@@ -71,3 +72,17 @@ SERIALIZE_FMT_MAP = {VERTS: 0,
                      NORMS: 1,
                      TANGS: 1,
                      COLOURS: 2}
+
+SERIALIZE_FMT_MAP_NEW = {
+    VERTS: 5131,
+    UVS: 5131,
+    NORMS: 36255,
+    TANGS: 36255,
+    COLOURS: 5121,
+}
+
+VERT_TYPE_MAP = {
+    5121: {'size': 1, 'np_fmt': "4B"},
+    5131: {'size': 2, 'np_fmt': "4e"},       # half-precision floats
+    36255: {'size': 1, 'np_fmt': np.int32}
+}

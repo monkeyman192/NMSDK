@@ -105,7 +105,7 @@ class GUI(Frame):
         contains_scene = False
         scene_names = []
         for file in self.dir_list:
-            if "SCENE" in file and "EXML" not in file.upper():
+            if "SCENE" in file and "MXML" not in file.upper():
                 # in this case we have option 2.
                 # add the name of the scene file to the list of files
                 contains_scene = True
@@ -118,7 +118,7 @@ class GUI(Frame):
                 # if we make it to this line option 1. is what has happened.
                 # Search through
                 for file in subfolders:
-                    if "SCENE" in file and "EXML" not in file.upper():
+                    if "SCENE" in file and "MXML" not in file.upper():
                         contains_scene = True
                         path = self.get_scene_path(os.path.join(self.path_name,
                                                                 folder, file))
@@ -253,23 +253,23 @@ class DataGenerator():
         if not os.path.exists(self.path):
             os.makedirs(self.path)
         self.TkModelDescriptorList.tree.write(
-            "{}.DESCRIPTOR.exml".format(
+            "{}.DESCRIPTOR.mxml".format(
                 os.path.join(self.path, self.name.upper())))
         self.TkGeometryData.tree.write(
-            "{}.GEOMETRY.exml".format(
+            "{}.GEOMETRY.mxml".format(
                 os.path.join(self.path, self.name.upper())))
         self.TkSceneNodeData.tree.write(
-            "{}.SCENE.exml".format(
+            "{}.SCENE.mxml".format(
                 os.path.join(self.path, self.name.upper())))
 
     def convert_to_mbin(self):
         # passes all the files produced by
-        print('Converting all .exml files to .mbin. Please wait while this '
+        print('Converting all .mxml files to .mbin. Please wait while this '
               'finishes.')
         for directory, _, files in os.walk(self.path):
             for file in files:
                 location = os.path.join(directory, file)
-                if os.path.splitext(location)[1] == '.exml':
+                if os.path.splitext(location)[1] == '.mxml':
                     subprocess.call(["MBINCompiler.exe", location])
                     os.remove(location)
 

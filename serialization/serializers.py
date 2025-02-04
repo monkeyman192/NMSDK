@@ -1,7 +1,12 @@
+from array import array
 from typing import List
 
 from NMS.LOOKUPS import SERIALIZE_FMT_MAP, REV_SEMANTICS
 from serialization.formats import write_half, write_int_2_10_10_10_rev, ubytes_to_bytes
+
+
+def serialize_geometry_stream(data):
+    pass
 
 
 def serialize_vertex_stream(requires: List[str], **kwargs):
@@ -34,7 +39,7 @@ def serialize_vertex_stream(requires: List[str], **kwargs):
         return b''
 
 
-def serialize_index_stream(indexes):
+def serialize_index_stream(indexes: array) -> bytes:
     """
     Return a serialized version of the index data
     """
