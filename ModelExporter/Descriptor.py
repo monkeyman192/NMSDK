@@ -38,10 +38,10 @@ class Descriptor():
     def __len__(self):
         return len(self.children)
 
-    def to_exml(self):
+    def to_mxml(self):
         main_data = List()
         for child in self.children:
-            main_data.append(child.to_exml())
+            main_data.append(child.to_mxml())
         return TkModelDescriptorList(List=main_data)
 
 
@@ -62,11 +62,11 @@ class Node_List():
             out += str(child)
         return out
 
-    def to_exml(self):
+    def to_mxml(self):
         # converts this to a TkResourceDescriptorList object
         descriptors = List()
         for child in self.children:
-            descriptors.append(child.to_exml())
+            descriptors.append(child.to_mxml())
         return TkResourceDescriptorList(TypeId=self.TypeId,
                                         Descriptors=descriptors)
 
@@ -96,7 +96,7 @@ class Node_Data():
             out += str(child)
         return out
 
-    def to_exml(self):
+    def to_mxml(self):
         # first, we need to do some processing on the name.
         # if the name starts with the prefix, then we need to sort it out so
         # that it is correct
@@ -132,7 +132,7 @@ class Node_Data():
             refs = List()
         children = List()
         for child in self.children:
-            children.append(child.to_exml())
+            children.append(child.to_mxml())
         # Check how many children there are so we aren't making empty
         # TkModelDescriptorList's for nothing.
         if len(children) == 0:

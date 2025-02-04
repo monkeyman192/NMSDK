@@ -151,7 +151,7 @@ class Struct():
     def __setitem__(self, key, value):
         # assigns the value 'value' to self.data[key]
         # currently no checking so be careful! Incorrect use could lead to
-        # incorrect exml files!!!
+        # incorrect mxml files!!!
         self.data[key] = value
 
     def __str__(self):

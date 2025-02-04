@@ -20,4 +20,4 @@ These two lines dictate how regularly the object will get spawned. Higher values
 
 You can now copy the entire GcObjectSpawnData.xml Property into the other file in this folder in the same place.
 
-Recompile both exml files back into an mbin and create your mod as usual.
+Recompile both mxml files back into an mbin and create your mod as usual.

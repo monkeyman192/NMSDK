@@ -9,7 +9,7 @@ from serialization.utils import (read_list_header, read_string, # noqa pylint: d
                                    bytes_to_quat, read_bool, read_uint32,
                                    returned_read)
 from serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
-from utils.utils import exml_to_dict  # noqa pylint: disable=relative-beyond-top-level
+from utils.utils import mxml_to_dict  # noqa pylint: disable=relative-beyond-top-level
 
 from serialization.NMS_Structures import TkMaterialData, MBINHeader, NAMEHASH_MAPPING, TkAnimMetadata
 
@@ -226,6 +226,6 @@ def read_descriptor(fname: str) -> dict:
     """
     with open(fname) as f:
         # The top level is always a list, let's just extract it immediately.
-        data = exml_to_dict(f)['List']
+        data = mxml_to_dict(f)['List']
     data = read_TkModelDescriptorList(data)
     return data

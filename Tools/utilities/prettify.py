@@ -24,7 +24,7 @@ class GUI(Frame):
         button_frame.pack()
 
     def process(self):
-        path_name = filedialog.askopenfilename(title="Specify exml file")
+        path_name = filedialog.askopenfilename(title="Specify mxml file")
         prettyPrintXml(path_name)
 
     def quit(self):

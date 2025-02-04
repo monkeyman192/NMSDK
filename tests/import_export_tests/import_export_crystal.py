@@ -12,7 +12,7 @@ nmsdk_dir = op.normpath(op.join(op.dirname(__file__), '..', '..'))
 if nmsdk_dir not in sys.path:
     sys.path.append(nmsdk_dir)
 
-from utils.utils import exml_to_dict  # noqa pylint: E402
+from utils.utils import mxml_to_dict  # noqa pylint: E402
 from utils.io import convert_file  # noqa pylint: E402
 
 # The NMS game data to test the importing with is in the main test folder.
@@ -64,11 +64,11 @@ with tempfile.TemporaryDirectory() as tempdir:
     assert op.exists(out_path)
     # Now, let's have a look at the scene and check that it matches the
     # original one...
-    # First we need to convert it to an exml file...
-    new_exml_scene = convert_file(out_path)
-    new_scene = exml_to_dict(new_exml_scene)
+    # First we need to convert it to an mxml file...
+    new_mxml_scene = convert_file(out_path)
+    new_scene = mxml_to_dict(new_mxml_scene)
     # Then convert the original scene file...
-    orig_exml_scene = convert_file(CRYSTAL_PATH)
-    orig_scene = exml_to_dict(orig_exml_scene)
+    orig_mxml_scene = convert_file(CRYSTAL_PATH)
+    orig_scene = mxml_to_dict(orig_mxml_scene)
     # Now let's compare it to the original
     assert new_scene == orig_scene

@@ -70,7 +70,7 @@ Import a complete NMS scene into blender.
 
 **Parameters**:  
 *path* : string  
-> The complete file path to a `SCENE.MBIN` or `SCENE.EXML` file to be loaded into blender.
+> The complete file path to a `SCENE.MBIN` or `SCENE.MXML` file to be loaded into blender.
 
 **Notes**:  
     The entire scene will be loaded into the active scene in blender.
@@ -86,7 +86,7 @@ Import part of a scene specified by the id of a mesh node in the scene file.
 
 **Parameters**:  
 *path* : string
-> The complete file path to a `SCENE.MBIN` or `SCENE.EXML` file to be loaded into blender.
+> The complete file path to a `SCENE.MBIN` or `SCENE.MXML` file to be loaded into blender.
 
 *mesh_id* : string
 > The `Name` of the `TkSceneNodeData` in the Scene being loaded.

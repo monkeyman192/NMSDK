@@ -22,7 +22,7 @@ def getSubValues(element, func=lambda x: x):
 
 
 if __name__ == '__main__':
-    with open("COLTEST.GEOMETRY.MBIN.EXML") as f:
+    with open("COLTEST.GEOMETRY.MBIN.MXML") as f:
         file = tree.parse(source=f)
         bhStarts = getSubValues(findTag(file, "BoundHullVertSt"), int)
         bhEnds = getSubValues(findTag(file, "BoundHullVertEd"), int)

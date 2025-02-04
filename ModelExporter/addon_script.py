@@ -252,7 +252,7 @@ class Exporter():
             entitydata = ParseNodes()
             entity = TkAttachmentData(Components=List(entitydata))
             entity.make_elements(main=True)
-            entity.tree.write('{}.ENTITY.exml'.format(
+            entity.tree.write('{}.ENTITY.mxml'.format(
                 op.join(self.output_directory, self.export_dir, group_name,
                         scene_name)))
             self.state = {'FINISHED'}

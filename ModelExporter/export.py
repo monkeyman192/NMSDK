@@ -2,7 +2,7 @@
 """Process the 3d model data and create required files for NMS.
 
 This function will take all the data provided by the blender script and create
-a number of .exml files that contain all the data required by the game to view
+a number of .mxml files that contain all the data required by the game to view
 the 3d model created.
 """
 
@@ -553,7 +553,7 @@ class Export():
                             # also write the entity file now too as we don't
                             # need to do anything else to it
                             AttachmentData.tree.write(
-                                "{}.ENTITY.exml".format(
+                                "{}.ENTITY.mxml".format(
                                     os.path.join(self.export_directory,
                                                  ent_path)))
                         else:
@@ -591,7 +591,7 @@ class Export():
                             # also write the entity file now too as we don't
                             # need to do anything else to it
                             AttachmentData.tree.write(
-                                "{}.ENTITY.exml".format(
+                                "{}.ENTITY.mxml".format(
                                     os.path.join(self.export_directory,
                                                  ent_path)))
                         else:
@@ -812,16 +812,16 @@ class Export():
             hdr.write(f)
             self.TkSceneNodeData.write(f)
         print(f'Scene written to {scene_path}')
-        # Build all the descriptor exml data
+        # Build all the descriptor mxml data
         if self.descriptor is not None:
-            descriptor = self.descriptor.to_exml()
+            descriptor = self.descriptor.to_mxml()
             descriptor.make_elements(main=True)
             descriptor.tree.write(
-                "{}.DESCRIPTOR.exml".format(self.abs_name_path))
+                "{}.DESCRIPTOR.mxml".format(self.abs_name_path))
         for material in self.materials:
             if not isinstance(material, str):
                 material.tree.write(
-                    "{0}.MATERIAL.exml".format(os.path.join(
+                    "{0}.MATERIAL.mxml".format(os.path.join(
                         self.abs_name_path, str(material['Name']).upper())))
         # Write the animation files
         idle_anim = bpy.context.scene.nmsdk_anim_data.idle_anim
@@ -832,24 +832,24 @@ class Export():
                                      'one of the animations that exists...')
                 # get the value and output it
                 self.anim_data[idle_anim].tree.write(
-                    "{}.ANIM.exml".format(self.abs_name_path))
+                    "{}.ANIM.mxml".format(self.abs_name_path))
             else:
                 for name in list(self.anim_data.keys()):
                     if name != idle_anim:
                         self.anim_data[name].tree.write(
                             os.path.join(self.anims_path,
-                                         "{}.ANIM.exml".format(name.upper())))
+                                         "{}.ANIM.mxml".format(name.upper())))
                     else:
                         self.anim_data[idle_anim].tree.write(
-                            "{}.ANIM.exml".format(self.abs_name_path))
+                            "{}.ANIM.mxml".format(self.abs_name_path))
 
     def convert_to_mbin(self):
-        """ Convert all .exml file to .mbin files. """
-        print('Converting .exml files to .mbin. Please wait.')
+        """ Convert all .mxml file to .mbin files. """
+        print('Converting .mxml files to .mbin. Please wait.')
         for directory, _, files in os.walk(self.basepath):
             for file in files:
                 location = os.path.join(directory, file)
-                if os.path.splitext(location)[1].lower() == '.exml':
+                if os.path.splitext(location)[1].lower() == '.mxml':
                     # Force MBINCompiler to overwrite existing files and
                     # ignore errors.
                     mbincompiler_path = bpy.context.scene.nmsdk_default_settings.MBINCompiler_path  # noqa
