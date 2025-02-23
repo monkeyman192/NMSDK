@@ -39,16 +39,16 @@ class Struct():
                 self.element = SubElement(
                     self.parent,
                     'Property',
-                    {'name': name, 'value': self.name + '.xml'})
+                    {'name': name, 'value': self.name})
             else:
                 self.element = SubElement(
                     self.parent,
                     'Property',
-                    {'value': self.name + '.xml'})
+                    {'value': self.name})
         else:
             # in this case, we expect the name to be specified.
             # parent can be None in this case as it is is the main element
-            self.element = Element('Data', {'template': self.name})
+            self.element = Element('Data', {'template': "c" + self.name})
             self.tree = ElementTree(self.element)
 
         # iterate through all the data and determine type and sort it out
@@ -81,7 +81,7 @@ class Struct():
                 # first add the name as a SubElement
                 SE = SubElement(self.element, 'Property', {'name': pname})
                 for i in data:
-                    SubElement(SE, 'Property', {'value': str(i)})
+                    SubElement(SE, 'Property', {'name': pname, 'value': str(i)})
             elif isinstance(data, array):
                 SE = SubElement(self.element, 'Property', {'name': pname})
                 for i in data:

@@ -17,7 +17,6 @@ class TkVertexElement(Struct):
         self.data['Normalise'] = kwargs.get('Normalise', 0)
         self.InstancingDict = {'PerVertex': 0, 'PerModel': 1}
         self.data['Instancing'] = kwargs.get('Instancing', 0)
-        self.data['PlatformData'] = String(kwargs.get('PlatformData', ""), 0x8)
         """ End of the struct contents"""
 
     def __bytes__(self):

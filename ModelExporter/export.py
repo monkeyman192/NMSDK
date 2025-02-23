@@ -627,8 +627,7 @@ class Export():
                                                       Type=5131,
                                                       Offset=Offset,
                                                       Normalise=0,
-                                                      Instancing=0,
-                                                      PlatformData=0))
+                                                      Instancing=0))
                 # Also write the small vertex data
                 Offset = 8 * sID
                 SmallVertexElements.append(
@@ -637,8 +636,7 @@ class Export():
                                     Type=5131,
                                     Offset=Offset,
                                     Normalise=0,
-                                    Instancing=0,
-                                    PlatformData=0))
+                                    Instancing=0))
             # for the INT_2_10_10_10_REV stuff
             elif sID in [2, 3]:
                 Offset = self.offsets[sID]
@@ -647,8 +645,7 @@ class Export():
                                                       Type=36255,
                                                       Offset=Offset,
                                                       Normalise=0,
-                                                      Instancing=0,
-                                                      PlatformData=0))
+                                                      Instancing=0))
             elif sID == 4:
                 Offset = self.offsets[sID]
                 VertexElements.append(TkVertexElement(SemanticID=sID,
@@ -656,8 +653,7 @@ class Export():
                                                       Type=5121,
                                                       Offset=Offset,
                                                       Normalise=0,
-                                                      Instancing=0,
-                                                      PlatformData=0))
+                                                      Instancing=0))
 
         self.GeometryData['VertexLayout'] = TkVertexLayout(
             ElementCount=self.element_count,
