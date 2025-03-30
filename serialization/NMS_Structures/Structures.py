@@ -58,13 +58,12 @@ class TkMaterialData(datatype):
 
 @dataclass
 class TkVertexElement(datatype):
-    PlatformData: Annotated[int, Field(bt.int64)]
     Instancing: Annotated[int, Field(bt.uint32)]
-    Normalise: Annotated[int, Field(bt.int32)]
-    Offset: Annotated[int, Field(bt.int32)]
-    SemanticID: Annotated[int, Field(bt.int32)]
-    Size: Annotated[int, Field(bt.int32)]
     Type: Annotated[int, Field(bt.int32)]
+    Normalise: Annotated[int, Field(bt.int8)]
+    Offset: Annotated[int, Field(bt.int8)]
+    SemanticID: Annotated[int, Field(bt.int8)]
+    Size: Annotated[int, Field(bt.int8)]
 
 
 @dataclass
