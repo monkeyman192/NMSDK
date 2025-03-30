@@ -187,13 +187,15 @@ class Create_Data():
             # now we set k to be the current max and this is added on to the next set.
             k = curr_max + 1
                 
-
         # First we need to find the length of each stream.
         self.GeometryData['IndexCount'] = 3*sum(self.i_stream_lens)
         self.GeometryData['VertexCount'] = sum(self.v_stream_lens)
         self.GeometryData['MeshVertRStart'] = list(self.vert_bounds[i][0] for i in range(len(self.vert_bounds)))
         self.GeometryData['MeshVertREnd'] = list(self.vert_bounds[i][1] for i in range(len(self.vert_bounds)))
-        if self.GeometryData['IndexCount'] > 2**16:
+        
+        # Check if the maximum index exceeds the 16-bit limit
+        # k-1 is the maximum index value
+        if k - 1 > 32767:  # 2^15 - 1, maximum value for a signed short
             self.GeometryData['Indices16Bit'] = 0
         else:
             self.GeometryData['Indices16Bit'] = 1

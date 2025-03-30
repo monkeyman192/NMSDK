@@ -26,7 +26,7 @@ class NMSMeshProperties(bpy.types.PropertyGroup):
                               default = False)
     create_tangents = BoolProperty(name = "Create Tangents",
                               description = "Whether or not to generate tangents along with the mesh conversion (Enable only if you are sure about your UV Map).",
-                              default = False)
+                              default = True)  # Changed from False to True
     material_path = StringProperty(name = "Material",
                                    description = "(Optional) Path to material mbin file to use instead of automattical exporting material attached to this mesh.")
 

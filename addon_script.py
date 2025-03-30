@@ -1,7 +1,7 @@
 bl_info = {  
  "name": "NMS Model Toolkit",  
  "author": "gregkwaste, monkeyman192",  
- "version": (0, 9),
+ "version": (0, 9, 1),
  "blender": (2, 7, 0),  
  "location": "File > Export",  
  "description": "Exports to NMS File format",  
@@ -23,7 +23,6 @@ BASEPATH = 'CUSTOMMODELS'
 customNodes = NMSNodes()
 
 #Attempt to find 'blender.exe path'
-
 for path in sys.path:
     if os.path.isdir(path):
         if 'nms_imp' in os.listdir(path):
@@ -31,20 +30,12 @@ for path in sys.path:
             os.chdir(path)
             break
 
-
 # Add script path to sys.path
 scriptpath = os.path.join(os.getcwd(),'nms_imp')
-#scriptpath = bpy.context.space_data.text.filepath
-#scriptpath = "J:\\Projects\\NMS_Model_Importer\\blender_script.py"
-#proj_path = os.path.dirname(scriptpath)
-#proj_path is set in the parse_material function
-
 print(scriptpath)
 
 if not scriptpath in sys.path:
     sys.path.append(scriptpath)
-    #print(sys.path)
-    
     
 from main import Create_Data
 from classes import TkMaterialData, TkMaterialFlags, TkMaterialUniform, TkMaterialSampler, TkTransformData, TkRotationComponentData
@@ -113,16 +104,26 @@ def get_children(obj, curr_children, obj_type, just_names = False):
 
 """ Misc. functions for transforming data """
 
-#Tangent Calculator
+#Improved Tangent Calculator
 def calc_tangents(faces, verts, norms, uvs):
     tangents = []
     #Init tangents
     for i in range(len(verts)):
         tangents.append(Vector((0,0,0,0)))
-    #We assume that verts length will be a multiple of 3 since
-    #the mesh has been triangulated
     
     trisNum = len(faces)
+    
+    # Create a dictionary to track shared vertices
+    vert_dict = {}
+    for i in range(len(verts)):
+        vert_dict[i] = []
+        
+    # First pass - record which faces each vertex is part of
+    for i in range(trisNum):
+        tri = faces[i]
+        for vert_idx in tri:
+            vert_dict[vert_idx].append(i)
+    
     #Iterate in triangles
     for i in range(trisNum):
         tri = faces[i]
@@ -131,70 +132,60 @@ def calc_tangents(faces, verts, norms, uvs):
         vert_3 = tri[2]
         
         #Get Point Positions
-        P0 = Vector((verts[vert_1]));
-        P1 = Vector((verts[vert_2])) - P0;
-        P2 = Vector((verts[vert_3])) - P0;
+        P0 = Vector((verts[vert_1][0], verts[vert_1][1], verts[vert_1][2]))
+        P1 = Vector((verts[vert_2][0], verts[vert_2][1], verts[vert_2][2])) - P0
+        P2 = Vector((verts[vert_3][0], verts[vert_3][1], verts[vert_3][2])) - P0
         
-        #print('Poss: ', P1, P2)
-        
-        P0_uv = Vector((uvs[vert_1]))
-        P1_uv = Vector((uvs[vert_2])) - P0_uv
-        P2_uv = Vector((uvs[vert_3])) - P0_uv
-        #Keep only the 1st uvmap
-        P1_uv = P1_uv.xy
-        P2_uv = P2_uv.xy
-        
-        
-        #print('Uvs', P1_uv, P2_uv)
+        P0_uv = Vector((uvs[vert_1][0], uvs[vert_1][1]))
+        P1_uv = Vector((uvs[vert_2][0], uvs[vert_2][1])) - P0_uv
+        P2_uv = Vector((uvs[vert_3][0], uvs[vert_3][1])) - P0_uv
         
         #Matrix determinant
-        D = P1_uv[0] * P2_uv[1] - P2_uv[0] * P1_uv[0]
+        D = P1_uv[0] * P2_uv[1] - P2_uv[0] * P1_uv[1]
         D = 1.0 / max(D, 0.0001) #Store the inverse right away
         
         #Apply equation
         tang = D * (P2_uv[1] * P1 - P1_uv[1] * P2)
         
-        #Orthogonalize Gram-Shmidt
-        n = Vector(norms[vert_1]);
+        #Orthogonalize Gram-Schmidt
+        n = Vector((norms[vert_1][0], norms[vert_1][1], norms[vert_1][2]))
         tang = tang - n * tang.dot(n)
-        # tang.normalize()
+        tang.normalize()
         
         #Add to existing
-        #Vert_1
         tangents[vert_1] += tang
-        #Vert_2
         tangents[vert_2] += tang
-        #Vert_3
-        #tang3 = Vector(tangents[vert_3]) + tang;
-        #tang3.normalize()
         tangents[vert_3] += tang
 
-    #Fix tangents
+    # Normalize tangents
     for i in range(len(verts)):
         tang = tangents[i]
-        tang.normalize()
-        tangents[i] = (tangents[i].x, tangents[i].y, tangents[i].z, 1.0)
+        if tang.length > 0:  # Avoid divide by zero
+            tang.normalize()
+        tangents[i] = (tang.x, tang.y, tang.z, 1.0)
     
-
     return tangents
 
 def apply_local_transforms(rotmat, verts, norms, tangents, create_tangents = False):
+    """Apply transformation matrices to vertices, normals and tangents"""
     norm_mat = rotmat.inverted().transposed()
     
     print(len(verts), len(norms), len(tangents))
     for i in range(len(verts)):
         #Load Vertex
-        vert = rotmat * Vector((verts[i]))
+        vert = rotmat * Vector((verts[i][0], verts[i][1], verts[i][2]))
         #Store Transformed
         verts[i] = (vert[0], vert[1], vert[2], 1.0)
-        #Load Normal
-        norm = norm_mat * Vector((norms[i]))
+        
+        #Load Normal and ensure normalization
+        norm = norm_mat * Vector((norms[i][0], norms[i][1], norms[i][2]))
         norm.normalize()
         #Store Transformed normal
         norms[i] = (norm[0], norm[1], norm[2], 1.0)
+        
         #Load Tangent
-        if create_tangents:
-            tang = norm_mat * Vector((tangents[i]))
+        if create_tangents and i < len(tangents):
+            tang = norm_mat * Vector((tangents[i][0], tangents[i][1], tangents[i][2]))
             tang.normalize()
             #Store Transformed tangent
             tangents[i] = (tang[0], tang[1], tang[2], 1.0)
@@ -278,12 +269,10 @@ class Exporter():
             self.animation_anim_data = dict()   # this will be a dictionary with the key being the animation name, and the data being the actions associated with it
             self.anim_controller_obj = None     # this is the Mesh object that was specified as controlling the animations
 
-
             # get all the animation data first, so we can decide how we deal with anims. This data can be used to determine how many animations we actually have.
             self.add_to_anim_data(self.NMSScene)
             self.anim_frames = self.global_scene.frame_end        # number of frames        (same... for now)
             print(self.scene_actions)
-            #print(self.joint_anim_data)
             print(self.animation_anim_data)
 
             # create any commands that need to be sent to the main script:
@@ -302,7 +291,7 @@ class Exporter():
                             self.scene_directory = os.path.join(BASEPATH, self.group_name, name)
                             print("Processing object {}".format(name))
                             scene = Model(Name = name)
-                            self.parse_object(ob, scene)#, scn, process_anim = animate is not None, anim_frame_data = anim_frame_data, extra_data = extra_data)
+                            self.parse_object(ob, scene)
                             anim = self.anim_generator()
                             directory = os.path.dirname(exportpath)
                             mpath = os.path.dirname(os.path.abspath(exportpath))
@@ -316,7 +305,7 @@ class Exporter():
                 else:
                     # parse the entire scene all in one go.
                     self.scene_directory = os.path.join(BASEPATH, self.group_name, self.mname)      # set this here because... why not
-                    self.parse_object(ob, scene)#, scn, process_anim = animate is not None, anim_frame_data = anim_frame_data, extra_data = extra_data)
+                    self.parse_object(ob, scene)
 
             self.process_anims()
 
@@ -449,7 +438,9 @@ class Exporter():
             sampl = TkMaterialSampler(Name="gNormalMap", Map=texpath, IsSRGB=False)
             matsamplers.append(sampl)
 
-            matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[46]))
+            # Add smooth shading material flags
+            matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[46]))  # _F47_BILLBOARD_AT
+            matflags.append(TkMaterialFlags(MaterialFlag=MATERIALFLAGS[24]))  # _F25_ROUGHNESS_MASK
             
             #Create materialdata struct
             tkmatdata = TkMaterialData(Name=mat.name,
@@ -513,7 +504,7 @@ class Exporter():
                                                      StillFrameData = StillFrameData))
         return AnimationFiles
         
-    #Main Mesh parser
+    #Main Mesh parser - Fixed to eliminate faceting
     def mesh_parser(self, ob):
         #Lists
         verts = []
@@ -528,24 +519,25 @@ class Exporter():
         norm_mat = rot_x_mat.inverted().transposed()
         
         data = ob.data
+        
+        # Attempt to set smooth shading on the mesh - this is essential!
+        for poly in data.polygons:
+            poly.use_smooth = True
+            
         #Raise exception if UV Map is missing
         uvcount = len(data.uv_layers)
         if (uvcount < 1):
             raise Exception("Missing UV Map")
-            
         
-        #data.update(calc_tessface=True)  # convert ngons to tris
         data.calc_tessface()
-        #try:
-            #pass
-        #    data.calc_tangents(data.uv_layers[0].name)
-        #except:
-        #    raise Exception("Please Triangulate your Mesh")
         
         colcount = len(data.vertex_colors)
         id = 0
+        
+        # Dictionary to map unique vertex positions to their indices and normals
+        vert_dict = {}
+        
         for f in data.tessfaces:  # indices
-            #polygon = data.polygons[f.index] #Load Polygon
             if len(f.vertices) == 4:
                 faces.append((id, id + 1, id + 2))
                 faces.append((id, id + 2, id + 3))
@@ -555,46 +547,51 @@ class Exporter():
                 id += 3
 
             for vert in range(len(f.vertices)):
-                #Store them untransformed and we will fix them after tangent calculation
+                # Get vertex data
                 co = data.vertices[f.vertices[vert]].co
-                norm = data.vertices[f.vertices[vert]].normal #Save Vertex Normal
-                #norm = f.normal #Save face normal
+                norm = data.vertices[f.vertices[vert]].normal
                 
-                #norm =    100 * norm_mat * data.loops[f.vertices[vert]].normal
-                #tangent = 100 * norm_mat * data.loops[f.vertices[vert]].tangent
-                verts.append((co[0], co[1], co[2], 1.0)) #Invert YZ to match NMS game coords
+                # Store vertex data
+                verts.append((co[0], co[1], co[2], 1.0))
                 norms.append((norm[0], norm[1], norm[2], 1.0))
-                #tangents.append((tangent[0], tangent[1], tangent[2], 0.0))
-
-                #Get Uvs
+                
+                # Get UV data
                 uv = getattr(data.tessface_uv_textures[0].data[f.index], 'uv'+str(vert + 1))
                 luvs.append((uv.x, 1.0 - uv.y, 0.0, 0.0))
-    #            for k in range(colcount):
-    #                r = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
-    #                    f.index) + '].color' + str(vert + 1) + '[0]*1023')
-    #                g = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
-    #                    f.index) + '].color' + str(vert + 1) + '[1]*1023')
-    #                b = eval('data.tessface_vertex_colors[' + str(k) + '].data[' + str(
-    #                    f.index) + '].color' + str(vert + 1) + '[2]*1023')
-    #                eval('col_' + str(k) + '.append((r,g,b))')
-
-        #At this point mesh is triangulated
-        #I can get the triangulated input and calculate the tangents
-        if (ob.NMSMesh_props.create_tangents):
+                
+                # For smooth shading, track unique vertices
+                vert_key = (co[0], co[1], co[2])
+                if vert_key not in vert_dict:
+                    vert_dict[vert_key] = []
+                vert_dict[vert_key].append(len(norms) - 1)  # Store index
+                
+        # Average normals for shared vertices to ensure smooth shading
+        for vert_key, indices in vert_dict.items():
+            if len(indices) > 1:
+                # Calculate average normal
+                avg_norm = Vector((0, 0, 0))
+                for idx in indices:
+                    avg_norm += Vector((norms[idx][0], norms[idx][1], norms[idx][2]))
+                
+                avg_norm.normalize()
+                
+                # Apply the average normal to all instances of this vertex
+                for idx in indices:
+                    norms[idx] = (avg_norm[0], avg_norm[1], avg_norm[2], 1.0)
+        
+        # Calculate tangents
+        if ob.NMSMesh_props.create_tangents:
             tangents = calc_tangents(faces, verts, norms, luvs)
         else:
             tangents = []
-            
         
-        #Apply rotation and normal matrices on vertices and normal vectors
+        # Apply rotation and normal matrices to vertices and normal vectors
         apply_local_transforms(rot_x_mat, verts, norms, tangents, create_tangents = ob.NMSMesh_props.create_tangents)
         
         return verts, norms, tangents, luvs, faces
 
-    def parse_object(self, ob, parent):#, global_scene, process_anim = False, anim_frame_data = dict(), extra_data = dict()):
+    def parse_object(self, ob, parent):
         newob = None
-        #Apply location/rotation/scale
-        #bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
 
         # get the objects' location and convert to NMS coordinates
         trans, rot_q, scale = transform_to_NMS_coords(ob)
@@ -628,8 +625,6 @@ class Exporter():
             
             if (colType == "Mesh"):
                 c_verts,c_norms,c_tangs,c_uvs,c_faces = self.mesh_parser(ob)
-                
-                #Reset Transforms on meshes
                 
                 optdict['Vertices'] = c_verts
                 optdict['Indexes'] = c_faces
@@ -750,7 +745,7 @@ class Exporter():
         for child in ob.children:
             if not (child.name.startswith('NMS') or child.name.startswith('COLLISION')):
                 continue
-            child_ob = self.parse_object(child, newob)#, global_scene, process_anim, anim_frame_data, extra_data)
+            child_ob = self.parse_object(child, newob)
 
         return newob
 
