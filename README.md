@@ -6,6 +6,11 @@ NMSDK is a blender plugin designed to allow models to be added to No Man's Sky, 
 
 For full documentation such as installation instructions, API details and details on various functions see the NMSDK website here: https://monkeyman192.github.io/NMSDK/
 
+## Looking for an older version?
+
+Thanks to [Rayrod](https://github.com/RaYRoD-TV)'s contribution, there is a branch of NMSDK just for the pathfinder version of NMS and below. It can be found at this branch: https://github.com/monkeyman192/NMSDK/tree/pathfinder
+NOTE: The following readme does not apply for these old versions, please follow any instructions for the particular version you are looking at.
+
 ### Installing NMSDK
 
 #### Install as zip add-on
