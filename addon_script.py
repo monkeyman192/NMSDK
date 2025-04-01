@@ -104,7 +104,6 @@ def get_children(obj, curr_children, obj_type, just_names = False):
 
 """ Misc. functions for transforming data """
 
-# IMPROVEMENT: Improved Tangent Calculator with better smoothing
 def calc_tangents(faces, verts, norms, uvs):
     tangents = []
     #Init tangents
@@ -166,7 +165,6 @@ def calc_tangents(faces, verts, norms, uvs):
     
     return tangents
 
-# FIXED: Improved transform application function for better orientation
 def apply_local_transforms(rotmat, verts, norms, tangents, create_tangents = False):
     """Apply transformation matrices to vertices, normals and tangents"""
     # Create proper normal transformation matrix
