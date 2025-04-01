@@ -18,7 +18,7 @@ from math import radians, degrees
 from mathutils import Matrix,Vector
 from BlenderExtensions import *
 
-BASEPATH = 'CUSTOMMODELS'
+BASEPATH = 'CUSTOM/MODELS'
 
 customNodes = NMSNodes()
 
@@ -104,7 +104,6 @@ def get_children(obj, curr_children, obj_type, just_names = False):
 
 """ Misc. functions for transforming data """
 
-#Improved Tangent Calculator
 def calc_tangents(faces, verts, norms, uvs):
     tangents = []
     #Init tangents
@@ -168,38 +167,43 @@ def calc_tangents(faces, verts, norms, uvs):
 
 def apply_local_transforms(rotmat, verts, norms, tangents, create_tangents = False):
     """Apply transformation matrices to vertices, normals and tangents"""
+    # Create proper normal transformation matrix
     norm_mat = rotmat.inverted().transposed()
     
-    print(len(verts), len(norms), len(tangents))
     for i in range(len(verts)):
-        #Load Vertex
+        # Transform vertex position
         vert = rotmat * Vector((verts[i][0], verts[i][1], verts[i][2]))
-        #Store Transformed
         verts[i] = (vert[0], vert[1], vert[2], 1.0)
         
-        #Load Normal and ensure normalization
+        # Transform normal vector and normalize
         norm = norm_mat * Vector((norms[i][0], norms[i][1], norms[i][2]))
         norm.normalize()
-        #Store Transformed normal
         norms[i] = (norm[0], norm[1], norm[2], 1.0)
         
-        #Load Tangent
+        # Transform tangent if needed
         if create_tangents and i < len(tangents):
             tang = norm_mat * Vector((tangents[i][0], tangents[i][1], tangents[i][2]))
             tang.normalize()
-            #Store Transformed tangent
             tangents[i] = (tang[0], tang[1], tang[2], 1.0)
 
+# FIXED: Fixed coordinate transformation for proper orientation
 def transform_to_NMS_coords(ob):
-    # this will return the local transform, rotation and scale of the object in the NMS coordinate system
-    matrix = ob.matrix_local
-    yzmat = Matrix()
-    yzmat[0] = Vector((1.0, 0.0, 0.0, 0.0))
-    yzmat[1] = Vector((0.0, 0.0, -1.0, 0.0))
-    yzmat[2] = Vector((0.0, 1.0, 0.0, 0.0))
-    yzmat[3] = Vector((0.0, 0.0, 0.0, 1.0))
+    """
+    Properly transform coordinates from Blender (Z-up) to No Man's Sky (Y-up)
+    Returns the transformed position, rotation and scale
+    """
+    # Create a transformation matrix for Z-up to Y-up conversion
+    # This is a 90-degree rotation around the X-axis
+    correction = Matrix.Rotation(radians(-90), 4, 'X')
     
-    return (yzmat * ob.matrix_local * yzmat).decompose()
+    # Get the object's world matrix and apply the correction
+    matrix = ob.matrix_local.copy()
+    corrected_matrix = correction * matrix * correction.inverted()
+    
+    # Decompose the matrix to get position, rotation and scale
+    pos, rot, scale = corrected_matrix.decompose()
+    
+    return pos, rot, scale
 
 """ Main exporter class with all the other functions contained in one place """
 
@@ -504,7 +508,7 @@ class Exporter():
                                                      StillFrameData = StillFrameData))
         return AnimationFiles
         
-    #Main Mesh parser - Fixed to eliminate faceting
+    # FIXED: Fixed mesh parser for proper orientation and smoothing
     def mesh_parser(self, ob):
         #Lists
         verts = []
@@ -512,12 +516,14 @@ class Exporter():
         tangents = []
         luvs = []
         faces = []
+        
         # Matrices
         object_matrix_wrld = ob.matrix_world
         rot_x_mat = Matrix.Rotation(radians(-90), 4, 'X')
         scale_mat = Matrix.Scale(1, 4)
         norm_mat = rot_x_mat.inverted().transposed()
         
+        # Apply pre-rotation to fix orientation before export
         data = ob.data
         
         # Attempt to set smooth shading on the mesh - this is essential!
@@ -593,7 +599,7 @@ class Exporter():
     def parse_object(self, ob, parent):
         newob = None
 
-        # get the objects' location and convert to NMS coordinates
+        # FIXED: Get the objects' location and convert to NMS coordinates using improved func
         trans, rot_q, scale = transform_to_NMS_coords(ob)
         rot = rot_q.to_euler()
         print(trans)
