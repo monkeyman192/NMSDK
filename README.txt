@@ -1,6 +1,6 @@
 <<<<<<< HEAD
-NMS Custom Model Importer - alpha
-coded by monkeyman192 and gregkwaste
+NMS Custom Model Importer (pathfinder edition)
+coded by monkeyman192 and gregkwaste and revised by RaYRoD_TV
 
 Custom blender addon to export models from blender into a format that is compatible with No Man's Sky.
 
