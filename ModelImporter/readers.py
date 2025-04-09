@@ -204,7 +204,7 @@ def read_TkModelDescriptorList(data: dict) -> dict:
                 'Name': desc['Name'],
                 'ReferencePaths': desc['ReferencePaths'],
                 'Children': [read_TkModelDescriptorList(
-                    x['List']) for x in desc['Children']]}
+                    x.get('List', {})) for x in desc['Children']]}
             desc_data.append(sub_desc_data)
         ret_data[d['TypeId']] = desc_data
     return ret_data
