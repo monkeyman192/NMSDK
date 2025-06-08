@@ -1,8 +1,12 @@
 from io import BytesIO, BufferedWriter, BufferedReader
 import struct
 import inspect
-from typing import Optional, Any, TypeVar, get_type_hints, Annotated
+from typing import Optional, Any, TypeVar, Type
 from dataclasses import dataclass
+
+
+T = TypeVar("T", bound="datatype")
+N = TypeVar("N", bound=int)
 
 
 class AlignedData(type):
@@ -34,6 +38,27 @@ class datatype(metaclass=AlignedData):
             return self._alignment
         else:
             return type(self).alignment
+
+    @classmethod
+    def total_size(cls: "datatype"):
+        if hasattr(cls, "_size"):
+            return cls._size
+        _max_alignment = 0
+        _current_pos = 0
+        for name, type_ in cls.__annotations__.items():
+            if name.startswith("_"):
+                continue
+            if hasattr(type_, "_alignment"):
+                _alignment = type_._alignment
+                _max_alignment = max(_max_alignment, _alignment)
+                if _current_pos % _alignment != 0:
+                    _current_pos += (_alignment - (_current_pos % _alignment))
+
+            if hasattr(type_, "_size"):
+                _current_pos += type_._size
+            else:
+                if issubclass(type_, datatype):
+                    _current_pos += type_.total_size()
 
     @property
     def size(self):
@@ -155,7 +180,7 @@ class datatype(metaclass=AlignedData):
             return cls.read(buf)
 
     @classmethod
-    def read(cls, buf: BufferedReader):
+    def read(cls: Type[T], buf: BufferedReader) -> T:
         cls_ = cls.__new__(cls)
         for name, pytype in cls_.__annotations__.items():
             if name.startswith("_"):
@@ -186,7 +211,3 @@ class Field:
     length: Optional[int] = None
     encoding: Optional[str] = None
     deferred_loading: bool = False
-
-
-T = TypeVar("T", bound=datatype)
-N = TypeVar("N", bound=int)

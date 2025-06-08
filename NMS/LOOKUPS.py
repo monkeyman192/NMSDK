@@ -39,11 +39,13 @@ BLENDINDEX = 5
 BLENDWEIGHT = 6
 
 # Mesh vertex stride sizes
-STRIDES = {VERTS: 8,
-           UVS: 8,
-           NORMS: 4,
-           TANGS: 4,
-           COLOURS: 4}
+STRIDES = {
+    VERTS: 8,
+    UVS: 8,
+    NORMS: 4,
+    TANGS: 4,
+    COLOURS: 4,
+}
 
 # Material types
 DIFFUSE = 'gDiffuseMap'
@@ -51,27 +53,33 @@ DIFFUSE2 = 'gDiffuse2Map'
 MASKS = 'gMasksMap'
 NORMAL = 'gNormalMap'
 
-SEMANTICS = {'Vertices': VERTS,
-             'UVs': UVS,
-             'Normals': NORMS,
-             'Tangents': TANGS,
-             'Colours': COLOURS,
-             'BlendIndex': BLENDINDEX,
-             'BlendWeight': BLENDWEIGHT}
+SEMANTICS = {
+    'Vertices': VERTS,
+    'UVs': UVS,
+    'Normals': NORMS,
+    'Tangents': TANGS,
+    'Colours': COLOURS,
+    'BlendIndex': BLENDINDEX,
+    'BlendWeight': BLENDWEIGHT,
+}
 
-REV_SEMANTICS = {VERTS: 'Vertices',
-                 UVS: 'UVs',
-                 NORMS: 'Normals',
-                 TANGS: 'Tangents',
-                 COLOURS: 'Colours',
-                 BLENDINDEX: 'BlendIndex',
-                 BLENDWEIGHT: 'BlendWeight'}
+REV_SEMANTICS = {
+    VERTS: 'Vertices',
+    UVS: 'UVs',
+    NORMS: 'Normals',
+    TANGS: 'Tangents',
+    COLOURS: 'Colours',
+    BLENDINDEX: 'BlendIndex',
+    BLENDWEIGHT: 'BlendWeight',
+}
 
-SERIALIZE_FMT_MAP = {VERTS: 0,
-                     UVS: 0,
-                     NORMS: 1,
-                     TANGS: 1,
-                     COLOURS: 2}
+SERIALIZE_FMT_MAP = {
+    VERTS: 0,
+    UVS: 0,
+    NORMS: 1,
+    TANGS: 1,
+    COLOURS: 2,
+}
 
 SERIALIZE_FMT_MAP_NEW = {
     VERTS: 5131,

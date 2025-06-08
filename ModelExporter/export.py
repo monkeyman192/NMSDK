@@ -22,7 +22,7 @@ from array import array
 import struct
 from itertools import accumulate
 # Internal imports
-from NMS.classes import TkAttachmentData, TkGeometryData
+from NMS.classes import TkAttachmentData
 from NMS.LOOKUPS import SEMANTICS, REV_SEMANTICS, STRIDES
 from NMS.classes.Object import Model
 from serialization.NMS_Structures import MBINHeader
@@ -32,10 +32,8 @@ from serialization.NMS_Structures.Structures import (
 from serialization.NMS_Structures.Structures import (
     TkGeometryData as TkGeometryData_new,
 )
-from serialization.mbincompiler import mbinCompiler
 from serialization.StreamCompiler import StreamData
-from serialization.serializers import (serialize_index_stream,
-                                         serialize_vertex_stream)
+from serialization.serializers import serialize_vertex_stream
 from ModelExporter.utils import nmsHash, traverse
 
 
@@ -98,7 +96,7 @@ class Export():
         # unique TkMaterialData struct in the set
         self.materials = set()
         self.hashes = odict()
-        self.mesh_names = list()
+        self.mesh_names: list[str] = list()
 
         self.np_index_data = np.array([], dtype=np.uint32)
 
@@ -245,7 +243,7 @@ class Export():
                           'provided for {} Object'.format(mesh.Name))
 
         self.stream_list = list(
-            SEMANTICS[x] for x in streams.difference({'Indexes'}))
+            SEMANTICS[x] for x in streams.difference({'Indexes', 'Vertices'}))
         self.stream_list.sort()
 
         self.element_count = len(self.stream_list)
@@ -277,22 +275,29 @@ class Export():
         convert all the provided vertex and index data to bytes to be passed
         directly to the gstream and geometry file constructors
         """
-        vertex_data = []
         vertex_sizes = []
+        vertex_pos_sizes = []
         index_sizes = []
         mesh_datas: list[TkMeshData] = []
         for i, name in enumerate(self.mesh_names):
+            count = len(self.vertex_stream[name])
             v_data = serialize_vertex_stream(
                 requires=self.stream_list,
-                Vertices=self.vertex_stream[name],
+                count=count,
                 UVs=self.uv_stream[name],
                 Normals=self.n_stream[name],
                 Tangents=self.t_stream[name],
                 Colours=self.c_stream[name]
             )
+            v_pos_data = serialize_vertex_stream(
+                requires={"Vertices"},
+                count=count,
+                Vertices=self.vertex_stream[name],
+            )
             v_len = len(v_data)
-            vertex_data.append(v_data)
             vertex_sizes.append(v_len)
+            v_pos_len = len(v_pos_data)
+            vertex_pos_sizes.append(v_pos_len)
             # new_indexes = self.index_stream[name]
             # # TODO: serialize the same way as they are in the actual data.
             # # This will also fail I think if there are indexes > 0xFFFF since it will serialize some as H and
@@ -311,9 +316,11 @@ class Export():
             md = TkMeshData(
                 name.upper(),
                 v_data + i_data,
+                v_pos_data,
                 self.mesh_metadata[name]["hash"],
                 i_len,
-                v_len
+                v_len,
+                v_pos_len,
             )
             mesh_datas.append(md)
         gstream_data = TkGeometryStreamData(mesh_datas)
@@ -325,23 +332,37 @@ class Export():
             hdr.write(f)
             gstream_data.write(f)
 
+        # This is a list of 3-tuples with the structure (vert_offset, index_offset_vert_pos_offset)
         offsets = []
 
         # A bit of a hack, but we need the offsets of the index and vert data. We'll use this code to get it
         # since it works.
         with open(self.gstream_fpath, "rb") as f:
+            # Read the number of TkMeshData's serialized.
             f.seek(0x28, 0)
             entries = struct.unpack("<I", f.read(4))[0]
 
+            TkMeshData_size = 0x48
+
+            # Then jump to the start of these.
             f.seek(0x30, 0)
             for i in range(entries):
-                f.seek(0x10, 1)
+                entry_start = f.tell()
+                # First read the list header for MeshDataStream
+                f.seek(entry_start + 0x10, 0)
                 curr_pos = f.tell()
                 offset = struct.unpack("<Q", f.read(8))[0]
-                abs_pos = curr_pos + offset
-                f.seek(0x10, 1)
-                _, vert_size = struct.unpack("<II", f.read(8))
-                offsets.append((abs_pos, abs_pos + vert_size))
+                vert_data_pos = curr_pos + offset
+                f.seek(entry_start + 0x20, 0)
+                curr_pos = f.tell()
+                offset = struct.unpack("<Q", f.read(8))[0]
+                vert_pos_data_pos = curr_pos + offset
+                # To get the index start, we just need to get the size of the vertex data and add it to the
+                # start address of the vertex data since it's serialized in the same data.
+                f.seek(entry_start + 0x3C, 0)
+                vert_size = struct.unpack("<I", f.read(4))[0]
+                offsets.append((vert_data_pos, vert_data_pos + vert_size, vert_pos_data_pos))
+                f.seek(entry_start + TkMeshData_size, 0)
 
         # while we are here we will generate the mesh metadata for the geometry
         # file.
@@ -353,9 +374,11 @@ class Export():
                 md.Hash,
                 offsets[i][1],
                 index_sizes[i],
+                offsets[i][2],
+                vertex_pos_sizes[i],
                 offsets[i][0],
                 vertex_sizes[i],
-                False
+                False,
             ))
             # metadata = {
             #     'ID': m.ID, 'hash': m.hash, 'vert_size': m.vertex_size,

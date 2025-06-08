@@ -17,9 +17,9 @@ def create_material_node(mat_path: str, local_root_directory: str):
     # Create a new material
     mat = bpy.data.materials.new(name=mat_data.Name)
 
-    uniforms = {x.Name: x for x in mat_data.Uniforms}
+    uniforms = {x.Name: x for x in mat_data.Uniforms_Float}
 
-    flags = [x.MaterialFlag for x in mat_data.Flags]
+    flags = [x.MaterialFlagEnum for x in mat_data.Flags]
 
     # Since we are using cycles we want to have node-based materials
     mat.use_nodes = True

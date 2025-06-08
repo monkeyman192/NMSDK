@@ -13,6 +13,7 @@ T = TypeVar("T", bound=datatype)
 
 
 class VariableSizeString(datatype):
+    _size = 0x10
     _alignment = 8
 
     @classmethod
@@ -41,6 +42,7 @@ class VariableSizeString(datatype):
 
 
 class NMS_list(datatype):
+    _size = 0x10
     _alignment = 8
     _list_type: datatype
     _end_padding: int = 0xAAAAAA01
@@ -86,11 +88,20 @@ class NMS_list(datatype):
 
 
 class Vector4f(datatype):
+    _size = 0x10
     _alignment = 0x10
     _format = "ffff"
 
 
+class Vector4i(datatype):
+    _size = 0x10
+    _alignment = 0x10
+    _format = "IIII"
+
+
 class Quaternion_list(datatype):
+    _size = 0x10
+
     @classmethod
     def deserialize(cls, buf: BufferedReader) -> list[int]:
         start = buf.tell()
