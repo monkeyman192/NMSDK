@@ -15,6 +15,21 @@ T = TypeVar("T", bound=datatype)
 class VariableSizeString(datatype):
     _size = 0x10
     _alignment = 8
+    _end_padding: int = 0xAAAAAA01
+    _pad_with: bytes = b""
+
+    def __class_getitem__(cls: Type["VariableSizeString"], extra_data: Optional[tuple[int, bytes]]):
+        if extra_data is not None:
+            _end_padding, _pad_with = extra_data
+        else:
+            _end_padding = 0xAAAAAA01
+            _pad_with = b""
+        _cls: Type[NMS_list[T]] = types.new_class(
+            f"VariableSizeString[{extra_data}]", (cls,)
+        )
+        _cls._end_padding = _end_padding
+        _cls._pad_with = _pad_with
+        return _cls
 
     @classmethod
     def deserialize(cls, buf: BufferedReader) -> str:
@@ -30,9 +45,14 @@ class VariableSizeString(datatype):
     @classmethod
     def serialize(cls, buf: BufferedWriter, value: str):
         ptr = buf.tell()
-        buf.write(struct.pack("<QII", 0, 0, 0xAAAAAA01))
+        buf.write(struct.pack("<QII", 0, 0, cls._end_padding))
         yield
         offset = buf.tell()
+        if cls._pad_with and offset % 8 != 0:
+            # If we want padding bytes, then add them.
+            diff = 8 - (offset % 8)
+            buf.write(cls._pad_with * diff)
+            offset = buf.tell()
         value = str(value)
         size = len(value)
         if size != 0:

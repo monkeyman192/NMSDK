@@ -170,9 +170,9 @@ class TkGeometryData(datatype):
 
 @dataclass
 class TkMeshData(datatype):
-    IdString: Annotated[str, Field(VariableSizeString)]
-    MeshDataStream: Annotated[bytearray, Field(NMS_list[bt.uint8])]
-    MeshPositionDataStream: Annotated[bytearray, Field(NMS_list[bt.uint8])]
+    IdString: Annotated[str, Field(VariableSizeString[0xFEFE0101, b"\xFE"])]
+    MeshDataStream: Annotated[bytearray, Field(NMS_list[bt.uint8, 0xFEFE0101])]
+    MeshPositionDataStream: Annotated[bytearray, Field(NMS_list[bt.uint8, 0xFEFE0101])]
     Hash: Annotated[int, Field(bt.uint64)]
     IndexDataSize: Annotated[int, Field(bt.int32)]
     VertexDataSize: Annotated[int, Field(bt.int32)]
@@ -181,7 +181,7 @@ class TkMeshData(datatype):
 
 @dataclass
 class TkGeometryStreamData(datatype):
-    StreamDataArray: Annotated[list[TkMeshData], Field(NMS_list[TkMeshData])]
+    StreamDataArray: Annotated[list[TkMeshData], Field(NMS_list[TkMeshData, 0x101])]
 
 
 # Scene related

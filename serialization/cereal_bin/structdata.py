@@ -200,7 +200,7 @@ class datatype(metaclass=AlignedData):
                 try:
                     setattr(cls_, name, type_._read(buf, meta))
                 except:
-                    print(f"Error reading {name} ({pytype}) at offset 0x{buf.tell():X}")
+                    print(f"Error reading {cls.__name__}.{name} ({pytype}) at offset 0x{buf.tell():X}")
                     raise
         return cls_
 

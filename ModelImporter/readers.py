@@ -155,7 +155,7 @@ def read_material(fname):
     if not op.exists(fname):
         return None
     with open(fname, "rb") as f:
-        header = MBINHeader.read(f)
+        MBINHeader.read(f)
         return TkMaterialData.read(f)
 
 
