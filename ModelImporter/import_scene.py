@@ -1,12 +1,10 @@
 # stdlib imports
 import time
 import os.path as op
-import struct
 from math import radians
 import subprocess
-from typing import List
+from typing import cast
 import numpy as np
-import itertools
 
 # Blender imports
 import bpy
@@ -16,21 +14,26 @@ from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-
 
 # Internal imports
 from serialization.formats import np_read_int_2_10_10_10_rev
-from NMS.LOOKUPS import VERTS, NORMS, UVS, COLOURS, BLENDINDEX, BLENDWEIGHT, REV_SEMANTICS
+from NMS.LOOKUPS import COLOURS, REV_SEMANTICS
 from NMS.material_node import create_material_node
 from ModelImporter.readers import (
-    read_gstream, read_entity_animation_data, read_descriptor, gstream_info
+    read_gstream, read_entity_animation_data, gstream_info
 )
 from ModelImporter.SceneNodeData import SceneNodeData
 from ModelImporter.mesh_utils import BB_transform_matrix
 from utils.io import get_NMS_dir, base_path
 from utils.bpyutils import SceneOp, edit_object, select_object
 
-from serialization.NMS_Structures import TkSceneNodeData, MBINHeader, TkGeometryData, NAMEHASH_MAPPING
+from serialization.NMS_Structures.Structures import (
+    TkSceneNodeData, TkGeometryData, TkModelDescriptorList, NAMEHASH_MAPPING
+)
+from serialization.NMS_Structures.NMS_types import MBINHeader
 
-VERT_TYPE_MAP = {5121: {'size': 1, 'np_fmt': "4B"},
-                 5131: {'size': 2, 'np_fmt': "4e"},
-                 36255: {'size': 1, 'np_fmt': np.int32}}
+VERT_TYPE_MAP = {
+    5121: {'size': 1, 'np_fmt': "4B"},
+    5131: {'size': 2, 'np_fmt': "4e"},
+    36255: {'size': 1, 'np_fmt': np.int32}
+}
 ROT_MATRIX = Matrix.Rotation(radians(90), 4, 'X')
 DATA_PATH_MAP = {'Rotation': 'rotation_quaternion',
                  'Translation': 'location',
@@ -130,22 +133,23 @@ class ImportScene():
         self.ref_scenes[self.scene_name] = list()
 
         self.data = None
-        self.vertex_elements = list()
-        self.bh_data = list()
-        self.materials = dict()
+        self.position_vertex_elements = []
+        self.vertex_elements = []
+        self.bh_data = []
+        self.materials = {}
         self.entities = set()
-        self.animations = dict()
+        self.animations = {}
         # This list of joints is used to add all the bones if needed
-        self.joints: List[SceneNodeData] = list()
-        self.skinned_meshes = list()
+        self.joints: list[SceneNodeData] = []
+        self.skinned_meshes = []
         self.mesh_binding_data = None
-        # inverse bind matrices are the global transforms of the joints parent
-        self.inv_bind_matrices = dict()
-        # bind matrices are the local transforms of the intial states of the
+        # Inverse bind matrices are the global transforms of the joints parent
+        self.inv_bind_matrices = {}
+        # Bind matrices are the local transforms of the intial states of the
         # joint itself.
-        self.bind_matrices = dict()
+        self.bind_matrices = {}
 
-        # change to render with cycles
+        # Change to render with cycles
         self.scn.render.engine = RENDER_ENGINE
 
         if not op.exists(mbin_fpath):
@@ -206,8 +210,19 @@ class ImportScene():
             self.mesh_indexes = geometry_data.IndexBuffer
         self.CollisionIndexCount = geometry_data.CollisionIndexCount
         self.Indices16Bit = geometry_data.Indices16Bit
-        self.count = geometry_data.VertexLayout.ElementCount
-        self.stride = geometry_data.VertexLayout.Stride
+        self.vert_pos_count = geometry_data.PositionVertexLayout.ElementCount
+        self.vert_pos_stride = geometry_data.PositionVertexLayout.Stride
+        self.vert_extras_count = geometry_data.VertexLayout.ElementCount
+        self.vert_extras_stride = geometry_data.VertexLayout.Stride
+        for ve in geometry_data.PositionVertexLayout.VertexElements:
+            self.position_vertex_elements.append(
+                {
+                    "semID": ve.SemanticID,
+                    "size": ve.Size,
+                    "type": ve.Type,
+                    "offset": ve.Offset,
+                }
+            )
         for ve in geometry_data.VertexLayout.VertexElements:
             self.vertex_elements.append(
                 {
@@ -235,7 +250,9 @@ class ImportScene():
                 x.VertexDataSize,
                 x.VertexDataOffset,
                 x.IndexDataSize,
-                x.IndexDataOffset
+                x.IndexDataOffset,
+                x.VertexPositionDataSize,
+                x.VertexPositionDataOffset,
             )
             for x in geometry_data.StreamMetaDataArray
         }
@@ -598,18 +615,9 @@ class ImportScene():
                 print(f'Now trying to find a descriptor at: {descriptor_path}')
             if op.exists(descriptor_path + '.MBIN'):
                 empty_obj.NMSReference_props.is_proc = True
-                # Also convert the .mbin to mxml for parsing if the mxml
-                # doesn't already exist.
-                if not op.exists(descriptor_path + '.MXML'):
-                    retcode = subprocess.call(
-                        [self.scn.nmsdk_default_settings.MBINCompiler_path,
-                         "-q", "-Q", descriptor_path + '.MBIN'])
-                    if retcode != 0:
-                        print('MBINCompiler failed to run. Please ensure it is'
-                              ' registered on the path.')
-                        print('Import failed')
-                        return
-                self.descriptor_data = read_descriptor(descriptor_path + '.MXML')
+                with open(descriptor_path + ".MBIN", 'rb') as f:
+                    MBINHeader.read(f)
+                    self.descriptor_data = TkModelDescriptorList.read(f)
             else:
                 print("No descriptor found... Scene is not proc-gen")
             self.local_objects[self.scene_basename] = empty_obj
@@ -807,7 +815,7 @@ class ImportScene():
                           float(scene_node.Attribute('RADIUS'))]
         elif coll_type == 'Cylinder':
             bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True,
-                                  radius1=0.5, radius2=0.5, depth=1.0,
+                                  radius1=1, radius2=1, depth=1.0,
                                   segments=20, matrix=ROT_MATRIX)
             scale_mult = [float(scene_node.Attribute('RADIUS')),
                           float(scene_node.Attribute('HEIGHT')),
@@ -1054,17 +1062,18 @@ class ImportScene():
     def _apply_proc_gen_info(self):
         """ Go over the data in the descriptor and add it to the scene. """
         # We'll create a function here to apply recursively
-        def apply_recursively(data, parent_collection):
-            for key, value in data.items():
+        def apply_recursively(data: TkModelDescriptorList, parent_collection):
+            for resource_descriptor_list in data.List:
+                key = resource_descriptor_list.TypeId
                 coll = bpy.data.collections.new(key)
                 parent_collection.children.link(coll)
-                for node in value:
-                    obj = bpy.data.objects.get(node['Name'])
+                for node in resource_descriptor_list.Descriptors:
+                    obj = bpy.data.objects.get(node.Name)
                     if obj:
                         obj.NMSDescriptor_props.choice_types = "Random"
                         obj.NMSDescriptor_props.proc_prefix = key
                         coll.objects.link(obj)
-                    for child in node['Children']:
+                    for child in node.Children:
                         apply_recursively(child, coll)
 
         # Let's add a collection for all the proc-gen object's to be linked in
@@ -1133,7 +1142,17 @@ class ImportScene():
             SceneNodeData of type MESH to get the vertex data of.
         """
         names: list[str] = []
+        pos_names: list[str] = []
         np_fmts: list[str] = []
+        np_pos_fmts: list[str] = []
+        for ve in self.position_vertex_elements:
+            _size = ve['size'] * VERT_TYPE_MAP[ve['type']]['size']
+            np_fmt = VERT_TYPE_MAP[ve['type']]['np_fmt']
+            if np_fmt is not None:
+                np_pos_fmts.append(np_fmt)
+            else:
+                np_pos_fmts.append(f"S{_size}")
+            pos_names.append(REV_SEMANTICS[ve['semID']])
         for ve in self.vertex_elements:
             _size = ve['size'] * VERT_TYPE_MAP[ve['type']]['size']
             np_fmt = VERT_TYPE_MAP[ve['type']]['np_fmt']
@@ -1142,17 +1161,25 @@ class ImportScene():
             else:
                 np_fmts.append(f"S{_size}")
             names.append(REV_SEMANTICS[ve['semID']])
-        num_verts = mesh.metadata.vert_size / self.stride
+
+        metadata = cast(gstream_info, mesh.metadata)
+
+        num_verts = metadata.vert_size / self.vert_extras_stride
         np_dtype = np.dtype({"names": names, "formats": np_fmts})
+        np_pos_dtype = np.dtype({"names": pos_names, "formats": np_pos_fmts})
         if not num_verts % 1 == 0:
             raise ValueError(f'Error with {mesh.Name}: # of verts '
-                             f'({mesh.metadata.vert_size}) isn\'t consistent '
+                             f'({metadata.vert_size}) isn\'t consistent '
                              'with the stride value.')
 
         with open(self.geometry_stream_file, "rb") as f:
-            vert_data = np.rec.fromfile(f, np_dtype, int(num_verts), offset=mesh.metadata.vert_off)
-            if "Vertices" in names:
-                mesh.np_verts = vert_data.Vertices[:, :3].flatten()
+            vert_data = np.rec.fromfile(f, np_dtype, int(num_verts), offset=metadata.vert_off)
+            # NOTE: Because numpy is whack, offset is the relative offset to the current cursor location.
+            # Go back to the start to make our life easier...
+            f.seek(0)
+            pos_vert_data = np.rec.fromfile(f, np_pos_dtype, int(num_verts), offset=metadata.vert_pos_off)
+            if "Vertices" in pos_names:
+                mesh.np_verts = pos_vert_data.Vertices[:, :3].flatten()
             if "UVs" in names:
                 vert_data.UVs[..., 1] = 1 - vert_data.UVs[..., 1]
                 mesh.np_uvs = vert_data.UVs[:, :2]
