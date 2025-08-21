@@ -12,8 +12,8 @@ from nodeitems_builtins import ShaderNewNodeCategory
 
 FLAGS = [('_F01_DIFFUSEMAP', 'Diffuse Map', 'Diffuse Map'),
          ('_F03_NORMALMAP', 'Normal Map', 'Normal Map'),
-         ('_F21_VERTEXCOLOUR', 'Vertex Colour', 'Vertex Colour'),
-         ('_F25_ROUGHNESS_MASK', 'Roughness Mask', 'Roughness Mask')]
+         ('_F21_VERTEXCUSTOM', 'Vertex Custom', 'Vertex Custom'),
+         ('_F25_MASKS_MAP', 'Masks Map', 'Masks Map')]
 
 
 class NMSShader(bpy.types.NodeCustomGroup):
@@ -27,8 +27,8 @@ class NMSShader(bpy.types.NodeCustomGroup):
         context.space_data.edit_tree
         list = [('_F01_DIFFUSEMAP', 'Diffuse Map', 'Diffuse Map'),
                 ('_F03_NORMALMAP', 'Normal Map', 'Normal Map'),
-                ('_F21_VERTEXCOLOUR', 'Vertex Colour', 'Vertex Colour'),
-                ('_F25_ROUGHNESS_MASK', 'Roughness Mask', 'Roughness Mask')]
+                ('_F21_VERTEXCUSTOM', 'Vertex Custom', 'Vertex Custom'),
+                ('_F25_MASKS_MAP', 'Masks Map', 'Masks Map')]
         return list
 
     # Manage the internal nodes to perform the chained operation - clear all
@@ -38,7 +38,7 @@ class NMSShader(bpy.types.NodeCustomGroup):
 
         if self.F01_DIFFUSEMAP_choice:
             diffuse_texture = self._add_diffuse_texture_choice()
-            if self.F21_VERTEXCOLOUR_choice:
+            if self.F21_VERTEXCUSTOM_choice:
                 self._add_vertex_colour_nodes()
             else:
                 self._remove_vertex_colour_nodes()
@@ -111,14 +111,14 @@ class NMSShader(bpy.types.NodeCustomGroup):
         description='Whether material has a normal map.',
         default=False,
         update=update_nodes)
-    F21_VERTEXCOLOUR_choice: BoolProperty(
-        name='Has vertex colour data',
-        description='Whether the material has vertex colour data.',
+    F21_VERTEXCUSTOM_choice: BoolProperty(
+        name='Has vertex custom data',
+        description='Whether the material has vertex custom data.',
         default=False,
         update=update_nodes)
-    F25_ROUGHNESS_MASK_choice: BoolProperty(
-        name='Has roughness mask',
-        description='Whether material has a roughness mask.',
+    F25_MASKS_MAP_choice: BoolProperty(
+        name='Has masks map',
+        description='Whether material has a masks map.',
         default=False,
         update=update_nodes)
 
@@ -150,9 +150,9 @@ class NMSShader(bpy.types.NodeCustomGroup):
         row = layout.row()
         row.prop(self, 'F03_NORMALMAP_choice', text='Normal Map')
         row = layout.row()
-        row.prop(self, 'F21_VERTEXCOLOUR_choice', text='Vertex Colour')
+        row.prop(self, 'F21_VERTEXCUSTOM_choice', text='Vertex Custom')
         row = layout.row()
-        row.prop(self, 'F25_ROUGHNESS_MASK_choice', text='Roughness Mask')
+        row.prop(self, 'F25_MASKS_MAP_choice', text='Masks Map')
 
     # Copy
     def copy(self, node):

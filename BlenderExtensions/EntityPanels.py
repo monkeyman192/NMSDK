@@ -567,12 +567,18 @@ class NMS_GcInteractionType_Properties(bpy.types.PropertyGroup):
 
 class NMS_Vector4f_Properties(bpy.types.PropertyGroup):
     """ Properties for Vector4f """
-    x: FloatProperty(name="x")
-    y: FloatProperty(name="y")
-    z: FloatProperty(name="z")
-    t: FloatProperty(name="t")
+    x: FloatProperty(name="X")
+    y: FloatProperty(name="Y")
+    z: FloatProperty(name="Z")
+    t: FloatProperty(name="W")
 
-
+class NMS_Vector4i_Properties(bpy.types.PropertyGroup):
+    """ Properties for Vector4i """
+    x: IntProperty(name="X")
+    y: IntProperty(name="Y")
+    z: IntProperty(name="Z")
+    t: IntProperty(name="W")
+    
 class NMS_TkCameraWanderData_Properties(bpy.types.PropertyGroup):
     """ Properties for TkCameraWanderData """
     CamWander: BoolProperty(name="CamWander")
@@ -1048,10 +1054,10 @@ class NMSDK_PT_EntityPanel(bpy.types.Panel):
         b2 = b1.box("Camera")
         b2.row("Distance")
         b3 = b2.box("Offset")
-        b3.row("x")
-        b3.row("y")
-        b3.row("z")
-        b3.row("t")
+        b3.row("X")
+        b3.row("Y")
+        b3.row("Z")
+        b3.row("W")
         b2.row("Pitch")
         b2.row("Rotate")
         b2.row("LightPitch")
@@ -1120,10 +1126,10 @@ class NMSDK_PT_EntityPanel(bpy.types.Panel):
         b1 = r.box("Camera")
         b1.row("Distance")
         b2 = b1.box("Offset")
-        b2.row("x")
-        b2.row("y")
-        b2.row("z")
-        b2.row("t")
+        b2.row("X")
+        b2.row("Y")
+        b2.row("Z")
+        b2.row("W")
         b1.row("Pitch")
         b1.row("Rotate")
         b1.row("LightPitch")
@@ -1366,6 +1372,7 @@ classes = (NMS_TkTextureResource_Properties,
            NMS_GcSpaceshipComponentData_Properties,
            NMS_TkCameraWanderData_Properties,
            NMS_Vector4f_Properties,
+           NMS_Vector4i_Properties,
            NMS_TkModelRendererCameraData_Properties,
            NMS_GcAlienPuzzleMissionOverride_Properties,
            NMS_TkModelRendererData_Properties,

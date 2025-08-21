@@ -285,9 +285,9 @@ class AnimationHandler(bpy.types.Operator):
         Tuple of collections.namedtuple's:
             (location, rotation, scale)
         """
-        location = namedtuple('location', ['x', 'y', 'z'])
-        rotation = namedtuple('rotation', ['x', 'y', 'z', 'w'])
-        scale = namedtuple('scale', ['x', 'y', 'z'])
+        location = namedtuple('location', ['X', 'Y', 'Z'])
+        rotation = namedtuple('rotation', ['X', 'Y', 'Z', 'W'])
+        scale = namedtuple('scale', ['X', 'Y', 'Z'])
         loc_x = obj.animation_data.action.fcurves.new(data_path='location',
                                                       index=0,
                                                       action_group=anim_name)
