@@ -17,11 +17,11 @@ from utils.image_convert import convert_image
 from ModelExporter.animations import process_anims
 from ModelExporter.export import Export
 from ModelExporter.Descriptor import Descriptor
-from NMS.classes import (TkMaterialData, TkMaterialFlags,
-                           TkVolumeTriggerType, TkMaterialSampler,
-                           TkMaterialUniform, TkRotationComponentData, TkPhysicsComponentData)
+from NMS.classes import (TkMaterialData, TkMaterialFlags, TkVolumeTriggerType,
+                           TkMaterialSampler, TkMaterialUniform_Float, TkMaterialUniform_UInt,
+                           TkRotationComponentData, TkPhysicsComponentData)
 from NMS.classes import TkAnimationComponentData, TkAnimationData
-from NMS.classes import List, Vector4f
+from NMS.classes import List, Vector4f, Vector4i
 from NMS.classes import TkAttachmentData
 from NMS.classes.Object import Object, Model, Mesh, Locator, Reference, Collision, Light, Joint
 from NMS.LOOKUPS import MATERIALFLAGS
@@ -165,7 +165,7 @@ def create_sampler(image, sampler_name: str, texture_dir: str,
 
     if op.exists(out_tex_path) and not force_overwrite:
         print(f'Found existing texture at {out_tex_path}. Using this.')
-        return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=True)
+        return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=False)
 
     # If the textures are packed into the blend file, unpack them.
     if len(image.packed_files) > 0:
@@ -181,7 +181,7 @@ def create_sampler(image, sampler_name: str, texture_dir: str,
         tex_path = image.filepath_from_user()
         shutil.copy(tex_path, out_tex_path)
     if op.exists(out_tex_path):
-        return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=True)
+        return TkMaterialSampler(Name=sampler_name, Map=relpath, IsSRGB=False)
     else:
         raise FileNotFoundError(f'Texture not written to {out_tex_path}')
 
@@ -404,26 +404,36 @@ class Exporter():
                     "label for the diffuse texture, etc.")
 
             # Fetch Uniforms
-            matuniforms.append(TkMaterialUniform(Name="gMaterialColourVec4",
-                                                 Values=Vector4f(x=1.0,
-                                                                 y=1.0,
-                                                                 z=1.0,
-                                                                 t=1.0)))
-            matuniforms.append(TkMaterialUniform(Name="gMaterialParamsVec4",
-                                                 Values=Vector4f(x=1.0,
-                                                                 y=0.5,
-                                                                 z=1.0,
-                                                                 t=0.0)))
-            matuniforms.append(TkMaterialUniform(Name="gMaterialSFXVec4",
-                                                 Values=Vector4f(x=0.0,
-                                                                 y=0.0,
-                                                                 z=0.0,
-                                                                 t=0.0)))
-            matuniforms.append(TkMaterialUniform(Name="gMaterialSFXColVec4",
-                                                 Values=Vector4f(x=0.0,
-                                                                 y=0.0,
-                                                                 z=0.0,
-                                                                 t=0.0)))
+            matuniforms.append(TkMaterialUniform_Float(Name="gMaterialColourVec4",
+                                                 Values=Vector4f(X=1.000000,
+                                                                 Y=1.000000,
+                                                                 Z=1.000000,
+                                                                 W=1.000000)))
+            matuniforms.append(TkMaterialUniform_Float(Name="gMaterialParamsVec4",
+                                                 Values=Vector4f(X=1.000000,
+                                                                 Y=0.500000,
+                                                                 Z=1.000000,
+                                                                 W=0.000000)))
+            matuniforms.append(TkMaterialUniform_Float(Name="gMaterialParams2Vec4",
+                                                 Values=Vector4f(X=1.000000,
+                                                                 Y=0.500000,
+                                                                 Z=1.000000,
+                                                                 W=0.000000)))
+            matuniforms.append(TkMaterialUniform_Float(Name="gMaterialSFXVec4",
+                                                 Values=Vector4f(X=0.000000,
+                                                                 Y=0.000000,
+                                                                 Z=0.000000,
+                                                                 W=0.000000)))
+            matuniforms.append(TkMaterialUniform_Float(Name="gMaterialSFXColVec4",
+                                                 Values=Vector4f(X=0.000000,
+                                                                 Y=0.000000,
+                                                                 Z=0.000000,
+                                                                 W=0.000000)))
+            matuniforms.append(TkMaterialUniform_UInt(Name="gDynamicFlags",
+                                                 Values=Vector4i(X=3,
+                                                                 Y=0,
+                                                                 Z=0,
+                                                                 W=0)))
 
             if self.settings.get('use_shared_textures'):
                 texture_dir = self.settings.get('shared_texture_folder')
@@ -451,10 +461,8 @@ class Exporter():
 
             # Sort out Mask
             if mask_image:
-                # Set _F25_ROUGHNESS_MASK
+                # Set _F25_MASKS_MAP
                 add_matflags.add(24)
-                # Set _F39_METALLIC_MASK
-                add_matflags.add(38)
                 # Add the sampler to the list
                 matsamplers.append(create_sampler(
                     mask_image, "gMasksMap", texture_dir,
