@@ -26,9 +26,9 @@ class TkAnimationData(Struct):
         self.data['ActionFrame'] = kwargs.get('ActionFrame', -1)
         self.data['ControlCreatureSize'] = kwargs.get('ControlCreatureSize',
                                                       'AllSizes')
-        self.data['Additive'] = kwargs.get('Additive', 'False')
-        self.data['Mirrored'] = kwargs.get('Mirrored', 'False')
-        self.data['Active'] = kwargs.get('Active', 'True')
+        self.data['Additive'] = kwargs.get('Additive', 'false')
+        self.data['Mirrored'] = kwargs.get('Mirrored', 'false')
+        self.data['Active'] = kwargs.get('Active', 'true')
         self.data['AdditiveBaseAnim'] = kwargs.get('AdditiveBaseAnim', '')
         self.data['AdditiveBaseFrame'] = kwargs.get('AdditiveBaseFrame', 0)
         self.data['GameData'] = kwargs.get('GameData', TkAnimationGameData())
