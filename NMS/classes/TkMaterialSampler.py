@@ -16,7 +16,7 @@ class TkMaterialSampler(Struct):
         self.data['UseCompression'] = kwargs.get('UseCompression', True)
         self.data['UseMipMaps'] = kwargs.get('UseMipMaps', True)
         # True image, False for MASKS and NORMAL
-        self.data['IsSRGB'] = kwargs.get('IsSRGB', True)
+        self.data['IsSRGB'] = kwargs.get('IsSRGB', False)
         self.data['MaterialAlternativeId'] = String(kwargs.get(
             'MaterialAlternativeId', ""), 0x10)
         self.data['TextureAddressMode'] = kwargs.get(

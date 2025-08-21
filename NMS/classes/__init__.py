@@ -7,6 +7,7 @@ from .Empty import Empty  # noqa
 from .Object import (Locator, Light, Mesh, Joint, Emitter, Collision, Model,  # noqa
                      Reference)
 from .Vector4f import Vector4f  # noqa
+from .Vector4i import Vector4i  # noqa
 from .Quaternion import Quaternion  # noqa
 from .NMSString0x10 import NMSString0x10  # noqa
 from .NMSString0x20 import NMSString0x20  # noqa
@@ -21,7 +22,8 @@ from .TkGeometryData import TkGeometryData  # noqa
 from .TkSceneNodeData import TkSceneNodeData  # noqa
 from .TkMaterialData import TkMaterialData  # noqa
 from .TkMaterialFlags import TkMaterialFlags  # noqa
-from .TkMaterialUniform import TkMaterialUniform  # noqa
+from .TkMaterialUniform_Float import TkMaterialUniform_Float  # noqa
+from .TkMaterialUniform_UInt import TkMaterialUniform_UInt  # noqa
 from .TkMaterialSampler import TkMaterialSampler  # noqa
 from .TkPhysicsComponentData import TkPhysicsComponentData  # noqa
 from .TkPhysicsData import TkPhysicsData  # noqa
