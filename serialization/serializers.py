@@ -9,7 +9,7 @@ def serialize_geometry_stream(data):
     pass
 
 
-def serialize_vertex_stream(requires: List[str], count: int, **kwargs):
+def serialize_vertex_stream(requires: List[str], **kwargs):
     """
     Return a serialized version of the vertex data
 
@@ -21,6 +21,7 @@ def serialize_vertex_stream(requires: List[str], count: int, **kwargs):
         include something.
     """
     data = bytearray()
+    count = len(kwargs.get('Vertices', list()))
     if count != 0:
         for i in range(count):
             for stream_type in requires:

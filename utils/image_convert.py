@@ -12,7 +12,7 @@ import shutil
 import subprocess
 
 FORMATS = {
-    'diffuse': 'BC7_UNORM',
+    'diffuse': 'BC1_UNORM',
     'masks': 'BC3_UNORM',
     'normal': 'BC5_UNORM'
 }

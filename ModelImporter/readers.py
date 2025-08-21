@@ -1,6 +1,6 @@
 from collections import namedtuple
 import struct
-from typing import Tuple, NamedTuple
+from typing import Tuple
 import os.path as op
 
 # TODO: move to the serialization folder?
@@ -14,13 +14,10 @@ from utils.utils import mxml_to_dict  # noqa pylint: disable=relative-beyond-top
 from serialization.NMS_Structures import TkMaterialData, MBINHeader, NAMEHASH_MAPPING, TkAnimMetadata
 
 
-class gstream_info(NamedTuple):
-    vert_size: int
-    vert_off: int
-    idx_size: int
-    idx_off: int
-    vert_pos_size: int
-    vert_pos_off: int
+gstream_info = namedtuple(
+    'gstream_info',
+    ['vert_size', 'vert_off', 'idx_size', 'idx_off']
+)
 
 
 def read_anim(fname):  # TODO: FIX!
@@ -155,7 +152,7 @@ def read_material(fname):
     if not op.exists(fname):
         return None
     with open(fname, "rb") as f:
-        MBINHeader.read(f)
+        header = MBINHeader.read(f)
         return TkMaterialData.read(f)
 
 
