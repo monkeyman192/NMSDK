@@ -577,8 +577,10 @@ class Model(Object):
         # Add the LOD info
         for i, dist in enumerate(self.lod_distances):
             self.Attributes.append(
-                TkSceneNodeAttributeData(Name=f'LODDIST{i + 1}', Value=dist)
-            )
+                TkSceneNodeAttributeData(
+                    Name=f'LODDIST{i + 1}',
+                    Value=dist,
+                    fmt='{0:.6f}'))
         self.Attributes.append(
             TkSceneNodeAttributeData(Name='NUMLODS',
                                      Value=len(self.lod_distances) + 1))
