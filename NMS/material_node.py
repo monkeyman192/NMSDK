@@ -41,10 +41,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
     FRAGMENT_COLOUR0 = principled_BSDF.outputs['BSDF']
 
     # Set up some constants
-    if 61 in flags:
-        kfAlphaThreshold = 0.1
-        kfAlphaThresholdMax = 0.5
-    elif 10 in flags:
+    if 10 in flags:
         kfAlphaThreshold = 0.45
         kfAlphaThresholdMax = 0.8
     else:
@@ -100,22 +97,12 @@ def create_material_node(mat_path: str, local_root_directory: str):
                 else:
                     print('Note: Please post on discord the model you are'
                           ' importing so I can fix this!!!')
-            # #ifndef _F44_IMPOSTER
-            if 43 not in flags:
-                # #ifdef _F39_METALLIC_MASK
-                if 38 in flags:
-                    links.new(principled_BSDF.inputs['Metallic'],
-                              diffuse_texture.outputs['Alpha'])
-                else:
-                    # use the default value from the file
-                    if 'gMaterialParamsVec4' in uniforms:
-                        principled_BSDF.inputs['Metallic'].default_value = uniforms['gMaterialParamsVec4'].Values[2]  # noqa
         elif tex_type == MASKS:
             # texture
             _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
-                img.colorspace_settings.name = 'sRGB'
+                img.colorspace_settings.name = 'linear'
             mask_texture = nodes.new(type='ShaderNodeTexImage')
             mask_texture.name = mask_texture.label = 'Texture Image - Mask'
             mask_texture.image = img
@@ -129,20 +116,26 @@ def create_material_node(mat_path: str, local_root_directory: str):
             if 43 not in flags:
                 # #ifndef _F44_IMPOSTER
                 if 24 in flags:
-                    # #ifdef _F25_ROUGHNESS_MASK
-                    # lfRoughness = 1 - lMasks.g
-                    # subtract the green channel from 1:
+                    # #ifdef _F25_MASKS_MAP
+                    
+                    # lfRoughness = 1 - lMasks.r
+                    # subtract the red channel from 1:
                     sub_1 = nodes.new(type="ShaderNodeMath")
                     sub_1.operation = 'SUBTRACT'
                     sub_1.location = (-200, 0)
                     sub_1.inputs[0].default_value = 1.0
                     lfRoughness = sub_1.outputs['Value']
                     # link them up
-                    links.new(sub_1.inputs[1], separate_rgb.outputs['G'])
+                    links.new(sub_1.inputs[1], separate_rgb.outputs['R'])
+                    
+                    # lfMetallic = lMasks.b;
+                    links.new(principled_BSDF.inputs['Metallic'],
+                              separate_rgb.outputs['B'])
                 else:
                     roughness_value = nodes.new(type='ShaderNodeValue')
                     roughness_value.outputs[0].default_value = 1.0
                     lfRoughness = roughness_value.outputs['Value']
+                    # Need to do the same for metallic default value?
                 # lfRoughness *= lUniforms.mpCustomPerMaterial->gMaterialParamsVec4.x;  # noqa
                 mult_param_x = nodes.new(type="ShaderNodeMath")
                 mult_param_x.operation = 'MULTIPLY'
@@ -154,23 +147,12 @@ def create_material_node(mat_path: str, local_root_directory: str):
                           lfRoughness)
             # If the roughness wasn't ever defined then the default value is 1
             # which is what blender has as the default anyway
-
-            # gMaterialParamsVec4.x
-            # #ifdef _F40_SUBSURFACE_MASK
-            if 39 in flags:
-                links.new(principled_BSDF.inputs['Subsurface Weight'],
-                          separate_rgb.outputs['R'])
-            if 43 in flags:
-                # lfMetallic = lMasks.b;
-                links.new(principled_BSDF.inputs['Metallic'],
-                          separate_rgb.outputs['B'])
-
         elif tex_type == NORMAL:
             # texture
             _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
-                img.colorspace_settings.name = 'sRGB'
+                img.colorspace_settings.name = 'linear'
             normal_texture = nodes.new(type='ShaderNodeTexImage')
             normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
             normal_texture.image = img
@@ -199,25 +181,11 @@ def create_material_node(mat_path: str, local_root_directory: str):
             links.new(principled_BSDF.inputs['Normal'],
                       normal_map.outputs['Normal'])
 
-            if 42 in flags:
-                # lTexCoordsVec4.xy *= lUniforms.mpCustomPerMesh->gCustomParams01Vec4.z;  # noqa
-                normal_scale = nodes.new(type='ShaderNodeMapping')
-                normal_scale.location = (-1000, -300)
-                scale = uniforms['gCustomParams01Vec4'].Values[2]
-                normal_scale.inputs['Scale'].default_value = Vector((scale, scale, scale))  # noqa
-                tex_coord = nodes.new(type='ShaderNodeTexCoord')
-                tex_coord.location = (-1200, -300)
-                tex_coord.object = bpy.context.active_object
-                links.new(normal_scale.inputs['Vector'],
-                          tex_coord.outputs['Generated'])
-                links.new(normal_texture.inputs['Vector'],
-                          normal_scale.outputs['Vector'])
-
     # Apply some final transforms to the data before connecting it to the
     # Material output node
 
     if 20 in flags or 28 in flags:
-        # #ifdef _F21_VERTEXCOLOUR
+        # #ifdef _F21_VERTEXCUSTOM
         # lColourVec4 *= IN( mColourVec4 );
         col_attribute = nodes.new(type='ShaderNodeAttribute')
         col_attribute.attribute_name = 'Col'

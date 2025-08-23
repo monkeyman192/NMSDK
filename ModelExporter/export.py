@@ -535,12 +535,12 @@ class Export():
                 data['BOUNDHULLED'] = self.hull_bounds[name][1]
                 if mesh_obj._Type == 'MESH':
                     # add the AABBMIN/MAX(XYZ) values:
-                    data['AABBMINX'] = self.mesh_bounds[name]['x'][0]
-                    data['AABBMINY'] = self.mesh_bounds[name]['y'][0]
-                    data['AABBMINZ'] = self.mesh_bounds[name]['z'][0]
-                    data['AABBMAXX'] = self.mesh_bounds[name]['x'][1]
-                    data['AABBMAXY'] = self.mesh_bounds[name]['y'][1]
-                    data['AABBMAXZ'] = self.mesh_bounds[name]['z'][1]
+                    data['AABBMINX'] = self.mesh_bounds[name]['X'][0]
+                    data['AABBMINY'] = self.mesh_bounds[name]['Y'][0]
+                    data['AABBMINZ'] = self.mesh_bounds[name]['Z'][0]
+                    data['AABBMAXX'] = self.mesh_bounds[name]['X'][1]
+                    data['AABBMAXY'] = self.mesh_bounds[name]['Y'][1]
+                    data['AABBMAXZ'] = self.mesh_bounds[name]['Z'][1]
                     data['HASH'] = self.hashes.get(name, 0)
                     # we only care about entity and material data for Mesh
                     # Objects
@@ -741,8 +741,8 @@ class Export():
             self.GeometryData['MeshAABBMax'].append((x_bounds[1], y_bounds[1], z_bounds[1], 1))
             if obj._Type == "MESH":
                 # only add the meshes to the self.mesh_bounds dict:
-                self.mesh_bounds[obj.Name] = {'x': x_bounds, 'y': y_bounds,
-                                              'z': z_bounds}
+                self.mesh_bounds[obj.Name] = {'X': x_bounds, 'Y': y_bounds,
+                                              'Z': z_bounds}
 
     # TODO: Change this here too...
     def write(self):

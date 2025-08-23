@@ -1,4 +1,4 @@
-# TkMaterialUniform struct
+# TkMaterialUniform_Float struct
 
 from .Struct import Struct
 from .String import String
@@ -6,9 +6,9 @@ from .Vector4f import Vector4f
 from .List import List
 
 
-class TkMaterialUniform(Struct):
+class TkMaterialUniform_Float(Struct):
     def __init__(self, **kwargs):
-        super(TkMaterialUniform, self).__init__()
+        super(TkMaterialUniform_Float, self).__init__()
 
         """ Contents of the struct """
         self.data['Name'] = String(kwargs.get('Name', None), 0x20)

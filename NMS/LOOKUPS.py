@@ -3,31 +3,21 @@
 import numpy as np
 
 
-MATERIALFLAGS = ['_F01_DIFFUSEMAP', '_F02_SKINNED', '_F03_NORMALMAP', '_F04_',
-                 '_F05_INVERT_ALPHA', '_F06_BRIGHT_EDGE', '_F07_UNLIT',
-                 '_F08_REFLECTIVE', '_F09_TRANSPARENT', '_F10_NORECEIVESHADOW',
-                 '_F11_ALPHACUTOUT', '_F12_BATCHED_BILLBOARD',
-                 '_F13_UVANIMATION', '_F14_UVSCROLL', '_F15_WIND',
-                 '_F16_DIFFUSE2MAP', '_F17_MULTIPLYDIFFUSE2MAP',
-                 '_F18_UVTILES', '_F19_BILLBOARD', '_F20_PARALLAXMAP',
-                 '_F21_VERTEXCOLOUR', '_F22_TRANSPARENT_SCALAR',
-                 '_F23_TRANSLUCENT', '_F24_AOMAP', '_F25_ROUGHNESS_MASK',
-                 '_F26_STRETCHY_PARTICLE', '_F27_VBTANGENT', '_F28_VBSKINNED',
-                 '_F29_VBCOLOUR', '_F30_REFRACTION', '_F31_DISPLACEMENT',
-                 '_F32_REFRACTION_MASK', '_F33_SHELLS', '_F34_GLOW',
-                 '_F35_GLOW_MASK', '_F36_DOUBLESIDED', '_F37_',
-                 '_F38_NO_DEFORM', '_F39_METALLIC_MASK',
-                 '_F40_SUBSURFACE_MASK', '_F41_DETAIL_DIFFUSE',
-                 '_F42_DETAIL_NORMAL', '_F43_NORMAL_TILING', '_F44_IMPOSTER',
-                 '_F45_VERTEX_BLEND', '_F46_BILLBOARD_AT',
-                 '_F47_REFLECTION_PROBE', '_F48_WARPED_DIFFUSE_LIGHTING',
-                 '_F49_DISABLE_AMBIENT', '_F50_DISABLE_POSTPROCESS',
-                 '_F51_DECAL_DIFFUSE', '_F52_DECAL_NORMAL',
-                 '_F53_COLOURISABLE', '_F54_COLOURMASK', '_F55_MULTITEXTURE',
-                 '_F56_MATCH_GROUND', '_F57_DETAIL_OVERLAY',
-                 '_F58_USE_CENTRAL_NORMAL', '_F59_SCREENSPACE_FADE',
-                 '_F60_ACUTE_ANGLE_FADE', '_F61_CLAMP_AMBIENT',
-                 '_F62_DETAIL_ALPHACUTOUT', '_F63_DISSOLVE', '_F64_']
+MATERIALFLAGS = ['_F01_DIFFUSEMAP', '_F02_SKINNED', '_F03_NORMALMAP', '_F04_FEATURESMAP',
+                 '_F05_DEPTH_EFFECT', '_F06_', '_F07_UNLIT', '_F08_', '_F09_REFLECTIVE',
+                 '_F10_', '_F11_ALPHACUTOUT', '_F12_BATCHED_BILLBOARD', '_F13_UV_EFFECT',
+                 '_F14_', '_F15_WIND', '_F16_DIFFUSE2MAP', '_F17_', '_F18_',
+                 '_F19_BILLBOARD', '_F20_PARALLAX', '_F21_VERTEXCUSTOM',
+                 '_F22_OCCLUSION_MAP', '_F23_', '_F24_', '_F25_MASKS_MAP', '_F26_', '_F27_',
+                 '_F28_', '_F29_', '_F30_REFRACTION', '_F31_DISPLACEMENT',
+                 '_F32_REFRACTION_MASK', '_F33_SHELLS', '_F34_', '_F35_', '_F36_DOUBLESIDED',
+                 '_F37_EXPLICIT_MOTION_VECTORS', '_F38_', '_F39_', '_F40_', '_F41_',
+                 '_F42_DETAIL_NORMAL', '_F43_', '_F44_IMPOSTER', '_F45_', '_F46_',
+                 '_F47_REFLECTION_PROBE', '_F48_', '_F49_', '_F50_DISABLE_POSTPROCESS',
+                 '_F51_', '_F52_', '_F53_COLOURISABLE', '_F54_', '_F55_MULTITEXTURE',
+                 '_F56_MATCH_GROUND', '_F57_', '_F58_USE_CENTRAL_NORMAL',
+                 '_F59_BIASED_REACTIVITY', '_F60_', '_F61_', '_F62_', '_F63_DISSOLVE',
+                 '_F64_RESERVED_FLAG_FOR_EARLY_Z_PATCHING_DO_NOT_USE']
 
 # Mesh vertex types
 VERTS = 0
