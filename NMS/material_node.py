@@ -102,7 +102,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
             _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
-                img.colorspace_settings.name = 'linear'
+                img.colorspace_settings.name = 'Linear Rec.2020'
             mask_texture = nodes.new(type='ShaderNodeTexImage')
             mask_texture.name = mask_texture.label = 'Texture Image - Mask'
             mask_texture.image = img
@@ -152,7 +152,7 @@ def create_material_node(mat_path: str, local_root_directory: str):
             _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
-                img.colorspace_settings.name = 'linear'
+                img.colorspace_settings.name = 'Linear Rec.2020'
             normal_texture = nodes.new(type='ShaderNodeTexImage')
             normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
             normal_texture.image = img
