@@ -292,22 +292,12 @@ class Export():
             vertex_sizes.append(v_len)
             v_pos_len = len(v_pos_data)
             vertex_pos_sizes.append(v_pos_len)
-            # new_indexes = self.index_stream[name]
-            # # TODO: serialize the same way as they are in the actual data.
-            # # This will also fail I think if there are indexes > 0xFFFF since it will serialize some as H and
-            # # some as I
-            # if max(new_indexes) > 2 ** 16:
-            #     indexes = array('I', new_indexes)
-            # else:
-            #     indexes = array('H', new_indexes)
-            # i_data = serialize_index_stream(indexes)
             i_data = self.np_indexes[i]
-            if (max_idx := max(i_data)) > 0xFFFF:
-                raise ValueError(
-                    f"The mesh {name} has too many vertexes (max index found = {max_idx}). "
-                    "Please simplify the model to export."
-                )
-            i_data = i_data.astype(np.uint16).tobytes()
+            # Depending on how many verts there are, we will need to serialize the indexes differently.
+            if max(i_data) > 0xFFFF:
+                i_data = i_data.astype(np.uint32).tobytes()
+            else:
+                i_data = i_data.astype(np.uint16).tobytes()
             i_len = len(i_data)
             index_sizes.append(i_len)
             md = TkMeshData(
