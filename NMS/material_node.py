@@ -128,9 +128,9 @@ def create_material_node(mat_path: str, local_root_directory: str):
                     # link them up
                     links.new(sub_1.inputs[1], separate_rgb.outputs['R'])
                     
-                    # lfMetallic = lMasks.b;
+                    # lfMetallic = lMasks.g;
                     links.new(principled_BSDF.inputs['Metallic'],
-                              separate_rgb.outputs['B'])
+                              separate_rgb.outputs['G'])
                 else:
                     roughness_value = nodes.new(type='ShaderNodeValue')
                     roughness_value.outputs[0].default_value = 1.0
