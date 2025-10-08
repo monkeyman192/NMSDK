@@ -1,23 +1,23 @@
-from collections import namedtuple
 import struct
-from typing import Tuple
+from typing import Tuple, NamedTuple
 import os.path as op
 
 # TODO: move to the serialization folder?
 
-from serialization.utils import (read_list_header, read_string, # noqa pylint: disable=relative-beyond-top-level
-                                   bytes_to_quat, read_bool, read_uint32,
-                                   returned_read)
-from serialization.list_header import ListHeader  # noqa pylint: disable=relative-beyond-top-level
-from utils.utils import mxml_to_dict  # noqa pylint: disable=relative-beyond-top-level
+from serialization.utils import read_string, bytes_to_quat
+from serialization.list_header import ListHeader
+from utils.utils import mxml_to_dict
 
 from serialization.NMS_Structures import TkMaterialData, MBINHeader, NAMEHASH_MAPPING, TkAnimMetadata
 
 
-gstream_info = namedtuple(
-    'gstream_info',
-    ['vert_size', 'vert_off', 'idx_size', 'idx_off']
-)
+class gstream_info(NamedTuple):
+    vert_size: int
+    vert_off: int
+    idx_size: int
+    idx_off: int
+    vert_pos_size: int
+    vert_pos_off: int
 
 
 def read_anim(fname):  # TODO: FIX!
@@ -152,11 +152,11 @@ def read_material(fname):
     if not op.exists(fname):
         return None
     with open(fname, "rb") as f:
-        header = MBINHeader.read(f)
+        MBINHeader.read(f)
         return TkMaterialData.read(f)
 
 
-def read_gstream(fname: str, info: namedtuple) -> Tuple[bytes, bytes]:
+def read_gstream(fname: str, info: gstream_info) -> Tuple[bytes, bytes]:
     """ Read the requested info from the gstream file.
 
     Parameters

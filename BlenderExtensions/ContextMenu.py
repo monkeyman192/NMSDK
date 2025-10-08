@@ -128,7 +128,7 @@ class AddSphereCollisionNode(Operator):
             # Create a new sphere for collisions
             mesh = bpy.data.meshes.new('sphere')
             bm = bmesh.new()
-            bmesh.ops.create_icosphere(bm, subdivisions=4, radius=0.5)
+            bmesh.ops.create_icosphere(bm, subdivisions=4, radius=1)
             bm.to_mesh(mesh)
             bm.free()
             sphere = bpy.data.objects.new('sphere', mesh)
@@ -163,7 +163,7 @@ class AddCylinderCollisionNode(Operator):
             mesh = bpy.data.meshes.new('cylinder')
             bm = bmesh.new()
             bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=True,
-                                  radius1=0.5, radius2=0.5, depth=1.0,
+                                  radius1=1, radius2=1, depth=1.0,
                                   segments=20, matrix=CONE_ROTATION_MAT)
             bm.to_mesh(mesh)
             bm.free()
