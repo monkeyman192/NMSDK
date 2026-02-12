@@ -1,0 +1,36 @@
+schema_version = "1.0.0"
+
+id = "nmsdk"
+version = "0.10.0"
+name = "NMSDK"
+tagline = "NMS model importer and exporter"
+maintainer = "monkeyman192"
+type = "add-on"
+
+website = "https://github.com/monkeyman192/NMSDK"
+tags = ["Import-Export"]
+
+blender_version_min = "4.2.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
+
+# HGPAKTool is a required dependency
+wheels = [
+  "./wheels/hgpaktool-1.0.1-py3-none-any.whl",
+]
+
+[permissions]
+files = "Import/export Scene files and read .pak files"
+
+# # Optional: advanced build settings.
+# # https://docs.blender.org/manual/en/dev/advanced/extensions/command_line_arguments.html#command-line-args-extension-build
+# [build]
+# # These are the default build excluded patterns.
+# # You only need to edit them if you want different options.
+# paths_exclude_pattern = [
+#   "__pycache__/",
+#   "/.git/",
+#   "/*.zip",
+# ]
