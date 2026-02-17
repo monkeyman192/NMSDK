@@ -1,9 +1,8 @@
-from io import BytesIO, BufferedWriter, BufferedReader
-import struct
 import inspect
-from typing import Optional, Any, TypeVar, Type
+import struct
 from dataclasses import dataclass
-
+from io import BufferedReader, BufferedWriter, BytesIO
+from typing import Any, Optional, Type, TypeVar
 
 T = TypeVar("T", bound="datatype")
 N = TypeVar("N", bound=int)
@@ -207,7 +206,7 @@ class datatype(metaclass=AlignedData):
 
 @dataclass
 class Field:
-    datatype: datatype
+    datatype: Type[datatype]
     length: Optional[int] = None
     encoding: Optional[str] = None
     deferred_loading: bool = False

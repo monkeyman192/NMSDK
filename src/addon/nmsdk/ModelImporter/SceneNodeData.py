@@ -1,16 +1,18 @@
 import math
+from typing import Optional, Type
 
-from mathutils import Matrix, Euler
 import numpy as np
+from mathutils import Euler, Matrix
 
 from ..serialization.NMS_Structures import TkSceneNodeData
+
 
 class SceneNodeData():
     """ Our own internal representation of the TkSceneNodeData class.
     This makes no attempt to map fields directly to the fields in that class,
     but will instead be a version-independent representation of it.
     """
-    def __init__(self, info: TkSceneNodeData, parent: 'SceneNodeData' = None):
+    def __init__(self, info: TkSceneNodeData, parent: "Optional[SceneNodeData]" = None):
         self.info = info
         self.parent = parent
         self.verts: dict[str, list[tuple]] = dict()
@@ -24,6 +26,7 @@ class SceneNodeData():
         self.np_idxs: np.array = None
         self.np_blendIndex: np.array = None
         self.np_blendWeight: np.array = None
+        self.np_colours: np.array = None
 
         self.bounded_hull = list()
         # The metadata will be read from the geometry file later.
@@ -36,7 +39,7 @@ class SceneNodeData():
 
 # region public methods
 
-    def Attribute(self, name, astype=str):
+    def Attribute(self, name, astype: Type = str):
         # Doesn't support AltID's
         if (attrib := self.attributes.get(name)) is not None:
             return astype(attrib)

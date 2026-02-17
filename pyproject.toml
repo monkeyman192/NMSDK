@@ -12,7 +12,8 @@ maintainers = [
 ]
 dependencies = [
   "fake-bpy-module",
-  "hgpaktool"
+  "hgpaktool",
+  "numpy",
 ]
 dynamic = ["version"]
 

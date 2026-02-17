@@ -9,30 +9,31 @@ the 3d model created.
 __author__ = "monkeyman192"
 __credits__ = ["monkeyman192", "gregkwaste"]
 
-# Blender imports
-import bpy
-
-import numpy as np
-
-# stdlib imports
 import os
+import struct
 import subprocess
 from collections import OrderedDict as odict
-import struct
 from itertools import accumulate
-# Internal imports
+
+import bpy
+import numpy as np
+
 from ..NMS.classes import TkAttachmentData
-from ..NMS.LOOKUPS import SEMANTICS, STRIDES, VERTS
 from ..NMS.classes.Object import Model
+from ..NMS.LOOKUPS import SEMANTICS, STRIDES, UVS, VERTS
 from ..serialization.NMS_Structures import MBINHeader
-from ..serialization.NMS_Structures.Structures import (
-    TkMeshData, TkGeometryStreamData, TkVertexLayout, TkVertexElement, TkMeshMetaData
-)
 from ..serialization.NMS_Structures.Structures import (
     TkGeometryData as TkGeometryData_new,
 )
-from ..serialization.StreamCompiler import StreamData
+from ..serialization.NMS_Structures.Structures import (
+    TkGeometryStreamData,
+    TkMeshData,
+    TkMeshMetaData,
+    TkVertexElement,
+    TkVertexLayout,
+)
 from ..serialization.serializers import serialize_vertex_stream
+from ..serialization.StreamCompiler import StreamData
 from .utils import nmsHash, traverse
 
 
@@ -228,21 +229,18 @@ class Export():
             # for this to be raised?)
             diff = streams.difference(mesh.provided_streams)
             if diff != set():
-                print('ERROR! Object {0} is missing the streams: {1}'.format(
-                    mesh.Name, diff))
+                print(f"ERROR! Object {mesh.Name} is missing the streams: {diff}")
                 if 'Vertices' in diff or 'Indexes' in diff:
-                    print('CRITICAL ERROR! No vertex and/or index data '
-                          'provided for {} Object'.format(mesh.Name))
+                    print(f"CRITICAL ERROR! No vertex and/or index data provided for {mesh.Name} Object")
 
-        self.stream_list = list(
-            SEMANTICS[x] for x in streams.difference({'Indexes', 'Vertices'}))
+        self.stream_list = list(SEMANTICS[x] for x in streams.difference({"Indexes", "Vertices", "UVs"}))
         self.stream_list.sort()
 
         self.element_count = len(self.stream_list)
         # Create a list to store the offset sizes for each data type
         offsets = list()
         for sid in self.stream_list:
-            if sid != VERTS:
+            if sid not in (VERTS, UVS):
                 offsets.append(STRIDES[sid])
         # Now create an ordered dictionary. Each kvp is the sid and the actual
         # offset as calculated by the sum of all the entries before it.
@@ -277,15 +275,15 @@ class Export():
             v_data = serialize_vertex_stream(
                 requires=self.stream_list,
                 count=count,
-                UVs=self.uv_stream[name],
                 Normals=self.n_stream[name],
                 Tangents=self.t_stream[name],
                 Colours=self.c_stream[name]
             )
             v_pos_data = serialize_vertex_stream(
-                requires={SEMANTICS["Vertices"]},
+                requires=[VERTS, UVS],
                 count=count,
                 Vertices=self.vertex_stream[name],
+                UVs=self.uv_stream[name],
             )
             v_len = len(v_data)
             vertex_sizes.append(v_len)
@@ -347,7 +345,7 @@ class Export():
                 # start address of the vertex data since it's serialized in the same data.
                 f.seek(entry_start + 0x3C, 0)
                 vert_size = struct.unpack("<I", f.read(4))[0]
-                offsets.append((vert_data_pos, vert_data_pos + vert_size, vert_pos_data_pos))
+                offsets.append((vert_data_pos, vert_size, vert_pos_data_pos))
                 f.seek(entry_start + TkMeshData_size, 0)
 
         # while we are here we will generate the mesh metadata for the geometry
@@ -553,8 +551,7 @@ class Export():
                                                         obj.EntityPath.upper())
                             else:
                                 ent_path = obj.EntityPath.upper()
-                            data['ATTACHMENT'] = '{}.ENTITY.MBIN'.format(
-                                ent_path)
+                            data['ATTACHMENT'] = f"{ent_path}.ENTITY.MBIN"
                             # also need to generate the entity data
                             AttachmentData = TkAttachmentData(
                                 Components=list(obj.EntityData.values())[0])
@@ -628,8 +625,9 @@ class Export():
             obj.create_attributes(data, self.export_original_geom_data)
 
     def create_vertex_layouts(self):
-        # sort out what streams are given and create appropriate vertex layouts
-        VertexElements = []
+        # Sort out what streams are given and create appropriate vertex layouts.
+
+        # The PositionVertexElements as of 6.20 consists of the positions and uv data.
         PositionVertexElements = [
             TkVertexElement(
                 SemanticID=VERTS,
@@ -638,21 +636,21 @@ class Export():
                 Offset=0,
                 Normalise=0,
                 Instancing=0
-            )
+            ),
+            TkVertexElement(
+                SemanticID=UVS,
+                Size=4,
+                Type=5131,
+                Offset=8,
+                Normalise=0,
+                Instancing=0)
         ]
-        for sID in self.stream_list:
-            # sID is the SemanticID
-            if sID == 1:
-                Offset = self.offsets[sID]
-                VertexElements.append(TkVertexElement(SemanticID=sID,
-                                                      Size=4,
-                                                      Type=5131,
-                                                      Offset=Offset,
-                                                      Normalise=0,
-                                                      Instancing=0))
 
+        # ALl other vertex data is in the VertexElements array
+        VertexElements = []
+        for sID in self.stream_list:
             # for the INT_2_10_10_10_REV stuff
-            elif sID in [2, 3]:
+            if sID in [2, 3]:
                 Offset = self.offsets[sID]
                 VertexElements.append(TkVertexElement(SemanticID=sID,
                                                       Size=4,
@@ -741,21 +739,17 @@ class Export():
         if (not self.preserve_node_info
                 or (self.preserve_node_info
                     and self.export_original_geom_data)):
-            # mbinc = mbinCompiler(
-            #     self.TkGeometryData,
-            #     "{}.GEOMETRY.MBIN.PC".format(self.abs_name_path))
-            # mbinc.serialize()
 
             with open(f"{self.abs_name_path}.GEOMETRY.MBIN.PC", "wb") as f:
                 hdr = MBINHeader(
-                    header_magic = 0xDDDDDDDDDDDDDDDD,
-                    header_namehash = 0x819C3220,
-                    header_guid = 0xDA1F6CA99ADEF6A6,
-                    header_timestamp = 0xFFFFFFFFFFFFFFFF,
+                    header_magic=0xDDDDDDDDDDDDDDDD,
+                    header_namehash=0x819C3220,
+                    header_guid=0xDA1F6CA99ADEF6A6,
+                    header_timestamp=0xFFFFFFFFFFFFFFFF,
                 )
                 hdr.write(f)
                 gd = self.GeometryData
-                thing = TkGeometryData_new(
+                geom_data = TkGeometryData_new(
                     PositionVertexLayout=gd["PositionVertexLayout"],
                     VertexLayout=gd["VertexLayout"],
                     BoundHullVertEd=gd["BoundHullVertEd"],
@@ -780,7 +774,7 @@ class Export():
                     Indices16Bit=self.Indices16Bit,
                     VertexCount=gd["VertexCount"],
                 )
-                thing.write(f)
+                geom_data.write(f)
 
         scene_path = f"{self.abs_name_path}.SCENE.MBIN"
         with open(scene_path, "wb") as f:
@@ -794,13 +788,14 @@ class Export():
         if self.descriptor is not None:
             descriptor = self.descriptor.to_mxml()
             descriptor.make_elements(main=True)
-            descriptor.tree.write(
-                "{}.DESCRIPTOR.mxml".format(self.abs_name_path))
+            descriptor.tree.write("{}.DESCRIPTOR.mxml".format(self.abs_name_path))
         for material in self.materials:
             if not isinstance(material, str):
                 material.tree.write(
-                    "{0}.MATERIAL.mxml".format(os.path.join(
-                        self.abs_name_path, str(material['Name']).upper())))
+                    "{0}.MATERIAL.mxml".format(
+                        os.path.join(self.abs_name_path, str(material['Name']).upper())
+                    )
+                )
         # Write the animation files
         idle_anim = bpy.context.scene.nmsdk_anim_data.idle_anim
         if len(self.anim_data) != 0:

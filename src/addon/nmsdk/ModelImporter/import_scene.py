@@ -1,39 +1,38 @@
 # stdlib imports
-import time
+import json
 import os.path as op
+import time
 from math import radians
-import subprocess
-from typing import cast
-import numpy as np
+from typing import Optional, cast
+import traceback
+
+import bmesh  # pylint: disable=import-error
 
 # Blender imports
 import bpy
+import numpy as np
 from bpy.types import Armature
-import bmesh  # pylint: disable=import-error
-from mathutils import Matrix, Vector, Quaternion  # noqa pylint: disable=import-error
+from hgpaktool.utils import normalise_path
+from mathutils import Matrix, Quaternion, Vector  # noqa pylint: disable=import-error
+
+from ..NMS.LOOKUPS import REV_SEMANTICS, VERT_TYPE_MAP
+from ..NMS.material_node import create_material_node
 
 # Internal imports
 from ..serialization.formats import np_read_int_2_10_10_10_rev
-from ..NMS.LOOKUPS import COLOURS, REV_SEMANTICS
-from ..NMS.material_node import create_material_node
-from .readers import (
-    read_gstream, read_entity_animation_data, gstream_info
-)
-from .SceneNodeData import SceneNodeData
-from .mesh_utils import BB_transform_matrix
-from ..utils.io import get_NMS_dir, base_path
-from ..utils.bpyutils import SceneOp, edit_object, select_object
-
-from ..serialization.NMS_Structures.Structures import (
-    TkSceneNodeData, TkGeometryData, TkModelDescriptorList, NAMEHASH_MAPPING
-)
 from ..serialization.NMS_Structures.NMS_types import MBINHeader
+from ..serialization.NMS_Structures.Structures import (
+    NAMEHASH_MAPPING,
+    TkGeometryData,
+    TkModelDescriptorList,
+    TkSceneNodeData,
+)
+from ..utils.bpyutils import SceneOp, edit_object, select_object
+from ..utils.io import base_path, get_NMS_dir, load_file, load_file_unsafe, post_path
+from .mesh_utils import BB_transform_matrix
+from .readers import gstream_info, read_entity_animation_data
+from .SceneNodeData import SceneNodeData
 
-VERT_TYPE_MAP = {
-    5121: {'size': 1, 'np_fmt': "4B"},
-    5131: {'size': 2, 'np_fmt': "4e"},
-    36255: {'size': 1, 'np_fmt': np.int32}
-}
 ROT_MATRIX = Matrix.Rotation(radians(90), 4, 'X')
 DATA_PATH_MAP = {'Rotation': 'rotation_quaternion',
                  'Translation': 'location',
@@ -48,6 +47,11 @@ if BLENDER_MAJOR_VERSION >= 4 and BLENDER_MINOR_VERSION >= 2:
     RENDER_ENGINE = "BLENDER_EEVEE_NEXT"
 else:
     RENDER_ENGINE = "BLENDER_EEVEE"
+
+
+# Get the parent package name.
+_package = __package__.rpartition(".")[0]
+
 
 class MeshError(Exception):
     pass
@@ -70,25 +74,51 @@ class ImportScene():
         A dictionary with the path to another scene as the key, and the blender
         object that has already been loaded as the value.
     """
-    def __init__(self, fpath, parent_obj=None, ref_scenes=dict(),
-                 settings=dict()):
-        self.local_directory, self.scene_basename = op.split(fpath)
-        # scene_basename is the final component of the scene path.
+    def __init__(
+        self,
+        fpath: str,
+        parent_obj=None,
+        ref_scenes: Optional[dict] = None,
+        settings: Optional[dict] = None,
+        from_pak: bool = False,
+    ):
+        self.from_pak = from_pak
+        addon_prefs = bpy.context.preferences.addons[_package].preferences
+        if self.from_pak:
+            # Get the vfs path.
+            vfs_path = op.join(addon_prefs.pcbanks_dir, ".scene_vfs")
+            self.root_dir = addon_prefs.pcbanks_dir
+            if op.exists(op.join(vfs_path, "index.json")):
+                with open(op.join(vfs_path, "index.json")) as f:
+                    self.pak_data_mapping = json.load(f)
+        else:
+            vfs_path = None
+            self.pak_data_mapping = {}
+
+        if ref_scenes is None:
+            ref_scenes = {}
+        if settings is None:
+            settings = {}
+        if self.from_pak is True:
+            self.local_directory = None
+            self.scene_path = fpath
+        else:
+            self.local_directory, _ = op.split(fpath)
+            self.root_dir = get_NMS_dir(fpath)
+            self.scene_path = post_path(fpath, self.root_dir)
+            if self.scene_path is None:
+                self.scene_path = fpath
+        # Scene_basename is the final component of the scene path.
         # Ie. the file name without the extension
-        self.scene_basename, ftype = op.splitext(self.scene_basename)
-        # determine the PCBANKS directory
-        self.PCBANKS_dir = get_NMS_dir(self.local_directory)
+        self.scene_basename, _ = op.splitext(self.scene_path)
 
         # Determine the type of file provided and get the mxml and mbin file
         # paths for that file.
-        if ftype.lower() == '.mxml':
-            mbin_fpath = (op.join(self.local_directory, self.scene_basename) +
-                          '.MBIN')
-            mxml_fpath = fpath
-        elif ftype.lower() == '.mbin':
-            mbin_fpath = fpath
-        else:
-            raise TypeError('Selected file is of the wrong format.')
+        if not self.scene_path.lower().endswith(".mbin"):
+            raise TypeError(
+                f"Only .MBIN scenes are currently supported. Please convert to {self.scene_path} MBIN and try"
+                " again."
+            )
 
         # Annoyingly, some nodes may have the same name. As we traverse the
         # tree in order we should be able to just have the index stored here
@@ -113,14 +143,11 @@ class ImportScene():
         # Find the local name of the scene (relative to the NMS PCBANKS dir)
         # This needs to be read from the mbin file, so ensure we are either
         # reading from it or construct the name.
-        with open(mbin_fpath, 'rb') as f:
+        with load_file(self.scene_path, self.root_dir, self.from_pak, self.pak_data_mapping) as f:
             MBINHeader.read(f)
-            t1 = time.perf_counter()
             self._scene_node_data = TkSceneNodeData.read(f)
-            t2 = time.perf_counter()
             self.scene_name = self._scene_node_data.Name
-        print(f"Loaded {mbin_fpath} in {t2 - t1:.03f}s")
-        print('Loading {0}'.format(self.scene_name))
+        print(f"Loading {self.scene_name}")
 
         # To optimise loading of referenced scenes, check to see if the current
         # scene has already been loaded into blender. If so, simply make a copy
@@ -152,16 +179,16 @@ class ImportScene():
         # Change to render with cycles
         self.scn.render.engine = RENDER_ENGINE
 
-        if not op.exists(mbin_fpath):
-            retcode = subprocess.call(
-                [self.scn.nmsdk_default_settings.MBINCompiler_path, "-q", "-Q", fpath]
-            )
-            if retcode != 0:
-                print('MBINCompiler failed to run. Please ensure it is registered on the path.')
-                print('Import failed')
-                self.requires_render = False
-                raise OSError("MBINCompiler failed to run. See System Console for more details. "
-                              "(Window > Toggle System Console)")
+        # if not op.exists(mbin_fpath):
+        #     retcode = subprocess.call(
+        #         [self.scn.nmsdk_default_settings.MBINCompiler_path, "-q", "-Q", fpath]
+        #     )
+        #     if retcode != 0:
+        #         print('MBINCompiler failed to run. Please ensure it is registered on the path.')
+        #         print('Import failed')
+        #         self.requires_render = False
+        #         raise OSError("MBINCompiler failed to run. See System Console for more details. "
+        #                       "(Window > Toggle System Console)")
 
         self.scene_node_data = SceneNodeData(self._scene_node_data)
         # Once we have loaded this, we need to do a sanity check to make sure
@@ -171,36 +198,37 @@ class ImportScene():
         if not self.scene_node_data.Attribute('GEOMETRY'):
             self.requires_render = False
             return
-        self.directory = op.dirname(self.scene_node_data.Name)
-        self.local_root_folder = base_path(self.local_directory,
-                                           self.directory)
+        if not self.from_pak:
+            self.directory = op.dirname(self.scene_node_data.Name)
+            self.local_root_folder = base_path(self.local_directory, self.directory)
         # remove the name of the top level object
         self.scene_node_data.info.Name = None
         # Try and find the geometry file locally.
-        self.geometry_file = op.join(
-            self.local_directory,
-            op.relpath(
-                self.scene_node_data.Attribute('GEOMETRY'),
-                self.directory) + '.PC')
-        # If this fails, try find it under the PCBANKS folder.
-        if not op.exists(self.geometry_file):
-            self.geometry_file = op.join(
-                self.PCBANKS_dir,
-                self.scene_node_data.Attribute('GEOMETRY') + '.PC')
+        self.geometry_fname = self.scene_node_data.Attribute("GEOMETRY").lower() + ".pc"
+        if not self.from_pak:
+            self.geometry_fname = op.join(
+                self.local_directory,
+                op.relpath(
+                    self.scene_node_data.Attribute("GEOMETRY"),
+                    self.directory
+                ) + ".PC"
+            )
+            if op.exists(self.geometry_fname):
+                self.geometry_fname = op.join(
+                    self.root_dir,
+                    self.scene_node_data.Attribute("GEOMETRY") + ".PC"
+                )
 
         self.descriptor_data = TkModelDescriptorList([])
 
-        self.geometry_stream_file = self.geometry_file.replace('GEOMETRY', 'GEOMETRY.DATA')
+        self.geometry_stream_file = self.geometry_fname.lower().replace('geometry', 'geometry.data')
 
-        # get the information about what data the geometry file contains
+        # Get the information about what data the geometry file contains
 
-        with open(self.geometry_file, "rb") as f:
+        with load_file(self.geometry_fname, self.root_dir, self.from_pak, self.pak_data_mapping) as f:
             header = MBINHeader.read(f)
             assert header.header_namehash == NAMEHASH_MAPPING["TkGeometryData"]
-            t1 = time.perf_counter()
             geometry_data = TkGeometryData.read(f)
-            t2 = time.perf_counter()
-            print(f"Loaded {self.geometry_file} in {t2 - t1:.03f}s")
 
         if geometry_data.Indices16Bit:
             self.mesh_indexes = []
@@ -261,6 +289,7 @@ class ImportScene():
 
     def load_animations(self):
         """ Handle the loading of the animations. """
+        # TODO: Fixme! This needs to read from the pak files too...
 
         _loadable_anim_data = self.scn.nmsdk_anim_data.loadable_anim_data
         # If there are no entities, there is no animation data. (Even implicit
@@ -270,7 +299,8 @@ class ImportScene():
         # Iterate over the entity files to collate all the animation data
         local_anims = dict()
         for entity in self.entities:
-            entity_path = op.join(self.PCBANKS_dir, entity)
+            entity_path = op.join(self.root_dir, entity)
+            # print(f"Entity path: {entity_path}")
             local_anims.update(read_entity_animation_data(entity_path))
         if len(local_anims) == 0:
             # If there are no animations added by this scene just return to
@@ -296,7 +326,7 @@ class ImportScene():
         else:
             load_anims = True
 
-        self._fix_anim_data(local_anims, self.PCBANKS_dir)
+        self._fix_anim_data(local_anims, self.root_dir)
 
         if not self.scn.nmsdk_anim_data.anims_loaded:
             # Only update the value if going from False -> True
@@ -322,9 +352,7 @@ class ImportScene():
         This will load the mesh data into memory then deserialize the actual
         vertex and index data from the gstream mbin.
         """
-        self._load_mesh(mesh_node)
-        self._deserialize_vertex_data(mesh_node)
-        self._deserialize_index_data(mesh_node)
+        self._deserialize_gstream_data(mesh_node)
         mesh_node._generate_bounded_hull(self.bh_data)
 
     def load_collision_mesh(self, mesh_node: SceneNodeData):
@@ -367,39 +395,53 @@ class ImportScene():
                 self.joints.append(obj)
                 self.scn.nmsdk_anim_data.joints.append(obj.Name)
         t1 = time.perf_counter()
-        for i, obj in enumerate(self.scene_node_data.iter()):
-            added_obj = None
-            if obj.Type == 'MESH':
-                if obj.Name.upper() in self.mesh_metadata:
-                    obj.metadata = self._handle_duplicate_mesh_names(
-                        obj.Name.upper())
-                else:
-                    print('Failed to load {0}. Please make sure your scene '
-                          'file and geometry data are the same '
-                          'versions.'.format(obj.Name))
-                    continue
-                try:
-                    self.load_mesh(obj)
-                    added_obj = self._add_mesh_to_scene(obj)
-                except MeshError:
-                    # In the case of a mesh error, we will pass and leave the
-                    # `added_obj` as None to handle later.
-                    pass
-            elif obj.Type in ('LOCATOR', 'JOINT', 'REFERENCE'):
-                added_obj = self._add_empty_to_scene(obj)
-            elif obj.Type == 'COLLISION':
-                if self.settings.get('import_collisions', True):
-                    if obj.Attribute('TYPE') == 'Mesh':
-                        self.load_collision_mesh(obj)
-                        added_obj = self._add_mesh_collision_to_scene(obj)
+
+        try:
+            self.geometry_stream_data = load_file_unsafe(
+                self.geometry_stream_file,
+                self.root_dir,
+                self.from_pak,
+                self.pak_data_mapping,
+            )
+
+            for i, obj in enumerate(self.scene_node_data.iter()):
+                added_obj = None
+                if obj.Type == 'MESH':
+                    if obj.Name.upper() in self.mesh_metadata:
+                        obj.metadata = self._handle_duplicate_mesh_names(
+                            obj.Name.upper())
                     else:
-                        added_obj = self._add_primitive_collision_to_scene(obj)
-            elif obj.Type == 'LIGHT':
-                added_obj = self._add_light_to_scene(obj)
-            # Get the added object and give it its scene node data so that it
-            # can be rexported in a more faithful way.
-            # if added_obj:
-            #     added_obj['scene_node'] = {'idx': i, 'data': asdict(obj.info)}
+                        print('Failed to load {0}. Please make sure your scene '
+                            'file and geometry data are the same '
+                            'versions.'.format(obj.Name))
+                        continue
+                    try:
+                        self.load_mesh(obj)
+                        added_obj = self._add_mesh_to_scene(obj)
+                    except MeshError:
+                        # In the case of a mesh error, we will pass and leave the
+                        # `added_obj` as None to handle later.
+                        pass
+                elif obj.Type in ('LOCATOR', 'JOINT', 'REFERENCE'):
+                    added_obj = self._add_empty_to_scene(obj)
+                elif obj.Type == 'COLLISION':
+                    if self.settings.get('import_collisions', True):
+                        if obj.Attribute('TYPE') == 'Mesh':
+                            self.load_collision_mesh(obj)
+                            added_obj = self._add_mesh_collision_to_scene(obj)
+                        else:
+                            added_obj = self._add_primitive_collision_to_scene(obj)
+                elif obj.Type == 'LIGHT':
+                    added_obj = self._add_light_to_scene(obj)
+                # Get the added object and give it its scene node data so that it
+                # can be rexported in a more faithful way.
+                # if added_obj:
+                #     added_obj['scene_node'] = {'idx': i, 'data': asdict(obj.info)}
+        except Exception:
+            print(f"An exception ocurred while rendering {self.scene_path}:")
+            print(traceback.format_exc())
+            if not self.from_pak:
+                self.geometry_stream_data.close()
 
         # We will add an armature to the scene irrespective of whether we have
         # any animations, only if we are asked to import bones.
@@ -425,7 +467,7 @@ class ImportScene():
             self._apply_proc_gen_info()
 
         t2 = time.perf_counter()
-        print(f"Took {t2 - t1:.05f}s to fully render")
+        print(f"Took {t2 - t1:.05f}s to fully render {self.scene_path}")
 
         self.state = {'FINISHED'}
 
@@ -521,9 +563,9 @@ class ImportScene():
                     return
                 bone = data.edit_bones.new(scene_node.Name)
                 bone.use_inherit_rotation = True
-                bone.use_inherit_scale = True
+                bone.inherit_scale = "FIX_SHEAR"  # TODO: Investigate the other options...
                 bone.use_local_location = True
-                bone.connected = True
+                bone.use_connect = True
                 if scene_node.parent.Name in armature.data.edit_bones:
                     bone.parent = armature.data.edit_bones[
                         scene_node.parent.Name]
@@ -603,23 +645,26 @@ class ImportScene():
             # always find this node easily.
             self.scn['scene_node'] = empty_obj
             # check if the scene is proc-gen
-            descriptor_name = self.scene_name + '.DESCRIPTOR'
-            short_scene_name = op.basename(descriptor_name)
-            # Try and find the descriptor locally
-            descriptor_path = op.join(self.local_directory,
-                                      short_scene_name)
-            print(f'Trying to find a descriptor at: {descriptor_path}')
-            # Otherwise fallback to looking relative to the PCBANKS directory.
-            if not op.exists(descriptor_path + '.MBIN'):
-                descriptor_path = op.join(self.PCBANKS_dir, descriptor_name)
-                print(f'Now trying to find a descriptor at: {descriptor_path}')
-            if op.exists(descriptor_path + '.MBIN'):
+            descriptor_path = normalise_path(self.scene_name + '.DESCRIPTOR.MBIN').lower()
+            if self.from_pak:
+                # See if the descriptor exists.
+                if descriptor_path not in self.pak_data_mapping:
+                    descriptor_path = None
+            else:
+                if op.exists(op.join(self.local_directory, op.basename(descriptor_path))):
+                    descriptor_path = op.join(self.local_directory, op.basename(descriptor_path))
+                elif op.exists(op.join(self.root_dir, descriptor_path)):
+                    descriptor_path = op.join(self.root_dir, descriptor_path)
+                else:
+                    descriptor_path = None
+
+            if descriptor_path is not None:
                 empty_obj.NMSReference_props.is_proc = True
-                with open(descriptor_path + ".MBIN", 'rb') as f:
+                with load_file(descriptor_path, self.root_dir, self.from_pak, self.pak_data_mapping) as f:
                     MBINHeader.read(f)
                     self.descriptor_data = TkModelDescriptorList.read(f)
             else:
-                print("No descriptor found... Scene is not proc-gen")
+                pass
             self.local_objects[self.scene_basename] = empty_obj
             return empty_obj
 
@@ -675,19 +720,25 @@ class ImportScene():
                 empty_obj.NMSEntity_props.name_or_path = entity_path
 
         if scene_node.Type == 'JOINT':
-            empty_obj.NMSJoint_props.joint_id = int(scene_node.Attribute(
-                'JOINTINDEX'))
+            empty_obj.NMSJoint_props.joint_id = scene_node.Attribute('JOINTINDEX', int)
 
         if scene_node.Type == 'REFERENCE':
             empty_obj.NMSReference_props.reference_path = scene_node.Attribute(
                 'SCENEGRAPH')
-            ref_scene_path = op.join(self.PCBANKS_dir,
-                                     scene_node.Attribute('SCENEGRAPH'))
-            if op.exists(ref_scene_path):
+            if self.from_pak:
+                ref_scene_path = scene_node.Attribute('SCENEGRAPH')
+            else:
+                ref_scene_path = op.join(self.root_dir, scene_node.Attribute('SCENEGRAPH'))
+            if self.from_pak or op.exists(ref_scene_path):
                 if self.settings.get('import_recursively', True):
                     print(f'loading referenced scene: {ref_scene_path}')
-                    sub_scene = ImportScene(ref_scene_path, empty_obj,
-                                            self.ref_scenes, self.settings)
+                    sub_scene = ImportScene(
+                        ref_scene_path,
+                        empty_obj,
+                        self.ref_scenes,
+                        self.settings,
+                        self.from_pak,
+                    )
                     if sub_scene.requires_render:
                         sub_scene.render_scene()
             else:
@@ -901,8 +952,7 @@ class ImportScene():
             new_obj.parent = self.parent_obj
             self.scn.collection.objects.link(new_obj)
 
-    def _add_mesh_to_scene(self, scene_node: SceneNodeData,
-                           standalone: bool = False):
+    def _add_mesh_to_scene(self, scene_node: SceneNodeData, standalone: bool = False):
         """ Adds the given scene node data to the Blender scene.
 
         Parameters
@@ -913,7 +963,7 @@ class ImportScene():
             part is being rendered.
         """
         name = scene_node.Name
-        mesh = bpy.data.meshes.new(name)
+        mesh: bpy.types.Mesh = bpy.data.meshes.new(name)
         vert_count = len(scene_node.np_verts) // 3
         idx_count = len(scene_node.np_idxs)
         face_count = idx_count // 3
@@ -941,7 +991,7 @@ class ImportScene():
         if scene_node.Attribute('ATTACHMENT') is not None:
             self.entities.add(scene_node.Attribute('ATTACHMENT'))
 
-        mesh_obj = bpy.data.objects.new(name, mesh)
+        mesh_obj: bpy.types.Object = bpy.data.objects.new(name, mesh)
         mesh_obj.NMSNode_props.node_types = 'Mesh'
 
         self.local_objects[scene_node] = mesh_obj
@@ -959,14 +1009,14 @@ class ImportScene():
                 else:
                     # In this case the parent object doesn't exist (maybe it is
                     # corrupt?). Skip this object.
-                    print(f"Warning: Couldn't find the approriate parent for {scene_node.Name}")
+                    print(f"Warning: Couldn't find the appropriate parent for {scene_node.Name}")
                     return
             else:
                 # Direct child of loaded scene
                 mesh_obj.parent = self.local_objects[self.scene_basename]
             mesh_obj.matrix_local = scene_node.matrix_local
         else:
-            mesh_obj.matrix_world = ROT_MATRIX * mesh_obj.matrix_world
+            mesh_obj.matrix_world = ROT_MATRIX @ mesh_obj.matrix_world
 
         # Set the rotation mode to be in quaternions so that anims work
         # correctly
@@ -978,17 +1028,13 @@ class ImportScene():
         self.dep_graph.update()
 
         # Add vertex colour
-        if COLOURS in scene_node.verts:
-            colours = scene_node.verts[COLOURS]
-            if not mesh_obj.data.vertex_colors:
-                mesh_obj.data.vertex_colors.new()
-            colour_loops = mesh_obj.data.vertex_colors.active.data
+        if (colours := scene_node.np_colours) is not None:
+            colour_layer_name = f"{name}_colour"
+            if (colour_attribute := mesh.color_attributes.get(colour_layer_name)) is None:
+                colour_attribute = mesh.color_attributes.new(f"{name}_colour", "FLOAT_COLOR", "CORNER")
             for loop in mesh_obj.data.loops:
-                colour = colours[loop.vertex_index]
-                colour_loops[loop.index].color = (colour[0] / 255,
-                                                  colour[1] / 255,
-                                                  colour[2] / 255,
-                                                  0)
+                colour = colours[loop.vertex_index] / 255.0
+                colour_attribute.data[loop.index].color = colour
 
         # Add vertexes to mesh groups
         if self.mesh_binding_data is not None:
@@ -1014,8 +1060,16 @@ class ImportScene():
         material = None
         if mat_path is not None:
             if mat_path not in self.materials:
-                material = create_material_node(mat_path,
-                                                self.local_root_folder)
+                if self.from_pak:
+                    root_folder = self.root_dir
+                else:
+                    root_folder = self.local_root_folder
+                material = create_material_node(
+                    mat_path,
+                    root_folder,
+                    self.from_pak,
+                    self.pak_data_mapping,
+                )
                 if material:
                     self.materials[mat_path] = material
             else:
@@ -1095,7 +1149,6 @@ class ImportScene():
         for obj in bpy.data.objects:
             # Don't remove the camera or lamp objects
             if obj.name not in ['Camera', 'Light']:
-                print('removing {0}'.format(obj.name))
                 bpy.data.objects.remove(obj)
         for mesh in bpy.data.meshes:
             bpy.data.meshes.remove(mesh)
@@ -1128,12 +1181,19 @@ class ImportScene():
                    + "Mesh name: {0}\n".format(mesh.Name)
                    + "Mesh indexes: {0}\n".format(face_count * 3)
                    + "Mesh metadata: {0}\n".format(mesh.metadata)
-                   + "In geometry file: {0}".format(self.geometry_file))
+                   + "In geometry file: {0}".format(self.geometry_fname))
             raise MeshError(err)
-        with open(self.geometry_stream_file, 'rb') as f:
-            mesh.np_idxs = np.fromfile(f, dtype=dtype, count=idx_count, offset=mesh.metadata.idx_off)
+        
+        metadata = cast(gstream_info, mesh.metadata)
 
-    def _deserialize_vertex_data(self, mesh: SceneNodeData):
+        if self.from_pak:
+            with load_file(self.geometry_stream_file, self.root_dir, self.from_pak, self.pak_data_mapping) as f:
+                mesh.np_idxs = np.frombuffer(f.getvalue(), dtype=dtype, count=idx_count, offset=metadata.idx_off + metadata.vert_off)
+        else:
+            with load_file(self.geometry_stream_file, self.root_dir, self.from_pak, self.pak_data_mapping) as f:
+                mesh.np_idxs = np.fromfile(f, dtype=dtype, count=idx_count, offset=metadata.idx_off + metadata.vert_off)
+
+    def _deserialize_gstream_data(self, mesh: SceneNodeData):
         """ Take the raw vertex data and generate a list of actual vertex data.
 
         Parameters
@@ -1141,6 +1201,7 @@ class ImportScene():
         mesh
             SceneNodeData of type MESH to get the vertex data of.
         """
+        # Vertex data
         names: list[str] = []
         pos_names: list[str] = []
         np_fmts: list[str] = []
@@ -1162,6 +1223,23 @@ class ImportScene():
                 np_fmts.append(f"S{_size}")
             names.append(REV_SEMANTICS[ve['semID']])
 
+        # Index data
+        idx_count = mesh.Attribute('BATCHCOUNT', int)
+        face_count = idx_count // 3
+        size = mesh.metadata.idx_size // face_count
+        if size // 3 == 4:
+            _dtype = np.uint32
+        elif size // 3 == 2:
+            _dtype = np.uint16
+        else:
+            err = ("An error has ocurred. Here is the object information:\n"
+                   + "Mesh name: {0}\n".format(mesh.Name)
+                   + "Mesh indexes: {0}\n".format(face_count * 3)
+                   + "Mesh metadata: {0}\n".format(mesh.metadata)
+                   + "In geometry file: {0}".format(self.geometry_fname))
+            raise MeshError(err)
+        idx_dtype = np.dtype({"names": ["index"], "formats": [_dtype]})
+
         metadata = cast(gstream_info, mesh.metadata)
 
         num_verts = metadata.vert_size / self.vert_extras_stride
@@ -1172,24 +1250,36 @@ class ImportScene():
                              f'({metadata.vert_size}) isn\'t consistent '
                              'with the stride value.')
 
-        with open(self.geometry_stream_file, "rb") as f:
-            vert_data = np.rec.fromfile(f, np_dtype, int(num_verts), offset=metadata.vert_off)
-            # NOTE: Because numpy is whack, offset is the relative offset to the current cursor location.
-            # Go back to the start to make our life easier...
-            f.seek(0)
-            pos_vert_data = np.rec.fromfile(f, np_pos_dtype, int(num_verts), offset=metadata.vert_pos_off)
-            if "Vertices" in pos_names:
-                mesh.np_verts = pos_vert_data.Vertices[:, :3].flatten()
-            if "UVs" in names:
-                vert_data.UVs[..., 1] = 1 - vert_data.UVs[..., 1]
-                mesh.np_uvs = vert_data.UVs[:, :2]
-            if "Normals" in names:
-                mesh.np_norms = np_read_int_2_10_10_10_rev(vert_data.Normals)
-            if "BlendIndex" in names:
-                mesh.np_blendIndex = vert_data.BlendIndex
-            if "BlendWeight" in names:
-                mesh.np_blendWeight = vert_data.BlendWeight
-            # TODO: Handle Colours as well
+        # Ensure we're always going from the start for each mesh metadata.
+        self.geometry_stream_data.seek(metadata.vert_off)
+        vert_data = np.rec.fromfile(
+            self.geometry_stream_data,
+            np_dtype,
+            int(num_verts),
+        )
+
+        # Load the index data now since it will be immediately after the vertex data.
+        mesh.np_idxs = np.rec.fromfile(self.geometry_stream_data, idx_dtype, idx_count).index
+
+        self.geometry_stream_data.seek(metadata.vert_pos_off)
+        pos_vert_data = np.rec.fromfile(
+            self.geometry_stream_data,
+            np_pos_dtype,
+            int(num_verts),
+        )
+        if "Vertices" in pos_names:
+            mesh.np_verts = pos_vert_data.Vertices[:, :3].flatten()
+        if "UVs" in pos_names:
+            pos_vert_data.UVs[..., 1] = 1 - pos_vert_data.UVs[..., 1]
+            mesh.np_uvs = pos_vert_data.UVs[:, :2]
+        if "Normals" in names:
+            mesh.np_norms = np_read_int_2_10_10_10_rev(vert_data.Normals)
+        if "BlendIndex" in names:
+            mesh.np_blendIndex = vert_data.BlendIndex
+        if "BlendWeight" in names:
+            mesh.np_blendWeight = vert_data.BlendWeight
+        if "Colours" in names:
+            mesh.np_colours = vert_data.Colours / 255.0  # divide by 255 to convert to floats
 
     def _find_joint(self, index=None, name=None):
         """ Return the joint with the specified index. """
@@ -1213,8 +1303,7 @@ class ImportScene():
         for anim_name, anim_data in local_anims_copy.items():
             if anim_data['Filename'] == '':
                 # In this case we are using the implicit animation data
-                fpath = self.geometry_file.replace('GEOMETRY.MBIN.PC',
-                                                   'ANIM.MBIN')
+                fpath = self.geometry_fname.replace('geometry.mbin.pc', 'anim.mbin')
                 # If the anim name is empty, replace it with a new one called
                 # "_DEFAULT"
                 if anim_name == '':
@@ -1241,11 +1330,10 @@ class ImportScene():
                 local_anims[anim_name]['Filename'] = fpath
 
     def _get_material_path(self, scene_node: SceneNodeData):
-        real_path = None
         raw_path = scene_node.Attribute('MATERIAL')
-        if raw_path is not None:
-            real_path = self._get_path(raw_path)
-        return real_path
+        if raw_path is not None and not self.from_pak:
+            return self._get_path(raw_path)
+        return raw_path
 
     def _get_path(self, fpath):
         # First, try and find the file locally:
@@ -1255,7 +1343,7 @@ class ImportScene():
         # Otherwise, fallback to returning the filepath relative to the PCBANKS
         # folder.
         try:
-            return op.join(self.PCBANKS_dir, fpath)
+            return op.join(self.root_dir, fpath)
         except ValueError:
             return None
 
@@ -1285,8 +1373,3 @@ class ImportScene():
             return mesh_metadata[self.name_clash_orders[node_name]]
         else:
             return mesh_metadata
-
-    def _load_mesh(self, mesh: SceneNodeData):
-        """ Load the mesh data from the geometry stream file."""
-        mesh.raw_verts, mesh.raw_idxs = read_gstream(self.geometry_stream_file,
-                                                     mesh.metadata)

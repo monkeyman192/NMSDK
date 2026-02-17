@@ -1,14 +1,14 @@
-import struct
-from typing import Tuple, NamedTuple
 import os.path as op
+import struct
+from io import BufferedReader
+from typing import NamedTuple
+
+from ..serialization.list_header import ListHeader
+from ..serialization.NMS_Structures import NAMEHASH_MAPPING, MBINHeader, TkAnimMetadata, TkMaterialData
 
 # TODO: move to the serialization folder?
-
-from ..serialization.utils import read_string, bytes_to_quat
-from ..serialization.list_header import ListHeader
+from ..serialization.utils import bytes_to_quat, read_string
 from ..utils.utils import mxml_to_dict
-
-from ..serialization.NMS_Structures import TkMaterialData, MBINHeader, NAMEHASH_MAPPING, TkAnimMetadata
 
 
 class gstream_info(NamedTuple):
@@ -140,7 +140,7 @@ def read_entity_animation_data(fname: str) -> dict:  # TODO: Fix
         return anim_data
 
 
-def read_material(fname):
+def read_material(f: BufferedReader):
     """ Reads the textures and types from a material file.
 
     Returns
@@ -149,37 +149,8 @@ def read_material(fname):
         Mapping between the texture type (one of DIFFUSE, MASKS, NORMAL) and
         the path to the texture
     """
-    if not op.exists(fname):
-        return None
-    with open(fname, "rb") as f:
-        MBINHeader.read(f)
-        return TkMaterialData.read(f)
-
-
-def read_gstream(fname: str, info: gstream_info) -> Tuple[bytes, bytes]:
-    """ Read the requested info from the gstream file.
-
-    Parameters
-    ----------
-    fname
-        File path to the ~.GEOMETRY.DATA.MBIN.PC file.
-    info
-        namedtupled containing the vertex sizes and offset, and index sizes and
-        offsets.
-
-    Returns
-    -------
-    verts
-        Raw vertex data.
-    indexes
-        Raw index data.
-    """
-    with open(fname, 'rb') as f:
-        f.seek(info.vert_off)
-        verts = f.read(info.vert_size)
-        f.seek(info.idx_off)
-        indexes = f.read(info.idx_size)
-    return verts, indexes
+    MBINHeader.read(f)
+    return TkMaterialData.read(f)
 
 
 def read_TkAnimationData(f) -> dict:

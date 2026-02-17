@@ -1,15 +1,29 @@
-import bpy
-
+import os
 import os.path as op
 
-from .LOOKUPS import DIFFUSE, MASKS, NORMAL, DIFFUSE2
+import bpy
+
 from ..ModelImporter.readers import read_material
-from ..utils.io import realize_path
+from ..utils.io import load_file, normalise_path, realize_path
+from .LOOKUPS import DIFFUSE, DIFFUSE2, MASKS, NORMAL
 
 
-def create_material_node(mat_path: str, local_root_directory: str):
+def create_material_node(
+    mat_path: str,
+    local_root_directory: str,
+    from_pak: bool,
+    pak_data: dict[str, str],
+):
     # Read the material data directly from the material MBIN
-    mat_data = read_material(mat_path)
+    mat_path = normalise_path(mat_path)
+    if from_pak:
+        if mat_path not in pak_data:
+            return
+    else:
+        if not op.exists(mat_path):
+            return
+    with load_file(mat_path, local_root_directory, from_pak, pak_data) as f:
+        mat_data = read_material(f)
     if mat_data is None:
         # no texture data so just exit this function.
         return
@@ -63,11 +77,20 @@ def create_material_node(mat_path: str, local_root_directory: str):
     # create the diffuse, mask and normal nodes and give them their images
     for tex_type, tex_path in samplers.items():
         img = None
-        if tex_type == DIFFUSE:
-            # texture
+        if from_pak:
+            with load_file(tex_path, local_root_directory, from_pak, pak_data) as f:
+                dst_fpath = op.join(local_root_directory, ".scene_vfs", tex_path.lower())
+                os.makedirs(op.dirname(dst_fpath), exist_ok=True)
+                with open(dst_fpath, "wb") as tmp:
+                    tmp.write(f.getvalue())
+                img = bpy.data.images.load(dst_fpath)
+                # img.filepath = tex_path
+        else:
             _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):
                 img = bpy.data.images.load(_path)
+        if tex_type == DIFFUSE:
+            # texture
             diffuse_texture = nodes.new(type='ShaderNodeTexImage')
             diffuse_texture.name = diffuse_texture.label = 'Texture Image - Diffuse'  # noqa
             diffuse_texture.image = img
@@ -77,41 +100,49 @@ def create_material_node(mat_path: str, local_root_directory: str):
                 # #ifdef _F16_DIFFUSE2MAP
                 if 16 not in flags:
                     # #ifndef _F17_MULTIPLYDIFFUSE2MAP
-                    diffuse2_path = realize_path(samplers[DIFFUSE2], local_root_directory)
-                    if op.exists(diffuse2_path):
-                        img = bpy.data.images.load(diffuse2_path)
+
+                    if from_pak:
+                        with load_file(samplers[DIFFUSE2], local_root_directory, from_pak, pak_data) as f:
+                            dst_fpath = op.join(
+                                local_root_directory,
+                                ".scene_vfs",
+                                samplers[DIFFUSE2].lower(),
+                            )
+                            os.makedirs(op.dirname(dst_fpath), exist_ok=True)
+                            with open(dst_fpath, "wb") as tmp:
+                                tmp.write(f.getvalue())
+                            img = bpy.data.images.load(dst_fpath)
+                            # img.filepath = tex_path
+                    else:
+                        diffuse2_path = realize_path(samplers[DIFFUSE2], local_root_directory)
+                        if diffuse2_path is not None and op.exists(diffuse2_path):
+                            img = bpy.data.images.load(diffuse2_path)
+
                     diffuse2_texture = nodes.new(type='ShaderNodeTexImage')
                     diffuse2_texture.name = diffuse_texture.label = 'Texture Image - Diffuse2'  # noqa
                     diffuse2_texture.image = img
                     diffuse2_texture.location = (-400, 300)
                     mix_diffuse = nodes.new(type='ShaderNodeMixRGB')
                     mix_diffuse.location = (-200, 300)
-                    links.new(mix_diffuse.inputs['Color1'],
-                              lColourVec4)
-                    links.new(mix_diffuse.inputs['Color2'],
-                              diffuse2_texture.outputs['Color'])
-                    links.new(mix_diffuse.inputs['Fac'],
-                              diffuse2_texture.outputs['Alpha'])
+                    links.new(mix_diffuse.inputs['Color1'], lColourVec4)
+                    links.new(mix_diffuse.inputs['Color2'], diffuse2_texture.outputs['Color'])
+                    links.new(mix_diffuse.inputs['Fac'], diffuse2_texture.outputs['Alpha'])
                     lColourVec4 = mix_diffuse.outputs['Color']
                 else:
                     print('Note: Please post on discord the model you are'
-                          ' importing so I can fix this!!!')
+                        ' importing so I can fix this!!!')
         elif tex_type == MASKS:
             # texture
-            _path = realize_path(tex_path, local_root_directory)
-            if _path is not None and op.exists(_path):
-                img = bpy.data.images.load(_path)
-                img.colorspace_settings.name = 'Linear Rec.2020'
+            img.colorspace_settings.name = 'Linear Rec.2020'
             mask_texture = nodes.new(type='ShaderNodeTexImage')
             mask_texture.name = mask_texture.label = 'Texture Image - Mask'
             mask_texture.image = img
             mask_texture.location = (-700, 0)
             lfRoughness = None
             # RGB separation node
-            separate_rgb = nodes.new(type='ShaderNodeSeparateRGB')
+            separate_rgb = nodes.new(type='ShaderNodeSeparateColor')
             separate_rgb.location = (-400, 0)
-            links.new(separate_rgb.inputs['Image'],
-                      mask_texture.outputs['Color'])
+            links.new(separate_rgb.inputs['Color'], mask_texture.outputs['Color'])
             if 43 not in flags:
                 # #ifndef _F44_IMPOSTER
                 if 24 in flags:
@@ -125,11 +156,10 @@ def create_material_node(mat_path: str, local_root_directory: str):
                     sub_1.inputs[0].default_value = 1.0
                     lfRoughness = sub_1.outputs['Value']
                     # link them up
-                    links.new(sub_1.inputs[1], separate_rgb.outputs['R'])
+                    links.new(sub_1.inputs[1], separate_rgb.outputs['Red'])
                     
                     # lfMetallic = lMasks.g;
-                    links.new(principled_BSDF.inputs['Metallic'],
-                              separate_rgb.outputs['G'])
+                    links.new(principled_BSDF.inputs['Metallic'], separate_rgb.outputs['Green'])
                 else:
                     roughness_value = nodes.new(type='ShaderNodeValue')
                     roughness_value.outputs[0].default_value = 1.0
@@ -142,16 +172,12 @@ def create_material_node(mat_path: str, local_root_directory: str):
                 links.new(mult_param_x.inputs[0], lfRoughness)
                 lfRoughness = mult_param_x.outputs['Value']
             if lfRoughness is not None:
-                links.new(principled_BSDF.inputs['Roughness'],
-                          lfRoughness)
+                links.new(principled_BSDF.inputs['Roughness'], lfRoughness)
             # If the roughness wasn't ever defined then the default value is 1
             # which is what blender has as the default anyway
         elif tex_type == NORMAL:
             # texture
-            _path = realize_path(tex_path, local_root_directory)
-            if _path is not None and op.exists(_path):
-                img = bpy.data.images.load(_path)
-                img.colorspace_settings.name = 'Linear Rec.2020'
+            img.colorspace_settings.name = 'Linear Rec.2020'
             normal_texture = nodes.new(type='ShaderNodeTexImage')
             normal_texture.name = normal_texture.label = 'Texture Image - Normal'  # noqa
             normal_texture.image = img
@@ -162,23 +188,17 @@ def create_material_node(mat_path: str, local_root_directory: str):
             normal_com_xyz = nodes.new(type='ShaderNodeCombineXYZ')
             normal_com_xyz.location = (-200, -300)
             # swap X and Y channels
-            links.new(normal_com_xyz.inputs['X'],
-                      normal_sep_xyz.outputs['Y'])
-            links.new(normal_com_xyz.inputs['Y'],
-                      normal_sep_xyz.outputs['X'])
-            links.new(normal_com_xyz.inputs['Z'],
-                      normal_sep_xyz.outputs['Z'])
+            links.new(normal_com_xyz.inputs['X'], normal_sep_xyz.outputs['Y'])
+            links.new(normal_com_xyz.inputs['Y'], normal_sep_xyz.outputs['X'])
+            links.new(normal_com_xyz.inputs['Z'], normal_sep_xyz.outputs['Z'])
 
             # normal map
             normal_map = nodes.new(type='ShaderNodeNormalMap')
             normal_map.location = (0, -300)
             # link them up
-            links.new(normal_sep_xyz.inputs['Vector'],
-                      normal_texture.outputs['Color'])
-            links.new(normal_map.inputs['Color'],
-                      normal_com_xyz.outputs['Vector'])
-            links.new(principled_BSDF.inputs['Normal'],
-                      normal_map.outputs['Normal'])
+            links.new(normal_sep_xyz.inputs['Vector'], normal_texture.outputs['Color'])
+            links.new(normal_map.inputs['Color'], normal_com_xyz.outputs['Vector'])
+            links.new(principled_BSDF.inputs['Normal'], normal_map.outputs['Normal'])
 
     # Apply some final transforms to the data before connecting it to the
     # Material output node
@@ -189,16 +209,12 @@ def create_material_node(mat_path: str, local_root_directory: str):
         col_attribute = nodes.new(type='ShaderNodeAttribute')
         col_attribute.attribute_name = 'Col'
         mix_colour = nodes.new(type='ShaderNodeMixRGB')
-        links.new(mix_colour.inputs['Color1'],
-                  lColourVec4)
-        links.new(mix_colour.inputs['Color2'],
-                  col_attribute.outputs['Color'])
-        links.new(principled_BSDF.inputs['Base Color'],
-                  mix_colour.outputs['Color'])
+        links.new(mix_colour.inputs['Color1'], lColourVec4)
+        links.new(mix_colour.inputs['Color2'], col_attribute.outputs['Color'])
+        links.new(principled_BSDF.inputs['Base Color'], mix_colour.outputs['Color'])
         lColourVec4 = mix_colour.outputs['Color']
 
-    if (8 in flags or 10 in flags or
-            21 in flags):
+    if (8 in flags or 10 in flags or 21 in flags):
         # Handle transparency
         alpha_mix = nodes.new(type='ShaderNodeMixShader')
         alpha_shader = nodes.new(type='ShaderNodeBsdfTransparent')
@@ -233,10 +249,8 @@ def create_material_node(mat_path: str, local_root_directory: str):
             links.new(alpha_shader.inputs['Color'],
                       lColourVec4)
 
-        links.new(alpha_mix.inputs[1],
-                  FRAGMENT_COLOUR0)
-        links.new(alpha_mix.inputs[2],
-                  alpha_shader.outputs['BSDF'])
+        links.new(alpha_mix.inputs[1], FRAGMENT_COLOUR0)
+        links.new(alpha_mix.inputs[2], alpha_shader.outputs['BSDF'])
 
         FRAGMENT_COLOUR0 = alpha_mix.outputs['Shader']
 
@@ -245,22 +259,17 @@ def create_material_node(mat_path: str, local_root_directory: str):
         # FRAGMENT_COLOUR0 = vec4( lOutColours0Vec4.xyz, lColourVec4.a );
         alpha_mix_decal = nodes.new(type='ShaderNodeMixShader')
         alpha_shader = nodes.new(type='ShaderNodeBsdfTransparent')
-        links.new(alpha_mix_decal.inputs['Fac'],
-                  diffuse_texture.outputs['Alpha'])
-        links.new(alpha_mix_decal.inputs[1],
-                  alpha_shader.outputs['BSDF'])
-        links.new(alpha_mix_decal.inputs[2],
-                  FRAGMENT_COLOUR0)
+        links.new(alpha_mix_decal.inputs['Fac'], diffuse_texture.outputs['Alpha'])
+        links.new(alpha_mix_decal.inputs[1], alpha_shader.outputs['BSDF'])
+        links.new(alpha_mix_decal.inputs[2], FRAGMENT_COLOUR0)
         FRAGMENT_COLOUR0 = alpha_mix_decal.outputs['Shader']
 
     # Link up the diffuse colour to the base colour on the prinicipled BSDF
     # shader.
-    links.new(principled_BSDF.inputs['Base Color'],
-              lColourVec4)
+    links.new(principled_BSDF.inputs['Base Color'], lColourVec4)
 
     # Finally, link the fragment colour to the output material.
-    links.new(output_material.inputs['Surface'],
-              FRAGMENT_COLOUR0)
+    links.new(output_material.inputs['Surface'], FRAGMENT_COLOUR0)
 
     # link some nodes up according to the uberfragment.bin shader
     # TODO: fix this at some point...

@@ -9,7 +9,7 @@ def serialize_geometry_stream(data):
     pass
 
 
-def serialize_vertex_stream(requires: List[str], count: int, **kwargs):
+def serialize_vertex_stream(requires: List[int], count: int, **kwargs):
     """
     Return a serialized version of the vertex data
 

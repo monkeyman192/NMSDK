@@ -1,15 +1,96 @@
 # stdlib imports
+import ctypes
 import os
 import os.path as op
-from pathlib import Path
 import subprocess
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Optional, Union
 
 # Blender imports
 import bpy
+from hgpaktool import HGPAKFile
+from hgpaktool.utils import normalise_path
+
+ctypes.windll.kernel32.SetFileAttributesW.argtypes = (ctypes.c_wchar_p, ctypes.c_uint32)
 
 
-def get_NMS_dir(fpath: str) -> str:
+@contextmanager
+def load_file(fpath: Union[str, os.PathLike[str]], root_dir: str, from_pak: bool, pak_data: dict):
+    fpath = normalise_path(fpath)
+    if from_pak:
+        if (pakfile_path := pak_data.get(fpath)) is not None:
+            if not op.isabs(pakfile_path):
+                pakfile_path = op.join(root_dir, pakfile_path)
+            # with HGPAKFile(pakfile_path) as pak:
+                # for _, fdata in pak.extract(fpath):
+                #     print(len(fdata))
+                #     yield BytesIO(fdata)
+            pak = HGPAKFile(pakfile_path)
+            data = pak.extract_specific(fpath, True)
+            data.seek(0)
+            yield data
+        else:
+            raise ValueError(f"Could not find {fpath!r} in pak index...")
+    else:
+        if op.isabs(fpath):
+            with open(fpath, "rb") as f:
+                yield f
+        else:
+            with open(op.join(root_dir, fpath), "rb") as f:
+                yield f
+
+
+def load_file_unsafe(fpath: Union[str, os.PathLike[str]], root_dir: str, from_pak: bool, pak_data: dict):
+    # Same as the above function, but without any potential clean up.
+    # When loading from a pak file this is fine, but for loading from a disk it is not and we need to be
+    # careful...
+    fpath = normalise_path(fpath)
+    if from_pak:
+        if (pakfile_path := pak_data.get(fpath)) is not None:
+            if not op.isabs(pakfile_path):
+                pakfile_path = op.join(root_dir, pakfile_path)
+            pak = HGPAKFile(pakfile_path)
+            return pak.extract_specific(fpath, True)
+        else:
+            raise ValueError(f"Could not find {fpath!r} in pak index...")
+    else:
+        if op.isabs(fpath):
+            return open(fpath, "rb")
+        else:
+            return open(op.join(root_dir, fpath), "rb")
+
+
+def hide_path(fpath: str):
+    FILE_ATTRIBUTE_HIDDEN = 0x02
+
+    ret = ctypes.windll.kernel32.SetFileAttributesW(fpath, FILE_ATTRIBUTE_HIDDEN)
+    if ret:
+        print('attribute set to Hidden')
+    else:  # return code of zero indicates failure -- raise a Windows error
+        raise ctypes.WinError()
+
+
+def is_subdir(path: str, root: str):
+    """ Check to see if `path` stems from `root`."""
+    path = os.path.realpath(path)
+    root = os.path.realpath(root)
+
+    if op.splitdrive(path)[0] != op.splitdrive(root)[0]:
+        return False
+
+    relative = os.path.relpath(path, root)
+
+    if relative.startswith(os.pardir):
+        return False
+    else:
+        return True
+
+
+def get_NMS_dir(fpath: Optional[str]) -> Optional[str]:
     """ Returns the NMS file directory from the given filepath. """
+    if not fpath:
+        return None
     # If a PCBANKS path is specified in the scene, return it instead.
     if bpy.context.scene.nmsdk_default_settings.PCBANKS_directory != "":
         return bpy.context.scene.nmsdk_default_settings.PCBANKS_directory
@@ -60,6 +141,15 @@ def base_path(abs_path: str, rel_path: str):
     else:
         print(f'There may be an issue with the paths: {abs_path}, {rel_path}')
         return ''
+
+
+def post_path(full_path: str, base_path: str):
+    """ Return the part of `full_path` after the `base_part` component."""
+    if not is_subdir(full_path, base_path):
+        return None
+    f_parts = list(Path(full_path.lower()).parts)
+    b_parts = Path(base_path.lower()).parts
+    return str(Path(*f_parts[len(b_parts):]))
 
 
 def realize_path(fpath: str, local_root_directory: str) -> str:

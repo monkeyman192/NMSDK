@@ -19,6 +19,8 @@ from .ModelExporter.utils import get_all_actions, get_all_actions_in_scene
 # internal imports
 from .ModelImporter.import_scene import ImportScene
 from .utils.settings import read_settings, write_settings
+from .utils.io import is_subdir
+from .utils.pak_handler import pak_data
 
 
 def set_import_export_defaults(cls, context):
@@ -56,6 +58,19 @@ class ImportSceneOperator(Operator):
                     'blender.',
         default=True,
     )
+    import_recursively: BoolProperty(
+        name='Import recursively',
+        description='Whether or not to import reference nodes automatically.\n'
+                    'For large scenes with many referenced scenes it is better'
+                    ' to set this as False to avoid long wait times, and then '
+                    'only import the scenes you want after it has loaded.',
+        default=True,
+    )
+    dump_extracted_files: BoolProperty(
+        name="Store extracted files",
+        description="Whether or not to store any extracted files in the VFS.",
+        default=False,
+    )
 
     draw_hulls: BoolProperty(
         name='Draw bounded hulls',
@@ -73,14 +88,6 @@ class ImportSceneOperator(Operator):
         name='Draw collisions',
         description='Whether or not to draw the collision objects.',
         default=False,
-    )
-    import_recursively: BoolProperty(
-        name='Import recursively',
-        description='Whether or not to import reference nodes automatically.\n'
-                    'For large scenes with many referenced scenes it is better'
-                    ' to set this as False to avoid long wait times, and then '
-                    'only import the scenes you want after it has loaded.',
-        default=True,
     )
     # Animation related properties
     import_bones: BoolProperty(
@@ -854,6 +861,11 @@ class NMS_Import_Operator(Operator, ImportHelper):
                     ' to set this as False to avoid long wait times, and then '
                     'only import the scenes you want after it has loaded.',
         default=True)
+    dump_extracted_files: BoolProperty(
+        name="Store extracted files",
+        description="Whether or not to store any extracted files in the VFS.",
+        default=False,
+    )
 
     # Collision related properties
     import_collisions: BoolProperty(
@@ -900,6 +912,7 @@ class NMS_Import_Operator(Operator, ImportHelper):
         layout = self.layout
         layout.prop(self, 'clear_scene')
         layout.prop(self, 'import_recursively')
+        layout.prop(self, 'dump_extracted_files')
         coll_box = layout.box()
         coll_box.label(text='Collisions')
         coll_box.prop(self, 'import_collisions')
@@ -918,22 +931,26 @@ class NMS_Import_Operator(Operator, ImportHelper):
         debug_box.prop(self, 'draw_bounding_box')
 
     def execute(self, context):
+        addon_prefs = context.preferences.addons[__package__].preferences
         keywords = self.as_keywords()
         # set the state of the show_collisions button from the value specified
         # when the import occurs
         context.scene.nmsdk_settings.show_collisions = self.show_collisions
         # Reset the animation data
         context.scene.nmsdk_anim_data.reset()
-        fdir = self.properties.filepath
+        fpath = self.properties.filepath
+        print(f"I want to import {fpath}")
         context.scene['_anim_names'] = ['None']
-        print(fdir)
-        if not bpy.context.scene.nmsdk_default_settings.MBINCompiler_path:
-            ShowMessageBox("No MBINCompiler specified or found", "Error",
-                           'ERROR')
-            print("[ERROR]: No MBINCompiler specified or found")
-            return {'CANCELLED'}
-        importer = ImportScene(fdir, parent_obj=None, ref_scenes=dict(),
-                               settings=keywords)
+        if is_subdir(fpath, op.join(addon_prefs.pcbanks_dir, ".scene_vfs")):
+            _fpath = op.relpath(fpath, op.join(addon_prefs.pcbanks_dir, ".scene_vfs"))
+            importer = ImportScene(_fpath, None, {}, keywords, True)
+        else:
+            importer = ImportScene(fpath, None, {}, keywords)
+        # if not bpy.context.scene.nmsdk_default_settings.MBINCompiler_path:
+        #     ShowMessageBox("No MBINCompiler specified or found", "Error",
+        #                    'ERROR')
+        #     print("[ERROR]: No MBINCompiler specified or found")
+        #     return {'CANCELLED'}
         importer.render_scene()
         status = importer.state
         self.report({'INFO'}, "Models Imported Successfully")
@@ -942,3 +959,16 @@ class NMS_Import_Operator(Operator, ImportHelper):
             return {'FINISHED'}
         else:
             return {'CANCELLED'}
+
+    def invoke(self, context, event):
+        addon_prefs = context.preferences.addons[__package__].preferences
+        if addon_prefs.unpacked_pcbanks_dir:
+            # Use the preferentially.
+            self.filepath = addon_prefs.unpacked_pcbanks_dir
+        # Otherwise, check to see if the pcbanks directory is set.
+        if addon_prefs.pcbanks_dir:
+            if op.exists(op.join(addon_prefs.pcbanks_dir, ".scene_vfs")):
+                self.filepath = op.join(addon_prefs.pcbanks_dir, ".scene_vfs", "models")
+        # Otherwise, let it just do its own thing.
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}

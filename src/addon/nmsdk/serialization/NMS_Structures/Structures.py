@@ -231,10 +231,10 @@ class TkAnimNodeFrameData(datatype):
 
 @dataclass
 class TkAnimNodeData(datatype):
+    Node: Annotated[str, Field(VariableSizeString)]
     RotIndex: Annotated[int, Field(bt.int32)]
     ScaleIndex: Annotated[int, Field(bt.int32)]
     TransIndex: Annotated[int, Field(bt.int32)]
-    Node: Annotated[str, Field(bt.string, length=0x40)]
 
 
 @dataclass

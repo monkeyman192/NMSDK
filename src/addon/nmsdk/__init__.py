@@ -1,5 +1,6 @@
 # pyright: reportInvalidTypeForm=false
 
+import json
 import os
 import os.path as op
 import time
@@ -7,6 +8,7 @@ import time
 import bpy
 from bpy.props import PointerProperty, StringProperty
 from bpy.utils import register_class, unregister_class
+from bpy.app.handlers import persistent
 
 # extensions to blender UI
 from .BlenderExtensions import ContextMenus, NMSEntities, NMSNodes, NMSPanels, SettingsPanels
@@ -44,10 +46,23 @@ from .NMSDK import (
     _StopAnimation,
     _ToggleCollisionVisibility,
 )
-from .utils.pak_handler import PakInfo
+from .utils.io import hide_path
+from .utils.pak_handler import PakInfo, pak_data
 from .utils.settings import read_settings, write_settings
 
 customNodes = NMSNodes()
+
+
+# @persistent
+# def load_vfs_data(*args):
+#     addon_prefs = bpy.context.preferences.addons[__package__].preferences
+#     print(addon_prefs.pcbanks_dir)
+#     if addon_prefs.pcbanks_dir and op.exists(addon_prefs.pcbanks_dir):
+#         if op.exists(op.join(addon_prefs.pcbanks_dir, ".scene_vfs")):
+#             if op.exists(op.join(addon_prefs.pcbanks_dir, ".scene_vfs", "index.json")):
+#                 with open(op.join(addon_prefs.pcbanks_dir, ".scene_vfs", "index.json")) as f:
+#                     pak_data = json.load(f)
+#     print("loaded VFS data")
 
 
 def save_preferences(cls: "NMSDKPreferences", context: bpy.types.Context):
@@ -60,20 +75,34 @@ def save_preferences(cls: "NMSDKPreferences", context: bpy.types.Context):
     from hgpaktool import HGPAKFile
     if new_pcbanks_dir and current_pcbanks_dir != new_pcbanks_dir:
         t0 = time.perf_counter()
+        out_dir = op.join(new_pcbanks_dir, ".scene_vfs")
+        if not op.exists(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
+            hide_path(out_dir)
         # Load the data from the pak files.
+        print("Creating vfs... This may take a little while (but it will be worth it!)")
+        index = {}
+        counter = 0
         for pakfname in os.listdir(new_pcbanks_dir):
             if pakfname.lower().endswith(".pak"):
                 with HGPAKFile(op.join(new_pcbanks_dir, pakfname)) as pak:
                     for fname in pak.filenames:
                         lfname = fname.lower()
                         if lfname.endswith(".scene.mbin"):
-                            context.scene.nmsdk_pak_data.scene_paths.append(fname)
-                            context.scene.nmsdk_pak_data.file_mapping[fname] = pakfname
-                            # scene_paths.append(fname)
-                            # file_mapping[fname] = pakfname
-                        # elif lfname.endswith(".")
+                            counter += 1
+                            dest_fname = op.join(out_dir, lfname)
+                            if not op.exists(dest_fname):
+                                dest_dir = op.join(out_dir, op.dirname(fname))
+                                os.makedirs(dest_dir, exist_ok=True)
+                                with open(dest_fname, "w"):
+                                    pass
+                    for fname in pak.filenames:
+                        index[fname] = pakfname
+        cls.pak_mapping_data = index
+        with open(op.join(out_dir, "index.json"), "w") as f:
+            json.dump(index, f)
         t1 = time.perf_counter()
-        print(f"Loaded {len(context.scene.nmsdk_pak_data.scene_paths)} scenes in {t1 - t0:.4f}s")
+        print(f"Loaded {counter} scenes into VFS in {t1 - t0:.4f}s")
 
 
 class NMSDKPreferences(bpy.types.AddonPreferences):
@@ -97,6 +126,8 @@ class NMSDKPreferences(bpy.types.AddonPreferences):
         update=save_preferences,
         default=default_settings.get('unpacked_pcbanks_dir', "")
     )
+
+    pak_mapping_data: dict[str, str]
 
     def draw(self, context):
         layout = self.layout
@@ -153,6 +184,7 @@ classes = (
 
 
 def register():
+    # bpy.app.handlers.load_post.append(load_vfs_data)
     bpy.utils.register_class(NMSDKPreferences)
     for cls in classes:
         register_class(cls)
@@ -187,6 +219,7 @@ def unregister():
     SettingsPanels.unregister()
     ContextMenus.unregister()
     bpy.utils.unregister_class(NMSDKPreferences)
+    # bpy.app.handlers.load_post.remove(load_vfs_data)
 
 
 if __name__ == '__main__':

@@ -147,11 +147,9 @@ class Object():
         # which have been provided.
         # we will not include CHVerts as this will be given by default anyway
         # and we don't need to a semantic ID for it
-        for name in ['Vertices', 'Indexes', 'UVs', 'Normals', 'Tangents',
-                     'Colours']:
+        for name in ['Vertices', 'Indexes', 'UVs', 'Normals', 'Tangents', 'Colours']:
             if self.__dict__.get(name, None) is not None:
-                self.provided_streams = self.provided_streams.union(
-                    set([name]))
+                self.provided_streams = self.provided_streams.union(set([name]))
 
     def get_data(self) -> TkSceneNodeData:
         # returns the NodeData attribute
