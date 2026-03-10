@@ -77,13 +77,19 @@ class string(datatype):
     @classmethod
     def _read(cls, buf: BufferedWriter, meta: Field) -> str:
         cls._skip_padding(buf)
-        fmt = cls._format.format(length=meta.length)
+        if meta.length:
+            fmt = cls._format.format(length=meta.length)
+        else:
+            fmt = cls._format
         encoding = meta.encoding or "utf-8"
         return struct.unpack(fmt, buf.read(meta.length))[0].decode(encoding).strip("\x00")
 
     @classmethod
     def _write(cls, buf: BufferedWriter, value: str, meta: Field):
         cls._write_padding(buf)
-        fmt = cls._format.format(length=meta.length)
+        if meta.length:
+            fmt = cls._format.format(length=meta.length)
+        else:
+            fmt = cls._format
         encoding = meta.encoding or "utf-8"
         buf.write(struct.pack(fmt, value.encode(encoding)))

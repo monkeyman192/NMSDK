@@ -5,14 +5,21 @@ import os.path as op
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
+
+if TYPE_CHECKING:
+    from .. import NMSDKPreferences
 
 # Blender imports
 import bpy
 from hgpaktool import HGPAKFile
 from hgpaktool.utils import normalise_path
 
+# This function is used to make files hidden on windows.
 ctypes.windll.kernel32.SetFileAttributesW.argtypes = (ctypes.c_wchar_p, ctypes.c_uint32)
+
+# Get the parent package name.
+_package = __package__.rpartition(".")[0]
 
 
 @contextmanager
@@ -91,37 +98,22 @@ def get_NMS_dir(fpath: Optional[str]) -> Optional[str]:
     """ Returns the NMS file directory from the given filepath. """
     if not fpath:
         return None
-    # If a PCBANKS path is specified in the scene, return it instead.
-    if bpy.context.scene.nmsdk_default_settings.PCBANKS_directory != "":
-        return bpy.context.scene.nmsdk_default_settings.PCBANKS_directory
-    # Otherwise, determine as normal
+    addon_prefs: NMSDKPreferences = bpy.context.preferences.addons[_package].preferences
+    # If the unpacked pcbanks directory is specified, use it
+    if addon_prefs.unpacked_pcbanks_dir:
+        return addon_prefs.unpacked_pcbanks_dir
+    # Otherwise, determine as normal.
     path = Path(fpath)
     parts = path.parts
     try:
-        PCBANKS_path = str(Path(*parts[:parts.index('MODELS')]))
-        bpy.context.scene.nmsdk_default_settings.PCBANKS_directory = PCBANKS_path  # noqa
-        return PCBANKS_path
+        return str(Path(*parts[:parts.index('MODELS')]))
     except ValueError:
         # In this case we may be loading a model in a custom folder.
         # We need to go back until we find a folder with a 'MODELS' folder in
         # it.
         for parent in path.parents:
             if Path(parent, 'MODELS').exists():
-                # Cache the PCBANKS folder
-                bpy.context.scene.nmsdk_default_settings.PCBANKS_directory = str(parent)  # noqa
                 return str(parent)
-
-
-def get_MBINCompiler_path() -> str:
-    """ Return the location of the MBINCompiler exe if it is registered on the
-    path. """
-    _path = ''
-    for p in os.environ['PATH'].split(';'):
-        test_path = op.join(p, 'MBINCompiler.exe')
-        if op.exists(test_path):
-            _path = test_path
-            break
-    return _path
 
 
 def base_path(abs_path: str, rel_path: str):
@@ -173,7 +165,8 @@ def convert_file(fpath: str) -> str:
     path of the produced file.
     """
     exts = {'.MBIN': '.MXML', '.MXML': '.MBIN'}
-    mbincompiler_path = bpy.context.scene.nmsdk_default_settings.MBINCompiler_path  # noqa
+    addon_prefs: NMSDKPreferences = bpy.context.preferences.addons[_package].preferences
+    mbincompiler_path = addon_prefs.mbincompiler_path
     retcode = subprocess.call(
         [mbincompiler_path, "-y", "-f", "-Q", fpath])
     if retcode == 0:

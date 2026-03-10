@@ -1,4 +1,3 @@
-import os.path as op
 import struct
 from io import BufferedReader
 from typing import NamedTuple
@@ -94,73 +93,6 @@ def read_anim(fname):  # TODO: FIX!
         anim_data['StillFrameData'] = still_frame_data
 
         return anim_data
-
-
-def read_entity_animation_data(fname: str) -> dict:  # TODO: Fix
-    """ Read an entity file.
-
-    This will currently only support reading the animation data from the
-    entity file as it's all we care about right now...
-
-    Returns
-    -------
-    anim_data
-        List of dictionaries containing the path and name of the contained
-        animation data.
-    """
-
-    anim_data = dict()
-    with open(fname, 'rb') as f:
-        f.seek(0x60)
-        has_anims = False
-        # Scan the list of components to see if we have a
-        # TkAnimationComponentData struct present.
-        with ListHeader(f) as components:
-            for _ in range(components.count):
-                return_offset = f.tell()
-                offset = struct.unpack('<Q', f.read(0x8))[0]
-                struct_name = read_string(f, 0x40)
-                if struct_name == 'cTkAnimationComponentData':
-                    has_anims = True
-                    break
-                # Read the nameHash but ignore it...
-                f.read(0x8)
-        # If no animation data is found, return.
-        if not has_anims:
-            return anim_data
-        # Jump to the start of the struct
-        f.seek(return_offset + offset)
-        _anim_data = read_TkAnimationData(f)
-        idle_anim_name = _anim_data.pop('Anim') or 'IDLE'
-        anim_data[idle_anim_name] = _anim_data
-        with ListHeader(f) as anims:
-            for _ in range(anims.count):
-                _anim_data = read_TkAnimationData(f)
-                anim_data[_anim_data.pop('Anim')] = _anim_data
-        return anim_data
-
-
-def read_material(f: BufferedReader):
-    """ Reads the textures and types from a material file.
-
-    Returns
-    -------
-    data : dict
-        Mapping between the texture type (one of DIFFUSE, MASKS, NORMAL) and
-        the path to the texture
-    """
-    MBINHeader.read(f)
-    return TkMaterialData.read(f)
-
-
-def read_TkAnimationData(f) -> dict:
-    """ Extract the animation name and path from the entity file. """
-    data = dict()
-    data['Anim'] = read_string(f, 0x10)
-    data['Filename'] = read_string(f, 0x80)
-    # Move the pointer to the end of the TkAnimationComponentData struct
-    f.seek(0xA8, 1)
-    return data
 
 
 def read_TkModelDescriptorList(data: dict) -> dict:

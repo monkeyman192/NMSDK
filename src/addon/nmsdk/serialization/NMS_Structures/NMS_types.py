@@ -163,3 +163,23 @@ class MBINHeader(datatype):
 
 class astring(bt.string):
     _alignment = 0x8
+
+
+class NMSString0x10(bt.string):
+    _format = "16s"
+
+
+class NMSString0x20(bt.string):
+    _format = "32s"
+
+
+class NMSString0x40(bt.string):
+    _format = "64s"
+
+
+class NMSString0x80(bt.string):
+    _format = "128s"
+
+
+class NMSString0x100(bt.string):
+    _format = "256s"

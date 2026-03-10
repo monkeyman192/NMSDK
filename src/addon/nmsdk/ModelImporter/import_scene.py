@@ -1,36 +1,51 @@
 # stdlib imports
 import json
+import os
 import os.path as op
+import shutil
+import subprocess
 import time
-from math import radians
-from typing import Optional, cast
 import traceback
+from math import radians
+from tempfile import mkdtemp
+from typing import TYPE_CHECKING, Optional, cast
 
-import bmesh  # pylint: disable=import-error
+import bmesh
 
 # Blender imports
 import bpy
 import numpy as np
 from bpy.types import Armature
 from hgpaktool.utils import normalise_path
-from mathutils import Matrix, Quaternion, Vector  # noqa pylint: disable=import-error
+from mathutils import Matrix, Quaternion, Vector
 
 from ..NMS.LOOKUPS import REV_SEMANTICS, VERT_TYPE_MAP
 from ..NMS.material_node import create_material_node
 
 # Internal imports
+
+if TYPE_CHECKING:
+    from .. import NMSDKPreferences
 from ..serialization.formats import np_read_int_2_10_10_10_rev
 from ..serialization.NMS_Structures.NMS_types import MBINHeader
 from ..serialization.NMS_Structures.Structures import (
     NAMEHASH_MAPPING,
+    TkAnimationComponentData,
+    TkAnimationData,
+    TkAnimMetadata,
+    TkAttachmentData,
     TkGeometryData,
+    TkJointBindingData,
     TkModelDescriptorList,
     TkSceneNodeData,
+    ctx_nonignored_namehashes,
 )
 from ..utils.bpyutils import SceneOp, edit_object, select_object
 from ..utils.io import base_path, get_NMS_dir, load_file, load_file_unsafe, post_path
+from ..utils.stopwitch import witch
+from .animation_handler import add_animation_to_scene
 from .mesh_utils import BB_transform_matrix
-from .readers import gstream_info, read_entity_animation_data
+from .readers import gstream_info
 from .SceneNodeData import SceneNodeData
 
 ROT_MATRIX = Matrix.Rotation(radians(90), 4, 'X')
@@ -74,6 +89,7 @@ class ImportScene():
         A dictionary with the path to another scene as the key, and the blender
         object that has already been loaded as the value.
     """
+    @witch.section("__init__")
     def __init__(
         self,
         fpath: str,
@@ -83,7 +99,9 @@ class ImportScene():
         from_pak: bool = False,
     ):
         self.from_pak = from_pak
-        addon_prefs = bpy.context.preferences.addons[_package].preferences
+        self.ref_scenes = ref_scenes or {}
+
+        addon_prefs: NMSDKPreferences = bpy.context.preferences.addons[_package].preferences
         if self.from_pak:
             # Get the vfs path.
             vfs_path = op.join(addon_prefs.pcbanks_dir, ".scene_vfs")
@@ -95,8 +113,8 @@ class ImportScene():
             vfs_path = None
             self.pak_data_mapping = {}
 
-        if ref_scenes is None:
-            ref_scenes = {}
+        mbincompiler_path = addon_prefs.mbincompiler_path
+
         if settings is None:
             settings = {}
         if self.from_pak is True:
@@ -111,14 +129,28 @@ class ImportScene():
         # Scene_basename is the final component of the scene path.
         # Ie. the file name without the extension
         self.scene_basename, _ = op.splitext(self.scene_path)
+        if self.scene_basename.lower().endswith(".scene"):
+            self.scene_basename = self.scene_basename[:-6]
+
+        # To optimise loading of referenced scenes, check to see if the current scene has already been loaded
+        # into blender. If so, simply make a copy of the mesh object and place it appropriately.
+        if self.scene_path in self.ref_scenes:
+            self._add_existing_to_scene()
+            self.requires_render = False
+            return
+
+        tmpdir = mkdtemp()
 
         # Determine the type of file provided and get the mxml and mbin file
         # paths for that file.
         if not self.scene_path.lower().endswith(".mbin"):
-            raise TypeError(
-                f"Only .MBIN scenes are currently supported. Please convert to {self.scene_path} MBIN and try"
-                " again."
-            )
+            # Use the original full path to convert
+            # TODO: This will not work on linux.
+            cmd = [mbincompiler_path, f"--output-dir={normalise_path(tmpdir)}", fpath]
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+                pass
+            # There will be only one file here...
+            self.scene_path = op.join(tmpdir, os.listdir(tmpdir)[0])
 
         # Annoyingly, some nodes may have the same name. As we traverse the
         # tree in order we should be able to just have the index stored here
@@ -126,7 +158,6 @@ class ImportScene():
         self.name_clash_orders = dict()
 
         self.parent_obj = parent_obj
-        self.ref_scenes = ref_scenes
         self.settings = settings
         self.dep_graph = bpy.context.evaluated_depsgraph_get()
         # When scenes contain reference nodes there can be clashes with names.
@@ -143,28 +174,22 @@ class ImportScene():
         # Find the local name of the scene (relative to the NMS PCBANKS dir)
         # This needs to be read from the mbin file, so ensure we are either
         # reading from it or construct the name.
-        with load_file(self.scene_path, self.root_dir, self.from_pak, self.pak_data_mapping) as f:
-            MBINHeader.read(f)
-            self._scene_node_data = TkSceneNodeData.read(f)
-            self.scene_name = self._scene_node_data.Name
+        with witch.section("read_scene"):
+            with load_file(self.scene_path, self.root_dir, self.from_pak, self.pak_data_mapping) as f:
+                MBINHeader.read(f)
+                self._scene_node_data = TkSceneNodeData.read(f)
+                self.scene_name = self._scene_node_data.Name
         print(f"Loading {self.scene_name}")
+        shutil.rmtree(tmpdir)
 
-        # To optimise loading of referenced scenes, check to see if the current
-        # scene has already been loaded into blender. If so, simply make a copy
-        # of the mesh object and place it appropriately.
-        if self.scene_name in self.ref_scenes:
-            self._add_existing_to_scene()
-            self.requires_render = False
-            return
-
-        self.ref_scenes[self.scene_name] = list()
+        self.ref_scenes[self.scene_path] = list()
 
         self.data = None
         self.position_vertex_elements = []
         self.vertex_elements = []
         self.bh_data = []
         self.materials = {}
-        self.entities = set()
+        self.entities: set[str] = set()
         self.animations = {}
         # This list of joints is used to add all the bones if needed
         self.joints: list[SceneNodeData] = []
@@ -178,17 +203,6 @@ class ImportScene():
 
         # Change to render with cycles
         self.scn.render.engine = RENDER_ENGINE
-
-        # if not op.exists(mbin_fpath):
-        #     retcode = subprocess.call(
-        #         [self.scn.nmsdk_default_settings.MBINCompiler_path, "-q", "-Q", fpath]
-        #     )
-        #     if retcode != 0:
-        #         print('MBINCompiler failed to run. Please ensure it is registered on the path.')
-        #         print('Import failed')
-        #         self.requires_render = False
-        #         raise OSError("MBINCompiler failed to run. See System Console for more details. "
-        #                       "(Window > Toggle System Console)")
 
         self.scene_node_data = SceneNodeData(self._scene_node_data)
         # Once we have loaded this, we need to do a sanity check to make sure
@@ -224,11 +238,11 @@ class ImportScene():
         self.geometry_stream_file = self.geometry_fname.lower().replace('geometry', 'geometry.data')
 
         # Get the information about what data the geometry file contains
-
-        with load_file(self.geometry_fname, self.root_dir, self.from_pak, self.pak_data_mapping) as f:
-            header = MBINHeader.read(f)
-            assert header.header_namehash == NAMEHASH_MAPPING["TkGeometryData"]
-            geometry_data = TkGeometryData.read(f)
+        with witch.section("read_geometry"):
+            with load_file(self.geometry_fname, self.root_dir, self.from_pak, self.pak_data_mapping) as f:
+                header = MBINHeader.read(f)
+                assert header.header_namehash == NAMEHASH_MAPPING["TkGeometryData"]
+                geometry_data = TkGeometryData.read(f)
 
         if geometry_data.Indices16Bit:
             self.mesh_indexes = []
@@ -287,7 +301,7 @@ class ImportScene():
 
 # region public methods
 
-    def load_animations(self):
+    def load_animations(self, import_idle_anims: bool):
         """ Handle the loading of the animations. """
         # TODO: Fixme! This needs to read from the pak files too...
 
@@ -295,24 +309,35 @@ class ImportScene():
         # If there are no entities, there is no animation data. (Even implicit
         # animations have an entity associated.)
         if len(self.entities) == 0:
+            print("Error: Could not find any associated entity files.")
             return
         # Iterate over the entity files to collate all the animation data
-        local_anims = dict()
+        animation_data: dict[str, TkAnimationData] = {}
+        ctx_nonignored_namehashes.set({0x6E59DA5E})
         for entity in self.entities:
-            entity_path = op.join(self.root_dir, entity)
-            # print(f"Entity path: {entity_path}")
-            local_anims.update(read_entity_animation_data(entity_path))
-        if len(local_anims) == 0:
+            with load_file(entity, self.root_dir, self.from_pak, self.pak_data_mapping) as f:
+                MBINHeader.read(f)
+                entity_data = TkAttachmentData.read(f)
+                anim_data: list[TkAnimationComponentData] = [att for att in entity_data.iter_attachments(TkAnimationComponentData)]
+                if anim_data:
+                    print(f"{entity} has {len(entity_data.Components)} components which contains {len(anim_data)} TkAnimationComponentData's")
+                    for anim in anim_data:
+                        # Special case the idle data since there can also be an "IDLE" animation which is
+                        # different (ie. an actual animation).
+                        animation_data["__idle__"] = anim.Idle
+                        for _anim in anim.Anims:
+                            animation_data[_anim.Anim] = _anim
+        if len(animation_data) == 0:
             # If there are no animations added by this scene just return to
             # save time.
             return
         # Find out how many animations have been found in this scene.
         # If the total number is greater than 10 then we don't want to render
         # them all as it gets too slow to import a scene then.
-        print('Found {0} animations to be loaded!'.format(len(local_anims)))
+        print(f"Found {len(animation_data)} animations to be loaded")
 
         # Update the global animation data dictionary
-        _loadable_anim_data.update(local_anims)
+        # _loadable_anim_data.update(local_anims)
 
         max_anims = self.settings.get('max_anims', 10)
         if max_anims == 0:
@@ -326,7 +351,19 @@ class ImportScene():
         else:
             load_anims = True
 
-        self._fix_anim_data(local_anims, self.root_dir)
+        if self.settings.get("import_idle_anims", False):
+            # We can import just the idle animation data... Should be fairly quick...
+            if (_idle_anim_data := animation_data.get("__idle__")) is not None:
+                if _idle_anim_data.Filename:
+                    with load_file(
+                        _idle_anim_data.Filename, self.root_dir, self.from_pak, self.pak_data_mapping
+                    ) as f:
+                        MBINHeader.read(f)
+                        idle_anim_data = TkAnimMetadata.read(f)
+                    add_animation_to_scene(bpy.context.scene, "", idle_anim_data, True)
+        return
+
+        # self._fix_anim_data(local_anims, self.root_dir)
 
         if not self.scn.nmsdk_anim_data.anims_loaded:
             # Only update the value if going from False -> True
@@ -378,6 +415,7 @@ class ImportScene():
             self._add_empty_to_scene(obj, standalone=True)
         self.state = {'FINISHED'}
 
+    @witch.section("render_scene")
     def render_scene(self):
         """ Render the scene in the blender view. """
         # First, add the empty root object that everything will be a
@@ -387,8 +425,7 @@ class ImportScene():
             # First, remove everything else in the scene
             if self.settings.get('clear_scene', True):
                 self._clear_prev_scene()
-            added_obj = self._add_empty_to_scene(self.scene_node_data)
-            # added_obj['scene_node'] = {'idx': 0, 'data': asdict(self.scene_node_data.info)}
+            self._add_empty_to_scene(self.scene_node_data)
         # Get all the joints in the scene
         for obj in self.scene_node_data.iter():
             if obj.Type == 'JOINT':
@@ -416,8 +453,11 @@ class ImportScene():
                             'versions.'.format(obj.Name))
                         continue
                     try:
-                        self.load_mesh(obj)
-                        added_obj = self._add_mesh_to_scene(obj)
+                        with witch.section("load_mesh"):
+                            self.load_mesh(obj)
+                        with witch.section("add_mesh_to_scene"):
+                            added_obj = self._add_mesh_to_scene(obj)
+
                     except MeshError:
                         # In the case of a mesh error, we will pass and leave the
                         # `added_obj` as None to handle later.
@@ -451,7 +491,6 @@ class ImportScene():
         if import_bones and self.joints:
             armature = self._add_armature_to_scene()
             for joint in self.joints:
-                print('Adding bone {0}'.format(joint.Name))
                 self._add_bone_to_scene(joint, armature)
             # Now that we have the armature set up, apply modifiers to each of
             # the meshes to bind them.
@@ -459,7 +498,7 @@ class ImportScene():
                 mod = mesh_obj.modifiers.new('Armature', 'ARMATURE')
                 mod.object = bpy.data.objects['Armature']
         if import_anims and self.settings.get('max_anims', 10) != 0:
-            self.load_animations()
+            self.load_animations(self.settings.get('import_idle_anims', True))
             bpy.ops.nmsdk._change_animation(anim_names='None')
 
         # If the loaded scene is a proc-gen scene, load the info in.
@@ -479,7 +518,10 @@ class ImportScene():
         obj = bpy.data.objects.new('Armature', armature)
         obj.NMSNode_props.node_types = 'None'
         self.scene_ctx.link_object(obj)
-        obj.parent = self.local_objects[self.scene_basename]
+        if self.parent_obj is None:
+            obj.parent = self.local_objects[self.scene_basename]
+        else:
+            obj.parent = self.local_objects[self.parent_obj]
         return obj
 
     def _add_bone_to_scene(self, scene_node: SceneNodeData,
@@ -487,17 +529,16 @@ class ImportScene():
         # Let's get all the data collection out of the way
         if self.scn.nmsdk_anim_data.has_bound_mesh:
             joint_index = scene_node.Attribute('JOINTINDEX', int)
-            joint_binding_data = self.mesh_binding_data[
-                'JointBindings'][joint_index]
-            inv_bind_matrix = joint_binding_data['InvBindMatrix']
+            joint_binding_data: TkJointBindingData = self.mesh_binding_data['JointBindings'][joint_index]
+            inv_bind_matrix = joint_binding_data.InvBindMatrix
             inv_bind_matrix = Matrix([inv_bind_matrix[:4],
                                       inv_bind_matrix[4:8],
                                       inv_bind_matrix[8:12],
                                       inv_bind_matrix[12:]])
             inv_bind_matrix.transpose()
-            bind_trans = joint_binding_data['BindTranslate']
-            bind_rot = joint_binding_data['BindRotate']
-            bind_sca = joint_binding_data['BindScale']
+            bind_trans = joint_binding_data.BindTranslate
+            bind_rot = joint_binding_data.BindRotate
+            bind_sca = joint_binding_data.BindScale
 
             # Assign the bind matrix so we can do easy lookup of it later for
             # applying animations.
@@ -511,7 +552,7 @@ class ImportScene():
             with edit_object(armature) as data:
                 bone = data.edit_bones.new(scene_node.Name)
                 bone.use_inherit_rotation = True
-                bone.use_inherit_scale = True
+                bone.inherit_scale = "FIX_SHEAR"
 
                 self.scn.objects[scene_node.Name]['bind_data'] = (
                     Vector(bind_trans[:3]),
@@ -595,8 +636,7 @@ class ImportScene():
         bbox_obj.NMSNode_props.node_types = 'None'
         self.scene_ctx.link_object(bbox_obj)
 
-    def _add_empty_to_scene(self, scene_node: SceneNodeData,
-                            standalone: bool = False):
+    def _add_empty_to_scene(self, scene_node: SceneNodeData, standalone: bool = False):
         """ Adds the given scene node data to the Blender scene.
 
         Parameters
@@ -617,8 +657,7 @@ class ImportScene():
             empty_obj = bpy.data.objects.new(self.scene_basename,
                                              empty_mesh)
             empty_obj.NMSNode_props.node_types = 'Reference'
-            empty_obj.NMSReference_props.reference_path = (
-                self.scene_name + '.SCENE.MBIN')
+            empty_obj.NMSReference_props.reference_path = self.scene_name + '.SCENE.MBIN'
             empty_obj.matrix_world = ROT_MATRIX
             self.scene_ctx.link_object(empty_obj)
             select_object(empty_obj)
@@ -665,6 +704,7 @@ class ImportScene():
                     self.descriptor_data = TkModelDescriptorList.read(f)
             else:
                 pass
+            print(f"Adding {self.scene_basename} empty obj to local_objects")
             self.local_objects[self.scene_basename] = empty_obj
             return empty_obj
 
@@ -690,7 +730,7 @@ class ImportScene():
             if self.parent_obj is not None and scene_node.parent.Name is None:
                 # Direct child of the reference node
                 empty_obj.parent = self.parent_obj
-                self.ref_scenes[self.scene_name].append(empty_obj)
+                self.ref_scenes[self.scene_path].append(empty_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
                 if scene_node.parent in self.local_objects:
@@ -723,8 +763,8 @@ class ImportScene():
             empty_obj.NMSJoint_props.joint_id = scene_node.Attribute('JOINTINDEX', int)
 
         if scene_node.Type == 'REFERENCE':
-            empty_obj.NMSReference_props.reference_path = scene_node.Attribute(
-                'SCENEGRAPH')
+            print(f"Reference node name: {scene_node.Name}")
+            empty_obj.NMSReference_props.reference_path = scene_node.Attribute('SCENEGRAPH')
             if self.from_pak:
                 ref_scene_path = scene_node.Attribute('SCENEGRAPH')
             else:
@@ -732,18 +772,21 @@ class ImportScene():
             if self.from_pak or op.exists(ref_scene_path):
                 if self.settings.get('import_recursively', True):
                     print(f'loading referenced scene: {ref_scene_path}')
-                    sub_scene = ImportScene(
-                        ref_scene_path,
-                        empty_obj,
-                        self.ref_scenes,
-                        self.settings,
-                        self.from_pak,
-                    )
-                    if sub_scene.requires_render:
-                        sub_scene.render_scene()
+                    with witch.section("import_referenced"):
+                        sub_scene = ImportScene(
+                            ref_scene_path,
+                            empty_obj,
+                            self.ref_scenes,
+                            self.settings,
+                            self.from_pak,
+                        )
+                        if sub_scene.requires_render:
+                            sub_scene.render_scene()
             else:
-                print("The reference node {0} has a reference to a path "
-                      "that doesn't exist ({1})".format(name, ref_scene_path))
+                print(
+                    f"The reference node {name} has a reference to a path "
+                    f"that doesn't exist ({ref_scene_path})"
+                )
 
         return empty_obj
 
@@ -779,7 +822,7 @@ class ImportScene():
             if self.parent_obj is not None and scene_node.parent.Name is None:
                 # Direct child of the reference node
                 light_obj.parent = self.parent_obj
-                self.ref_scenes[self.scene_name].append(light_obj)
+                self.ref_scenes[self.scene_path].append(light_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
                 if scene_node.parent in self.local_objects:
@@ -819,7 +862,7 @@ class ImportScene():
         if self.parent_obj is not None and scene_node.parent.Name is None:
             # Direct child of reference node
             bh_obj.parent = self.parent_obj
-            self.ref_scenes[self.scene_name].append(bh_obj)
+            self.ref_scenes[self.scene_path].append(bh_obj)
         elif scene_node.parent.Name is not None:
             # Other child
             if scene_node.parent in self.local_objects:
@@ -915,7 +958,7 @@ class ImportScene():
         if self.parent_obj is not None and scene_node.parent.Name is None:
             # Direct child of reference node
             coll_obj.parent = self.parent_obj
-            self.ref_scenes[self.scene_name].append(coll_obj)
+            self.ref_scenes[self.scene_path].append(coll_obj)
         elif scene_node.parent.Name is not None:
             # Other child
             if scene_node.parent in self.local_objects:
@@ -944,10 +987,8 @@ class ImportScene():
         return coll_obj
 
     def _add_existing_to_scene(self):
-        # existing is a list of child objects to the reference
-        existing = self.ref_scenes[self.scene_name]
-        # for each object
-        for obj in existing:
+        # For each object under the existing scene path, copy and reparent.
+        for obj in self.ref_scenes[self.scene_path]:
             new_obj = obj.copy()
             new_obj.parent = self.parent_obj
             self.scn.collection.objects.link(new_obj)
@@ -1001,7 +1042,7 @@ class ImportScene():
             if self.parent_obj is not None and scene_node.parent.Name is None:
                 # Direct child of reference node
                 mesh_obj.parent = self.parent_obj
-                self.ref_scenes[self.scene_name].append(mesh_obj)
+                self.ref_scenes[self.scene_path].append(mesh_obj)
             elif scene_node.parent.Name is not None:
                 # Other child
                 if scene_node.parent in self.local_objects:
@@ -1040,8 +1081,7 @@ class ImportScene():
         if self.mesh_binding_data is not None:
             first_skin_mat = int(scene_node.Attribute('FIRSTSKINMAT'))
             last_skin_mat = int(scene_node.Attribute('LASTSKINMAT'))
-            skin_mats = self.mesh_binding_data[
-                'SkinMatrixLayout'][first_skin_mat: last_skin_mat]
+            skin_mats = self.mesh_binding_data['SkinMatrixLayout'][first_skin_mat: last_skin_mat]
             for skin_mat in skin_mats:
                 joint = self._find_joint(skin_mat)
                 mesh_obj.vertex_groups.new(name=joint.Name)

@@ -15,15 +15,36 @@ __version__ = "0.5"
 # stdlib imports
 import os
 import subprocess
-from tkinter import Tk, StringVar, Frame, Label, Entry, LEFT, VERTICAL, RIGHT, BOTH, Y, Button
-from tkinter import filedialog, simpledialog, ttk, messagebox
-# Internal imports
-from ..NMS.classes import (List, NMSString0x80, Model, Reference,
-                                   TkResourceDescriptorData, TkGeometryData,
-                                   TkResourceDescriptorList,
-                                   TkModelDescriptorList)
-from .wckToolTips import ToolTipManager
+from tkinter import (
+    BOTH,
+    LEFT,
+    RIGHT,
+    VERTICAL,
+    Button,
+    Entry,
+    Frame,
+    Label,
+    StringVar,
+    Tk,
+    Y,
+    filedialog,
+    messagebox,
+    simpledialog,
+    ttk,
+)
 
+# Internal imports
+from ..NMS.classes import (
+    List,
+    Model,
+    NMSString0x80,
+    Reference,
+    TkGeometryData,
+    TkModelDescriptorList,
+    TkResourceDescriptorData,
+    TkResourceDescriptorList,
+)
+from .wckToolTips import ToolTipManager
 
 tt = ToolTipManager()
 root = Tk()

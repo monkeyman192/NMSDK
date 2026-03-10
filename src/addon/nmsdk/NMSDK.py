@@ -3,6 +3,7 @@
 # stdlib imports
 import os.path as op
 from math import radians
+from typing import TYPE_CHECKING
 
 import bpy
 
@@ -16,11 +17,12 @@ from .BlenderExtensions.UIWidgets import ShowMessageBox
 from .ModelExporter.addon_script import Exporter
 from .ModelExporter.utils import get_all_actions, get_all_actions_in_scene
 
-# internal imports
+if TYPE_CHECKING:
+    from . import NMSDKPreferences
 from .ModelImporter.import_scene import ImportScene
-from .utils.settings import read_settings, write_settings
 from .utils.io import is_subdir
-from .utils.pak_handler import pak_data
+from .utils.settings import read_settings, write_settings
+from .utils.stopwitch import witch
 
 
 def set_import_export_defaults(cls, context):
@@ -95,6 +97,11 @@ class ImportSceneOperator(Operator):
         description="Whether or not to import the models' bones",
         default=False,
     )
+    import_idle_anims: BoolProperty(
+        name='Import idle animations',
+        description='Whether or not to import idle animations for this scene',
+        default=True,
+    )
     import_anims: BoolProperty(
         name='Import animations',
         description='Whether or not to import animations for this scene',
@@ -109,8 +116,7 @@ class ImportSceneOperator(Operator):
 
     def execute(self, context):
         keywords = self.as_keywords()
-        importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict(),
-                               settings=keywords)
+        importer = ImportScene(self.path, parent_obj=None, ref_scenes=dict(), settings=keywords)
         importer.render_scene()
         return importer.state
 
@@ -297,8 +303,7 @@ class _ImportReferencedScene(Operator):
         # imported scene.
         PCBANKS_dir = context.scene.nmsdk_default_settings.PCBANKS_directory
         full_path = op.join(PCBANKS_dir, scene_path)
-        importer = ImportScene(full_path, parent_obj=obj, ref_scenes=dict(),
-                               settings={'clear_scene': False})
+        importer = ImportScene(full_path, parent_obj=obj, ref_scenes=dict(), settings={'clear_scene': False})
         importer.render_scene()
         return importer.state
 
@@ -331,89 +336,6 @@ class _SaveDefaultSettings(Operator):
         # after some time...
         # bpy.types.WorkSpace.status_text_set(text="Settings saved")
         return {'FINISHED'}
-
-
-class _GetPCBANKSFolder(Operator):
-    """Select the PCBANKS folder location"""
-    # Code modified from https://blender.stackexchange.com/a/126596
-    bl_idname = "nmsdk._find_pcbanks"
-    bl_label = "Specify PCBANKS location"
-
-    # Define this to tell 'fileselect_add' that we want a directoy
-    directory: StringProperty(
-        name="PCBANKS path",
-        description="Location of the PCBANKS folder")
-
-    filter_folder: BoolProperty(default=True, options={'HIDDEN'})
-
-    def execute(self, context):
-        # Set the PCBANKS_directory value
-        context.scene.nmsdk_default_settings.PCBANKS_directory = self.directory
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        # Open browser, take reference to 'self' read the path to selected
-        # file, put path in predetermined self fields.
-        # See:
-        # https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add
-        self.directory = context.scene.nmsdk_default_settings.PCBANKS_directory
-        context.window_manager.fileselect_add(self)
-        # Tells Blender to hang on for the slow user input
-        return {'RUNNING_MODAL'}
-
-
-class _RemovePCBANKSFolder(Operator):
-    """Reset the PCBANKS folder location"""
-    bl_idname = "nmsdk._remove_pcbanks"
-    bl_label = "Remove PCBANKS location"
-
-    def execute(self, context):
-        # Set the PCBANKS_directory as blank
-        context.scene.nmsdk_default_settings.PCBANKS_directory = ""
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
-
-
-class _GetMBINCompilerLocation(Operator):
-    """Select the MBINCompiler executable location"""
-    # Code modified from https://blender.stackexchange.com/a/126596
-    bl_idname = "nmsdk._find_mbincompiler"
-    bl_label = "Specify MBINCompiler location"
-
-    filepath: StringProperty(
-        name="MBINCompiler Location",
-        description="Location of the MBINCompiler executable")
-
-    def execute(self, context):
-        # Set the PCBANKS_directory value
-        context.scene.nmsdk_default_settings.MBINCompiler_path = self.filepath
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        # Open browser, take reference to 'self' read the path to selected
-        # file, put path in predetermined self fields.
-        # See:
-        # https://docs.blender.org/api/current/bpy.types.WindowManager.html#bpy.types.WindowManager.fileselect_add
-        self.directory = context.scene.nmsdk_default_settings.MBINCompiler_path
-        context.window_manager.fileselect_add(self)
-        # Tells Blender to hang on for the slow user input
-        return {'RUNNING_MODAL'}
-
-
-class _RemoveMBINCompilerLocation(Operator):
-    """Reset the MBINCompiler executable location"""
-    bl_idname = "nmsdk._remove_mbincompiler"
-    bl_label = "Remove MBINCompiler location"
-
-    def execute(self, context):
-        # Set the PCBANKS_directory as blank
-        context.scene.nmsdk_default_settings.MBINCompiler_path = ""
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
 
 
 # Animation classes and functions
@@ -515,6 +437,7 @@ class _LoadAnimation(Operator):
         loadable_anim_names = context.scene.nmsdk_anim_data.loadable_anim_data
         anim_name = self.loadable_anim_name
         anim_data = loadable_anim_names.pop(anim_name)
+        # TODO: Fix
         bpy.ops.nmsdk.animation_handler(
             anim_name=anim_name,
             anim_path=anim_data['Filename'])
@@ -646,21 +569,13 @@ class NMSDKDefaultSettings(PropertyGroup):
         description="Group name so that models that all belong in the same "
                     "folder are placed there (path becomes group_name/name)",
         default=default_settings.get('group_name', ""))
-    PCBANKS_directory: StringProperty(
-        name="PCBANKS directory",
-        description="Path to the PCBANKS folder",
-        default=default_settings.get('PCBANKS_directory', ""))
-    MBINCompiler_path: StringProperty(
-        name="MBINCompiler location",
-        description="Path to the Mbincompiler executable",
-        default=default_settings.get('MBINCompiler_path', ""))
 
     def save(self):
         """ Save the current settings. """
-        settings = {'export_directory': self.export_directory,
-                    'group_name': self.group_name,
-                    'PCBANKS_directory': self.PCBANKS_directory,
-                    'MBINCompiler_path': self.MBINCompiler_path}
+        settings = {
+            'export_directory': self.export_directory,
+            'group_name': self.group_name,
+        }
         write_settings(settings)
 
 
@@ -818,18 +733,27 @@ class NMS_Export_Operator(Operator, ExportHelper):
         export_path, scene_name = op.split(self.filepath)
         keywords.pop('export_directory')
         keywords.pop('group_name')
-        if not bpy.context.scene.nmsdk_default_settings.MBINCompiler_path:
-            ShowMessageBox("No MBINCompiler specified or found", "Error",
-                           'ERROR')
-            print("[ERROR]: No MBINCompiler specified or found")
-            return {'CANCELLED'}
+        no_convert = keywords.get("no_convert", False)
+        if not no_convert and (
+            not addon_prefs.mbincompiler_path or not op.exists(addon_prefs.mbincompiler_path)
+        ):
+            ShowMessageBox(
+                "No MBINCompiler specified or found - Opening Preferences.",
+                "Error",
+                "ERROR",
+            )
+            bpy.ops.screen.userpref_show()
+            bpy.context.preferences.active_section = "ADDONS"
+            bpy.ops.preferences.addon_show(module=__package__)
+
+            print("[ERROR] No MBINCompiler specified or found - Opening Preferences.")
+            return {"CANCELLED"}
         main_exporter = Exporter(export_path, self.export_directory,
                                  self.group_name, scene_name, keywords)
         status = main_exporter.state
         if main_exporter.warnings:
             invalid_lights = main_exporter.warnings.get('light_is_mesh', [])
-            invalid_lights_msg = ('The following lights are meshes: '
-                                  f'{", ".join(invalid_lights)}')
+            invalid_lights_msg = f'The following lights are meshes: {", ".join(invalid_lights)}'
             self.report({'WARNING'}, invalid_lights_msg)
             print(invalid_lights_msg)
         if status == {'FINISHED'}:
@@ -882,6 +806,11 @@ class NMS_Import_Operator(Operator, ImportHelper):
         name='Import bones',
         description="Whether or not to import the models' bones",
         default=False)
+    import_idle_anims: BoolProperty(
+        name='Import idle animations',
+        description='Whether or not to import idle animations for this scene',
+        default=True,
+    )
     import_anims: BoolProperty(
         name='Import animations',
         description='Whether or not to import animations for this scene',
@@ -921,9 +850,12 @@ class NMS_Import_Operator(Operator, ImportHelper):
         animation_box = layout.box()
         animation_box.label(text='Animation')
         animation_box.prop(self, 'import_bones')
-        animation_box.prop(self, 'import_anims')
-        if self.import_anims:
-            animation_box.prop(self, 'max_anims')
+        if self.import_bones:
+            sub_anim_box = animation_box.box()
+            sub_anim_box.prop(self, "import_idle_anims")
+            sub_anim_box.prop(self, 'import_anims')
+            if self.import_anims:
+                sub_anim_box.prop(self, 'max_anims')
 
         debug_box = layout.box()
         debug_box.label(text='Debug')
@@ -931,37 +863,48 @@ class NMS_Import_Operator(Operator, ImportHelper):
         debug_box.prop(self, 'draw_bounding_box')
 
     def execute(self, context):
-        addon_prefs = context.preferences.addons[__package__].preferences
+        addon_prefs: NMSDKPreferences = context.preferences.addons[__package__].preferences
         keywords = self.as_keywords()
         # set the state of the show_collisions button from the value specified
         # when the import occurs
         context.scene.nmsdk_settings.show_collisions = self.show_collisions
         # Reset the animation data
         context.scene.nmsdk_anim_data.reset()
-        fpath = self.properties.filepath
-        print(f"I want to import {fpath}")
         context.scene['_anim_names'] = ['None']
+
+        # Check we have MBINCompiler found if we are importing an MXML file.
+        fpath: str = self.properties.filepath
+        if fpath.lower().endswith(".mxml"):
+            if not addon_prefs.mbincompiler_path or not op.exists(addon_prefs.mbincompiler_path):
+                ShowMessageBox(
+                    "No MBINCompiler specified or found - Opening Preferences.",
+                    "Error",
+                    "ERROR",
+                )
+                bpy.ops.screen.userpref_show()
+                bpy.context.preferences.active_section = "ADDONS"
+                bpy.ops.preferences.addon_show(module=__package__)
+
+                print("[ERROR] No MBINCompiler specified or found - Opening Preferences.")
+                return {"CANCELLED"}
+        witch.start()
         if is_subdir(fpath, op.join(addon_prefs.pcbanks_dir, ".scene_vfs")):
             _fpath = op.relpath(fpath, op.join(addon_prefs.pcbanks_dir, ".scene_vfs"))
             importer = ImportScene(_fpath, None, {}, keywords, True)
         else:
             importer = ImportScene(fpath, None, {}, keywords)
-        # if not bpy.context.scene.nmsdk_default_settings.MBINCompiler_path:
-        #     ShowMessageBox("No MBINCompiler specified or found", "Error",
-        #                    'ERROR')
-        #     print("[ERROR]: No MBINCompiler specified or found")
-        #     return {'CANCELLED'}
         importer.render_scene()
         status = importer.state
         self.report({'INFO'}, "Models Imported Successfully")
-        print('Scene imported!')
+        witch.stop()
+        # witch.results()
         if status:
             return {'FINISHED'}
         else:
             return {'CANCELLED'}
 
     def invoke(self, context, event):
-        addon_prefs = context.preferences.addons[__package__].preferences
+        addon_prefs: NMSDKPreferences = context.preferences.addons[__package__].preferences
         if addon_prefs.unpacked_pcbanks_dir:
             # Use the preferentially.
             self.filepath = addon_prefs.unpacked_pcbanks_dir

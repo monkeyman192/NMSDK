@@ -1,12 +1,8 @@
 from array import array
 from typing import List
 
-from ..NMS.LOOKUPS import SERIALIZE_FMT_MAP, REV_SEMANTICS
-from .formats import write_half, write_int_2_10_10_10_rev, ubytes_to_bytes
-
-
-def serialize_geometry_stream(data):
-    pass
+from ..NMS.LOOKUPS import REV_SEMANTICS, SERIALIZE_FMT_MAP
+from .formats import ubytes_to_bytes, write_half, write_int_2_10_10_10_rev
 
 
 def serialize_vertex_stream(requires: List[int], count: int, **kwargs):

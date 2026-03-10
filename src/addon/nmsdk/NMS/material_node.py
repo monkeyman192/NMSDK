@@ -3,7 +3,7 @@ import os.path as op
 
 import bpy
 
-from ..ModelImporter.readers import read_material
+from ..serialization.NMS_Structures import MBINHeader, TkMaterialData
 from ..utils.io import load_file, normalise_path, realize_path
 from .LOOKUPS import DIFFUSE, DIFFUSE2, MASKS, NORMAL
 
@@ -23,7 +23,8 @@ def create_material_node(
         if not op.exists(mat_path):
             return
     with load_file(mat_path, local_root_directory, from_pak, pak_data) as f:
-        mat_data = read_material(f)
+        MBINHeader.read(f)
+        mat_data = TkMaterialData.read(f)
     if mat_data is None:
         # no texture data so just exit this function.
         return

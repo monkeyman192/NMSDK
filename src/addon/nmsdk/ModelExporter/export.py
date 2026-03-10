@@ -14,12 +14,15 @@ import struct
 import subprocess
 from collections import OrderedDict as odict
 from itertools import accumulate
+from typing import TYPE_CHECKING
 
 import bpy
 import numpy as np
 
+if TYPE_CHECKING:
+    from .. import NMSDKPreferences
 from ..NMS.classes import TkAttachmentData
-from ..NMS.classes.Object import Model
+from ..NMS.classes.Object import Model, jenkins_one_at_a_time
 from ..NMS.LOOKUPS import SEMANTICS, STRIDES, UVS, VERTS
 from ..serialization.NMS_Structures import MBINHeader
 from ..serialization.NMS_Structures.Structures import (
@@ -34,7 +37,10 @@ from ..serialization.NMS_Structures.Structures import (
 )
 from ..serialization.serializers import serialize_vertex_stream
 from ..serialization.StreamCompiler import StreamData
-from .utils import nmsHash, traverse
+from .utils import traverse
+
+# Get the parent package name.
+_package = __package__.rpartition(".")[0]
 
 
 class Export():
@@ -133,7 +139,7 @@ class Export():
             else:
                 self.c_stream[mesh.Name] = None
             self.chvertex_stream[mesh.Name] = mesh.CHVerts
-            self.mesh_metadata[mesh.Name] = {'hash': nmsHash(mesh.Vertices)}
+            self.mesh_metadata[mesh.Name] = {'hash': jenkins_one_at_a_time(mesh.Name)}
             # also add in the material data to the list
             if mesh.Material is not None:
                 self.materials.add(mesh.Material)
@@ -355,7 +361,7 @@ class Export():
         for i, md in enumerate(mesh_datas):
             StreamMetaDataArray.append(TkMeshMetaData(
                 IdString=md.IdString.upper(),
-                Hash=md.Hash,
+                Hash=jenkins_one_at_a_time(md.IdString),
                 IndexDataOffset=offsets[i][1],
                 IndexDataSize=index_sizes[i],
                 VertexDataOffset=offsets[i][0],
@@ -695,10 +701,10 @@ class Export():
         else:
             dtype = np.uint16
 
-        index_array = np.concatenate(
-            self.np_indexes[mesh_col_offset:] + self.np_indexes[:mesh_col_offset],
-            dtype=dtype,
-        )
+        # Write the index data to an array of bytes then back so that we can fake it being 32bit for
+        # serialization purposes. This is a crappy hack...
+
+        index_array = np.concatenate(self.np_indexes[mesh_col_offset:], dtype=dtype)
         index_array_bytes = index_array.tobytes()
         if (dfct := (len(index_array_bytes) % 4)) != 0:
             index_array_bytes += b"\x00" * (4 - dfct)
@@ -825,11 +831,10 @@ class Export():
                 if os.path.splitext(location)[1].lower() == '.mxml':
                     # Force MBINCompiler to overwrite existing files and
                     # ignore errors.
-                    mbincompiler_path = bpy.context.scene.nmsdk_default_settings.MBINCompiler_path  # noqa
-                    retcode = subprocess.call(
-                        [mbincompiler_path, "-y", "-f", "-Q", location])
+                    addon_prefs: NMSDKPreferences = bpy.context.preferences.addons[_package].preferences
+                    mbincompiler_path = addon_prefs.mbincompiler_path
+                    retcode = subprocess.call([mbincompiler_path, "-y", "-f", "-Q", location])
                     if retcode == 0:
                         os.remove(location)
                     else:
-                        print('MBINCompiler failed to run. Please ensure it '
-                              'is registered on the path.')
+                        print(f"MBINCompiler failed to run with error code {retcode}")

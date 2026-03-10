@@ -8,11 +8,9 @@ import time
 import bpy
 from bpy.props import PointerProperty, StringProperty
 from bpy.utils import register_class, unregister_class
-from bpy.app.handlers import persistent
 
 # extensions to blender UI
 from .BlenderExtensions import ContextMenus, NMSEntities, NMSNodes, NMSPanels, SettingsPanels
-from .ModelImporter.animation_handler import AnimationHandler
 
 # External API operators
 # Main IO operators
@@ -33,21 +31,16 @@ from .NMSDK import (
     _ChangeAnimation,
     _FixActionNames,
     _FixOldFormat,
-    _GetMBINCompilerLocation,
-    _GetPCBANKSFolder,
     _ImportReferencedScene,
     _LoadAnimation,
     _PauseAnimation,
     _PlayAnimation,
     _RefreshAnimations,
-    _RemoveMBINCompilerLocation,
-    _RemovePCBANKSFolder,
     _SaveDefaultSettings,
     _StopAnimation,
     _ToggleCollisionVisibility,
 )
 from .utils.io import hide_path
-from .utils.pak_handler import PakInfo, pak_data
 from .utils.settings import read_settings, write_settings
 
 customNodes = NMSNodes()
@@ -66,12 +59,12 @@ customNodes = NMSNodes()
 
 
 def save_preferences(cls: "NMSDKPreferences", context: bpy.types.Context):
-    print("Saving preferences")
     preferences = cls.as_dict()
     current_settings = read_settings()
     current_pcbanks_dir = current_settings.get("pcbanks_dir")
     new_pcbanks_dir = preferences.get("pcbanks_dir")
-    write_settings(preferences)
+    settings_file = write_settings(preferences)
+    print(f"Saved preferences to {settings_file}")
     from hgpaktool import HGPAKFile
     if new_pcbanks_dir and current_pcbanks_dir != new_pcbanks_dir:
         t0 = time.perf_counter()
@@ -117,14 +110,23 @@ class NMSDKPreferences(bpy.types.AddonPreferences):
         description="Path to your PCBANKS directory itself. This should contain the vanilla game .pak files",
         subtype='DIR_PATH',
         update=save_preferences,
-        default=default_settings.get('pcbanks_dir', "")
+        default=default_settings.get("pcbanks_dir", "")
     )
     unpacked_pcbanks_dir: StringProperty(
         name="Unpacked PCBANKS Directory (Optional)",
         description="Path to your unpacked game files. This is not required.",
         subtype='DIR_PATH',
         update=save_preferences,
-        default=default_settings.get('unpacked_pcbanks_dir', "")
+        default=default_settings.get("unpacked_pcbanks_dir", "")
+    )
+    mbincompiler_path: StringProperty(
+        name="MBINCompiler Executable (Optional)",
+        description=(
+            "Path to the MBINCompiler executable. This is only required if you want to read/write MXML files"
+        ),
+        subtype='FILE_PATH',
+        update=save_preferences,
+        default=default_settings.get("mbincompiler_path", "")
     )
 
     pak_mapping_data: dict[str, str]
@@ -134,11 +136,13 @@ class NMSDKPreferences(bpy.types.AddonPreferences):
         layout.label(text="NMSDK preferences")
         layout.prop(self, "pcbanks_dir")
         layout.prop(self, "unpacked_pcbanks_dir")
+        layout.prop(self, "mbincompiler_path")
 
     def as_dict(self):
         return {
             "pcbanks_dir": self.pcbanks_dir,
-            "unpacked_pcbanks_dir": self.unpacked_pcbanks_dir
+            "unpacked_pcbanks_dir": self.unpacked_pcbanks_dir,
+            "mbincompiler_path": self.mbincompiler_path
         }
 
 
@@ -165,10 +169,6 @@ classes = (
     _FixOldFormat,
     _FixActionNames,
     _ImportReferencedScene,
-    _GetPCBANKSFolder,
-    _RemovePCBANKSFolder,
-    _GetMBINCompilerLocation,
-    _RemoveMBINCompilerLocation,
     _ToggleCollisionVisibility,
     _SaveDefaultSettings,
     _ChangeAnimation,
@@ -177,9 +177,7 @@ classes = (
     _PlayAnimation,
     _PauseAnimation,
     _StopAnimation,
-    AnimationHandler,
     AnimProperties,
-    PakInfo,
 )
 
 
@@ -188,7 +186,6 @@ def register():
     bpy.utils.register_class(NMSDKPreferences)
     for cls in classes:
         register_class(cls)
-    bpy.types.Scene.nmsdk_pak_data = PointerProperty(type=PakInfo)
     bpy.types.Scene.nmsdk_settings = PointerProperty(type=NMSDKSettings)
     bpy.types.Scene.nmsdk_default_settings = PointerProperty(
         type=NMSDKDefaultSettings)
@@ -209,7 +206,6 @@ def unregister():
     del bpy.types.Scene.nmsdk_settings
     del bpy.types.Scene.nmsdk_default_settings
     del bpy.types.Scene.nmsdk_anim_data
-    del bpy.types.Scene.nmsdk_pak_data
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
     NMSPanels.unregister()

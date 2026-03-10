@@ -4,9 +4,14 @@
 
 __author__ = "monkeyman192"
 
+from ..NMS.classes import (
+    List,
+    NMSString0x80,
+    TkModelDescriptorList,
+    TkResourceDescriptorData,
+    TkResourceDescriptorList,
+)
 from ..utils.misc import get_obj_name
-from ..NMS.classes import (List, TkModelDescriptorList, NMSString0x80,
-                           TkResourceDescriptorList, TkResourceDescriptorData)
 from .utils import get_children
 
 

@@ -2,13 +2,17 @@
 # Each object in blender will be passed into this class. Any children are added
 # as child objects.
 
+from collections import OrderedDict as odict
 from typing import Optional
 
-from ...serialization.NMS_Structures.Structures import TkSceneNodeAttributeData, TkSceneNodeData, TkTransformData
+from ...serialization.NMS_Structures.Structures import (
+    TkSceneNodeAttributeData,
+    TkSceneNodeData,
+    TkTransformData,
+)
+from .List import List
 from .TkMaterialData import TkMaterialData
 from .TkPhysicsComponentData import TkPhysicsComponentData
-from .List import List
-from collections import OrderedDict as odict
 
 TYPES = ['MESH', 'LOCATOR', 'COLLISION', 'MODEL', 'REFERENCE']
 
@@ -264,29 +268,20 @@ class Light(Object):
 
     def create_attributes(self, data: dict, ignore_original: bool = False):
         self.Attributes = [
-            TkSceneNodeAttributeData(Name='FOV',
-                                     Value=f'{self.FOV:.6f}'),
-            TkSceneNodeAttributeData(Name='FALLOFF',
-                                     Value='quadratic'),
-            TkSceneNodeAttributeData(Name='FALLOFF_RATE',
-                                     Value='2.000000'),
-            TkSceneNodeAttributeData(Name='INTENSITY',
-                                     Value=f'{self.Intensity:.6f}'),
-            TkSceneNodeAttributeData(Name='COL_R',
-                                     Value=f'{self.Colour[0]:.6f}'),
-            TkSceneNodeAttributeData(Name='COL_G',
-                                     Value=f'{self.Colour[1]:.6f}'),
-            TkSceneNodeAttributeData(Name='COL_B',
-                                     Value=f'{self.Colour[2]:.6f}'),
+            TkSceneNodeAttributeData(Name='FOV', Value=f'{self.FOV:.6f}'),
+            TkSceneNodeAttributeData(Name='FALLOFF', Value='2.000000'),
+            TkSceneNodeAttributeData(Name='INTENSITY', Value=f'{self.Intensity:.6f}'),
+            TkSceneNodeAttributeData(Name='RADIUS', Value='6.324555'),
+            TkSceneNodeAttributeData(Name='COL_R', Value=f'{self.Colour[0]:.6f}'),
+            TkSceneNodeAttributeData(Name='COL_G', Value=f'{self.Colour[1]:.6f}'),
+            TkSceneNodeAttributeData(Name='COL_B', Value=f'{self.Colour[2]:.6f}'),
             # These two values will be hard-coded until they are understood
             # well enough to modify them to be anything other than their
             # default values.
-            TkSceneNodeAttributeData(Name='COOKIE_IDX',
-                                     Value='-1'),
-            TkSceneNodeAttributeData(Name='VOLUMETRIC',
-                                     Value='0.000000'),
-            TkSceneNodeAttributeData(Name='MATERIAL',
-                                     Value='MATERIALS/LIGHT.MATERIAL.MBIN')
+            TkSceneNodeAttributeData(Name='COOKIE_IDX', Value='-1'),
+            TkSceneNodeAttributeData(Name='VOLUMETRIC', Value='0.000000'),
+            TkSceneNodeAttributeData(Name='LIGHTLAYERS', Value='3'),
+            TkSceneNodeAttributeData(Name='MATERIAL', Value='MATERIALS/LIGHT.MATERIAL.MBIN'),
         ]
 
 
@@ -468,6 +463,9 @@ class Collision(Object):
         self.Attributes = [TkSceneNodeAttributeData(Name="TYPE",
                                                     Value=self.CType)]
         if self.CType == 'Mesh':
+            self.Attributes.append(
+                TkSceneNodeAttributeData(Value="FALSE", Name='NAVIGATION')
+            )
             self.Attributes.append(
                 TkSceneNodeAttributeData(
                     Name='BATCHSTART',

@@ -63,26 +63,6 @@ class NMSDK_PT_DefaultsPanel(bpy.types.Panel):
         layout = self.layout
         layout.prop(default_settings, 'export_directory')
         layout.prop(default_settings, 'group_name')
-        row = layout.split(factor=0.85, align=True)
-        row.alignment = 'LEFT'
-        row.operator("nmsdk._find_pcbanks", icon='ZOOM_ALL',
-                     text='PCBANKS location')
-        row.separator()
-        row.operator('nmsdk._remove_pcbanks',
-                     icon='X', emboss=False, text="Remove PCBANKS directory")
-        _dir = context.scene.nmsdk_default_settings.PCBANKS_directory
-        if _dir != "":
-            layout.label(text=_dir)
-        row = layout.split(factor=0.85, align=True)
-        row.alignment = 'LEFT'
-        row.operator("nmsdk._find_mbincompiler", icon='ZOOM_ALL',
-                     text='MBINCompiler location')
-        row.separator()
-        row.operator('nmsdk._remove_mbincompiler',
-                     icon='X', emboss=False, text="Remove MBINCompiler path")
-        _dir = context.scene.nmsdk_default_settings.MBINCompiler_path
-        if _dir != "":
-            layout.label(text=_dir)
         layout.operator("nmsdk._save_default_settings", icon='FILE_TICK',
                         text='Save settings')
 

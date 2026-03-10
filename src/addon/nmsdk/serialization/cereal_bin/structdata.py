@@ -2,7 +2,8 @@ import inspect
 import struct
 from dataclasses import dataclass
 from io import BufferedReader, BufferedWriter, BytesIO
-from typing import Any, Optional, Type, TypeVar
+from types import GenericAlias
+from typing import Any, Optional, Type, TypeVar, Union
 
 T = TypeVar("T", bound="datatype")
 N = TypeVar("N", bound=int)
@@ -179,7 +180,7 @@ class datatype(metaclass=AlignedData):
             return cls.read(buf)
 
     @classmethod
-    def read(cls: Type[T], buf: BufferedReader) -> T:
+    def read(cls: Type[T], buf: Union[BytesIO, BufferedReader]) -> T:
         cls_ = cls.__new__(cls)
         for name, pytype in cls_.__annotations__.items():
             if name.startswith("_"):
@@ -190,7 +191,11 @@ class datatype(metaclass=AlignedData):
                 print(name, pytype, type(pytype))
                 raise
             type_: datatype = meta.datatype
-            if isinstance(pytype.__origin__, list):
+            if (
+                isinstance(origin := pytype.__origin__, GenericAlias)
+                and issubclass(origin.__origin__, list)
+                and meta.length
+            ):
                 data = []
                 for _ in range(meta.length):
                     data.append(type_._read(buf, meta))

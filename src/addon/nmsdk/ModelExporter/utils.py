@@ -1,13 +1,9 @@
 # Miscellaneous useful functions
 
-# stdlib imports
-from array import array
-from hashlib import sha256
-from typing import Tuple
 # blender imports
 import bpy
-from mathutils import Matrix, Vector
-
+from mathutils import Matrix, Vector, Quaternion
+from ..serialization.NMS_Structures.NMS_types import Vector4f
 
 ALL_TYPES = ['Reference', 'Mesh', 'Locator', 'Collision', 'Light', 'Joint']
 
@@ -112,21 +108,6 @@ def movetoindex(lst, i, index):
     return lst[:index] + [k] + lst[index:]
 
 
-def nmsHash(data):
-    """
-    Lazy hash function for mesh data
-    This is simply the last 16 hexadecimal digits of a sha256 hash.
-    Also just take the first 16 verts to save time...
-    """
-    if isinstance(data, list):
-        d = array('f')
-        for verts in data[:16]:
-            d.extend(verts)
-    else:
-        d = data
-    return int(sha256(d).hexdigest()[-16:], 16)
-
-
 def traverse(obj):
     # a custom generator to iterate over the tree of all the children on the
     # scene (including the Model object)
@@ -169,8 +150,8 @@ def apply_local_transform(rotmat, data, normalize=True, use_norm_mat=False):
         data[i] = (_data[0], _data[1], _data[2], 1.0)
 
 
-def calc_tangents(verts: Tuple[Vector],
-                  uvs: Tuple[Vector],
+def calc_tangents(verts: tuple[Vector, Vector, Vector],
+                  uvs: tuple[Vector, Vector, Vector],
                   normal: Vector) -> Vector:
     """ Calculate the tangents of 3 consecutive points in a polygon.
     This is a bit different to normal tangent calculation as we are not doing
@@ -189,6 +170,23 @@ def calc_tangents(verts: Tuple[Vector],
     t = tang - (normal * normal.dot(tang))
     t.normalize()
     return t
+
+
+def transform_to_matrix(loc: Vector4f, rot: tuple[float, float, float, float], sca: Vector4f) -> Matrix:
+    # Translation matrix
+    mat_loc = Matrix.Translation(loc)
+
+    # Rotation matrix
+    mat_rot = Quaternion([rot[3], *rot[0: 3]])
+    mat_rot = mat_rot.to_matrix().to_4x4()
+
+    # Scale Matrix
+    mat_scax = Matrix.Scale(sca[0], 4, (1, 0, 0))
+    mat_scay = Matrix.Scale(sca[1], 4, (0, 1, 0))
+    mat_scaz = Matrix.Scale(sca[2], 4, (0, 0, 1))
+    mat_sca = mat_scax @ mat_scay @ mat_scaz
+
+    return mat_loc @ mat_rot @ mat_sca
 
 
 def transform_to_NMS_coords(ob):

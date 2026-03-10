@@ -1,35 +1,42 @@
-# stdlib imports
-from math import radians, degrees
 import os
 import os.path as op
 import shutil
-# blender imports
-import bpy
-from bpy.types import Mesh as BlenderMesh
-from bpy.types import Light as BlenderLight
+from math import degrees, radians
+
 import bmesh
+import bpy
+import numpy as np
+from bpy.types import Light as BlenderLight
+from bpy.types import Mesh as BlenderMesh
 from idprop.types import IDPropertyGroup
 from mathutils import Matrix, Vector
-# Internal imports
-from .utils import calc_tangents
-from ..utils.misc import CompareMatrices, get_obj_name
-from ..utils.image_convert import convert_image
-from .animations import process_anims
-from .export import Export
-from .Descriptor import Descriptor
-from ..NMS.classes import (TkMaterialData, TkMaterialFlags, TkVolumeTriggerType,
-                           TkMaterialSampler, TkMaterialUniform_Float, TkMaterialUniform_UInt,
-                           TkRotationComponentData, TkPhysicsComponentData)
-from ..NMS.classes import TkAnimationComponentData, TkAnimationData
-from ..NMS.classes import List, Vector4f, Vector4i
-from ..NMS.classes import TkAttachmentData
-from ..NMS.classes.Object import Object, Model, Mesh, Locator, Reference, Collision, Light, Joint
+
+from ..NMS.classes import (
+    List,
+    TkAnimationComponentData,
+    TkAnimationData,
+    TkAttachmentData,
+    TkMaterialData,
+    TkMaterialFlags,
+    TkMaterialSampler,
+    TkMaterialUniform_Float,
+    TkMaterialUniform_UInt,
+    TkPhysicsComponentData,
+    TkRotationComponentData,
+    TkVolumeTriggerType,
+    Vector4f,
+    Vector4i,
+)
+from ..NMS.classes.Object import Collision, Joint, Light, Locator, Mesh, Model, Object, Reference
 from ..NMS.LOOKUPS import MATERIALFLAGS
-from .ActionTriggerParser import ParseNodes
 from ..serialization.NMS_Structures.Structures import TkTransformData
-
-import numpy as np
-
+from ..utils.image_convert import convert_image
+from ..utils.misc import CompareMatrices, get_obj_name
+from .ActionTriggerParser import ParseNodes
+from .animations import process_anims
+from .Descriptor import Descriptor
+from .export import Export
+from .utils import calc_tangents
 
 ROT_X_MAT = Matrix.Rotation(radians(-90), 4, 'X')
 
