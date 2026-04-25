@@ -118,7 +118,7 @@ def get_NMS_dir(fpath: Optional[str]) -> Optional[str]:
         # We need to go back until we find a folder with a 'MODELS' folder in
         # it.
         for parent in path.parents:
-            if Path(parent, 'MODELS').exists():
+            if Path(parent, 'MODELS').exists() or Path(parent, 'CUSTOMMODELS').exists():
                 return str(parent)
 
 
@@ -141,8 +141,10 @@ def base_path(abs_path: str, rel_path: str):
         return ''
 
 
-def post_path(full_path: str, base_path: str):
+def post_path(full_path: str, base_path: Optional[str]):
     """ Return the part of `full_path` after the `base_part` component."""
+    if base_path is None:
+        return None
     if not is_subdir(full_path, base_path):
         return None
     f_parts = list(Path(full_path.lower()).parts)
