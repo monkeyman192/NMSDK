@@ -100,6 +100,7 @@ class ImportScene():
     ):
         self.from_pak = from_pak
         self.ref_scenes = ref_scenes or {}
+        self.parent_obj = parent_obj
 
         addon_prefs: NMSDKPreferences = bpy.context.preferences.addons[_package].preferences
         if self.from_pak:
@@ -132,6 +133,24 @@ class ImportScene():
         if self.scene_basename.lower().endswith(".scene"):
             self.scene_basename = self.scene_basename[:-6]
 
+        # Annoyingly, some nodes may have the same name. As we traverse the
+        # tree in order we should be able to just have the index stored here
+        # and increment as needed.
+        self.name_clash_orders = dict()
+
+        self.settings = settings
+        self.dep_graph = bpy.context.evaluated_depsgraph_get()
+        # When scenes contain reference nodes there can be clashes with names.
+        # To ensure correct parenting of objects in blender, we will keep track
+        # of what objects exist within a scene as there will be no name clashes
+        # within each scene.
+        self.local_objects = dict()
+
+        self.requires_render = True
+        self.has_errors = False
+        self.scn = bpy.context.scene
+        self.scene_ctx = SceneOp(bpy.context)
+
         # To optimise loading of referenced scenes, check to see if the current scene has already been loaded
         # into blender. If so, simply make a copy of the mesh object and place it appropriately.
         if self.scene_path in self.ref_scenes:
@@ -151,25 +170,6 @@ class ImportScene():
                 pass
             # There will be only one file here...
             self.scene_path = op.join(tmpdir, os.listdir(tmpdir)[0])
-
-        # Annoyingly, some nodes may have the same name. As we traverse the
-        # tree in order we should be able to just have the index stored here
-        # and increment as needed.
-        self.name_clash_orders = dict()
-
-        self.parent_obj = parent_obj
-        self.settings = settings
-        self.dep_graph = bpy.context.evaluated_depsgraph_get()
-        # When scenes contain reference nodes there can be clashes with names.
-        # To ensure correct parenting of objects in blender, we will keep track
-        # of what objects exist within a scene as there will be no name clashes
-        # within each scene.
-        self.local_objects = dict()
-
-        self.requires_render = True
-        self.has_errors = False
-        self.scn = bpy.context.scene
-        self.scene_ctx = SceneOp(bpy.context)
 
         # Find the local name of the scene (relative to the NMS PCBANKS dir)
         # This needs to be read from the mbin file, so ensure we are either

@@ -6,6 +6,7 @@ import os.path as op
 import time
 
 import bpy
+from bpy.types import Operator
 from bpy.props import PointerProperty, StringProperty
 from bpy.utils import register_class, unregister_class
 
@@ -98,6 +99,51 @@ def save_preferences(cls: "NMSDKPreferences", context: bpy.types.Context):
         print(f"Loaded {counter} scenes into VFS in {t1 - t0:.4f}s")
 
 
+class IndexPAKPath(Operator):
+    """Index all the pak files"""
+    bl_idname = "nmsdk.index_paks"
+    bl_label = ""
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        from hgpaktool import HGPAKFile
+
+        addon_prefs: NMSDKPreferences = context.preferences.addons[__package__].preferences
+
+        t0 = time.perf_counter()
+        out_dir = op.join(addon_prefs.pcbanks_dir, ".scene_vfs")
+        if not op.exists(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
+            hide_path(out_dir)
+        print("Creating vfs... This may take a little while (but it will be worth it!)")
+        index = {}
+        counter = 0
+        for pakfname in os.listdir(addon_prefs.pcbanks_dir):
+            if pakfname.lower().endswith(".pak"):
+                with HGPAKFile(op.join(addon_prefs.pcbanks_dir, pakfname)) as pak:
+                    for fname in pak.filenames:
+                        lfname = fname.lower()
+                        if lfname.endswith(".scene.mbin"):
+                            counter += 1
+                            dest_fname = op.join(out_dir, lfname)
+                            if not op.exists(dest_fname):
+                                dest_dir = op.join(out_dir, op.dirname(fname))
+                                os.makedirs(dest_dir, exist_ok=True)
+                                with open(dest_fname, "w"):
+                                    pass
+                    for fname in pak.filenames:
+                        index[fname] = pakfname
+        with open(op.join(out_dir, "index.json"), "w") as f:
+            json.dump(index, f)
+        t1 = time.perf_counter()
+        print(f"Loaded {counter} scenes into VFS in {t1 - t0:.4f}s")
+
+        return {'FINISHED'}
+
+
 class NMSDKPreferences(bpy.types.AddonPreferences):
     # This must match the add-on name, use `__package__`
     # when defining this for add-on extensions or a sub-module of a Python package.
@@ -134,7 +180,9 @@ class NMSDKPreferences(bpy.types.AddonPreferences):
     def draw(self, context):
         layout = self.layout
         layout.label(text="NMSDK preferences")
-        layout.prop(self, "pcbanks_dir")
+        row = layout.row(align=True)
+        row.prop(self, "pcbanks_dir")
+        row.operator("nmsdk.index_paks", icon="FILE_REFRESH", text_ctxt="Refresh pak index")
         layout.prop(self, "unpacked_pcbanks_dir")
         layout.prop(self, "mbincompiler_path")
 
@@ -183,6 +231,7 @@ classes = (
 
 def register():
     # bpy.app.handlers.load_post.append(load_vfs_data)
+    bpy.utils.register_class(IndexPAKPath)
     bpy.utils.register_class(NMSDKPreferences)
     for cls in classes:
         register_class(cls)
@@ -215,6 +264,7 @@ def unregister():
     SettingsPanels.unregister()
     ContextMenus.unregister()
     bpy.utils.unregister_class(NMSDKPreferences)
+    bpy.utils.unregister_class(IndexPAKPath)
     # bpy.app.handlers.load_post.remove(load_vfs_data)
 
 

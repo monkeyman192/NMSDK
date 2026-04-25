@@ -728,6 +728,7 @@ class NMS_Export_Operator(Operator, ExportHelper):
             animations_box.prop(self, 'idle_anim')
 
     def execute(self, context):
+        addon_prefs: NMSDKPreferences = context.preferences.addons[__package__].preferences
         keywords = self.as_keywords()
         # Split the filepath provided as the final part is the name of the file
         export_path, scene_name = op.split(self.filepath)

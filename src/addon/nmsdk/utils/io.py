@@ -2,6 +2,7 @@
 import ctypes
 import os
 import os.path as op
+import platform
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -15,8 +16,11 @@ import bpy
 from hgpaktool import HGPAKFile
 from hgpaktool.utils import normalise_path
 
-# This function is used to make files hidden on windows.
-ctypes.windll.kernel32.SetFileAttributesW.argtypes = (ctypes.c_wchar_p, ctypes.c_uint32)
+IS_WINDOWS = platform.system().lower() == "windows"
+
+if IS_WINDOWS:
+    # This function is used to make files hidden on windows.
+    ctypes.windll.kernel32.SetFileAttributesW.argtypes = (ctypes.c_wchar_p, ctypes.c_uint32)
 
 # Get the parent package name.
 _package = __package__.rpartition(".")[0]
@@ -69,6 +73,8 @@ def load_file_unsafe(fpath: Union[str, os.PathLike[str]], root_dir: str, from_pa
 
 
 def hide_path(fpath: str):
+    if not IS_WINDOWS:
+        return
     FILE_ATTRIBUTE_HIDDEN = 0x02
 
     ret = ctypes.windll.kernel32.SetFileAttributesW(fpath, FILE_ATTRIBUTE_HIDDEN)

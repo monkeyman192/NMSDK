@@ -704,10 +704,13 @@ class Export():
         # Write the index data to an array of bytes then back so that we can fake it being 32bit for
         # serialization purposes. This is a crappy hack...
 
-        index_array = np.concatenate(self.np_indexes[mesh_col_offset:], dtype=dtype)
-        index_array_bytes = index_array.tobytes()
-        if (dfct := (len(index_array_bytes) % 4)) != 0:
-            index_array_bytes += b"\x00" * (4 - dfct)
+        if (mesh_cols := self.np_indexes[mesh_col_offset:]):
+            index_array = np.concatenate(mesh_cols, dtype=dtype)
+            index_array_bytes = index_array.tobytes()
+            if (dfct := (len(index_array_bytes) % 4)) != 0:
+                index_array_bytes += b"\x00" * (4 - dfct)
+        else:
+            index_array_bytes = b""
 
         self.GeometryData['IndexBuffer'] = np.frombuffer(index_array_bytes, dtype=np.uint32)
 

@@ -24,10 +24,9 @@ jobs:
           python-version: "3.9"
       - name: Install dependencies
         run: python -m pip install flake8 mkdocs
-      # - name: Lint code
-      #   run: flake8 .
       - name: Build docs
         run: mkdocs build
+      # TODO: This needs to be fixed. Probably pull blenderkit/headless-blender:blender-5.0 and use it for building...
       - name: Build release
         run: |
           python ./tools/build.py

@@ -79,13 +79,19 @@ def create_material_node(
     for tex_type, tex_path in samplers.items():
         img = None
         if from_pak:
-            with load_file(tex_path, local_root_directory, from_pak, pak_data) as f:
-                dst_fpath = op.join(local_root_directory, ".scene_vfs", tex_path.lower())
-                os.makedirs(op.dirname(dst_fpath), exist_ok=True)
-                with open(dst_fpath, "wb") as tmp:
-                    tmp.write(f.getvalue())
-                img = bpy.data.images.load(dst_fpath)
-                # img.filepath = tex_path
+            try:
+                with load_file(tex_path, local_root_directory, from_pak, pak_data) as f:
+                    dst_fpath = op.join(local_root_directory, ".scene_vfs", tex_path.lower())
+                    os.makedirs(op.dirname(dst_fpath), exist_ok=True)
+                    with open(dst_fpath, "wb") as tmp:
+                        tmp.write(f.getvalue())
+                    img = bpy.data.images.load(dst_fpath)
+            except ValueError as e:
+                print(
+                    f"Warning: The material file {tex_path} had the following error when loading: {str(e)}\n"
+                    "This file will not be loaded and textures may look broken"
+                )
+                return
         else:
             _path = realize_path(tex_path, local_root_directory)
             if _path is not None and op.exists(_path):

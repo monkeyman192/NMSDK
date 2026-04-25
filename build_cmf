@@ -1,1 +1,1 @@
-blender --command extension build --source-dir "C:\Users\msval\Documents\GitHub\NMSDK\addons\NMSDK\src\addon\nmsdk"
+blender --command extension build --source-dir "src\addon\nmsdk"
