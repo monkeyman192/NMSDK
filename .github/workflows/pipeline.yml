@@ -76,7 +76,7 @@ jobs:
           name: "${{ env.TAG }}"
           tag_name: ${{ env.TAG }}
           prerelease: ${{ contains(env.VERSION, 'alpha') }}
-          files: nmsdk.zip
+          files: nmsdk-${{ env.VERSION }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # TODO: Also upload site.
