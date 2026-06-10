@@ -1,0 +1,48 @@
+[project]
+name = "NMSDK"
+description = "Blender plugin to import and export NMS scenes"
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = ["modelling", "games", "modding"]
+authors = [
+  {name = "monkeyman192"}
+]
+maintainers = [
+  {name = "monkeyman192"}
+]
+dependencies = [
+  "fake-bpy-module",
+  "hgpaktool",
+  "numpy",
+]
+dynamic = ["version"]
+
+[tool.uv]
+python-preference = "only-system"
+
+[tool.setuptools.package-dir]
+NMSDK = "src/addon/nmsdk"
+
+[tool.setuptools_scm]
+local_scheme = "no-local-version"
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+preview = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.extend-per-file-ignores]
+"cpptypes.py" = ["E501"]
+
+[project.urls]
+homepage = "https://github.com/monkeyman192/NMSDK"
+repository = "https://github.com/monkeyman192/NMSDK.git"
+
+[build-system]
+requires = ["setuptools>=64", "wheel", "setuptools-scm>=8", "setuptools_scm_git_semver"]
+build-backend = "setuptools.build_meta"

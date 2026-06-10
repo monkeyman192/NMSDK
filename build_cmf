@@ -1,0 +1,1 @@
+blender --command extension build --source-dir "src\addon\nmsdk"

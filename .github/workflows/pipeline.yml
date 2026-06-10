@@ -17,35 +17,43 @@ jobs:
     outputs:
       nmsdk_version: ${{ steps.get_nmsdk_version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.9"
+          python-version: "3.11"
       - name: Install dependencies
         run: python -m pip install flake8 mkdocs
-      # - name: Lint code
-      #   run: flake8 .
       - name: Build docs
         run: mkdocs build
-      - name: Build release
+      - name: Install blender
         run: |
-          python ./tools/build.py
-          Expand-Archive build/nmsdk.zip -DestinationPath ./nmsdk
+          BLENDER_EXACT_VERSION="5.1.2"
+          BLENDER_GENERAL_VERSION="5.1"
+          BLENDER_ARCHIVE="blender-${BLENDER_EXACT_VERSION}-windows-x64.zip"
+          BLENDER_URL="https://download.blender.org/release/Blender${BLENDER_GENERAL_VERSION}/${BLENDER_ARCHIVE}"
+          curl -L ${BLENDER_URL} -o ${BLENDER_ARCHIVE}
+          unzip -qq ${BLENDER_ARCHIVE}
+          mv blender-${BLENDER_EXACT_VERSION}-windows-x64 blender
+          ls blender
+        shell: bash
+      - name: Build release
+        run: ./blender/blender.exe --command extension build --source-dir "src\addon\nmsdk"
       - name: Get NMSDK tag version
         id: get_nmsdk_version
-        run: echo "version=$(Tools/read_nmsdk_version.sh)" >> $GITHUB_OUTPUT
+        run: echo "version=$(python get_version.py)" >> $GITHUB_OUTPUT
         shell: bash
       - name: Upload plugin zip for release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: NMSDK
-          path: nmsdk
-      - name: Upload website for release
-        uses: actions/upload-artifact@v4
-        with:
-          name: NMSDK_site
-          path: html_docs/*
+          name: NMSDK_plugin
+          path: nmsdk-${{ steps.get_nmsdk_version.outputs.version }}.zip
+          archive: false
+      # - name: Upload website for release
+        # uses: actions/upload-artifact@v7
+        # with:
+        #   name: NMSDK_site
+        #   path: html_docs/*
   release:
     name: Release NMSDK zip and publish docs
     # Only run this job if the commit was tagged.
@@ -56,28 +64,21 @@ jobs:
       VERSION: ${{ needs.build.outputs.nmsdk_version }}
     steps:
       - name: Download files for release
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
-          name: NMSDK
+          name: NMSDK_plugin
+          skip-decompress: true
       - name: Get tagged version
         run: echo "TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
         shell: bash
       - name: Upload resources if version matches
         if: env.VERSION == env.TAG
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: "${{ env.TAG }}"
           tag_name: ${{ env.TAG }}
-          prerelease: false
+          prerelease: ${{ contains(env.VERSION, 'alpha') }}
           files: nmsdk.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # TODO: Also upload site.
-      - name: Check if tag doesn't match version
-        if: env.VERSION != env.TAG
-        run: |
-          echo "There is a version mismatch between the tag and NMSDK version!"
-          echo "NMSDK version: ${{ env.VERSION }}"
-          echo "Tag version: ${{ env.TAG }}"
-          exit 1
-        shell: bash
