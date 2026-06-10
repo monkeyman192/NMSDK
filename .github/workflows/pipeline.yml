@@ -41,18 +41,12 @@ jobs:
         run: ./blender/blender.exe --command extension build --source-dir "src\addon\nmsdk"
       - name: Get NMSDK tag version
         id: get_nmsdk_version
-        run: |
-          VERSION=$(python get_version.py)
-          echo $VERSION
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        run: echo "version=$(python get_version.py)" >> $GITHUB_OUTPUT
         shell: bash
-      - name: TEST
-        run: |
-          echo $VERSION
-          echo "${{ steps.get_nmsdk_version.outputs.version }}"
       - name: Upload plugin zip for release
         uses: actions/upload-artifact@v7
         with:
+          name: NMSDK_plugin
           path: nmsdk-${{ steps.get_nmsdk_version.outputs.version }}.zip
           archive: false
       # - name: Upload website for release
@@ -70,28 +64,21 @@ jobs:
       VERSION: ${{ needs.build.outputs.nmsdk_version }}
     steps:
       - name: Download files for release
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
-          name: NMSDK
+          name: NMSDK_plugin
+          skip-decompress: true
       - name: Get tagged version
         run: echo "TAG=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
         shell: bash
       - name: Upload resources if version matches
         if: env.VERSION == env.TAG
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: "${{ env.TAG }}"
           tag_name: ${{ env.TAG }}
-          prerelease: false
+          prerelease: ${{ contains(env.VERSION, 'alpha') }}
           files: nmsdk.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # TODO: Also upload site.
-      - name: Check if tag doesn't match version
-        if: env.VERSION != env.TAG
-        run: |
-          echo "There is a version mismatch between the tag and NMSDK version!"
-          echo "NMSDK version: ${{ env.VERSION }}"
-          echo "Tag version: ${{ env.TAG }}"
-          exit 1
-        shell: bash
