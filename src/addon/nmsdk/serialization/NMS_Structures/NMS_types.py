@@ -1,13 +1,12 @@
-from dataclasses import dataclass
-from io import BufferedWriter, BufferedReader
 import struct
-from typing import Annotated, Type, TypeVar, Optional, Union
 import types
+from dataclasses import dataclass
+from io import BufferedReader, BufferedWriter
+from typing import Annotated, Optional, Type, TypeVar, Union
 
-from ..utils import bytes_to_quat
-from ..cereal_bin.structdata import datatype, Field
 from ..cereal_bin import basic_types as bt
-
+from ..cereal_bin.structdata import Field, datatype
+from ..utils import bytes_to_quat
 
 T = TypeVar("T", bound=datatype)
 

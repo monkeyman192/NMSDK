@@ -2,7 +2,7 @@ import struct
 from contextvars import ContextVar
 from dataclasses import dataclass
 from io import BufferedReader, BufferedWriter
-from typing import Annotated, Type
+from typing import Annotated, Generator, Type, TypeVar
 
 from ..cereal_bin import basic_types as bt
 from ..cereal_bin.structdata import Field, datatype
@@ -18,6 +18,9 @@ from .NMS_types import (
 )
 
 ctx_nonignored_namehashes: ContextVar[set[int]] = ContextVar("ctx_nonignored_namehashes", default=set())
+
+
+T = TypeVar("T")
 
 
 class NMSTemplate(datatype):
@@ -119,11 +122,12 @@ class TkMaterialData(datatype):
     Uniforms_UInt: Annotated[list[TkMaterialUniform_UInt], Field(datatype=NMS_list[TkMaterialUniform_UInt])]
     ShaderMillDataHash: Annotated[int, Field(bt.int64)]
     TransparencyLayerID: Annotated[int, Field(bt.int32)]
-    Class: Annotated[str, Field(bt.string, 0x20)]
     CastShadow: Annotated[bool, Field(bt.boolean)]
+    Class: Annotated[int, Field(bt.int8)]
     CreateFur: Annotated[bool, Field(bt.boolean)]
     DisableZTest: Annotated[bool, Field(bt.boolean)]
     EnableLodFade: Annotated[bool, Field(bt.boolean)]
+    UseShaderMill: Annotated[bool, Field(bt.boolean)]
 
 
 # Geometry structures
@@ -260,9 +264,15 @@ class TkTransformData(datatype):
 
 
 @dataclass
+class TkInstanceTransformData(datatype):
+    Matrix: Annotated[list[float], Field(bt.single, length=0x10)]
+
+
+@dataclass
 class TkSceneNodeData(datatype):
     Attributes: Annotated[list[TkSceneNodeAttributeData], Field(NMS_list[TkSceneNodeAttributeData])]
     Children: list["TkSceneNodeData"]
+    InstanceTransforms: Annotated[list[TkInstanceTransformData], Field(NMS_list[TkInstanceTransformData])]
     Name: Annotated[str, Field(VariableSizeString)]
     Type: Annotated[str, Field(bt.string, length=0x10)]
     Transform: Annotated[TkTransformData, Field(TkTransformData)]
@@ -328,8 +338,9 @@ class TkModelDescriptorList(datatype):
 class TkAttachmentData(datatype):
     AdditionalData: Annotated[list[NMSTemplate], Field(NMS_list[NMSTemplate])]
     Components: Annotated[list[LinkableNMSTemplate], Field(NMS_list[LinkableNMSTemplate])]
+    LodDistances: Annotated[list[float], Field(bt.single, length=5)]
 
-    def iter_attachments(self, type_: Type):
+    def iter_attachments(self, type_: Type[T]) -> Generator[T, None, None]:
         for att in self.AdditionalData:
             if isinstance(att, type_):
                 yield att
@@ -363,7 +374,13 @@ class TkAnimationNotify(datatype):
     Data: Annotated[NMSTemplate, Field(NMSTemplate)]
     EndFrame: Annotated[float, Field(bt.single)]
     StartFrame: Annotated[float, Field(bt.single)]
-    Track: Annotated[int, Field(bt.int32)]
+
+
+@dataclass
+class TkAnimationLimbPlant(datatype):
+    Limb: Annotated[str, Field(bt.string, length=0x10)]
+    EndFrame: Annotated[float, Field(bt.single)]
+    StartFrame: Annotated[float, Field(bt.single)]
 
 
 @dataclass
@@ -375,6 +392,7 @@ class TkAnimationData(datatype):
     Anim: Annotated[str, Field(bt.string, length=0x10)]
     ExtraStartNodes: Annotated[list[str], Field(NMS_list[NMSString0x40])]
     Filename: Annotated[str, Field(VariableSizeString)]
+    LimbPlants: Annotated[list[TkAnimationLimbPlant], Field(NMS_list[TkAnimationLimbPlant])]
     Notifies: Annotated[list[TkAnimationNotify], Field(NMS_list[TkAnimationNotify])]
     GameData: Annotated[TkAnimationGameData, Field(TkAnimationGameData)]
     ActionFrame: Annotated[float, Field(bt.single)]
@@ -421,12 +439,22 @@ class TkAnimBlendTree(datatype):
 
 
 @dataclass
+class TkAnimationLimbJointMapping(datatype):
+    Limb: Annotated[str, Field(bt.string, length=0x10)]
+    JointName: Annotated[str, Field(bt.string, length=0x40)]
+
+
+@dataclass
 class TkAnimationComponentData(datatype):
     Idle: Annotated[TkAnimationData, Field(TkAnimationData)]
     AnimGroup: Annotated[str, Field(bt.string, length=0x10)]
     AnimLibraries: Annotated[list[str], Field(NMS_list[VariableSizeString])]
     Anims: Annotated[list[TkAnimationData], Field(NMS_list[TkAnimationData])]
     JointLODOverrides: Annotated[list[TkAnimJointLODData], Field(NMS_list[TkAnimJointLODData])]
+    LimbJointMappings: Annotated[
+        list[TkAnimationLimbJointMapping],
+        Field(NMS_list[TkAnimationLimbJointMapping])
+    ]
     RandomOneShots: Annotated[list[TkAnimRandomOneShots], Field(NMS_list[TkAnimRandomOneShots])]
     Trees: Annotated[list[TkAnimBlendTree], Field(NMS_list[TkAnimBlendTree])]
     NetSyncAnimations: Annotated[bool, Field(bt.boolean)]

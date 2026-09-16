@@ -27,6 +27,7 @@ TANGS = 3
 COLOURS = 4
 BLENDINDEX = 5
 BLENDWEIGHT = 6
+NORMS_TAND_TANGENTS = 11
 
 # Mesh vertex stride sizes
 STRIDES = {
@@ -35,6 +36,7 @@ STRIDES = {
     NORMS: 4,
     TANGS: 4,
     COLOURS: 4,
+    NORMS_TAND_TANGENTS: 4
 }
 
 # Material types
@@ -51,6 +53,7 @@ SEMANTICS = {
     'Colours': COLOURS,
     'BlendIndex': BLENDINDEX,
     'BlendWeight': BLENDWEIGHT,
+    'NormsAndTangs': NORMS_TAND_TANGENTS
 }
 
 REV_SEMANTICS = {
@@ -61,6 +64,7 @@ REV_SEMANTICS = {
     COLOURS: 'Colours',
     BLENDINDEX: 'BlendIndex',
     BLENDWEIGHT: 'BlendWeight',
+    NORMS_TAND_TANGENTS: 'NormsAndTangs',
 }
 
 SERIALIZE_FMT_MAP = {
@@ -81,6 +85,7 @@ SERIALIZE_FMT_MAP_NEW = {
 
 VERT_TYPE_MAP = {
     5121: {'size': 1, 'np_fmt': "4B"},
+    5125: {'size': 1, 'np_fmt': np.uint32},
     5131: {'size': 2, 'np_fmt': "4e"},       # half-precision floats
     36255: {'size': 1, 'np_fmt': np.int32}
 }
