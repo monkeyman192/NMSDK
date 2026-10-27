@@ -28,7 +28,7 @@ from ..NMS.material_node import create_material_node
 
 if TYPE_CHECKING:
     from .. import NMSDKPreferences
-from ..serialization.formats import np_read_int_2_10_10_10_rev
+from ..serialization.formats import unpack_octohedral
 from ..serialization.NMS_Structures.NMS_types import MBINHeader
 from ..serialization.NMS_Structures.Structures import (
     NAMEHASH_MAPPING,
@@ -232,11 +232,14 @@ class ImportScene():
                     self.directory
                 ) + ".PC"
             )
-            if op.exists(self.geometry_fname):
+            # If it doesn't exist, try loading from the root dir.
+            if not op.exists(self.geometry_fname):
                 self.geometry_fname = op.join(
                     self.root_dir,
                     self.scene_node_data.Attribute("GEOMETRY") + ".PC"
                 )
+            if not op.exists(self.geometry_fname):
+                raise FileNotFoundError(self.geometry_fname)
 
         self.descriptor_data = TkModelDescriptorList([])
 
@@ -1019,41 +1022,12 @@ class ImportScene():
 
         mesh.vertices.foreach_set("co", scene_node.np_verts)
 
-        # if scene_node.np_norms_and_tangs is not None:
-        #     # Flatten the normals in "Fortran" order (ie. down columns, then across rows) because of the
-        #     # format of the normal data. It's done this way to avoid a reshape earlier on...
-        #     reshaped = scene_node.np_norms_and_tangs.flatten(order="F")
-        #     numpy.savetxt(
-        #         "D:/github/both/NMSDK/7.x.normals_and_tangents.floats.txt",
-        #         reshaped.reshape(-1, 3),
-        #         fmt="%f",
-        #         delimiter=", ",
-        #     )
-        #     mesh.vertices.foreach_set("normal", reshaped)
-
-        # if scene_node.np_norms is not None:
-        #     # Flatten the normals in "Fortran" order (ie. down columns, then across rows) because of the
-        #     # format of the normal data. It's done this way to avoid a reshape earlier on...
-        #     reshaped = scene_node.np_norms.flatten(order="F")
-        #     numpy.savetxt(
-        #         "D:/github/both/NMSDK/7.x.normals.floats.txt",
-        #         reshaped.reshape(-1, 3),
-        #         fmt="%f",
-        #         delimiter=", ",
-        #     )
-        #     mesh.vertices.foreach_set("normal", reshaped)
-
-        # if scene_node.np_tangs is not None:
-        #     # Flatten the tangents in "Fortran" order (ie. down columns, then across rows) because of the
-        #     # format of the normal data. It's done this way to avoid a reshape earlier on...
-        #     reshaped = scene_node.np_tangs.flatten(order="F")
-        #     numpy.savetxt(
-        #         "D:/github/both/NMSDK/7.x.tangents.floats.txt",
-        #         reshaped.reshape(-1, 3),
-        #         fmt="%f",
-        #         delimiter=", ",
-        #     )
-        #    # mesh.vertices.foreach_set("tangent", reshaped)
+        if scene_node.np_norms is not None:
+            # Flatten the normals in "Fortran" order (ie. down columns, then across rows) because of the
+            # format of the normal data. It's done this way to avoid a reshape earlier on...
+            # print(scene_node.np_norms)
+            reshaped = scene_node.np_norms.flatten()
+            mesh.vertices.foreach_set("normal", reshaped)
 
         mesh.polygons.foreach_set("loop_start", range(0, idx_count, 3))
         mesh.loops.foreach_set("vertex_index", scene_node.np_idxs)
@@ -1349,27 +1323,8 @@ class ImportScene():
         if "UVs" in pos_names:
             pos_vert_data.UVs[..., 1] = 1 - pos_vert_data.UVs[..., 1]
             mesh.np_uvs = pos_vert_data.UVs[:, :2]
-        # if "NormsAndTangs" in names:
-        #     numpy.savetxt(
-        #         "D:/github/both/NMSDK/7.x.normals_and_tangents.ints.txt",
-        #         vert_data.NormsAndTangs.reshape(-1, 1),
-        #         fmt="%d",
-        #     )
-        #     mesh.np_norms_and_tangs = np_read_int_2_10_10_10_rev(vert_data.NormsAndTangs)
-        # if "Normals" in names:
-        #     numpy.savetxt(
-        #         "D:/github/both/NMSDK/7.x.normals.ints.txt",
-        #         vert_data.Normals.reshape(-1, 1),
-        #         fmt="%d",
-        #     )
-        #     mesh.np_norms = np_read_int_2_10_10_10_rev(vert_data.Normals)
-        # if "Tangents" in names:
-        #     numpy.savetxt(
-        #         "D:/github/both/NMSDK/7.x.tangents.ints.txt",
-        #         vert_data.Tangents.reshape(-1, 1),
-        #         fmt="%d",
-        #     )
-        #     mesh.np_tangs = np_read_int_2_10_10_10_rev(vert_data.Tangents)
+        if "NormalsAndTangents" in names:
+            mesh.np_norms = unpack_octohedral(vert_data.NormalsAndTangents, False)
         if "BlendIndex" in names:
             mesh.np_blendIndex = vert_data.BlendIndex
         if "BlendWeight" in names:

@@ -24,7 +24,6 @@ class SceneNodeData():
         self.np_uvs: np.array = None
         self.np_norms: np.array = None
         self.np_tangs: np.array = None
-        self.np_norms_and_tangs: np.array = None
         self.np_idxs: np.array = None
         self.np_blendIndex: np.array = None
         self.np_blendWeight: np.array = None

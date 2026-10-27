@@ -2,7 +2,7 @@ from array import array
 from typing import List
 
 from ..NMS.LOOKUPS import REV_SEMANTICS, SERIALIZE_FMT_MAP
-from .formats import ubytes_to_bytes, write_half, write_int_2_10_10_10_rev
+from .formats import pack_octohedral, ubytes_to_bytes, write_half, write_int_2_10_10_10_rev
 
 
 def serialize_vertex_stream(requires: List[int], count: int, **kwargs):
@@ -28,6 +28,10 @@ def serialize_vertex_stream(requires: List[int], count: int, **kwargs):
                     data.extend(write_int_2_10_10_10_rev(kwargs[stream_name][i]))
                 elif SERIALIZE_FMT_MAP[stream_type] == 2:
                     data.extend(ubytes_to_bytes(kwargs[stream_name][i]))
+                elif SERIALIZE_FMT_MAP[stream_type] == 3:
+                    norm_val = kwargs["Normals"][i]
+                    tang_val = kwargs["Tangents"][i]
+                    data.extend(pack_octohedral(norm_val, tang_val))
         return data
     else:
         # return empty data

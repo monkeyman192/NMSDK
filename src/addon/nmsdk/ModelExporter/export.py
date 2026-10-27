@@ -240,6 +240,11 @@ class Export():
                     print(f"CRITICAL ERROR! No vertex and/or index data provided for {mesh.Name} Object")
 
         self.stream_list = list(SEMANTICS[x] for x in streams.difference({"Indexes", "Vertices", "UVs"}))
+        # Combine normals and tangents into a single type
+        if SEMANTICS["Normals"] and SEMANTICS["Tangents"] in self.stream_list:
+            self.stream_list.remove(SEMANTICS["Normals"])
+            self.stream_list.remove(SEMANTICS["Tangents"])
+            self.stream_list.append(SEMANTICS["NormalsAndTangents"])
         self.stream_list.sort()
 
         self.element_count = len(self.stream_list)
@@ -475,8 +480,7 @@ class Export():
 
         # Fix up the index values for the actual mesh data
         for name, batch in self.batches.items():
-            self.batches[name] = [batch[0] + batch_offset,
-                                  batch[1]]
+            self.batches[name] = [batch[0] + batch_offset, batch[1]]
 
         # Also add the bounded hull vert start and ends
         for name, obj in self.Model.mesh_colls.items():
@@ -672,6 +676,14 @@ class Export():
                                                       Offset=Offset,
                                                       Normalise=0,
                                                       Instancing=0))
+            elif sID == 11:
+                Offset = self.offsets[sID]
+                VertexElements.append(TkVertexElement(SemanticID=sID,
+                                                      Size=1,
+                                                      Type=5125,
+                                                      Offset=Offset,
+                                                      Normalise=0,
+                                                      Instancing=0))
 
         self.GeometryData['VertexLayout'] = TkVertexLayout(
             ElementCount=self.element_count,
@@ -789,7 +801,7 @@ class Export():
         with open(scene_path, "wb") as f:
             hdr = MBINHeader()
             hdr.header_namehash = 0x3DB87E47
-            hdr.header_guid = 0x42A57794F683F216
+            hdr.header_guid = 0xAD96A863591F02D8
             hdr.write(f)
             self.TkSceneNodeData.write(f)
         print(f'Scene written to {scene_path}')

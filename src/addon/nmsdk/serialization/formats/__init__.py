@@ -5,3 +5,5 @@ from .INT_2_10_10_10_REV import bytes_to_int_2_10_10_10_rev  # noqa
 from .INT_2_10_10_10_REV import np_read_int_2_10_10_10_rev  # noqa
 from .ubyte import bytes_to_ubyte  # noqa
 from .ubyte import ubytes_to_bytes  # noqa
+from .octahedral_np import unpack_octohedral  # noqa
+from .octahedral import pack as pack_octohedral  # noqa

@@ -651,6 +651,7 @@ class Exporter():
         # Need to assign UV data *after* any possible triangulation
         if not is_coll_mesh:
             uv_layer_data = data.uv_layers.active.data
+            data.calc_tangents(uvmap=data.uv_layers.active.name)
 
         # Determine if the model has colour data
         export_colours = bool(len(data.vertex_colors))
@@ -673,14 +674,19 @@ class Exporter():
         # counts all over the place which may be tricky.)
         # TBD once I get a model with this issue I can test with.
 
+        _tangents = []
+        for loop in data.loops:
+            _tangents.append(tuple([*loop.tangent, loop.bitangent_sign]))
+
         for poly in data.polygons:
             norm = poly.normal
             poly_verts = []
             _modified_poly_verts = []
             poly_indexes = []
             for _loop_index in poly.loop_indices:
-                poly_verts.append(data.loops[_loop_index].vertex_index)
-                poly_indexes.append(data.loops[_loop_index].index)
+                loop = data.loops[_loop_index]
+                poly_verts.append(loop.vertex_index)
+                poly_indexes.append(loop.index)
             for i in range(poly.loop_total):
                 vi = poly_verts[i]
                 li = poly_indexes[i]
@@ -714,23 +720,14 @@ class Exporter():
                     normals.append((norm[0], norm[1], norm[2], 1))
                 if tangents[vi] is None:
                     if poly.loop_total == 3:
-                        tang = calc_tangents(
-                            tuple(data.vertices[j].co for j in poly_verts),
-                            tuple(uv_layer_data[j].uv for j in poly_indexes),
-                            norm)
-                        tangents[vi] = (tang[0], tang[1], tang[2], 1)
+                        tangents[vi] = _tangents[li]
                     else:
                         print('This mesh is not currently supported.')
                         print('If you see this message please raise an issue '
                               'on discord and attach this blend file.')
                         raise NotImplementedError('Polygons need to be tris')
                 elif vert_needs_split:
-                    if poly.loop_total == 3:
-                        tang = calc_tangents(
-                            tuple(data.vertices[j].co for j in poly_verts),
-                            tuple(uv_layer_data[j].uv for j in poly_indexes),
-                            norm)
-                    tangents.append((tang[0], tang[1], tang[2], 1))
+                    tangents.append(_tangents[li])
                 if export_colours:
                     if not colours[vi]:
                         vcol = colour_data[li].color

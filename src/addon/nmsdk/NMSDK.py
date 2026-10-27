@@ -769,9 +769,9 @@ class NMS_Import_Operator(Operator, ImportHelper):
     bl_label = "Import from SCENE file"
 
     # ImportHelper mixin class uses this
-    filename_ext = ".MXML"
+    filename_ext = ".MBIN"
     filter_glob: StringProperty(
-        default="*.scene.mxml;*.SCENE.MXML;*.scene.mbin;*.SCENE.MBIN",
+        default="*.scene.mbin;*.SCENE.MBIN",
         options={"HIDDEN"})
 
     clear_scene: BoolProperty(

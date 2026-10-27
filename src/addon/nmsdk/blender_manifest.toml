@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "nmsdk"
-version = "0.10.0-alpha14"
+version = "0.10.0-alpha15"
 name = "NMSDK"
 tagline = "NMS model importer and exporter"
 maintainer = "monkeyman192"

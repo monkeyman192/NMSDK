@@ -173,12 +173,15 @@ class Object():
             child.construct_data()
             # this will return the self.NodeData object in the child Object
             child_nodes.append(child.get_data())
-        self.NodeData = TkSceneNodeData(Name=self.Name,
-                                        NameHash=self.NameHash,
-                                        Type=self._Type,
-                                        Transform=self.Transform,
-                                        Attributes=self.Attributes,
-                                        Children=child_nodes)
+        self.NodeData = TkSceneNodeData(
+            Name=self.Name,
+            NameHash=self.NameHash,
+            Type=self._Type,
+            Transform=self.Transform,
+            Attributes=self.Attributes,
+            Children=child_nodes,
+            InstanceTransforms=[],
+        )
 
     def rebuild_entity(self):
         # this is used to rebuild the entity data in case something else is
