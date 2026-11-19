@@ -855,7 +855,7 @@ class Exporter():
         # TODO: this is currently only true for models that are imported then
         # modified then exported again.
         trans, rot_q, scale = ob.matrix_local.decompose()
-        rot = rot_q.to_euler('XYZ')
+        rot = rot_q.to_euler('ZXY')
 
         transform = TkTransformData(TransX=trans[0],
                                     TransY=trans[1],
