@@ -117,16 +117,9 @@ class SceneNodeData():
                                       t['Trans'][1],
                                       t['Trans'][2]))
 
-        # Rotation matrix
-        mat_rot = Euler((t['Rot'][0], t['Rot'][1], t['Rot'][2]), 'XYZ')
-        mat_rot = mat_rot.to_matrix().to_4x4()
-        """
-        mat_rotx = Matrix.Rotation(t['Rot'][0], 4, 'X')
-        mat_roty = Matrix.Rotation(t['Rot'][1], 4, 'Y')
-        mat_rotz = Matrix.Rotation(t['Rot'][2], 4, 'Z')
         # Rotations are stored in the ZXY order
-        mat_rot = mat_rotz @ mat_rotx @ mat_roty
-        """
+        mat_rot = Euler((t['Rot'][0], t['Rot'][1], t['Rot'][2]), 'ZXY')
+        mat_rot = mat_rot.to_matrix().to_4x4()
 
         # Scale Matrix
         mat_scax = Matrix.Scale(t['Scale'][0], 4, (1, 0, 0))
